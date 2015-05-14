@@ -1,4 +1,4 @@
-var r2f = require ("./r2frida");
+var r2f = require ("./host");
 var useReadline = true;
 
 if (process.argv.length < 3) {

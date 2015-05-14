@@ -1,7 +1,7 @@
 /* entrypoint for r2frida.js */
 
 var r2p2 = require ("./r2pipe2");
-var r2f = require ("./r2frida");
+var r2f = require ("./host");
 
 var expectRead = false;
 

@@ -1,4 +1,4 @@
-/* entrypoint for r2frida.js */
+/* entrypoint for host.js frida's host-side code */
 
 var frida = require ('frida');
 var fs = require ("fs");
