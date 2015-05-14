@@ -58,7 +58,7 @@ function runRead(script, msg) {
 }
 
 function onFridaLoad(script) {
-  console.log ("Attached");
+  console.log ("[+] r2frida attached");
   r2p2.onObject (function(msg) {
     //console.log ("Got Message From R2", msg);
     switch (msg.op) {
@@ -78,10 +78,12 @@ function onFridaLoad(script) {
   });
 }
 
-if (process.argv.length < 3) {
-  console.log ("Use: r2frida.js [pid | processname]")
-  console.log ("Use frida-ps -R to list all the processes");
+var argv = process.argv.slice(2);
+
+if (argv.length < 1) {
+  console.error ("Use: r2frida.js [pid | processname]")
+  console.error ("Use frida-ps -R to list all the processes");
   process.exit(1);
 }
 
-r2f.attachAndRun (process.argv[2], onFridaLoad, onFridaMessage);
+r2f.attachAndRun (argv[0], onFridaLoad, onFridaMessage);

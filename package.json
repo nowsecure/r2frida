@@ -7,8 +7,10 @@
   },
   "description": "Radare2 and Frida together",
   "contributors": [],
-  "bin": {},
-  "main": "./r2frida",
+  "main": "./bin/r2frida.js",
+  "bin": {
+    "r2frida": "./bin/r2frida.js"
+  },
   "repository": {
     "type": "git",
     "url": "git@github.com:viaforensics/r2frida.js.git"
@@ -32,6 +34,7 @@
   "dependencies": {
     "jsfmt": "~0.0.0",
     "frida": "*",
+    "r2pipe": "*",
     "colors": "*"
   }
 }

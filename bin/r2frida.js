@@ -9,6 +9,7 @@ var colors = require ('colors');
 var fs = require ('fs');
 
 /* actions */
+
 const Option = {
   showHelp: function() {
     die ('Usage: r2frida [-h|-v] [-s] [-l|procname|pid]', 0);
@@ -42,7 +43,6 @@ Main (process.argv.slice(2), {
 function Main(argv, options) {
   var target = undefined;
   process.chdir (__dirname + '/../src');
-  //for (var i = 0; i < argv.length; i++) {
   for (var i in argv) {
     var opt = options [argv[+i]];
     if (opt) {
