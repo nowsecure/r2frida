@@ -1,0 +1,36 @@
+{
+  "name": "r2frida",
+  "version": "0.1.0",
+  "author": {
+    "name": "pancake",
+    "email": "pancake@nowsecure.com"
+  },
+  "description": "Radare2 and Frida together",
+  "contributors": [],
+  "bin": {},
+  "main": "./r2frida",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:viaforensics/r2frida.js.git"
+  },
+  "keywords": [
+    "radare2",
+    "frida",
+    "reversing",
+    "tracing",
+    "introspection",
+    "instrumentation"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=0.12"
+  },
+  "bugs": {
+    "url": "https://github.com/viaforensics/r2frida/issues"
+  },
+  "homepage": "https://github.com/viaforensics/r2frida.js",
+  "dependencies": {
+    "jsfmt": "~0.0.0"
+  }
+}
+

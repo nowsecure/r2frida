@@ -1,0 +1,27 @@
+#!/bin/sh
+NODE=node
+#NODE=iojs
+
+if [ -z "$1" -o "$1" = "-h" ]; then
+	echo "Usage: r2frida [-h|-v] [-s] [-l|processname]"
+	exit 1
+fi
+if [ "$1" = "-v" ]; then
+	echo "0.1.0"
+	exit 0
+fi
+if [ "$1" = "-s" ]; then
+	shift
+	if [ -z "$1" ]; then
+		echo "Missing argument"
+		exit 1
+	else
+		cd js
+		${NODE} main.js $*
+	fi
+fi
+if [ "$1" = "-l" ]; then
+	exec frida-ps -R
+fi
+cd js
+r2 r2pipe://"${NODE} r2io-frida.js $1"
