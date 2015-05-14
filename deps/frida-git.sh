@@ -2,6 +2,12 @@
 # pancake@nowsecure.com
 
 case "$1" in
+clone)
+	make frida
+	;;
+mrproper)
+	rm -rf frida
+	;;
 update)
 	cd frida
 	git pull
@@ -13,7 +19,11 @@ update)
 		git pull
 	)
 	done
-	make node-64
+	if [ "`uname`" = Darwin ]; then
+		make node-mac
+	else
+		make node-64
+	fi
 	;;
 clean)
 	cd frida
@@ -27,7 +37,7 @@ ios)
 	make server-ios
 	;;
 *)
-	echo "Usage: frida-git.sh [android|ios|clean|update]"
+	echo "Usage: frida-git.sh [android|ios|clean|mrproper|update]"
 	echo "Warning: This build requires ~3GB of disk"
 	;;
 esac

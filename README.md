@@ -111,5 +111,5 @@ Credits
 
 This tool has been developed by pancake aka Sergi Alvarez for NowSecure.
 
-I would like to thank Ole André for being so nice answering and fixing bugs in Frida
-without those patches that would not be possible.
+I would like to thank Ole André for being so nice answering and fixin
+bugs in Frida without those patches that would not be possible.
