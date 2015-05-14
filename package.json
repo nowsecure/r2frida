@@ -30,7 +30,8 @@
   },
   "homepage": "https://github.com/viaforensics/r2frida.js",
   "dependencies": {
-    "jsfmt": "~0.0.0"
+    "jsfmt": "~0.0.0",
+    "colors": "*"
   }
 }
 

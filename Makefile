@@ -1,6 +1,16 @@
+DESTDIR?=
+PREFIX?=/usr
+PFX=${DESTDIR}/${PREFIX}
+PWD=$(shell pwd)
+BINDIR=$(PFX)/bin
+FRIDA_ROOT?=
+
 node_modules/frida:
-	cp -rf /mnt/nowsecure/frida/build/frida_stripped-linux-x86_64/lib/node_modules/frida node_modules/frida
-	#cp -rf /home/pancake/prg/frida/build/frida_stripped-linux-x86_64/lib/node_modules/frida node_modules/frida
+	npm install
+	cp -rf $(FRIDA_ROOT)/build/frida_stripped-*/lib/node_modules/frida node_modules/frida
 
 run:
-	r2 r2pipe://"node r2io-frida.js"
+	cd src ; r2 r2pipe://"node r2io-frida.js vim"
+
+install:
+	ln -fs $(PWD)/bin/r2frida.js $(BINDIR)/r2frida
