@@ -27,6 +27,7 @@ const Option = {
     exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   listProcesses: function() {
+/* TODO: reimplement using frida api */
     exec ('frida-ps', ['-R']);
   }
 }

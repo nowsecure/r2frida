@@ -1,6 +1,6 @@
-FILES=hexdump.js main.js r2frida.js
-FILES+=r2io-frida.js r2io-hello.js
-FILES+=r2pipe2.js target.js test.js
+FILES=hexdump.js main.js
+FILES+=r2io-frida.js test.js
+FILES+=target.js host.js
 
 all:
 	cd .. ; npm install

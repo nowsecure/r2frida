@@ -34,7 +34,7 @@
   "dependencies": {
     "jsfmt": "~0.0.0",
     "frida": "*",
-    "r2pipe": "*",
+    "r2pipe": ">=0.4.0",
     "colors": "*"
   }
 }
