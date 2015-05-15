@@ -27,8 +27,15 @@ const Option = {
     exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   listProcesses: function() {
-/* TODO: reimplement using frida api */
-    exec ('frida-ps', ['-R']);
+    var frida = require ('frida');
+    frida.getRemoteDevice().then(function(device) {
+      device.enumerateProcesses().then (function(procs) {
+        for (var i in procs.reverse()) {
+          var p = procs[i];
+          console.log(p.pid + '\t' + p.name);
+        }
+      })
+    });
   }
 }
 
@@ -47,13 +54,12 @@ function Main(argv, options) {
   for (var i in argv) {
     var opt = options [argv[+i]];
     if (opt) {
-      opt (argv[+i + 1]);
-    } else {
-      if (target) {
-        die ("Invalid parameter: '" + argv[+i] + "'", 1);
-      }
-      target = argv[+i];
+      return opt (argv[+i + 1]);
     }
+    if (target) {
+      die ("Invalid parameter: '" + argv[+i] + "'", 1);
+    }
+    target = argv[+i];
   }
   target && Option.startR2(target);
   Option.showHelp ();
