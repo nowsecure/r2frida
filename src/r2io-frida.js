@@ -4,13 +4,24 @@ var r2p = require ("r2pipe");
 var r2f = require ("./host");
 
 var expectRead = false;
-var send = function() {};
+var send = function() {
+  console.error ("NO SEND");
+};
 
 /* receive message from r2 io plugin wrapper */
 /* parses the message to read ... */
 function onFridaMessage(msg, data) {
-  var cmd = msg.payload.name;
-  var addr = msg.payload.offset;
+  var payload = msg.payload;
+  var obj = {
+    "result": data.length || 0,
+    "data": []
+  };
+  if (!payload) {
+    send (obj);
+    return false;
+  }
+  var cmd = payload.name;
+  var addr = payload.offset;
   if (cmd != 'x') {
     return false;
     // read memory operation done
@@ -20,10 +31,6 @@ function onFridaMessage(msg, data) {
   }
   expectRead = false;
   /* read nothing here */
-  var obj = {
-    "result": data.length,
-    "data": []
-  };
   for (var i in data) {
     obj.data.push (data[i]);
   }
@@ -35,7 +42,6 @@ function onFridaLoad(script) {
   function runRead(script, msg) {
     var addr = msg.address;
     var size = msg.count;
-    //console.log(addr, size)
     expectRead = true;
     r2f.processLine (script, 'x ' + size + '@' + addr, function(res) {
       /*

@@ -101,11 +101,18 @@ function onMessage(msg) {
       }
       break;
     case 'x':
-      var mem = Memory.readByteArray(ptr(msg.offset), +args[1] || blocksize);
-      send ({
-        name: 'x',
-        offset: +msg.offset
-      }, mem);
+      try {
+        var mem = Memory.readByteArray(ptr(msg.offset), +args[1] || blocksize);
+        send ({
+          name: 'x',
+          offset: +msg.offset
+        }, mem);
+      } catch ( e ) {
+        send ({
+          name: 'x',
+          offset: +msg.offset
+        }); //[1,2,3]);
+      }
       break;
     case 'ic':
       send(Message ('ic', ObjC.classes));

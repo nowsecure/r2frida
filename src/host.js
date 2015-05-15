@@ -43,6 +43,9 @@ function log() {
 
 function gotMessageFromFrida(msg, data) {
   //console.log ("GOT PWNFUL", msg);
+  if (msg && msg.type == 'error') {
+    return true;
+  }
   function getRegionString(r) {
     var fin = "0x" + (+r.base + r.size).toString(16);
     return r.base + " " + fin + " " + r.protection;
@@ -61,8 +64,6 @@ function gotMessageFromFrida(msg, data) {
       var hd = new hex.Hexdump(data, opt);
       if (hd && hd.output) {
         log(hd.output);
-      } else {
-        console.error ("no data");
       }
       break;
     case 'ie':
@@ -74,7 +75,7 @@ function gotMessageFromFrida(msg, data) {
           symbols[s.name] = s.address;
         }
       } else {
-        console.error ("no data");
+        //console.error ("no data");
       }
       break;
     case 'is':
@@ -86,7 +87,7 @@ function gotMessageFromFrida(msg, data) {
           symbols[s.name] = s.address;
         }
       } else {
-        console.error ("no data");
+        //console.error ("no data");
       }
       break;
     case 'dt':
@@ -245,6 +246,11 @@ function attachAndRun(pid, on_load, on_message) {
     }).then(function(script) {
       script.events.listen('message', function(msg, data) {
         //console.log ("ONMSG",on_message)
+        if (msg && msg.type == 'error') {
+          msg.payload = {
+            name: 'x'
+          }
+        }
         if (on_message && on_message (msg, data)) {
           return;
         }
