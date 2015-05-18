@@ -1,5 +1,6 @@
 /* entrypoint for host.js frida's host-side code */
 
+var spawnSync = require('child_process').spawnSync;
 var frida = require ('frida');
 var fs = require ("fs");
 var hex = require ("./hexdump");
@@ -11,8 +12,30 @@ var remoteScript = "" + fs.readFileSync (scriptFileName);
 /* globals are bad */
 var grep = undefined;
 var currentOffset = 0;
-var current_blocksize = 64;
-var symbols = {};
+var current_blocksize = 64; // 
+var Sym = {};
+var Cfg = {};
+
+function exec(cmd, args) {
+  var res = spawnSync (cmd, args, {
+    stdio: [0, 1, 2]
+  });
+  return res.status;
+}
+
+// TODO: optimize tracing by moving this code to target.js
+function traceInRange(t, from, to) {
+  if (t.addr >= from && t.addr <= to) {
+    return true;
+  }
+  for (var b in t.bt) {
+    var bt = t.bt[b];
+    if (bt >= from && bt <= to) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function Offset(num, pad) {
   var offset = num.toString(16);
@@ -41,7 +64,7 @@ function log() {
   return str;
 }
 
-function gotMessageFromFrida(msg, data) {
+function gotMessageFromFrida(script, msg, data) {
   //console.log ("GOT PWNFUL", msg);
   if (msg && msg.type == 'error') {
     return true;
@@ -57,25 +80,47 @@ function gotMessageFromFrida(msg, data) {
   var payload = msg.payload;
   log();
   switch (payload.name) {
+    case 'pong':
+      log ("PONG RECEIVED");
+      break;
     case 'x':
+      var xd = payload.data;
       var opt = {
-        offset: payload.offset
+        offset: xd.offset
       }
-      var hd = new hex.Hexdump(data, opt);
-      if (hd && hd.output) {
-        log(hd.output);
+      console.log (payload);
+      if (xd.exception) {
+        console.log ("HEXDUMP EXCEPTION", xd.exception);
+      } else {
+        if (data.length) {
+          console.error ("Invalid address");
+        }
+        var hd = new hex.Hexdump(data, opt);
+        if (hd && hd.output) {
+          log(hd.output);
+        }
       }
+      break;
+    case 'ie?':
+      console.log ("Symbols: " + Object.keys(Sym).length / 2);
       break;
     case 'ie':
       if (payload.data) {
         for (var i in payload.data) {
           var s = payload.data[i];
           log (s.address, s.library, s.name);
-          symbols[s.address] = s.name;
-          symbols[s.name] = s.address;
+          Sym[s.address] = s.name;
+          Sym[s.name] = s.address;
         }
       } else {
-        //console.error ("no data");
+        function Symbol(addr, name) {
+          return "f " + name + ' = ' + addr;
+        }
+        for (var s in Sym) {
+          if (s[0] == '0') {
+            console.log (Symbol (s, Sym[s]));
+          }
+        }
       }
       break;
     case 'is':
@@ -83,24 +128,90 @@ function gotMessageFromFrida(msg, data) {
         for (var i in payload.data) {
           var s = payload.data[i];
           log (s.library, s.name, s.address);
-          symbols[s.address] = s.name;
-          symbols[s.name] = s.address;
+          Sym[s.address] = s.name;
+          Sym[s.name] = s.address;
         }
       } else {
         //console.error ("no data");
       }
       break;
+    case 'i?':
+      log ("Usage: i[escl] show info");
+      log (" i     show process info");
+      log (" ie    show exports");
+      log (" ic    show classes");
+      break;
+    case 'i':
+      var info = payload.data;
+      var conf = {
+        'asm.arch': info.arch,
+        'asm.bits': info.bits,
+        'asm.os': info.os,
+        'bin.lang': info.objc ? 'objc' : info.dalvik ? 'dalvik' : '',
+      };
+      for (var k in conf) {
+        var line = 'e ' + k + ' = ' + conf[k];
+        log (line);
+        processLine (script, line);
+      }
+      log ("# pid " + info.pid);
+      break;
+    case 'ic':
+      for (var index in payload.data) {
+        log(payload.data[index]);
+      }
+      break;
+    case 'il':
+      for (var index in payload.data) {
+        var r = payload.data[index];
+        log (r.base + " " + r.name);
+      }
+      break;
     case 'dt':
       var t = payload.data;
-      t.name = t.name || symbols[t.addr];
-      log(t.addr, t.name, t.a0, "0x" + t.a1.toString(16), t.a2, t.a3);
-      log(t.addr, t.bt);
+      t.name = t.name || Sym[t.addr];
+      if (Cfg['trace.from'] && Cfg['trace.to']) {
+        var from = Cfg['trace.from'];
+        var to = Cfg['trace.to'];
+        if (!traceInRange (t, from, to)) {
+          console.log ("Skipped not in trace range for ", t.addr);
+          break;
+        }
+      }
+      log("Trace at", t.addr, t.name);
+      log("Args:", t.a0, "0x" + t.a1.toString(16), t.a2, t.a3);
+      log("Backtrace: ", t.addr, t.bt);
       if (data) {
-        var hd = new hex.Hexdump(data, {
-          offset: t.a1
-        });
-        if (hd && hd.output) {
-          log (hd.output);
+        function dataIsString(data) {
+          const from = ' '; //String.fromCharCode(32);
+          const to = '~'; //String.fromCharCode(126);
+          const nul = "\x00"
+          var isStr = true;
+          for (var i = 0; i < data.length; i++) {
+            if (data[i] == nul) {
+              break;
+            }
+            if (data[i] >= from && data[i] <= to) {
+            // ok
+            } else {
+              isStr = false;
+              break;
+            }
+          }
+          if (i == 0)
+            return false;
+          return isStr;
+        }
+        var str = dataIsString(data);
+        if (str) {
+          console.log (str);
+        } else {
+          var hd = new hex.Hexdump(data, {
+            offset: t.a1
+          });
+          if (hd && hd.output) {
+            log (hd.output);
+          }
         }
       }
       break;
@@ -118,8 +229,23 @@ function gotMessageFromFrida(msg, data) {
         if (t.id == pid) {
           log ("[current thread]");
         } else {
-          log ("tid", t.id);
-          log(t.context);
+          log ("tid", t.id, t.state);
+          var c = 0;
+          function getPrefix(msg) {
+            c++;
+            if (c == 1)
+              return msg;
+            if (((c - 1) % 4) == 0)
+              return '\n' + msg;
+            return '\t' + msg;
+          }
+          var regs = '';
+          for (var r in t.context) {
+            var msg = r + ' : ' + t.context[r];
+            regs += (getPrefix(msg));
+          }
+          log(regs);
+          //   log (t.context);
         }
       }
       break;
@@ -131,26 +257,6 @@ function gotMessageFromFrida(msg, data) {
       break;
     case 'dk':
       // TODO: kill a specific thread
-      break;
-    case 'i':
-      var info = payload.data;
-      log ("e asm.arch=" + info.arch);
-      log ("e asm.bits=" + info.bits);
-      log ("e asm.os=" + info.os);
-      log ("e lang.objc=" + info.objc);
-      log ("e lang.dalvik=" + info.dalvik);
-      log ("# pid " + info.pid);
-      break;
-    case 'ic':
-      for (var index in payload.data) {
-        log(payload.data[index]);
-      }
-      break;
-    case 'il':
-      for (var index in payload.data) {
-        var r = payload.data[index];
-        log (r.base + " " + r.name);
-      }
       break;
     default:
       log ("unkmsg", msg);
@@ -185,53 +291,103 @@ function processLine(script, chunk, cb) {
       //console.log('Temporary offset ' + offset);
     }
     var words = chunk.split(/ /);
-    switch (words[0]) {
-      case '?':
-        if (words.length > 1) {
-          var off = Offset(+eval(chunk.substring(2)));
-          log (off);
-        } else {
-          r += log ("Available r2frida commands\n"
-          + "dm             - show memory regions\n"
-          + "dp             - show current pid\n"
-          + "dpt            - show threads\n"
-          + "s <addr>       - seek to address\n"
-          + "b <size>       - change blocksize\n"
-          + "is <lib> <sym> - show address of symbol\n"
-          + "ie <lib>       - list exports/entrypoints of lib\n"
-          + "i              - show target information\n"
-          + "il             - list libraries\n"
-          + "dr             - show thread regs (see dpt)\n"
-          + "dt <addr> ..   - trace list of addresses\n"
-          + "dt-            - clear all tracing\n"
-          + "x @ addr       - hexdump at address\n"
-          + "q              - quit\n");
-          fin (r);
-          return true;
-      }
-      //console.log ("w hexpair@addr  - write hexpairs to addr");
-      case 'b':
-        var tmp = +chunk.substring(2);
-        if (tmp) {
-          current_blocksize = blocksize = tmp;
+    if (words[0][0] == '!') {
+      var args = chunk.substring(1).split(/ /);
+      exec (args[0], args.slice(1));
+    } else {
+      switch (words[0]) {
+        case '?':
+          if (words.length > 1) {
+            var off = Offset(+eval(chunk.substring(2)));
+            log (off);
+          } else {
+            r += log ("Available r2frida commands\n"
+            + "+ Use '@' for temporal seeks and ~ for internal grep\n"
+            + "!ls -l /       - execute shell command\n"
+            + "b <size>       - change blocksize\n"
+            + "dr             - show thread regs (see dpt)\n"
+            + "dt <addr> ..   - trace list of addresses\n"
+            + "dt-            - clear all tracing\n"
+            + "di addr arg..  - call function at addr with given args\n"
+            + "dm             - show memory regions\n"
+            + "dp             - show current pid\n"
+            + "dpt            - show threads\n"
+            + "e [k[=v]]      - evaluate Cfg var (host+target)\n"
+            + "pad 90909090   - disassemble bytes at current offset\n"
+            + "pa mov r0, 33  - assemble instruction at current offset\n"
+            + "s <addr>       - seek to address\n"
+            + "i              - show target information\n"
+            + "ic <class>     - list classes or methods of <class>\n"
+            + "ie <lib>       - list exports/entrypoints of lib\n"
+            + "is <sym>       - show address of symbol\n"
+            + "is <lib> <sym> - show address of symbol\n"
+            + "il             - list libraries\n"
+            + "x @ addr       - hexdump at address\n"
+            + "q              - quit\n"
+            + "ping           - ping the frida-server\n");
+            fin (r);
+            return true;
         }
-        r += log(blocksize);
-        break;
-      case 's':
-        currentOffset = offset = +chunk.substring(2);
-        r += log(offset);
-        break;
-      case 'q':
-        fin (r);
-        process.exit(+words[1] || 0);
-        return true;
-      default:
-        script.postMessage({
-          "name": chunk,
-          "offset": offset,
-          "blocksize": blocksize
-        });
-        break;
+        //console.log ("w hexpair@addr  - write hexpairs to addr");
+        case 'b':
+          var tmp = +chunk.substring(2);
+          if (tmp) {
+            current_blocksize = blocksize = tmp;
+          }
+          r += log(blocksize);
+          break;
+        case 'e?':
+          r += log('Eval variables shared between target and host:\n'
+          + 'trace.from=0x9000   - only trace functions from this\n'
+          + 'trace.to=0xac00     - ... range in the backtrace\n');
+          break;
+        case 'pa':
+          exec ('rasm2', [
+            '-a', Cfg['asm.arch'],
+            '-b', Cfg['asm.bits'],
+            '-o', currentOffset,
+          words.slice(1).join()]);
+          break;
+        case 'pad':
+          exec ('rasm2', [
+            '-a', Cfg['asm.arch'],
+            '-b', Cfg['asm.bits'],
+            '-o', currentOffset,
+          '-d', words.slice(1).join()]);
+          break;
+        case 'e':
+          if (words.length > 1) {
+            var kv = words.slice(1).join('');
+            var io = kv.indexOf ('=');
+            if (io != -1) {
+              var k = kv.substring (0, io);
+              var v = kv.substring (io + 1);
+              Cfg[k] = v;
+            } else {
+              console.log (Cfg[kv]);
+            }
+          } else {
+            for (var e in Cfg) {
+              console.log ('e ' + e + ' = ' + Cfg[e]);
+            }
+          }
+          break;
+        case 's':
+          currentOffset = offset = +chunk.substring(2);
+          r += log(offset);
+          break;
+        case 'q':
+          fin (r);
+          process.exit(+words[1] || 0);
+          return true;
+        default:
+          script.postMessage({
+            "name": chunk,
+            "offset": offset,
+            "blocksize": blocksize
+          });
+          break;
+      }
     }
   }
   fin (r);
@@ -254,7 +410,7 @@ function attachAndRun(pid, on_load, on_message) {
         if (on_message && on_message (msg, data)) {
           return;
         }
-        gotMessageFromFrida (msg, data);
+        gotMessageFromFrida (script, msg, data);
       });
       script.load ().then (function() {
         on_load (script);
@@ -267,5 +423,14 @@ function attachAndRun(pid, on_load, on_message) {
 
 module.exports.attachAndRun = attachAndRun;
 module.exports.processLine = processLine;
-module.exports.currentOffset = currentOffset;
+module.exports.getCurrentOffset = function() {
+  return currentOffset;
+}
 module.exports.Offset = Offset;
+module.exports.setConfig = function(script, kv) {
+  for (var a in kv) {
+    var line = 'e ' + a + '=' + kv[a];
+    processLine (script, line);
+  }
+}
+

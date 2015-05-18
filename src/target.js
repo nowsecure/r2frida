@@ -1,3 +1,5 @@
+var Cfg = {};
+
 function onMessage(msg) {
   var args = msg.name.split(/ /);
   var blocksize = msg.blocksize;
@@ -35,8 +37,10 @@ function onMessage(msg) {
               if (b > 0xfff) {
                 b = 64;
               }
+              var bt = Thread.backtrace(this.context).join (' ');
+              //this.context, Backtracer.ACCURATE) .map(DebugSymbol.fromAddress).join(" ");
               try {
-                var mem = Memory.readByteArray(ptr(a), b);
+                var mem = Memory.readByteArray(ptr(a), b > 0 ? b : 0);
                 if (!mem) {
                   return;
                 }
@@ -46,6 +50,7 @@ function onMessage(msg) {
               send(Message('dt', {
                 'addr': addr,
                 'name': name,
+                'bt': bt,
                 'a0': args[0].toInt32(),
                 'a1': args[1].toInt32(),
                 'a2': args[2].toInt32(),
@@ -57,11 +62,39 @@ function onMessage(msg) {
         })(args[i]);
       }
       break;
+    case 'di':
+      var a = args.slice (1);
+      if (a.length > 0) {
+        //console.log ("Injecting call to "+a[0]+" with "+a.length-1+" args");
+        var res;
+        switch (a.length - 1) {
+          case 1: res = (new NativeFunction(ptr(a[0]), 'int', ['int']))(a[1]); break;
+          case 2: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int']))(a[1], a[2]); break;
+          case 3: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int']))(a[1], a[2], a[3]); break;
+          case 4: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int', 'int']))(a[1], a[2], a[3], a[4]); break;
+          default:
+            console.log ("error");
+            break;
+        }
+        send(Message('di', {
+          'res': res
+        }));
+      }
+      break;
     case 'dt-':
       Interceptor.detachAll();
       break;
     case 'ping':
       send(Message('pong', msg));
+      break;
+    case 'e':
+      var kv = args.slice(1).join('');
+      var io = kv.indexOf ('=');
+      if (io != -1) {
+        var k = kv.substring (0, io);
+        var v = kv.substring (io + 1);
+        Cfg[k] = v;
+      }
       break;
     case 'ie':
       if (args.length >= 2) {
@@ -102,20 +135,32 @@ function onMessage(msg) {
       break;
     case 'x':
       try {
-        var mem = Memory.readByteArray(ptr(msg.offset), +args[1] || blocksize);
-        send ({
-          name: 'x',
+        var mem = Memory.readByteArray(ptr(msg.offset), 64); //+args[1] || blocksize);
+        send (Message ('x', {
           offset: +msg.offset
-        }, mem);
+        }), mem);
       } catch ( e ) {
-        send ({
-          name: 'x',
-          offset: +msg.offset
-        }); //[1,2,3]);
+        send (Message ('x', {
+          offset: +msg.offset,
+          exception: e
+        }));
       }
       break;
     case 'ic':
-      send(Message ('ic', ObjC.classes));
+      if (args.length > 1) {
+        var classname = args[1];
+        eval ('send(Message("ic",ObjC.classes.' + classname + '));');
+      } else {
+        try {
+          var classes = ["Classes:"];
+          for (var c in Object.keys(ObjC.classes)) {
+            classes.push ('' + c);
+          }
+          send(Message ('ic', classes));
+        } catch ( e ) {
+          send(Message ('ic', ['' + e]));
+        }
+      }
       break;
     case 'i':
       var obj = {};
@@ -163,6 +208,25 @@ function onMessage(msg) {
           }));
         }
       });
+      break;
+    case 'di':
+      if (args.length > 1) {
+        var code = args.splice(1).join(' ');
+        eval(code);
+        var objs = []
+        send (Message('di', objs));
+      }
+      /*
+            var objs = [];
+            var ranges = Process.enumerateThreads({
+              'onMatch': function(r) {
+                objs.push (r);
+              },
+              'onComplete': function() {
+                send(Message('dpt', objs));
+              }
+            });
+      */
       break;
     case 'dpt':
       var objs = [];

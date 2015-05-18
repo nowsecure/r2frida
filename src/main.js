@@ -1,10 +1,26 @@
+/* Copyright 2015 - MIT license - pancake@nowsecure.com */
+
 var r2f = require ("./host");
 var useReadline = true;
 
-if (process.argv.length < 3) {
-  console.log ("Use: main.js [pid | processname]")
-  console.log ("Use frida-ps -R to list all the processes");
+var Cfg = {
+  'trace.from': 0,
+  'trace.to': 0,
+  'asm.arch': 'arm'
+}
+
+var argv = process.argv.slice (2);
+if (argv.length < 1) {
+  console.log ("Use: main.js [-n] [pid | processname]")
   process.exit(1);
+}
+if (argv[0] === '-n') {
+  argv = argv.slice(1);
+  if (argv.length < 1) {
+    console.error ('Missing argument');
+    process.exit(1);
+  }
+  useReadline = false;
 }
 
 function setupPrompt(script) {
@@ -14,11 +30,13 @@ function setupPrompt(script) {
       input: process.stdin,
       output: process.stdout
     });
-    rl.setPrompt("[" + r2f.Offset(r2f.currentOffset, 8) + "]> ");
+    r2f.setConfig(script, Cfg);
+
+    rl.setPrompt("[" + r2f.Offset(r2f.getCurrentOffset(), 8) + "]> ");
     rl.prompt();
     rl.on('line', function(line) {
       r2f.processLine (script, line);
-      rl.setPrompt("[" + r2f.Offset(r2f.currentOffset, 8) + "]> ");
+      rl.setPrompt("[" + r2f.Offset(r2f.getCurrentOffset(), 8) + "]> ");
       rl.prompt();
       if (line == "q") {
         rl.close();
@@ -44,4 +62,4 @@ function onLoad(script) {
   setupPrompt(script);
 }
 
-r2f.attachAndRun (process.argv[2], onLoad);
+r2f.attachAndRun (argv[0], onLoad);

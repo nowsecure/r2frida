@@ -12,7 +12,7 @@ var fs = require ('fs');
 
 const Option = {
   showHelp: function() {
-    die ('Usage: r2frida [-h|-v] [-s] [-l|procname|pid]', 0);
+    die ('Usage: r2frida [-h|-v] [-f adb|ip] [-n|-s] [-l|procname|pid]', 0);
   },
   showVersion: function() {
     const package_json = '' + fs.readFileSync('../package.json');
@@ -22,6 +22,19 @@ const Option = {
   enterShell: function(target) {
     target && exec (process.execPath, ['main.js', target]);
     die ('Missing target', 1);
+  },
+  enterBatchShell: function(target) {
+    target && exec (process.execPath, ['main.js', '-n', target]);
+    die ('Missing target', 1);
+  },
+  forwardPort: function(target) {
+    target || die ('Missing target', 1);
+    if (target == 'adb') {
+      exec ('adb', ['forward', 'tcp:27042', 'tcp:27042']);
+    } else {
+      exec ('ssh', ['-L', '27042:localhost:27042', 'root@'+target]);
+    }
+    exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   startR2: function(target) {
     exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
@@ -45,6 +58,8 @@ Main (process.argv.slice(2), {
   '-h': Option.showHelp,
   '-v': Option.showVersion,
   '-s': Option.enterShell,
+  '-n': Option.enterBatchShell,
+  '-f': Option.forwardPort,
   '-l': Option.listProcesses
 });
 
