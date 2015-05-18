@@ -6,6 +6,9 @@ var useReadline = true;
 var Cfg = {
   'trace.from': 0,
   'trace.to': 0,
+  'trace.bt': true,
+  'trace.hex': false,
+  'trace.args': true,
   'asm.arch': 'arm'
 }
 

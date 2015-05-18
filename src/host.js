@@ -23,6 +23,26 @@ function exec(cmd, args) {
   return res.status;
 }
 
+function dataIsString(data) {
+  const min = 32; // ' '
+  const max = 126; // '~'
+  var ret = '';
+  for (var i = 0; i < data.length; i++) {
+    var nc = +data[i];
+    var ch = String.fromCharCode(nc);
+    if (nc == 0 || nc == 0xff) {
+      break;
+    }
+    if (nc >= min && nc <= max) {
+      ret += ch;
+    } else {
+      return false;
+    }
+  }
+  if (i == 0)
+    return false;
+  return ret;
+}
 // TODO: optimize tracing by moving this code to target.js
 function traceInRange(t, from, to) {
   if (t.addr >= from && t.addr <= to) {
@@ -83,16 +103,35 @@ function gotMessageFromFrida(script, msg, data) {
     case 'pong':
       log ("PONG RECEIVED");
       break;
+    case 'p8':
+      var str = '';
+      var sdata = '' + data;
+      for (var ch = 0; ch < data.length; ch++) {
+        var n = String.fromCharCode(data[ch]); //.charCodeAt(0);
+        var a = data[ch].toString (16);
+        switch (a.length) {
+          case 1:
+            str += '0' + a;
+            break;
+          case 2:
+            str += '' + a;
+            break;
+          default:
+            console.error("Invalid hex");
+            break;
+        }
+      }
+      console.log (str);
+      break;
     case 'x':
       var xd = payload.data;
       var opt = {
         offset: xd.offset
       }
-      console.log (payload);
       if (xd.exception) {
-        console.log ("HEXDUMP EXCEPTION", xd.exception);
+        console.error ("Hexdump Exception:", xd.exception);
       } else {
-        if (data.length) {
+        if (data.length == 0) {
           console.error ("Invalid address");
         }
         var hd = new hex.Hexdump(data, opt);
@@ -157,8 +196,14 @@ function gotMessageFromFrida(script, msg, data) {
       log ("# pid " + info.pid);
       break;
     case 'ic':
-      for (var index in payload.data) {
-        log(payload.data[index]);
+      var xd = payload.data;
+      console.log(xd.classes);
+      if (xd.exception) {
+        console.log ("Exception:", xd.exception);
+      } else {
+        for (var index in xd.classes) {
+          log('=> ' + xd.classes[index]);
+        }
       }
       break;
     case 'il':
@@ -167,51 +212,34 @@ function gotMessageFromFrida(script, msg, data) {
         log (r.base + " " + r.name);
       }
       break;
+    case 'dt-':
+      console.log ("All traces removed", payload.data);
+      break;
     case 'dt':
       var t = payload.data;
       t.name = t.name || Sym[t.addr];
       if (Cfg['trace.from'] && Cfg['trace.to']) {
-        var from = Cfg['trace.from'];
-        var to = Cfg['trace.to'];
+        var from = +Cfg['trace.from'];
+        var to = +Cfg['trace.to'];
         if (!traceInRange (t, from, to)) {
           console.log ("Skipped not in trace range for ", t.addr);
           break;
         }
       }
-      log("Trace at", t.addr, t.name);
-      log("Args:", t.a0, "0x" + t.a1.toString(16), t.a2, t.a3);
-      log("Backtrace: ", t.addr, t.bt);
-      if (data) {
-        function dataIsString(data) {
-          const from = ' '; //String.fromCharCode(32);
-          const to = '~'; //String.fromCharCode(126);
-          const nul = "\x00"
-          var isStr = true;
-          for (var i = 0; i < data.length; i++) {
-            if (data[i] == nul) {
-              break;
-            }
-            if (data[i] >= from && data[i] <= to) {
-            // ok
-            } else {
-              isStr = false;
-              break;
-            }
-          }
-          if (i == 0)
-            return false;
-          return isStr;
-        }
-        var str = dataIsString(data);
-        if (str) {
-          console.log (str);
-        } else {
-          var hd = new hex.Hexdump(data, {
-            offset: t.a1
-          });
-          if (hd && hd.output) {
-            log (hd.output);
-          }
+      var str = dataIsString(data);
+      log("Trace at", t.addr, t.name, str ? str : '');
+      if (Cfg['trace.args']) {
+        log("Args:", t.a0, "0x" + t.a1.toString(16), t.a2, t.a3);
+      }
+      if (Cfg['trace.bt']) {
+        log("Backtrace: ", t.addr, t.bt);
+      }
+      if (data && Cfg['trace.hex']) {
+        var hd = new hex.Hexdump(data, {
+          offset: t.a1
+        });
+        if (hd && hd.output) {
+          log (hd.output);
         }
       }
       break;
@@ -313,8 +341,9 @@ function processLine(script, chunk, cb) {
             + "dp             - show current pid\n"
             + "dpt            - show threads\n"
             + "e [k[=v]]      - evaluate Cfg var (host+target)\n"
-            + "pad 90909090   - disassemble bytes at current offset\n"
+            + "p8             - show blocksize in hexpairs\n"
             + "pa mov r0, 33  - assemble instruction at current offset\n"
+            + "pad 90909090   - disassemble bytes at current offset\n"
             + "s <addr>       - seek to address\n"
             + "i              - show target information\n"
             + "ic <class>     - list classes or methods of <class>\n"
@@ -353,7 +382,7 @@ function processLine(script, chunk, cb) {
             '-a', Cfg['asm.arch'],
             '-b', Cfg['asm.bits'],
             '-o', currentOffset,
-          '-d', words.slice(1).join()]);
+          '-D', words.slice(1).join()]);
           break;
         case 'e':
           if (words.length > 1) {
@@ -362,6 +391,9 @@ function processLine(script, chunk, cb) {
             if (io != -1) {
               var k = kv.substring (0, io);
               var v = kv.substring (io + 1);
+              if (v == 'false') {
+                v = false;
+              }
               Cfg[k] = v;
             } else {
               console.log (Cfg[kv]);

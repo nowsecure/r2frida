@@ -18,6 +18,16 @@ function onMessage(msg) {
     };
   }
   switch (args[0]) {
+    case 'dt-':
+      try {
+        Interceptor.detachAll();
+        send(Message('dt-', {}));
+      } catch ( e ) {
+        send(Message('dt-', {
+          'exception': '' + e
+        }));
+      }
+      break;
     case 'dt':
       var i = 1;
       for (i = 1; i < args.length; i++) {
@@ -93,6 +103,9 @@ function onMessage(msg) {
       if (io != -1) {
         var k = kv.substring (0, io);
         var v = kv.substring (io + 1);
+        if (v == 'false') {
+          v = false;
+        }
         Cfg[k] = v;
       }
       break;
@@ -133,14 +146,15 @@ function onMessage(msg) {
         send(Message('is', undefined));
       }
       break;
+    case 'p8':
     case 'x':
       try {
         var mem = Memory.readByteArray(ptr(msg.offset), 64); //+args[1] || blocksize);
-        send (Message ('x', {
+        send (Message (args[0], {
           offset: +msg.offset
         }), mem);
       } catch ( e ) {
-        send (Message ('x', {
+        send (Message (args[0], {
           offset: +msg.offset,
           exception: e
         }));
@@ -149,16 +163,21 @@ function onMessage(msg) {
     case 'ic':
       if (args.length > 1) {
         var classname = args[1];
-        eval ('send(Message("ic",ObjC.classes.' + classname + '));');
+        eval ('send(Message("ic",ObjC.classes["' + classname + '"]));');
       } else {
         try {
-          var classes = ["Classes:"];
-          for (var c in Object.keys(ObjC.classes)) {
-            classes.push ('' + c);
+          var classes = [];
+          var cls = ObjC.classes;
+          for (var c in ObjC) {
+            classes.push (c);
           }
-          send(Message ('ic', classes));
+          send(Message ('ic', {
+            'classes': classes
+          }));
         } catch ( e ) {
-          send(Message ('ic', ['' + e]));
+          send(Message ('ic', {
+            'exception': '' + e
+          }));
         }
       }
       break;
