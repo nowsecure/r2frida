@@ -10,9 +10,20 @@ var fs = require ('fs');
 
 /* actions */
 
+const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip] [-n|-s] [-l|-L|procname|pid]';
+
 const Option = {
+  showLongHelp: function() {
+    die ([helpmsg,
+    ' -l            list processes',
+    ' -L            list applications',
+    ' -f [adb|ip]   forward port to frida-server',
+    ' -v            show version information',
+    ' -n            batch mode no prompt',
+    ' -s            enter the r2node shell'].join('\n'));
+  },
   showHelp: function() {
-    die ('Usage: r2frida [-h|-v] [-f adb|ip] [-n|-s] [-l|procname|pid]', 0);
+    die (helpmsg, 0);
   },
   showVersion: function() {
     const package_json = '' + fs.readFileSync('../package.json');
@@ -49,18 +60,30 @@ const Option = {
         }
       })
     });
+  },
+  listApplications: function() {
+    var frida = require ('frida');
+    frida.getRemoteDevice().then(function(device) {
+      device.enumerateApplications().then (function(procs) {
+        for (var i in procs.reverse()) {
+          var p = procs[i];
+          console.log(p.pid + '\t' + p.name);
+        }
+      })
+    });
   }
 }
 
 /* main */
 
 Main (process.argv.slice(2), {
-  '-h': Option.showHelp,
+  '-h': Option.showLongHelp,
   '-v': Option.showVersion,
   '-s': Option.enterShell,
   '-n': Option.enterBatchShell,
   '-f': Option.forwardPort,
-  '-l': Option.listProcesses
+  '-l': Option.listProcesses,
+  '-L': Option.listApplications
 });
 
 function Main(argv, options) {
