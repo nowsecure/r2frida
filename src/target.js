@@ -17,11 +17,11 @@ function setEnv(name, value, overwrite) {
 }
 
 var dlOpenImpl = new NativeFunction(Module.findExportByName(
-  'libsystem_c.dylib', 'dlopen'), 'pointer', ['pointer', 'int']);
+  'libdyld.dylib', 'dlopen'), 'pointer', ['pointer', 'int']);
 
-function dlOpen(name, mode) {
+function dlOpen(lib, mode) {
   return dlOpenImpl(Memory.allocUtf8String(name),
-    Memory.allocUtf8String(value), mode);
+    Memory.allocUtf8String(lib), mode);
 }
 
 
@@ -173,7 +173,7 @@ function onMessage(msg) {
         var objs = [];
         var ranges = Process.enumerateModules({
           'onMatch': function(r) {
-            r.base = Module.findBaseAddress(r.name);
+            r.base_addr = Module.findBaseAddress(r.name);
             var e = Module.findExportByName(r.name, args[1]);
             if (e) {
               objs.push (Symbol(r.name, 'function', args[1], e));
@@ -221,11 +221,10 @@ function onMessage(msg) {
         eval ('send(Message("ic",ObjC.classes["' + classname + '"]));');
       } else {
         try {
-          var classes = [];
-	  if (!ObjC.available) {
-            for (var c in Object.keys(ObjC.classes)) {
-              classes.push (c);
-            }
+	  if (ObjC.available) {
+            var classes = Object.keys(ObjC.classes);
+          } else {
+            var classes = [];
           }
           send(Message ('ic', {
             'classes': classes
@@ -261,7 +260,7 @@ function onMessage(msg) {
       var objs = [];
       var ranges = Process.enumerateModules({
         'onMatch': function(r) {
-          r.base = Module.findBaseAddress(r.name);
+          r.base_addr = Module.findBaseAddress(r.name);
           objs.push (r);
         },
         'onComplete': function() {

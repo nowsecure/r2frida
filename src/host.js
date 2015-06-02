@@ -435,7 +435,7 @@ function attachAndRun(pid, on_load, on_message) {
       return session.createScript(remoteScript);
     }).then(function(script) {
       script.events.listen('message', function(msg, data) {
-        //console.log ("ONMSG",on_message)
+        console.error(msg);
         if (msg && msg.type == 'error') {
           msg.payload = {
             name: 'x'
