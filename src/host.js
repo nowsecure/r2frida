@@ -341,6 +341,7 @@ function processLine(script, chunk, cb) {
             + "dp             - show current pid\n"
             + "dpt            - show threads\n"
             + "e [k[=v]]      - evaluate Cfg var (host+target)\n"
+            + "env [k[=v]]    - get/set environment variable\n"
             + "p8             - show blocksize in hexpairs\n"
             + "pa mov r0, 33  - assemble instruction at current offset\n"
             + "pad 90909090   - disassemble bytes at current offset\n"

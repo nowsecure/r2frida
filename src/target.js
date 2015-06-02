@@ -1,5 +1,18 @@
 var Cfg = {};
 
+'use strict';
+
+var getEnvImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
+function getEnv(name) {
+  return Memory.readUtf8String(getEnvImpl(Memory.allocUtf8String(name)));
+}
+
+var setEnvImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'setenv'), 'int', ['pointer', 'pointer', 'int']);
+function setEnv(name, value, overwrite) {
+  return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+}
+
+
 function onMessage(msg) {
   var args = msg.name.split(/ /);
   var blocksize = msg.blocksize;
@@ -94,6 +107,18 @@ function onMessage(msg) {
     case 'dt-':
       Interceptor.detachAll();
       break;
+    case 'env':
+      var kv = args.slice(1).join('');
+      var eq = kv.indexOf ('=');
+      if (eq) {
+        var k = kv.substring(0,eq);
+        var v = kv.substring(eq+1);
+        setEnvImpl (k, v, 1);
+      } else {
+        var v = getEnvImpl (kv);
+        send(Message('env', { key: kv, value: v } ));
+      }
+      break;
     case 'ping':
       send(Message('pong', msg));
       break;
@@ -146,6 +171,20 @@ function onMessage(msg) {
         send(Message('is', undefined));
       }
       break;
+    case 'wx':
+      try {
+        var data = getDataFromArgs(args.splice(1).join(''));
+        var mem = Memory.writeByteArray(ptr(msg.offset), data);
+        send (Message (args[0], {
+          offset: +msg.offset
+        }));
+      } catch ( e ) {
+        send (Message (args[0], {
+          offset: +msg.offset,
+          exception: e
+        }));
+      }
+      break;
     case 'p8':
     case 'x':
       try {
@@ -167,9 +206,10 @@ function onMessage(msg) {
       } else {
         try {
           var classes = [];
-          var cls = ObjC.classes;
-          for (var c in ObjC) {
-            classes.push (c);
+	  if (!ObjC.available) {
+            for (var c in Object.keys(ObjC.classes)) {
+              classes.push (c);
+            }
           }
           send(Message ('ic', {
             'classes': classes
