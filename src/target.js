@@ -8,8 +8,16 @@ function getEnv(name) {
 }
 
 var setEnvImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'setenv'), 'int', ['pointer', 'pointer', 'int']);
+
 function setEnv(name, value, overwrite) {
   return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+}
+
+var dlOpenImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'dlopen'), 'pointer', ['pointer', 'int']);
+
+function dlOpen(name, mode) {
+  return dlOpenImpl(Memory.allocUtf8String(name),
+    Memory.allocUtf8String(value), mode);
 }
 
 
@@ -84,6 +92,10 @@ function onMessage(msg) {
           });
         })(args[i]);
       }
+      break;
+    case 'dl':
+      var libname = args.slice(1);
+      dlOpen (libname, 2);
       break;
     case 'di':
       var a = args.slice (1);

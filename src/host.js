@@ -337,6 +337,7 @@ function processLine(script, chunk, cb) {
             + "dt <addr> ..   - trace list of addresses\n"
             + "dt-            - clear all tracing\n"
             + "di addr arg..  - call function at addr with given args\n"
+            + "dl libname     - dlopen\n"
             + "dm             - show memory regions\n"
             + "dp             - show current pid\n"
             + "dpt            - show threads\n"

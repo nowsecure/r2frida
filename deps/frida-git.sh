@@ -9,7 +9,7 @@ mrproper)
 	rm -rf frida
 	;;
 update)
-	cd frida
+	cd frida || exit 1
 	git pull
 	git submodule update
 	for a in core gum node python ; do
