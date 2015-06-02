@@ -12,6 +12,20 @@ var fs = require ('fs');
 
 const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip] [-n|-s] [-l|-L|procname|pid]';
 
+function alignColumn(arr, col) {
+  var str = arr[0];
+  for (var i = 1; i<arr.length ; i++) {
+    var word = ''+ (arr[i-1] || '');
+    var curlen = word.length;
+    var curcol = col * i + curlen;
+    var curnex = col * (i+1) ;
+    var left = curnex>curcol? curnex - curcol: 1;
+    str += new Array(left).join(' ');
+    str += arr[i];
+  }
+  return str;
+}
+
 const Option = {
   showLongHelp: function() {
     die ([helpmsg,
@@ -56,7 +70,7 @@ const Option = {
       device.enumerateProcesses().then (function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
-          console.log(p.pid + '\t' + p.name);
+          console.log(alignColumn ([p.pid, p.name], 16));
         }
       })
     });
@@ -67,7 +81,7 @@ const Option = {
       device.enumerateApplications().then (function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
-          console.log(p.pid + '\t' + p.name);
+          console.log(alignColumn([p.name,p.identifier], 16));
         }
       })
     });
