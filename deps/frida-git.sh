@@ -15,6 +15,7 @@ update)
 	for a in core gum node python ; do
 	(
 		cd frida-$a
+		git reset --hard @~10
 		git checkout master
 		git pull
 	)
