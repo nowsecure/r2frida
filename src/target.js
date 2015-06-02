@@ -1,19 +1,23 @@
-var Cfg = {};
-
 'use strict';
 
-var getEnvImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
+var Cfg = {};
+
+var getEnvImpl = new NativeFunction(Module.findExportByName(
+  'libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
 function getEnv(name) {
   return Memory.readUtf8String(getEnvImpl(Memory.allocUtf8String(name)));
 }
 
-var setEnvImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'setenv'), 'int', ['pointer', 'pointer', 'int']);
+var setEnvImpl = new NativeFunction(Module.findExportByName(
+  'libsystem_c.dylib', 'setenv'), 'int', ['pointer', 'pointer', 'int']);
 
 function setEnv(name, value, overwrite) {
-  return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+  return setEnvImpl(Memory.allocUtf8String(name),
+    Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
-var dlOpenImpl = new NativeFunction(Module.findExportByName('libsystem_c.dylib', 'dlopen'), 'pointer', ['pointer', 'int']);
+var dlOpenImpl = new NativeFunction(Module.findExportByName(
+  'libsystem_c.dylib', 'dlopen'), 'pointer', ['pointer', 'int']);
 
 function dlOpen(name, mode) {
   return dlOpenImpl(Memory.allocUtf8String(name),
@@ -119,18 +123,6 @@ function onMessage(msg) {
     case 'dt-':
       Interceptor.detachAll();
       break;
-    case 'env':
-      var kv = args.slice(1).join('');
-      var eq = kv.indexOf ('=');
-      if (eq) {
-        var k = kv.substring(0,eq);
-        var v = kv.substring(eq+1);
-        setEnvImpl (k, v, 1);
-      } else {
-        var v = getEnvImpl (kv);
-        send(Message('env', { key: kv, value: v } ));
-      }
-      break;
     case 'ping':
       send(Message('pong', msg));
       break;
@@ -144,6 +136,18 @@ function onMessage(msg) {
           v = false;
         }
         Cfg[k] = v;
+      }
+      break;
+    case 'env':
+      var kv = args.slice(1).join('');
+      var eq = kv.indexOf ('=');
+      if (eq) {
+        var k = kv.substring(0,eq);
+        var v = kv.substring(eq+1);
+        setEnvImpl (k, v, 1);
+      } else {
+        var v = getEnvImpl (kv);
+        send(Message('env', { key: kv, value: v } ));
       }
       break;
     case 'ie':
@@ -284,7 +288,7 @@ function onMessage(msg) {
       if (args.length > 1) {
         var code = args.splice(1).join(' ');
         eval(code);
-        var objs = []
+        var objs = [];
         send (Message('di', objs));
       }
       /*

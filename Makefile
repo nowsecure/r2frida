@@ -20,6 +20,9 @@ node_modules/frida:
 	npm install
 	cp -rf $(FRIDA_ROOT)/$(FRIDA_NODE) node_modules/frida
 
+hint:
+	`npm bin`/jshint src/target.js
+
 deps:
 	$(MAKE) -C deps
 
