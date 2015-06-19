@@ -10,16 +10,16 @@ var fs = require ('fs');
 
 /* actions */
 
-const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip] [-n|-s] [-l|-L|procname|pid]';
+const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-n|-s] [-l|-L|procname|pid]';
 
 function alignColumn(arr, col) {
   var str = arr[0];
   for (var i = 1; i<arr.length ; i++) {
     var word = ''+ (arr[i-1] || '');
     var curlen = word.length;
-    var curcol = col * i + curlen;
+    var curcol = (col * i) + curlen;
     var curnex = col * (i+1) ;
-    var left = curnex>curcol? curnex - curcol: 1;
+    var left = (curnex>curcol) ? curnex - curcol: 1;
     str += new Array(left).join(' ');
     str += arr[i];
   }
@@ -31,7 +31,7 @@ const Option = {
     die ([helpmsg,
     ' -l            list processes',
     ' -L            list applications',
-    ' -f [adb|ip]   forward port to frida-server',
+    ' -f [adb|ip:p] forward port to frida-server',
     ' -v            show version information',
     ' -n            batch mode no prompt',
     ' -s            enter the r2node shell'].join('\n'));
@@ -57,7 +57,14 @@ const Option = {
     if (target == 'adb') {
       exec ('adb', ['forward', 'tcp:27042', 'tcp:27042']);
     } else {
-      exec ('ssh', ['-L', '27042:localhost:27042', 'root@'+target]);
+      var hostport = target.split(':');
+      if (hostport.length != 1) {
+        var host = hostport[0];
+        var port = hostport[1];
+        exec ('ssh', ['-p'+port, '-L', '27042:localhost:27042', 'root@'+host]);
+      } else {
+        exec ('ssh', ['-L', '27042:localhost:27042', 'root@'+target]);
+      }
     }
     exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
@@ -81,7 +88,7 @@ const Option = {
       device.enumerateApplications().then (function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
-          console.log(alignColumn([p.name,p.identifier], 16));
+          console.log(alignColumn([p.pid, p.name, p.identifier], 16));
         }
       })
     });

@@ -53,6 +53,10 @@ function onMessage(msg) {
         }));
       }
       break;
+    case 'dto':
+      /* objc tracing */
+      //const NSURLConnection = ObjC.classes.NSURLConnection;
+      break;
     case 'dt':
       var i = 1;
       for (i = 1; i < args.length; i++) {
