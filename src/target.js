@@ -240,6 +240,27 @@ function onMessage(msg) {
         }
       }
       break;
+    case 'ip':
+      if (args.length > 1) {
+        var classname = args[1];
+        eval ('send(Message("ic",ObjC.classes["' + classname + '"]));');
+      } else {
+        try {
+	  if (ObjC.available) {
+            var protos = Object.keys(ObjC.protocols);
+          } else {
+            var protos = [];
+          }
+          send(Message ('ip', {
+            'protocols': protos
+          }));
+        } catch ( e ) {
+          send(Message ('ip', {
+            'exception': '' + e
+          }));
+        }
+      }
+      break;
     case 'i':
       var obj = {};
       obj.arch = Process.arch;

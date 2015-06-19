@@ -178,7 +178,8 @@ function gotMessageFromFrida(script, msg, data) {
       log ("Usage: i[escl] show info");
       log (" i     show process info");
       log (" ie    show exports");
-      log (" ic    show classes");
+      log (" ic    show (ObjC) classes");
+      log (" ip    show (ObjC) protocols");
       break;
     case 'i':
       var info = payload.data;
@@ -203,6 +204,17 @@ function gotMessageFromFrida(script, msg, data) {
       } else {
         for (var index in xd.classes) {
           log('=> ' + xd.classes[index]);
+        }
+      }
+      break;
+    case 'ip':
+      var xd = payload.data;
+      console.log(xd.protocols);
+      if (xd.exception) {
+        console.log ("Exception:", xd.exception);
+      } else {
+        for (var index in xd.protocols) {
+          log('=> ' + xd.protocols[index]);
         }
       }
       break;
@@ -349,6 +361,7 @@ function processLine(script, chunk, cb) {
             + "s <addr>       - seek to address\n"
             + "i              - show target information\n"
             + "ic <class>     - list classes or methods of <class>\n"
+            + "ip             - list objc protocols\n"
             + "ie <lib>       - list exports/entrypoints of lib\n"
             + "is <sym>       - show address of symbol\n"
             + "is <lib> <sym> - show address of symbol\n"
