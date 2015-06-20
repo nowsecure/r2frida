@@ -24,7 +24,6 @@ function dlOpen(lib, mode) {
     Memory.allocUtf8String(lib), mode);
 }
 
-
 function onMessage(msg) {
   var args = msg.name.split(/ /);
   var blocksize = msg.blocksize;
@@ -222,7 +221,7 @@ function onMessage(msg) {
     case 'ic':
       if (args.length > 1) {
         var classname = args[1];
-        eval ('send(Message("ic",ObjC.classes["' + classname + '"]));');
+        eval ('send(Message("ic",{methods:Object.keys(ObjC.classes.' + classname + ')}));');
       } else {
         try {
 	  if (ObjC.available) {

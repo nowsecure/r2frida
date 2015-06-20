@@ -14,7 +14,14 @@ var grep = undefined;
 var currentOffset = 0;
 var current_blocksize = 64; // 
 var Sym = {};
-var Cfg = { log:false };
+var Cfg = {};
+/*
+// defaults should be propagated to target on start
+{
+  'asm.arch': 'arm',
+  'asm.bits': 16,
+};
+*/
 
 function exec(cmd, args) {
   var res = spawnSync (cmd, args, {
@@ -39,9 +46,7 @@ function dataIsString(data) {
       return false;
     }
   }
-  if (i == 0)
-    return false;
-  return ret;
+  return i? ret: false;
 }
 // TODO: optimize tracing by moving this code to target.js
 function traceInRange(t, from, to) {
@@ -98,9 +103,7 @@ function gotMessageFromFrida(script, msg, data) {
     return false;
   }
   var payload = msg.payload;
-  if (Cfg.log) {
-    log();
-  }
+  log();
   switch (payload.name) {
     case 'pong':
       log ("PONG RECEIVED");
@@ -109,7 +112,7 @@ function gotMessageFromFrida(script, msg, data) {
       var str = '';
       var sdata = '' + data;
       for (var ch = 0; ch < data.length; ch++) {
-        var n = String.fromCharCode(data[ch]); //.charCodeAt(0);
+        var n = String.fromCharCode(data[ch]);
         var a = data[ch].toString (16);
         switch (a.length) {
           case 1:
@@ -200,18 +203,24 @@ function gotMessageFromFrida(script, msg, data) {
       break;
     case 'ic':
       var xd = payload.data;
-      console.log(xd.classes);
+      // console.log(xd.classes);
       if (xd.exception) {
         console.log ("Exception:", xd.exception);
       } else {
-        for (var index in xd.classes) {
-          log('=> ' + xd.classes[index]);
+        if (xd.methods) {
+          for (var index in xd.methods) {
+            log('=> ' + xd.methods[index]);
+          }
+        } else {
+          for (var index in xd.classes) {
+            log('=> ' + xd.classes[index]);
+          }
         }
       }
       break;
     case 'ip':
       var xd = payload.data;
-      console.log(xd.protocols);
+      //console.log(xd.protocols);
       if (xd.exception) {
         console.log ("Exception:", xd.exception);
       } else {
