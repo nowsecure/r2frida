@@ -16,6 +16,9 @@ all: node_modules/frida
 help:
 	@grep ' - ' README.md
 
+indent:
+	for a in bin/*.js src/*.js ; do jsfmt -w $$a ; done
+
 node_modules/frida:
 	npm install
 	cp -rf $(FRIDA_ROOT)/$(FRIDA_NODE) node_modules/frida
