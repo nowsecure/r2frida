@@ -14,7 +14,7 @@ var grep = undefined;
 var currentOffset = 0;
 var current_blocksize = 64; // 
 var Sym = {};
-var Cfg = {};
+var Cfg = { log:false };
 
 function exec(cmd, args) {
   var res = spawnSync (cmd, args, {
@@ -98,7 +98,9 @@ function gotMessageFromFrida(script, msg, data) {
     return false;
   }
   var payload = msg.payload;
-  log();
+  if (Cfg.log) {
+    log();
+  }
   switch (payload.name) {
     case 'pong':
       log ("PONG RECEIVED");
@@ -444,6 +446,7 @@ function processLine(script, chunk, cb) {
 function attachAndRun(pid, on_load, on_message) {
   frida.getRemoteDevice().then(function(device) {
     console.log ("Attaching to " + pid + " using " + device.name);
+    pid = +pid || pid;
     device.attach(pid).then(function(session) {
       return session.createScript(remoteScript);
     }).then(function(script) {
