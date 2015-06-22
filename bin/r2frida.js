@@ -10,7 +10,7 @@ var fs = require('fs');
 
 /* actions */
 
-const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-n|-s] [-l|-L|procname|pid]';
+const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-k app] [-n|-s] [-l|-L|procname|pid]';
 
 function alignColumn(arr, col) {
   var str = arr[0];
@@ -32,6 +32,7 @@ const Option = {
       ' -l            list processes',
       ' -L            list applications',
       ' -f [adb|ip:p] forward port to frida-server',
+      ' -k [appname]  remote kill application',
       ' -v            show version information',
       ' -n            batch mode no prompt',
       ' -s            enter the r2node shell'].join('\n'));
@@ -71,6 +72,12 @@ const Option = {
   startR2: function(target) {
     exec('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
+  killProcess: function(pid) {
+    var frida = require('frida');
+    frida.getRemoteDevice().then(function(device) {
+      device.kill(pid);
+    });
+  },
   listProcesses: function() {
     var frida = require('frida');
     frida.getRemoteDevice().then(function(device) {
@@ -103,6 +110,7 @@ Main(process.argv.slice(2), {
   '-s': Option.enterShell,
   '-n': Option.enterBatchShell,
   '-f': Option.forwardPort,
+  '-k': Option.killProcess,
   '-l': Option.listProcesses,
   '-L': Option.listApplications
 });
