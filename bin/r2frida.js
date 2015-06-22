@@ -5,8 +5,8 @@
 */
 
 var spawnSync = require('child_process').spawnSync;
-var colors = require ('colors');
-var fs = require ('fs');
+var colors = require('colors');
+var fs = require('fs');
 
 /* actions */
 
@@ -14,12 +14,12 @@ const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-n|-s] [-l|-L|procname
 
 function alignColumn(arr, col) {
   var str = arr[0];
-  for (var i = 1; i<arr.length ; i++) {
-    var word = ''+ (arr[i-1] || '');
+  for (var i = 1; i < arr.length; i++) {
+    var word = '' + (arr[i - 1] || '');
     var curlen = word.length;
     var curcol = (col * i) + curlen;
-    var curnex = col * (i+1) ;
-    var left = (curnex>curcol) ? curnex - curcol: 1;
+    var curnex = col * (i + 1);
+    var left = (curnex > curcol) ? curnex - curcol : 1;
     str += new Array(left).join(' ');
     str += arr[i];
   }
@@ -28,64 +28,64 @@ function alignColumn(arr, col) {
 
 const Option = {
   showLongHelp: function() {
-    die ([helpmsg,
-    ' -l            list processes',
-    ' -L            list applications',
-    ' -f [adb|ip:p] forward port to frida-server',
-    ' -v            show version information',
-    ' -n            batch mode no prompt',
-    ' -s            enter the r2node shell'].join('\n'));
+    die([helpmsg,
+      ' -l            list processes',
+      ' -L            list applications',
+      ' -f [adb|ip:p] forward port to frida-server',
+      ' -v            show version information',
+      ' -n            batch mode no prompt',
+      ' -s            enter the r2node shell'].join('\n'));
   },
   showHelp: function() {
-    die (helpmsg, 0);
+    die(helpmsg, 0);
   },
   showVersion: function() {
     const package_json = '' + fs.readFileSync('../package.json');
-    const version = JSON.parse (package_json).version;
-    die (version, 0);
+    const version = JSON.parse(package_json).version;
+    die(version, 0);
   },
   enterShell: function(target) {
-    target && exec (process.execPath, ['main.js', target]);
-    die ('Missing target', 1);
+    target && exec(process.execPath, ['main.js', target]);
+    die('Missing target', 1);
   },
   enterBatchShell: function(target) {
-    target && exec (process.execPath, ['main.js', '-n', target]);
-    die ('Missing target', 1);
+    target && exec(process.execPath, ['main.js', '-n', target]);
+    die('Missing target', 1);
   },
   forwardPort: function(target) {
-    target || die ('Missing target', 1);
+    target || die('Missing target', 1);
     if (target == 'adb') {
-      exec ('adb', ['forward', 'tcp:27042', 'tcp:27042']);
+      exec('adb', ['forward', 'tcp:27042', 'tcp:27042']);
     } else {
       var hostport = target.split(':');
       if (hostport.length != 1) {
         var host = hostport[0];
         var port = hostport[1];
-        exec ('ssh', ['-p'+port, '-L', '27042:localhost:27042', 'root@'+host]);
+        exec('ssh', ['-p' + port, '-L', '27042:localhost:27042', 'root@' + host]);
       } else {
-        exec ('ssh', ['-L', '27042:localhost:27042', 'root@'+target]);
+        exec('ssh', ['-L', '27042:localhost:27042', 'root@' + target]);
       }
     }
-    exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
+    exec('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   startR2: function(target) {
-    exec ('r2', ['r2pipe://node r2io-frida.js ' + target]);
+    exec('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   listProcesses: function() {
-    var frida = require ('frida');
+    var frida = require('frida');
     frida.getRemoteDevice().then(function(device) {
-      device.enumerateProcesses().then (function(procs) {
+      device.enumerateProcesses().then(function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
-          console.log(alignColumn ([p.pid, p.name], 16));
+          console.log(alignColumn([p.pid, p.name], 16));
         }
       })
     });
   },
   listApplications: function() {
-    var frida = require ('frida');
+    var frida = require('frida');
     frida.getRemoteDevice().then(function(device) {
-      device.enumerateApplications().then (function(procs) {
+      device.enumerateApplications().then(function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
           console.log(alignColumn([p.pid, p.name, p.identifier], 16));
@@ -97,7 +97,7 @@ const Option = {
 
 /* main */
 
-Main (process.argv.slice(2), {
+Main(process.argv.slice(2), {
   '-h': Option.showLongHelp,
   '-v': Option.showVersion,
   '-s': Option.enterShell,
@@ -109,19 +109,19 @@ Main (process.argv.slice(2), {
 
 function Main(argv, options) {
   var target = undefined;
-  process.chdir (__dirname + '/../src');
+  process.chdir(__dirname + '/../src');
   for (var i in argv) {
     var opt = options [argv[+i]];
     if (opt) {
-      return opt (argv[+i + 1]);
+      return opt(argv[+i + 1]);
     }
     if (target) {
-      die ("Invalid parameter: '" + argv[+i] + "'", 1);
+      die("Invalid parameter: '" + argv[+i] + "'", 1);
     }
     target = argv[+i];
   }
   target && Option.startR2(target);
-  Option.showHelp ();
+  Option.showHelp();
 }
 
 /* utils */
@@ -129,13 +129,13 @@ function Main(argv, options) {
 function die(msg, ret) {
   var println = ret ? console.error : console.log;
   var color = ret ? colors.red : colors.yellow;
-  println (color (msg));
-  process.exit (ret);
+  println(color(msg));
+  process.exit(ret);
 }
 
 function exec(cmd, args) {
-  var res = spawnSync (cmd, args, {
+  var res = spawnSync(cmd, args, {
     stdio: [0, 1, 2]
   });
-  process.exit (res.status);
+  process.exit(res.status);
 }

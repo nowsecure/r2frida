@@ -1,6 +1,6 @@
 /* Copyright 2015 - MIT license - pancake@nowsecure.com */
 
-var r2f = require ("./host");
+var r2f = require("./host");
 var useReadline = true;
 
 var Cfg = {
@@ -12,15 +12,15 @@ var Cfg = {
   'asm.arch': 'arm'
 }
 
-var argv = process.argv.slice (2);
+var argv = process.argv.slice(2);
 if (argv.length < 1) {
-  console.log ("Use: main.js [-n] [pid | processname]")
+  console.log("Use: main.js [-n] [pid | processname]")
   process.exit(1);
 }
 if (argv[0] === '-n') {
   argv = argv.slice(1);
   if (argv.length < 1) {
-    console.error ('Missing argument');
+    console.error('Missing argument');
     process.exit(1);
   }
   useReadline = false;
@@ -38,12 +38,12 @@ function setupPrompt(script) {
     rl.setPrompt("[" + r2f.Offset(r2f.getCurrentOffset(), 8) + "]> ");
     rl.prompt();
     rl.on('line', function(line) {
-      r2f.processLine (script, line);
+      r2f.processLine(script, line);
       rl.setPrompt("[" + r2f.Offset(r2f.getCurrentOffset(), 8) + "]> ");
       rl.prompt();
       if (line == "q") {
         rl.close();
-        process.exit (0);
+        process.exit(0);
       }
     });
   } else {
@@ -52,7 +52,7 @@ function setupPrompt(script) {
       process.stdout.write("> ");
     });
     process.stdin.on('readable', function() {
-      r2f.processLine (script, process.stdin.read());
+      r2f.processLine(script, process.stdin.read());
     });
     process.stdin.on('end', function() {
       console.log("^D");
@@ -65,4 +65,4 @@ function onLoad(script) {
   setupPrompt(script);
 }
 
-r2f.attachAndRun (argv[0], onLoad);
+r2f.attachAndRun(argv[0], onLoad);

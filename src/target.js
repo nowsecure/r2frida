@@ -1,6 +1,7 @@
 'use strict';
 
-var Cfg = {};
+var Cfg = {
+};
 
 var getEnvImpl = new NativeFunction(Module.findExportByName(
   'libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
@@ -46,7 +47,7 @@ function onMessage(msg) {
       try {
         Interceptor.detachAll();
         send(Message('dt-', {}));
-      } catch ( e ) {
+      } catch (e) {
         send(Message('dt-', {
           'exception': '' + e
         }));
@@ -69,30 +70,46 @@ function onMessage(msg) {
               // execute format string to parse arguments
               var i = 1;
               var a = args[i].toInt32();
-              if (a < 0xfffff) return;
+              //if (a < 0xfffff) return;
               // check if address is mapped
               var b = args[i + 1].toInt32() || 64;
               if (b > 0xfff) {
                 b = 64;
               }
-              var bt = Thread.backtrace(this.context).join (' ');
+              var bt = Thread.backtrace(this.context).join(' ');
               //this.context, Backtracer.ACCURATE) .map(DebugSymbol.fromAddress).join(" ");
               try {
-                var mem = Memory.readByteArray(ptr(a), b > 0 ? b : 0);
+                var mem = Memory.readByteArray(ptr(args[i]), b > 0 ? b : 0);
                 if (!mem) {
                   return;
                 }
-              } catch ( err ) {
+              } catch (err) {
                 // do nothing
+              }
+              try {
+                const obj = new ObjC.Object(args[0]);
+              //const classname = obj.$className;
+              //console.log (obj.$className);
+              /*
+                 if (obj.$kind == 'instance') {
+                 if (!classname) {
+                 classname = '';
+                 }
+                 }
+              */
+              } catch (e) {
+                const classname = '';
               }
               send(Message('dt', {
                 'addr': addr,
                 'name': name,
                 'bt': bt,
-                'a0': args[0].toInt32(),
-                'a1': args[1].toInt32(),
-                'a2': args[2].toInt32(),
-                'a3': args[3].toInt32()
+                'a0': args[0],
+                'a1': args[1],
+                'a2': args[2],
+                'a3': args[3],
+                'a0s': classname,
+                'a1s': Memory.readUtf8String(ptr(args[1]))
               }), mem);
             },
             onLeave: function(retval) {}
@@ -102,20 +119,24 @@ function onMessage(msg) {
       break;
     case 'dl':
       var libname = args.slice(1);
-      dlOpen (libname, 2);
+      dlOpen(libname, 2);
       break;
     case 'di':
-      var a = args.slice (1);
+      var a = args.slice(1);
       if (a.length > 0) {
         //console.log ("Injecting call to "+a[0]+" with "+a.length-1+" args");
         var res;
         switch (a.length - 1) {
-          case 1: res = (new NativeFunction(ptr(a[0]), 'int', ['int']))(a[1]); break;
-          case 2: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int']))(a[1], a[2]); break;
-          case 3: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int']))(a[1], a[2], a[3]); break;
-          case 4: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int', 'int']))(a[1], a[2], a[3], a[4]); break;
+          case 1: res = (new NativeFunction(ptr(a[0]), 'int', ['int']))(a[1]);
+            break;
+          case 2: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int']))(a[1], a[2]);
+            break;
+          case 3: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int']))(a[1], a[2], a[3]);
+            break;
+          case 4: res = (new NativeFunction(ptr(a[0]), 'int', ['int', 'int', 'int', 'int']))(a[1], a[2], a[3], a[4]);
+            break;
           default:
-            console.log ("error");
+            console.log("error");
             break;
         }
         send(Message('di', {
@@ -131,10 +152,10 @@ function onMessage(msg) {
       break;
     case 'e':
       var kv = args.slice(1).join('');
-      var io = kv.indexOf ('=');
+      var io = kv.indexOf('=');
       if (io != -1) {
-        var k = kv.substring (0, io);
-        var v = kv.substring (io + 1);
+        var k = kv.substring(0, io);
+        var v = kv.substring(io + 1);
         if (v == 'false') {
           v = false;
         }
@@ -143,14 +164,17 @@ function onMessage(msg) {
       break;
     case 'env':
       var kv = args.slice(1).join('');
-      var eq = kv.indexOf ('=');
+      var eq = kv.indexOf('=');
       if (eq) {
-        var k = kv.substring(0,eq);
-        var v = kv.substring(eq+1);
-        setEnvImpl (k, v, 1);
+        var k = kv.substring(0, eq);
+        var v = kv.substring(eq + 1);
+        setEnvImpl(k, v, 1);
       } else {
-        var v = getEnvImpl (kv);
-        send(Message('env', { key: kv, value: v } ));
+        var v = getEnvImpl(kv);
+        send(Message('env', {
+          key: kv,
+          value: v
+        }));
       }
       break;
     case 'ie':
@@ -158,7 +182,7 @@ function onMessage(msg) {
         var objs = [];
         var ranges = Module.enumerateExports(args[1], {
           'onMatch': function(r) {
-            objs.push (Symbol(args[1], r.type, r.name, r.address));
+            objs.push(Symbol(args[1], r.type, r.name, r.address));
           },
           'onComplete': function() {
             send(Message('ie', objs));
@@ -179,7 +203,7 @@ function onMessage(msg) {
             r.base_addr = Module.findBaseAddress(r.name);
             var e = Module.findExportByName(r.name, args[1]);
             if (e) {
-              objs.push (Symbol(r.name, 'function', args[1], e));
+              objs.push(Symbol(r.name, 'function', args[1], e));
             }
           },
           'onComplete': function() {
@@ -194,11 +218,11 @@ function onMessage(msg) {
       try {
         var data = getDataFromArgs(args.splice(1).join(''));
         var mem = Memory.writeByteArray(ptr(msg.offset), data);
-        send (Message (args[0], {
+        send(Message(args[0], {
           offset: +msg.offset
         }));
-      } catch ( e ) {
-        send (Message (args[0], {
+      } catch (e) {
+        send(Message(args[0], {
           offset: +msg.offset,
           exception: e
         }));
@@ -208,11 +232,11 @@ function onMessage(msg) {
     case 'x':
       try {
         var mem = Memory.readByteArray(ptr(msg.offset), 64); //+args[1] || blocksize);
-        send (Message (args[0], {
+        send(Message(args[0], {
           offset: +msg.offset
         }), mem);
-      } catch ( e ) {
-        send (Message (args[0], {
+      } catch (e) {
+        send(Message(args[0], {
           offset: +msg.offset,
           exception: e
         }));
@@ -221,19 +245,35 @@ function onMessage(msg) {
     case 'ic':
       if (args.length > 1) {
         var classname = args[1];
-        eval ('send(Message("ic",{methods:Object.keys(ObjC.classes.' + classname + ')}));');
+        //      eval ('send(Message("ic",{methods:Object.keys(ObjC.classes.' + classname + ')}));');
+        var methods = eval('Object.keys(ObjC.classes.' + classname + ');');
+        var res = {};
+        var instance = eval('ObjC.classes.' + classname);
+        for (var i in methods) {
+          var m = methods[i];
+          try {
+            var impl = instance[m].implementation;
+            res[m] = impl;
+          } catch (e) {
+            res[m] = '' + e;
+          // ignore
+          }
+        }
+        send(Message('ic', {
+          'methods': res
+        }));
       } else {
         try {
-	  if (ObjC.available) {
+          if (ObjC.available) {
             var classes = Object.keys(ObjC.classes);
           } else {
             var classes = [];
           }
-          send(Message ('ic', {
+          send(Message('ic', {
             'classes': classes
           }));
-        } catch ( e ) {
-          send(Message ('ic', {
+        } catch (e) {
+          send(Message('ic', {
             'exception': '' + e
           }));
         }
@@ -242,19 +282,19 @@ function onMessage(msg) {
     case 'ip':
       if (args.length > 1) {
         var classname = args[1];
-        eval ('send(Message("ic",ObjC.classes["' + classname + '"]));');
+        eval('send(Message("ic",ObjC.classes["' + classname + '"]));');
       } else {
         try {
-	  if (ObjC.available) {
+          if (ObjC.available) {
             var protos = Object.keys(ObjC.protocols);
           } else {
             var protos = [];
           }
-          send(Message ('ip', {
+          send(Message('ip', {
             'protocols': protos
           }));
-        } catch ( e ) {
-          send(Message ('ip', {
+        } catch (e) {
+          send(Message('ip', {
             'exception': '' + e
           }));
         }
@@ -285,7 +325,7 @@ function onMessage(msg) {
       var ranges = Process.enumerateModules({
         'onMatch': function(r) {
           r.base_addr = Module.findBaseAddress(r.name);
-          objs.push (r);
+          objs.push(r);
         },
         'onComplete': function() {
           send(Message('il', objs));
@@ -297,7 +337,7 @@ function onMessage(msg) {
       var pid = Process.getCurrentThreadId();
       var ranges = Process.enumerateThreads({
         'onMatch': function(r) {
-          objs.push (r);
+          objs.push(r);
         },
         'onComplete': function() {
           send(Message('dr', {
@@ -312,7 +352,7 @@ function onMessage(msg) {
         var code = args.splice(1).join(' ');
         eval(code);
         var objs = [];
-        send (Message('di', objs));
+        send(Message('di', objs));
       }
       /*
             var objs = [];
@@ -330,7 +370,7 @@ function onMessage(msg) {
       var objs = [];
       var ranges = Process.enumerateThreads({
         'onMatch': function(r) {
-          objs.push (r);
+          objs.push(r);
         },
         'onComplete': function() {
           send(Message('dpt', objs));
@@ -341,7 +381,7 @@ function onMessage(msg) {
       var objs = [];
       var ranges = Process.enumerateRanges('---', {
         'onMatch': function(r) {
-          objs.push (r);
+          objs.push(r);
         },
         'onComplete': function() {
           send(Message('dm', objs));

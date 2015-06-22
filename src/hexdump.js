@@ -57,7 +57,7 @@ Hexdump.prototype.dump = function(data) {
     self.output += offset + " "; // 0x00000000
 
     var spacingCount = 0;
-    var width = Math.min (self.options.width, data.length - i)
+    var width = Math.min(self.options.width, data.length - i)
     for (var x = 0; x < width; x++) {
       var ch = data[i + x].toString(16)
       if (ch.length == 1) {
@@ -83,10 +83,10 @@ Hexdump.prototype.dump = function(data) {
   }
   return self.output;
 
-  /*
-      var hexdump_container = document.getElementById(this.options.container);
-      hexdump_container.innerHTML = this.output;
-  */
+/*
+    var hexdump_container = document.getElementById(this.options.container);
+    hexdump_container.innerHTML = this.output;
+*/
 };
 
 Hexdump.prototype.appendString = function(data) {

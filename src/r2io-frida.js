@@ -1,11 +1,11 @@
 /* entrypoint for r2frida.js */
 
-var r2p = require ("r2pipe");
-var r2f = require ("./host");
+var r2p = require("r2pipe");
+var r2f = require("./host");
 
 var expectRead = false;
 var send = function() {
-  console.error ("NO SEND");
+  console.error("NO SEND");
 };
 
 /* receive message from r2 io plugin wrapper */
@@ -17,14 +17,14 @@ function onFridaMessage(msg, data) {
     "data": []
   };
   if (!payload) {
-    send (obj);
+    send(obj);
     return false;
   }
   var cmd = payload.name;
   var addr = payload.offset;
   if (cmd != 'x') {
     return false;
-    // read memory operation done
+  // read memory operation done
   }
   if (!expectRead) {
     return false;
@@ -32,9 +32,9 @@ function onFridaMessage(msg, data) {
   expectRead = false;
   /* read nothing here */
   for (var i in data) {
-    obj.data.push (data[i]);
+    obj.data.push(data[i]);
   }
-  send (obj);
+  send(obj);
   return true;
 }
 
@@ -43,7 +43,7 @@ function onFridaLoad(script) {
     var addr = msg.address;
     var size = msg.count;
     expectRead = true;
-    r2f.processLine (script, 'x ' + size + '@' + addr, function(res) {
+    r2f.processLine(script, 'x ' + size + '@' + addr, function(res) {
       /*
           expectRead = false;
           console.log ("DONE");
@@ -56,13 +56,13 @@ function onFridaLoad(script) {
       //  console.log ("Message ", msg, " processed, waiting for reply");
     });
   }
-  console.log ("[+] r2frida attached");
+  console.log("[+] r2frida attached");
   r2p.ioplugin(function(me, msg) {
     send = me.send;
     //console.log ("Got Message From R2", msg);
     switch (msg.op) {
       case 'close':
-        console.error ("close not yet implemented");
+        console.error("close not yet implemented");
         break;
       case 'read':
         runRead(script, msg);
@@ -72,7 +72,7 @@ function onFridaLoad(script) {
         break;
       case 'system':
         r2f.processLine(script, msg.cmd, function(res) {
-          me.send ({
+          me.send({
             result: res
           });
         });
@@ -87,9 +87,9 @@ function onFridaLoad(script) {
 var argv = process.argv.slice(2);
 
 if (argv.length < 1) {
-  console.error ("Use: r2 r2pipe://\"node r2io-frida.js [pid | processname]\"")
-  console.error ("Use frida-ps -R to list all the processes");
+  console.error("Use: r2 r2pipe://\"node r2io-frida.js [pid | processname]\"")
+  console.error("Use frida-ps -R to list all the processes");
   process.exit(1);
 }
 
-r2f.attachAndRun (argv[0], onFridaLoad, onFridaMessage);
+r2f.attachAndRun(argv[0], onFridaLoad, onFridaMessage);

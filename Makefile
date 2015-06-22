@@ -17,7 +17,7 @@ help:
 	@grep ' - ' README.md
 
 indent:
-	for a in bin/*.js src/*.js ; do jsfmt -w $$a ; done
+	for a in bin/*.js src/*.js ; do `npm bin`/jsfmt -f=true -w=true $$a ; done
 
 node_modules/frida:
 	npm install
