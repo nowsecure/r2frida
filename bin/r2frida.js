@@ -10,7 +10,7 @@ var fs = require('fs');
 
 /* actions */
 
-const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-k app] [-n|-s] [-l|-L|procname|pid]';
+const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-a,-k app] [-n|-s] [-l|-L|procname|pid]';
 
 function alignColumn(arr, col) {
   var str = arr[0];
@@ -29,13 +29,16 @@ function alignColumn(arr, col) {
 const Option = {
   showLongHelp: function() {
     die([helpmsg,
+      ' -a [app|pid]  attach (default if no flags)',
+      ' -f [adb|ip:p] forward port to frida-server',
+      ' -k [app|pid]  remote kill application',
       ' -l            list processes',
       ' -L            list applications',
-      ' -f [adb|ip:p] forward port to frida-server',
-      ' -k [appname]  remote kill application',
-      ' -v            show version information',
       ' -n            batch mode no prompt',
-      ' -s            enter the r2node shell'].join('\n'));
+      ' -s            enter the r2node shell',
+      ' -S [appname]  spawn new app',
+      ' -v            show version information'
+    ].join('\n'));
   },
   showHelp: function() {
     die(helpmsg, 0);
@@ -78,6 +81,13 @@ const Option = {
       device.kill(pid);
     });
   },
+  spawnAndAttach: function(app) {
+    var frida = require('frida');
+    frida.getRemoteDevice().then(function(device) {
+      var lala = device.spawn(["/bin/ls"]); //Applications/Calculator.app/Calculator"]);
+      startR2(lala);
+    });
+  },
   listProcesses: function() {
     var frida = require('frida');
     frida.getRemoteDevice().then(function(device) {
@@ -106,6 +116,8 @@ const Option = {
 
 Main(process.argv.slice(2), {
   '-h': Option.showLongHelp,
+  '-a': Option.startR2,
+  '-S': Option.spawnAndAttach,
   '-v': Option.showVersion,
   '-s': Option.enterShell,
   '-n': Option.enterBatchShell,

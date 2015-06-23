@@ -55,6 +55,7 @@ function traceInRange(t, from, to) {
   }
   for (var b in t.bt) {
     var bt = t.bt[b];
+    console.log(from, t.bt, to);
     if (bt >= from && bt <= to) {
       return true;
     }
@@ -241,7 +242,16 @@ function gotMessageFromFrida(script, msg, data) {
       break;
     case 'dt':
       var t = payload.data;
+      t.bt = t.bt.split(/ /);
       t.name = t.name || Sym[t.addr];
+      if (Cfg['trace.user']) {
+        var from = +Cfg['trace.from'];
+        var to = +Cfg['trace.to'];
+        var cur = +t.bt[0];
+        if (cur < from || cur > to) {
+          break;
+        }
+      }
       if (Cfg['trace.from'] && Cfg['trace.to']) {
         var from = +Cfg['trace.from'];
         var to = +Cfg['trace.to'];
@@ -349,10 +359,16 @@ function processLine(script, chunk, cb) {
       exec(args[0], args.slice(1));
     } else {
       switch (words[0]) {
+        case 'help':
+        case 'h':
         case '?':
           if (words.length > 1) {
-            var off = Offset(+eval(chunk.substring(2)));
-            log(off);
+            try {
+              var off = Offset(+eval(chunk.substring(2)));
+              log(off);
+            } catch (e) {
+              console.error(e);
+            }
           } else {
             r += log("Available r2frida commands\n"
               + "+ Use '@' for temporal seeks and ~ for internal grep\n"
@@ -385,6 +401,7 @@ function processLine(script, chunk, cb) {
             fin(r);
             return true;
           }
+          break;
         //console.log ("w hexpair@addr  - write hexpairs to addr");
         case 'b':
           var tmp = +chunk.substring(2);
@@ -454,6 +471,37 @@ function processLine(script, chunk, cb) {
   return false;
 }
 
+function spawnAndAttach(pid, on_load, on_message) {
+  frida.getRemoteDevice().then(function(device) {
+    console.log("Attaching to " + pid + " using " + device.name);
+    pid = +pid || pid;
+    device.spawn(pid).then(function() {
+      device.attach(pid).then(function(session) {
+        device.resume(pid);
+        return session.createScript(remoteScript);
+      }).then(function(script) {
+        script.events.listen('message', function(msg, data) {
+          // console.error(msg);
+          if (msg && msg.type == 'error') {
+            msg.payload = {
+              name: 'x'
+            }
+          }
+          if (on_message && on_message(msg, data)) {
+            return;
+          }
+          gotMessageFromFrida(script, msg, data);
+        });
+        script.load().then(function() {
+          on_load(script);
+        });
+      }).catch(function(err) {
+        console.error(err);
+      });
+    });
+  });
+}
+
 function attachAndRun(pid, on_load, on_message) {
   frida.getRemoteDevice().then(function(device) {
     console.log("Attaching to " + pid + " using " + device.name);
@@ -482,6 +530,7 @@ function attachAndRun(pid, on_load, on_message) {
   });
 }
 
+module.exports.spawnAndAttach = spawnAndAttach;
 module.exports.attachAndRun = attachAndRun;
 module.exports.processLine = processLine;
 module.exports.getCurrentOffset = function() {

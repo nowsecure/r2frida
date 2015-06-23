@@ -1,7 +1,6 @@
 'use strict';
 
-var Cfg = {
-};
+var Cfg = {};
 
 var getEnvImpl = new NativeFunction(Module.findExportByName(
   'libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
@@ -62,7 +61,12 @@ function onMessage(msg) {
       for (i = 1; i < args.length; i++) {
         (function(addr) {
           var name = '';
+          console.log("Tracing " + addr);
           // TODO: find name by offset
+          if (addr[0] != '0' || addr[1] != 'x') {
+            console.log("Argument must be an offset");
+            return;
+          }
           Interceptor.attach(ptr(addr), {
             onEnter: function(args) {
               // get registers
@@ -76,7 +80,16 @@ function onMessage(msg) {
               if (b > 0xfff) {
                 b = 64;
               }
-              var bt = Thread.backtrace(this.context).join(' ');
+              var bt = Thread.backtrace(this.context);
+              var bts = bt.join(' ');
+              /*
+              if (Cfg['trace.from'] && Cfg['trace.to']) {
+              if (+Cfg['trace.from'] < bt[0] || +Cfg['trace.to'] > bt[0]) {
+              console.log("skip");
+              return;
+              }
+              }
+              */
               //this.context, Backtracer.ACCURATE) .map(DebugSymbol.fromAddress).join(" ");
               try {
                 var mem = Memory.readByteArray(ptr(args[i]), b > 0 ? b : 0);
@@ -86,30 +99,40 @@ function onMessage(msg) {
               } catch (err) {
                 // do nothing
               }
+              var classname = '';
               try {
-                const obj = new ObjC.Object(args[0]);
+                var methodname = Memory.readUtf8String(ptr(args[1]));
+              /// XXX frida bug makes app crash here
+              //const obj = new ObjC.Object(args[0]);
+              //classname = ''+obj;
+              /*
+              console.log("PRE",args[0]);
+              var classname = obj.$className;
+              console.log("POS", classname);
+              classname = "";
+              */
               //const classname = obj.$className;
               //console.log (obj.$className);
               /*
                  if (obj.$kind == 'instance') {
-                 if (!classname) {
-                 classname = '';
-                 }
+			 if (!classname) {
+				 classname = '';
+			 }
                  }
               */
               } catch (e) {
-                const classname = '';
+                var methodname = "";
               }
               send(Message('dt', {
                 'addr': addr,
                 'name': name,
-                'bt': bt,
+                'bt': bts, // must pass a string not an array
                 'a0': args[0],
                 'a1': args[1],
                 'a2': args[2],
                 'a3': args[3],
                 'a0s': classname,
-                'a1s': Memory.readUtf8String(ptr(args[1]))
+                'a1s': methodname
               }), mem);
             },
             onLeave: function(retval) {}
