@@ -80,7 +80,12 @@ function onMessage(msg) {
               if (b > 0xfff) {
                 b = 64;
               }
+try {
               var bt = Thread.backtrace(this.context);
+              //var bt = [this.returnAddress];
+} catch (e) {
+	console.log(''+e);
+}
               var bts = bt.join(' ');
               /*
               if (Cfg['trace.from'] && Cfg['trace.to']) {
@@ -102,12 +107,18 @@ function onMessage(msg) {
               var classname = '';
               try {
                 var methodname = Memory.readUtf8String(ptr(args[1]));
+/*
+if (args[0].isNull()) {
+	classname = "null";
+} else {
               /// XXX frida bug makes app crash here
-              //const obj = new ObjC.Object(args[0]);
+              var obj = new ObjC.Object(args[0]);
+              classname = obj.$className;
+}
+*/
               //classname = ''+obj;
               /*
               console.log("PRE",args[0]);
-              var classname = obj.$className;
               console.log("POS", classname);
               classname = "";
               */
@@ -123,6 +134,7 @@ function onMessage(msg) {
               } catch (e) {
                 var methodname = "";
               }
+console.log (classname, methodname);
               send(Message('dt', {
                 'addr': addr,
                 'name': name,
@@ -360,6 +372,7 @@ function onMessage(msg) {
       var pid = Process.getCurrentThreadId();
       var ranges = Process.enumerateThreads({
         'onMatch': function(r) {
+          //objs.push(JSON.parse(JSON.stringify(r)));
           objs.push(r);
         },
         'onComplete': function() {

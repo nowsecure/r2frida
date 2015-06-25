@@ -96,8 +96,11 @@ function gotMessageFromFrida(script, msg, data) {
     return true;
   }
   function getRegionString(r) {
-    var fin = "0x" + (+r.base + r.size).toString(16);
-    return r.base + " " + fin + " " + r.protection;
+    var fin = "0x" + (+r.base + r.size).toString (16);
+    var mod = "";
+    //if (r.path) mod = r.path.substring (r.path.lastIndexOf('/')+1);
+    if (r.path) mod = r.path;
+    return r.base + " " + fin + " " + r.protection + "  "+mod;
   }
   if (!msg || !msg.payload) {
     console.error("This message have no payload", msg);
