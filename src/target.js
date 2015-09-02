@@ -107,15 +107,13 @@ try {
               var classname = '';
               try {
                 var methodname = Memory.readUtf8String(ptr(args[1]));
-/*
-if (args[0].isNull()) {
-	classname = "null";
-} else {
-              /// XXX frida bug makes app crash here
-              var obj = new ObjC.Object(args[0]);
-              classname = obj.$className;
-}
-*/
+		if (args[0].isNull()) {
+			classname = "null";
+		} else {
+			/// XXX frida bug makes app crash here
+			var obj = new ObjC.Object(args[0]);
+			classname = obj.$className;
+		}
               //classname = ''+obj;
               /*
               console.log("PRE",args[0]);

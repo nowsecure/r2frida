@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /*
-** r2frida main commandline program
+** Commandline entrypoint for `ratafia` (r2 + Frida)
 ** --pancake 2015
 */
 
 var spawnSync = require('child_process').spawnSync;
 var colors = require('colors');
+var frida = require('frida');
 var fs = require('fs');
+var getRemoteDevice = frida.getRemoteDevice;
 
 /* actions */
 
-const helpmsg = 'Usage: r2frida [-h|-v] [-f adb|ip:port] [-a,-k app] [-n|-s] [-l|-L|procname|pid]';
+const helpmsg = 'Usage: r2frida [-h|-v] [-UR] [-f adb|ip:port] [-a,-k app] [-n|-s] [-l|-L|procname|pid]';
 
 function alignColumn(arr, col) {
   var str = arr[0];
@@ -27,6 +29,14 @@ function alignColumn(arr, col) {
 }
 
 const Option = {
+  useRemote: function() {
+    getRemoteDevice = frida.getRemoteDevice;
+    return false;
+  },
+  useUsb: function() {
+    getRemoteDevice = frida.getUsbDevice;
+    return false;
+  },
   showLongHelp: function() {
     die([helpmsg,
       ' -a [app|pid]  attach (default if no flags)',
@@ -36,6 +46,8 @@ const Option = {
       ' -L            list applications',
       ' -n            batch mode no prompt',
       ' -s            enter the r2node shell',
+      ' -R            remote via TCP',
+      ' -U            remote via USB',
       ' -S [appname]  spawn new app',
       ' -v            show version information'
     ].join('\n'));
@@ -76,21 +88,18 @@ const Option = {
     exec('r2', ['r2pipe://node r2io-frida.js ' + target]);
   },
   killProcess: function(pid) {
-    var frida = require('frida');
-    frida.getRemoteDevice().then(function(device) {
+    getRemoteDevice().then(function(device) {
       device.kill(pid);
     });
   },
   spawnAndAttach: function(app) {
-    var frida = require('frida');
-    frida.getRemoteDevice().then(function(device) {
+    getRemoteDevice().then(function(device) {
       var lala = device.spawn(["/bin/ls"]); //Applications/Calculator.app/Calculator"]);
       startR2(lala);
     });
   },
   listProcesses: function() {
-    var frida = require('frida');
-    frida.getRemoteDevice().then(function(device) {
+    getRemoteDevice().then(function(device) {
       device.enumerateProcesses().then(function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
@@ -100,8 +109,7 @@ const Option = {
     });
   },
   listApplications: function() {
-    var frida = require('frida');
-    frida.getRemoteDevice().then(function(device) {
+    getRemoteDevice().then(function(device) {
       device.enumerateApplications().then(function(procs) {
         for (var i in procs.reverse()) {
           var p = procs[i];
@@ -124,7 +132,9 @@ Main(process.argv.slice(2), {
   '-f': Option.forwardPort,
   '-k': Option.killProcess,
   '-l': Option.listProcesses,
-  '-L': Option.listApplications
+  '-L': Option.listApplications,
+  '-R': Option.useRemote,
+  '-U': Option.useUsb
 });
 
 function Main(argv, options) {
@@ -133,12 +143,15 @@ function Main(argv, options) {
   for (var i in argv) {
     var opt = options [argv[+i]];
     if (opt) {
-      return opt(argv[+i + 1]);
+      if (opt(argv[1+i]) !== false) {
+        return;
+      }
     }
     if (target) {
       die("Invalid parameter: '" + argv[+i] + "'", 1);
     }
-    target = argv[+i];
+    if (argv[i][0] != '-')
+      target = argv[+i];
   }
   target && Option.startR2(target);
   Option.showHelp();
