@@ -24,18 +24,17 @@
     "instrumentation"
   ],
   "license": "MIT",
-  "engines": {
-    "node": ">=0.12"
-  },
   "bugs": {
     "url": "https://github.com/viaforensics/r2frida/issues"
   },
   "homepage": "https://github.com/viaforensics/r2frida.js",
+  "devDependencies": {
+    "semistandard": "*"
+  },
   "dependencies": {
-    "jsfmt": "~0.0.0",
     "frida": "*",
-    "r2pipe": ">=0.4.0",
-    "colors": "*"
+    "r2pipe": "1.0.2",
+    "colors": "1.1.2"
   }
 }
 

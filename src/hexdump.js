@@ -1,10 +1,9 @@
 // Hexdump Initializer
-var Hexdump = function(data, options) {
+var Hexdump = function (data, options) {
   var self = this;
   self.hexdump = [];
   if (!options) {
-    options = {}
-
+    options = {};
   }
   self.options = {
     offset: options.offset || 0,
@@ -30,17 +29,17 @@ var Hexdump = function(data, options) {
     self.options.width = data.length;
   }
 
-  self.output = this.dump(data)
-}
+  self.output = this.dump(data);
+};
 
-Hexdump.prototype.toString = function() {
+Hexdump.prototype.toString = function () {
   return this.output;
-}
+};
 
-Hexdump.prototype.dump = function(data) {
+Hexdump.prototype.dump = function (data) {
   var self = this;
 
-  function Offset(num, pad) {
+  function Offset (num, pad) {
     var offset = num.toString(16);
     if (offset.length < 8) {
       offset = '0x' + Array(8 - offset.length + 1).join('0') + offset;
@@ -54,16 +53,16 @@ Hexdump.prototype.dump = function(data) {
   for (var i = 0; i < data.length; i += self.options.width) {
     var offset = Offset(self.options.offset + i, 8);
 
-    self.output += offset + " "; // 0x00000000
+    self.output += offset + ' '; // 0x00000000
 
     var spacingCount = 0;
-    var width = Math.min(self.options.width, data.length - i)
+    var width = Math.min(self.options.width, data.length - i);
     for (var x = 0; x < width; x++) {
-      var ch = data[i + x].toString(16)
-      if (ch.length == 1) {
+      var ch = data[i + x].toString(16);
+      if (ch.length === 1) {
         ch = '0' + ch;
       }
-      if (spacingCount == self.options.spacing) {
+      if (spacingCount === self.options.spacing) {
         self.output += ch + ' ';
         spacingCount = 0;
       } else {
@@ -71,15 +70,15 @@ Hexdump.prototype.dump = function(data) {
         spacingCount++;
       }
     }
-    if (width != self.options.width) {
+    if (width !== self.options.width) {
       var wx = self.options.width - width;
-      wx *= 3
-      wx += 1
-      self.output += Array(wx).join(' ')
+      wx *= 3;
+      wx += 1;
+      self.output += Array(wx).join(' ');
     }
 
-    self.appendString(data.slice(i, i + self.options.width))
-    self.output += "\n";
+    self.appendString(data.slice(i, i + self.options.width));
+    self.output += '\n';
   }
   return self.output;
 
@@ -89,36 +88,36 @@ Hexdump.prototype.dump = function(data) {
 */
 };
 
-Hexdump.prototype.appendString = function(data) {
+Hexdump.prototype.appendString = function (data) {
   var self = this;
-  data = data.toString()
-  var str = data.replace(/[^a-zA-Z0-9 -]/g, '.')
+  data = data.toString();
+  var str = data.replace(/[^a-zA-Z0-9 -]/g, '.');
   if (str.length < 16) {
-    str += Array(16 - str.length + 1).join('.')
+    str += Array(16 - str.length + 1).join('.');
   }
-  self.output += " " + self.options.left + str + self.options.right;
+  self.output += ' ' + self.options.left + str + self.options.right;
 };
 
-Hexdump.prototype.process = function(data) {
-  var self = this;
+Hexdump.prototype.process = function (data) {
+  const self = this;
 
   var hexArray = [];
-  for (var i = 0; i < data.length; i++) {
+  for (let i = 0; i < data.length; i++) {
     hexArray.push(toHex(data[i]));
   }
 
   if (hexArray.length < self.options.width) {
     var amount = self.options.width - hexArray.length;
-    for (var i = 0; i < amount; i++) {
+    for (let i = 0; i < amount; i++) {
       hexArray.push(self.options.hexNull);
     }
   }
 
-  data = data.toString()
+  data = data.toString();
   if (data.length < self.options.width) {
     var stringAmount = self.options.width - data.length;
     for (var i = 0; i < stringAmount; i++) {
-      data += self.options.stringNull
+      data += self.options.stringNull;
     }
   }
 
@@ -128,17 +127,17 @@ Hexdump.prototype.process = function(data) {
   };
 };
 
-function toHex(characters) {
+function toHex (characters) {
   for (var i = 0; i < characters.length; i++) {
     var r = characters.charCodeAt(i).toString(16);
-    //var r = characters[i].toString(16);
-    r = characters[i].charCodeAt(0).toString(16)
+    // var r = characters[i].toString(16);
+    r = characters[i].charCodeAt(0).toString(16);
     if (r.length < 2) {
-      return "0" + r
+      return '0' + r;
     } else {
-      return r
+      return r;
     }
   }
 }
 
-exports.Hexdump = Hexdump
+exports.Hexdump = Hexdump;
