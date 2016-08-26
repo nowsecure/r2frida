@@ -57,7 +57,7 @@ function onFridaLoad(script) {
       //  console.log ("Message ", msg, " processed, waiting for reply");
     });
   }
-  console.log("[+] r2frida attached");
+  console.error("[+] r2frida attached");
   r2p.ioplugin(function(me, msg) {
     send = me.send;
     //console.log ("Got Message From R2", msg);

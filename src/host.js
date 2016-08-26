@@ -483,7 +483,7 @@ function processLine(script, chunk, cb) {
 
 function spawnAndAttach(device, pid, on_load, on_message) {
   resolveDevice(device).then(function(device) {
-    console.log("Attaching to " + pid + " using " + device.name);
+    console.error("Attaching to " + pid + " using " + device.name);
     pid = +pid || pid;
     device.spawn(pid).then(function() {
       device.attach(pid).then(function(session) {
@@ -532,7 +532,7 @@ function resolveDevice(device) {
 
 function attachAndRun(device, pid, on_load, on_message) {
   resolveDevice(device).then(function(device) {
-    console.log("Attaching to " + pid + " using " + device.name);
+    console.error("Attaching to " + pid + " using " + device.name);
     pid = +pid || pid;
     device.attach(pid).then(function(session) {
       return session.createScript(remoteScript);
