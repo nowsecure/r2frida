@@ -110,6 +110,7 @@ function gotMessageFromFrida(script, msg, data) {
   //log();
   switch (payload.name) {
     case 'pong':
+      log();
       log("PONG RECEIVED");
       break;
     case 'p8':
@@ -132,6 +133,7 @@ function gotMessageFromFrida(script, msg, data) {
       }
       console.log(str);
       break;
+    case 'px':
     case 'x':
       var xd = payload.data;
       var opt = {
@@ -145,7 +147,8 @@ function gotMessageFromFrida(script, msg, data) {
         }
         var hd = new hex.Hexdump(data, opt);
         if (hd && hd.output) {
-          //       log(hd.output);
+          log();
+          log(hd.output);
         }
       }
       break;
@@ -184,26 +187,30 @@ function gotMessageFromFrida(script, msg, data) {
       }
       break;
     case 'i?':
-      log("Usage: i[escl] show info");
-      log(" i     show process info");
-      log(" ie    show exports");
-      log(" ic    show (ObjC) classes");
-      log(" ip    show (ObjC) protocols");
+      log('Usage: i[escl] show info');
+      log(' i     show process info');
+      log(' ie    show exports');
+      log(' ic    show (ObjC) classes');
+      log(' ip    show (ObjC) protocols');
       break;
     case 'i':
-      var info = payload.data;
-      var conf = {
+      const info = payload.data;
+      const conf = {
         'asm.arch': info.arch,
         'asm.bits': info.bits,
         'asm.os': info.os,
         'bin.lang': info.objc ? 'objc' : info.dalvik ? 'dalvik' : '',
       };
-      for (var k in conf) {
-        var line = 'e ' + k + ' = ' + conf[k];
+      if (conf['asm.arch'] == 'arm64') {
+        conf['asm.arch'] = 'arm';
+        conf['asm.bits'] = 64;
+      }
+      for (let k in conf) {
+        const line = 'e ' + k + ' = ' + conf[k];
         log(line);
         processLine(script, line);
       }
-      log("# pid " + info.pid);
+      log('# pid ' + info.pid);
       break;
     case 'ic':
       var xd = payload.data;
@@ -474,8 +481,8 @@ function processLine(script, chunk, cb) {
   return false;
 }
 
-function spawnAndAttach(pid, on_load, on_message) {
-  frida.getRemoteDevice().then(function(device) {
+function spawnAndAttach(device, pid, on_load, on_message) {
+  resolveDevice(device).then(function(device) {
     console.log("Attaching to " + pid + " using " + device.name);
     pid = +pid || pid;
     device.spawn(pid).then(function() {
@@ -505,8 +512,26 @@ function spawnAndAttach(pid, on_load, on_message) {
   });
 }
 
-function attachAndRun(pid, on_load, on_message) {
-  frida.getRemoteDevice().then(function(device) {
+function resolveDevice(device) {
+  console.error('[+] Using', device, 'target');
+  switch (device) {
+    case 'usb':
+      return frida.getUsbDevice();
+    case 'local':
+      return frida.getLocalDevice();
+    case 'tcp':
+      return frida.getRemoteDevice();
+      break;
+  }
+  return function() {
+    this.then = function() {
+      throw(new Error('invalid device'));
+    }
+  }
+}
+
+function attachAndRun(device, pid, on_load, on_message) {
+  resolveDevice(device).then(function(device) {
     console.log("Attaching to " + pid + " using " + device.name);
     pid = +pid || pid;
     device.attach(pid).then(function(session) {
@@ -546,4 +571,3 @@ module.exports.setConfig = function(script, kv) {
     processLine(script, line);
   }
 }
-

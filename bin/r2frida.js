@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /*
 ** Commandline entrypoint for `ratafia` (r2 + Frida)
-** --pancake 2015
+** --pancake 2015-2016 @ NowSecure
 */
+'use strict';
 
 const spawnSync = require('child_process').spawnSync;
 const colors = require('colors');
@@ -104,21 +105,29 @@ const Option = {
   listProcesses: function () {
     getRemoteDevice().then(function (device) {
       device.enumerateProcesses().then(function (procs) {
-        for (var i in procs.reverse()) {
-          var p = procs[i];
+        for (let i in procs.reverse()) {
+          const p = procs[i];
           console.log(alignColumn([p.pid, p.name], 16));
         }
+      }).catch(function (err) {
+        console.error(err);
       });
+    }).catch(function (err) {
+      console.error(err);
     });
   },
   listApplications: function () {
     getRemoteDevice().then(function (device) {
       device.enumerateApplications().then(function (procs) {
-        for (var i in procs.reverse()) {
-          var p = procs[i];
+        for (let i in procs.reverse()) {
+          const p = procs[i];
           console.log(alignColumn([p.pid, p.name, p.identifier], 16));
         }
+      }).catch(function (err) {
+        console.error(err);
       });
+    }).catch(function (err) {
+      console.error(err);
     });
   }
 };
@@ -144,7 +153,7 @@ function Main (argv, options) {
   let target;
   process.chdir(path.join(__dirname, '..', 'src'));
   for (let i in argv) {
-    let opt = options[argv[+i]];
+    const opt = options[argv[+i]];
     if (opt) {
       if (opt(argv[1 + i]) !== false) {
         return;
@@ -164,14 +173,14 @@ function Main (argv, options) {
 /* utils */
 
 function die (msg, ret) {
-  var println = ret ? console.error : console.log;
-  var color = ret ? colors.red : colors.yellow;
+  const println = ret ? console.error : console.log;
+  const color = ret ? colors.red : colors.yellow;
   println(color(msg));
   process.exit(ret);
 }
 
 function exec (cmd, args) {
-  var res = spawnSync(cmd, args, {
+  const res = spawnSync(cmd, args, {
     stdio: [0, 1, 2]
   });
   process.exit(res.status);

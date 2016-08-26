@@ -1,6 +1,7 @@
 /* Copyright 2015-2016 - MIT license - pancake@nowsecure.com */
+'use strict';
 
-var r2f = require('./host');
+const r2f = require('./host');
 var useReadline = true;
 
 var Cfg = {
@@ -65,4 +66,15 @@ function onLoad (script) {
   setupPrompt(script);
 }
 
-r2f.attachAndRun(argv[0], onLoad);
+var targetDevice = 'local';
+var targetProcess;
+if (argv[0] == '-R') {
+  targetDevice = 'tcp';
+  targetProcess = argv[1];
+} else if (argv[0] == '-U') {
+  targetDevice = 'usb';
+  targetProcess = argv[1];
+} else {
+  targetProcess = argv[0];
+}
+r2f.attachAndRun(targetDevice, targetProcess, onLoad);

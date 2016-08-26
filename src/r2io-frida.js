@@ -11,10 +11,11 @@ var send = function() {
 /* receive message from r2 io plugin wrapper */
 /* parses the message to read ... */
 function onFridaMessage(msg, data) {
+console.log("fridamsg");
   var payload = msg.payload;
   var obj = {
-    "result": data.length || 0,
-    "data": []
+    'result': data.length || 0,
+    'data': []
   };
   if (!payload) {
     send(obj);
@@ -31,7 +32,7 @@ function onFridaMessage(msg, data) {
   }
   expectRead = false;
   /* read nothing here */
-  for (var i in data) {
+  for (let i in data) {
     obj.data.push(data[i]);
   }
   send(obj);
@@ -84,12 +85,23 @@ function onFridaLoad(script) {
   });
 }
 
-var argv = process.argv.slice(2);
+const argv = process.argv.slice(2);
 
 if (argv.length < 1) {
   console.error("Use: r2 r2pipe://\"node r2io-frida.js [pid | processname]\"")
+  console.error("Use: r2 r2pipe://\"node r2io-frida.js -U [pid | processname]\"")
   console.error("Use frida-ps -R to list all the processes");
   process.exit(1);
 }
 
-r2f.attachAndRun(argv[0], onFridaLoad, onFridaMessage);
+var targetDevice = 'local';
+if (argv[0] == '-R') {
+  targetDevice = 'tcp';
+  targetProcess = argv[1];
+} else if (argv[0] == '-U') {
+  targetDevice = 'usb';
+  targetProcess = argv[1];
+} else {
+  targetProcess = argv[0];
+}
+r2f.attachAndRun(targetDevice, argv[0], onFridaLoad, onFridaMessage);
