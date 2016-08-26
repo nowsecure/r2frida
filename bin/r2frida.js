@@ -30,8 +30,14 @@ function alignColumn (arr, col) {
   return str;
 }
 
-function startR2 (target, process) {
-  exec('r2', ['r2pipe://node r2io-frida.js ' + target + ' ' + process ]);
+function getChannel() {
+  return (getRemoteDevice === frida.getUsbDevice)
+    ? '-U': (getRemoteDevice === frida.getRemoteDevice)
+    ? '-R': '';
+}
+
+function startR2 (target) {
+  exec('r2', ['r2pipe://node r2io-frida.js ' + getChannel() + ' ' + target]);
 }
 
 const Option = {
@@ -53,6 +59,7 @@ const Option = {
       ' -n            batch mode no prompt',
       ' -s            enter the r2node shell',
       ' -R            remote via TCP',
+      //' -R [host:port]  remote via TCP',
       ' -U            remote via USB',
       ' -S [appname]  spawn new app',
       ' -v            show version information'
@@ -67,7 +74,14 @@ const Option = {
     die(version, 0);
   },
   enterShell: function (target) {
-    target && exec(process.execPath, ['main.js', target]);
+    const channel = getChannel();
+    if (target) {
+      if (channel === '') {
+        exec(process.execPath, ['main.js', target]);
+      } else {
+        exec(process.execPath, ['main.js', channel, target]);
+      }
+    }
     die('Missing target', 1);
   },
   enterBatchShell: function (target) {
@@ -100,7 +114,9 @@ const Option = {
     getRemoteDevice().then(function (device) {
       console.error('TODO: always spawns /bin/ls here');
       var lala = device.spawn(['/bin/ls']); // Applications/Calculator.app/Calculator"]);
-      startR2('usb', lala);
+      startR2('/bin/ls');
+    }).catch(function (err) {
+      console.error(err);
     });
   },
   listProcesses: function () {
@@ -156,21 +172,19 @@ function Main (argv, options) {
   for (let i in argv) {
     const opt = options[argv[+i]];
     if (opt) {
-      if (opt(argv[1 + i]) !== false) {
+      if (opt(argv[+i + 1]) !== false) {
+        console.error("invalid arg");
         return;
       }
     }
-    if (target) {
+    if (target !== undefined) {
       die("Invalid parameter: '" + argv[+i] + "'", 1);
     }
     if (argv[i][0] !== '-') {
       target = argv[+i];
     }
   }
-  var channel = (getRemoteDevice === frida.getUsbDevice)
-    ? '-U': (getRemoteDevice === frida.getRemoteDevice)
-    ? '-R': '';
-  target && Option.startR2(channel, target);
+  target && Option.startR2(target);
   Option.showHelp();
 }
 
