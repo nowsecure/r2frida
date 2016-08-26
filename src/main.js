@@ -15,7 +15,10 @@ var Cfg = {
 
 var argv = process.argv.slice(2);
 if (argv.length < 1) {
-  console.log('Use: main.js [-n] [pid | processname]');
+  console.log('Use: main.js [-U|-R|-n] [pid | processname]');
+  console.log('  -U  - use USB connection');
+  console.log('  -R  - use TCP connection');
+  console.log('  -n  - do not use readline');
   process.exit(1);
 }
 if (argv[0] === '-n') {

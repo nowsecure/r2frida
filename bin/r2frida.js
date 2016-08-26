@@ -10,7 +10,7 @@ const colors = require('colors');
 const frida = require('frida');
 const fs = require('fs');
 const path = require('path');
-var getRemoteDevice = frida.getRemoteDevice;
+var getRemoteDevice = frida.getLocalDevice;
 
 /* actions */
 
@@ -30,8 +30,8 @@ function alignColumn (arr, col) {
   return str;
 }
 
-function startR2 (target) {
-  exec('r2', ['r2pipe://node r2io-frida.js ' + target]);
+function startR2 (target, process) {
+  exec('r2', ['r2pipe://node r2io-frida.js ' + target + ' ' + process ]);
 }
 
 const Option = {
@@ -98,8 +98,9 @@ const Option = {
   },
   spawnAndAttach: function (app) {
     getRemoteDevice().then(function (device) {
+      console.error('TODO: always spawns /bin/ls here');
       var lala = device.spawn(['/bin/ls']); // Applications/Calculator.app/Calculator"]);
-      startR2(lala);
+      startR2('usb', lala);
     });
   },
   listProcesses: function () {
@@ -166,7 +167,10 @@ function Main (argv, options) {
       target = argv[+i];
     }
   }
-  target && Option.startR2(target);
+  var channel = (getRemoteDevice === frida.getUsbDevice)
+    ? '-U': (getRemoteDevice === frida.getRemoteDevice)
+    ? '-R': '';
+  target && Option.startR2(channel, target);
   Option.showHelp();
 }
 
