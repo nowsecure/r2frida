@@ -1,9 +1,10 @@
 /* entrypoint for host.js frida's host-side code */
+'use strict';
 
-var spawnSync = require('child_process').spawnSync;
-var frida = require('frida');
-var fs = require("fs");
-var hex = require("./hexdump");
+const spawnSync = require('child_process').spawnSync;
+const frida = require('frida');
+const fs = require("fs");
+const hex = require("./hexdump");
 
 var rl;
 var scriptFileName = 'target.js';
@@ -64,13 +65,11 @@ function traceInRange(t, from, to) {
 }
 
 function Offset(num, pad) {
-  var offset = num.toString(16);
-  if (offset.length < 8) {
-    offset = '0x' + Array(8 - offset.length + 1).join('0') + offset;
-  } else {
-    offset = '0x' + offset;
+  const hexNum = num.toString(16);
+  if (hexNum.length < 8) {
+    return '0x' + Array(8 - hexNum.length + 1).join('0') + hexNum;
   }
-  return offset;
+  return '0x' + hexNum;
 }
 
 function log() {
@@ -86,7 +85,7 @@ function log() {
   if (grep && str.indexOf(grep) == -1) {
     return;
   }
-  console.log(str);
+  console.error(str);
   return str;
 }
 
@@ -481,16 +480,16 @@ function processLine(script, chunk, cb) {
   return false;
 }
 
-function spawnAndAttach(device, pid, on_load, on_message) {
-  resolveDevice(device).then(function(device) {
-    console.error("Attaching to " + pid + " using " + device.name);
+function spawnAndAttach(channel, pid, on_load, on_message) {
+  resolveDevice(channel).then(function(device) {
+    console.error('Attaching to ' + pid + ' using ' + device.name);
     pid = +pid || pid;
-    device.spawn(pid).then(function() {
+    device.spawn(pid).then(function () {
       device.attach(pid).then(function(session) {
         device.resume(pid);
         return session.createScript(remoteScript);
-      }).then(function(script) {
-        script.events.listen('message', function(msg, data) {
+      }).then(function (script) {
+        script.events.listen('message', function (msg, data) {
           // console.error(msg);
           if (msg && msg.type == 'error') {
             msg.payload = {
@@ -530,8 +529,8 @@ function resolveDevice(device) {
   }
 }
 
-function attachAndRun(device, pid, on_load, on_message) {
-  resolveDevice(device).then(function(device) {
+function attachAndRun(channel, pid, on_load, on_message) {
+  resolveDevice(channel).then(function (device) {
     console.error("Attaching to " + pid + " using " + device.name);
     pid = +pid || pid;
     device.attach(pid).then(function(session) {

@@ -11,7 +11,6 @@ var send = function() {
 /* receive message from r2 io plugin wrapper */
 /* parses the message to read ... */
 function onFridaMessage(msg, data) {
-console.log("fridamsg");
   var payload = msg.payload;
   var obj = {
     'result': data.length || 0,
@@ -104,4 +103,4 @@ if (argv[0] == '-R') {
 } else {
   targetProcess = argv[0];
 }
-r2f.attachAndRun(targetDevice, argv[0], onFridaLoad, onFridaMessage);
+r2f.attachAndRun(targetDevice, targetProcess, onFridaLoad, onFridaMessage);
