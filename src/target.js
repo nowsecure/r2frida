@@ -2,6 +2,14 @@
 
 var Cfg = {};
 
+function Offset(num, pad) {
+  const hexNum = num.toString(16);
+  if (hexNum.length < 8) {
+    return '0x' + Array(8 - hexNum.length + 1).join('0') + hexNum;
+  }
+  return '0x' + hexNum;
+}
+
 var getEnvImpl = new NativeFunction(Module.findExportByName(
   'libsystem_c.dylib', 'getenv'), 'pointer', ['pointer']);
 function getEnv (name) {
@@ -253,6 +261,32 @@ function onMessage (msg) {
         const mem = Memory.writeByteArray(ptr(msg.offset), data);
         send(Message(args[0], {
           offset: +msg.offset
+        }));
+      } catch (e) {
+        send(Message(args[0], {
+          offset: +msg.offset,
+          exception: e
+        }));
+      }
+      break;
+    case 'pd':
+      try {
+        var count = 10;
+        var str = '';
+        var at = ptr(msg.offset);
+        for (var i = 0; i < count; i++) {
+          try {
+            let inst = Instruction.parse(at);
+            str += Offset(+at, 10) + '   ' + inst + '\n';
+            at = inst.next;
+          } catch (e) {
+            console.error(at, e);
+            at = at.add(4);
+          }
+        }
+        send(Message(args[0], {
+          offset: +msg.offset,
+          text: str
         }));
       } catch (e) {
         send(Message(args[0], {

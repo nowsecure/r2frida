@@ -112,6 +112,9 @@ function gotMessageFromFrida(script, msg, data) {
       log();
       log("PONG RECEIVED");
       break;
+    case 'pd':
+      log('\n' + payload.data.text);
+      break;
     case 'p8':
       var str = '';
       var sdata = '' + data;
@@ -130,7 +133,7 @@ function gotMessageFromFrida(script, msg, data) {
             break;
         }
       }
-      console.log(str);
+      log(str);
       break;
     case 'px':
     case 'x':
