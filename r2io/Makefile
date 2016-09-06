@@ -13,29 +13,25 @@ LDFLAGS+=$(shell pkg-config --libs r_io)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
 # FRIDA
-CFLAGS+=-Ifrida-sdk
-LDFLAGS+=-Wl,-no_compact_unwind
-LDFLAGS+=frida-sdk/libfrida-core.a -lresolv
+FRIDA_CPPFLAGS+=-Ifrida-sdk
+FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
+FRIDA_LIBS+=frida-sdk/libfrida-core.a -lresolv
 # OSX-FRIDA
-LDFLAGS+=-framework Foundation
-LDFLAGS+=-framework AppKit
+FRIDA_LIBS+=-framework Foundation
+FRIDA_LIBS+=-framework AppKit
 
 # CYCRIPT
-LDFLAGS+=cycript/src/.libs/libcycript.a
-
-CXXFLAGS=-std=c++11 -stdlib=libc++ $(CFLAGS)
+CYCRIPT_CPPFLAGS+=-Icycript/src
+CYCRIPT_LIBS+=cycript/src/.libs/libcycript.a
 
 all: io_frida.o cylang.o
-	$(CXX) \
-		$^ \
-		-o io_frida.$(SO_EXT) \
-		$(LDFLAGS)
+	$(CXX) $^ -o io_frida.$(SO_EXT) $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYCRIPT_LIBS)
 
 io_frida.o: io_frida.c frida-sdk/libfrida-core.a _agent.h
-	$(CC) -c $(CFLAGS) io_frida.c
+	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) io_frida.c
 
 cylang.o: cylang.cpp cycript/src/.libs/libcycript.a
-	$(CXX) -c $(CXXFLAGS) -Icycript/src cylang.cpp
+	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYCRIPT_CPPFLAGS) cylang.cpp
 
 _agent.h: _agent.js
 	( \
@@ -65,18 +61,17 @@ cycript/ext/node/lib:
 	cd cycript && git submodule init && git submodule update
 
 cycript/configure: cycript/ext/node/lib
-	cd cycript && ./autogen.sh
+	cd cycript && $(SHELL) ./autogen.sh
 
 cycript/Makefile: cycript/configure
 	cd cycript && \
-		BISON=/usr/local/opt/bison/bin/bison \
-		YACC=/usr/local/opt/bison/bin/yacc \
-		./configure \
+		$(SHELL) ./configure \
 			--disable-console \
+			--disable-engine \
 			--disable-shared \
 			--enable-static \
 			--with-libclang="-rpath /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib" \
 			--with-python=/usr/bin/python-config
 
 cycript/src/.libs/libcycript.a: cycript/Makefile
-	make -C cycript -j8
+	$(MAKE) -C cycript
