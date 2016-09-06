@@ -207,6 +207,37 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
+static int __system(RIO *io, RIODesc *fd, const char *command) {
+	RIOFrida *rf;
+	JsonBuilder *builder;
+	JsonObject *result;
+	const char *value;
+
+	if (!fd || !fd->data) {
+		return -1;
+	}
+
+	rf = fd->data;
+
+	builder = build_request ("perform");
+	json_builder_set_member_name (builder, "command");
+	json_builder_add_string_value (builder, command);
+	json_builder_set_member_name (builder, "blocksize");
+	json_builder_add_int_value (builder, io->desc->obsz);
+
+	result = perform_request (rf, builder, NULL);
+	if (!result) {
+		return -1;
+	}
+
+	value = json_object_get_string_member (result, "value");
+	io->cb_printf ("%s\n", value);
+
+	json_object_unref (result);
+
+	return true;
+}
+
 static bool parse_target(const char *pathname, char **device_id, char **process_specifier) {
 	const char *first_field, *second_field;
 
@@ -436,6 +467,7 @@ RIOPlugin r_io_plugin_frida = {
 	.lseek = __lseek,
 	.write = __write,
 	.resize = __resize,
+	.system = __system,
 };
 
 #ifndef CORELIB
