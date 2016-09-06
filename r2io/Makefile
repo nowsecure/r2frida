@@ -3,7 +3,9 @@ frida_os_arch = mac-x86_64
 
 SO_EXT=dylib
 CC?=gcc
-CFLAGS+=-shared -fPIC
+CXX?=g++
+CFLAGS+=-fPIC
+LDFLAGS+=-shared
 
 # R2
 CFLAGS+=$(shell pkg-config --cflags r_io)
@@ -12,14 +14,28 @@ R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
 # FRIDA
 CFLAGS+=-Ifrida-sdk
-CFLAGS+=-Wl,-no_compact_unwind
+LDFLAGS+=-Wl,-no_compact_unwind
 LDFLAGS+=frida-sdk/libfrida-core.a -lresolv
 # OSX-FRIDA
 LDFLAGS+=-framework Foundation
 LDFLAGS+=-framework AppKit
 
-all: frida-sdk/libfrida-core.a _agent.h
-	$(CC) $(CFLAGS) $(LDFLAGS) io_frida.c -o io_frida.$(SO_EXT)
+# CYCRIPT
+LDFLAGS+=cycript/src/.libs/libcycript.a
+
+CXXFLAGS=-std=c++11 -stdlib=libc++ $(CFLAGS)
+
+all: io_frida.o cylang.o
+	$(CXX) \
+		$^ \
+		-o io_frida.$(SO_EXT) \
+		$(LDFLAGS)
+
+io_frida.o: io_frida.c frida-sdk/libfrida-core.a _agent.h
+	$(CC) -c $(CFLAGS) io_frida.c
+
+cylang.o: cylang.cpp cycript/src/.libs/libcycript.a
+	$(CXX) -c $(CXXFLAGS) -Icycript/src cylang.cpp
 
 _agent.h: _agent.js
 	( \
@@ -44,3 +60,23 @@ frida-sdk/libfrida-core.a:
 	curl -Ls https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz | xz -d | tar -C $(@D)/_ -xf -
 	mv $(@D)/_/* $(@D)
 	rmdir $(@D)/_
+
+cycript/ext/node/lib:
+	cd cycript && git submodule init && git submodule update
+
+cycript/configure: cycript/ext/node/lib
+	cd cycript && ./autogen.sh
+
+cycript/Makefile: cycript/configure
+	cd cycript && \
+		BISON=/usr/local/opt/bison/bin/bison \
+		YACC=/usr/local/opt/bison/bin/yacc \
+		./configure \
+			--disable-console \
+			--disable-shared \
+			--enable-static \
+			--with-libclang="-rpath /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib" \
+			--with-python=/usr/bin/python-config
+
+cycript/src/.libs/libcycript.a: cycript/Makefile
+	make -C cycript -j8

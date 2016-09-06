@@ -1,5 +1,7 @@
 'use strict';
 
+const mjolner = require('mjolner');
+
 const commandHandlers = {
   'env': dumpEnv,
   'i': dumpInfo,
@@ -63,6 +65,7 @@ function dumpMemory() {
 const requestHandlers = {
   read: read,
   perform: perform,
+  evaluate: evaluate,
 };
 
 function read(params) {
@@ -74,7 +77,7 @@ function read(params) {
 }
 
 function perform(params) {
-  const {command, blocksize} = params;
+  const {command} = params;
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
@@ -83,19 +86,63 @@ function perform(params) {
   if (handler === undefined)
     throw new Error('Unhandled command: ' + name);
 
-  const value = handler(args, blocksize);
+  const value = handler(args);
 
   return [{
     value: JSON.stringify(value)
   }, null];
 }
 
+function evaluate(params) {
+  return new Promise(resolve => {
+    const {code} = params;
+
+    if (ObjC.available)
+      ObjC.schedule(ObjC.mainQueue, performEval);
+    else
+      performEval();
+
+    function performEval() {
+      let result;
+      try {
+        const rawResult = (1, eval)(code);
+        global._ = rawResult;
+        if (rawResult !== undefined)
+          result = mjolner.toCYON(rawResult);
+        else
+          result = 'undefined';
+      } catch (e) {
+        result = 'throw new ' + e.name + '("' + e.message + '")';
+      }
+
+      resolve([{
+        value: result,
+      }, null]);
+    }
+  });
+}
+
+mjolner.register();
+
 function onStanza(stanza) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
     try {
-      const [replyStanza, replyBytes] = handler(stanza.payload);
-      send(replyStanza, replyBytes);
+      const value = handler(stanza.payload);
+      if (value instanceof Promise) {
+        value
+          .then(([replyStanza, replyBytes]) => {
+            send(replyStanza, replyBytes);
+          })
+          .catch(e => {
+            send({
+              error: e.message
+            });
+          });
+      } else {
+        const [replyStanza, replyBytes] = value;
+        send(replyStanza, replyBytes);
+      }
     } catch (e) {
       send({
         error: e.message

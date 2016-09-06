@@ -2,6 +2,7 @@
   "name": "r2io-frida-agent",
   "version": "1.0.0",
   "description": "Agent for frida:// io plugin",
+  "private": true,
   "main": "agent/index.js",
   "scripts": {
     "prepublish": "npm run build",
@@ -10,6 +11,7 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "^1.2.0"
+    "frida-compile": "^1.2.0",
+    "mjolner": "^1.0.4"
   }
 }
