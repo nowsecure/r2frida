@@ -164,6 +164,8 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	rf = fd->data;
 
 	builder = build_request ("read");
+	json_builder_set_member_name (builder, "offset");
+	json_builder_add_int_value (builder, io->off);
 	json_builder_set_member_name (builder, "count");
 	json_builder_add_int_value (builder, count);
 
@@ -182,51 +184,18 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 }
 
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
-	RIOFrida *rf;
-	char *offset_str;
-	const char *whence_str;
-	JsonBuilder *builder;
-	JsonObject *result;
-	ut64 new_offset;
-
-	if (!fd || !fd->data) {
-		return offset;
-	}
-
-	rf = fd->data;
-
-	offset_str = g_strdup_printf ("0x%" G_GINT64_MODIFIER "x", (guint64) offset);
-
 	switch (whence) {
 	case SEEK_SET:
-		whence_str = "SEEK_SET";
+		io->off = offset;
 		break;
 	case SEEK_CUR:
-		whence_str = "SEEK_CUR";
+		io->off += (int)offset;
 		break;
 	case SEEK_END:
-		whence_str = "SEEK_END";
+		io->off = UT64_MAX;
 		break;
 	}
-
-	builder = build_request ("seek");
-	json_builder_set_member_name (builder, "offset");
-	json_builder_add_string_value (builder, offset_str);
-	json_builder_set_member_name (builder, "whence");
-	json_builder_add_string_value (builder, whence_str);
-
-	g_free (offset_str);
-
-	result = perform_request (rf, builder, NULL);
-	if (!result) {
-		return -1;
-	}
-
-	new_offset = g_ascii_strtoull (json_object_get_string_member (result, "offset"), NULL, 16);
-
-	json_object_unref (result);
-
-	return new_offset;
+	return io->off;
 }
 
 static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
