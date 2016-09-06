@@ -1,3 +1,5 @@
+frida_version = 7.3.5
+frida_os_arch = mac-x86_64
 
 SO_EXT=dylib
 CC?=gcc
@@ -16,12 +18,29 @@ LDFLAGS+=frida-sdk/libfrida-core.a -lresolv
 LDFLAGS+=-framework Foundation
 LDFLAGS+=-framework AppKit
 
-all: frida-sdk
+all: frida-sdk/libfrida-core.a _agent.h
 	$(CC) $(CFLAGS) $(LDFLAGS) io_frida.c -o io_frida.$(SO_EXT)
 
-install:
+_agent.h: _agent.js
+	( \
+		/bin/echo -n '"'; \
+		awk '{ \
+			gsub("\\\\", "\\\\"); \
+			gsub("\"", "\\\""); \
+			printf "%s\\n", $$0; \
+		}' $<; \
+		echo '"'; \
+	) > $@
+
+_agent.js: agent/index.js
+	npm install
+
+install: all
 	mkdir -p "$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
 
-frida-sdk:
-	@echo Please grab it from https://github.com/frida/frida/releases
+frida-sdk/libfrida-core.a:
+	mkdir -p $(@D)/_
+	curl -Ls https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz | xz -d | tar -C $(@D)/_ -xf -
+	mv $(@D)/_/* $(@D)
+	rmdir $(@D)/_

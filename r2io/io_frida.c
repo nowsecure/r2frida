@@ -8,13 +8,226 @@
 #include "frida-core.h"
 
 typedef struct {
+	FridaDeviceManager *manager;
 	FridaDevice *device;
 	FridaSession *session;
-	FridaDeviceManager *manager;
+	FridaScript *script;
+
+	GMutex lock;
+	GCond cond;
+	volatile bool detached;
+	volatile bool received_reply;
+	JsonObject *reply_stanza;
+	GBytes *reply_bytes;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
+
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier);
+static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device);
+static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
+static JsonBuilder *build_request(const char *type);
+static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **bytes);
+static void on_message(FridaScript *script, const char *message, const char *data, int data_size, gpointer user_data);
+
+extern RIOPlugin r_io_plugin_frida;
+
+static const char *r_io_frida_agent_code =
+#include "_agent.h"
+;
+
+static RIOFrida *r_io_frida_new(void) {
+	RIOFrida *rf;
+
+	rf = R_NEW0 (RIOFrida);
+	if (!rf) {
+		return NULL;
+	}
+
+	rf->detached = false;
+	rf->received_reply = false;
+
+	return rf;
+}
+
+static void r_io_frida_free(RIOFrida *rf) {
+	if (!rf) {
+		return;
+	}
+
+	g_clear_object (&rf->script);
+	g_clear_object (&rf->session);
+	g_clear_object (&rf->device);
+	g_clear_object (&rf->manager);
+
+	R_FREE (rf);
+}
+
+static bool __check(RIO *io, const char *pathname, bool many) {
+	return (!strncmp (pathname, "frida://", 8));
+}
+
+static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
+	RIOFrida *rf;
+	char *device_id = NULL, *process_specifier = NULL;
+	guint pid;
+	GError *error = NULL;
+
+	frida_init ();
+
+	rf = r_io_frida_new ();
+	if (!rf) {
+		goto error;
+	}
+
+	rf->manager = frida_device_manager_new ();
+
+	if (!__check (io, pathname, 0)) {
+		goto error;
+	}
+
+	if (!parse_target (pathname, &device_id, &process_specifier)) {
+		goto error;
+	}
+
+	if (!resolve_device (rf->manager, device_id, &rf->device)) {
+		goto error;
+	}
+
+	if (!resolve_process (rf->device, process_specifier, &pid)) {
+		goto error;
+	}
+
+	rf->session = frida_device_attach_sync (rf->device, pid, &error);
+	if (error) {
+		eprintf ("Cannot attach: %s\n", error->message);
+		goto error;
+	}
+
+	rf->script = frida_session_create_script_sync (rf->session, "r2io", r_io_frida_agent_code, &error);
+	if (error) {
+		eprintf ("Cannot create script: %s\n", error->message);
+		goto error;
+	}
+
+	g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
+
+	frida_script_load_sync (rf->script, &error);
+	if (error) {
+		eprintf ("Cannot load script: %s\n", error->message);
+		goto error;
+	}
+
+	g_free (device_id);
+	g_free (process_specifier);
+
+	RETURN_IO_DESC_NEW (&r_io_plugin_frida, -1, pathname, rw, mode, rf);
+
+error:
+	g_clear_error (&error);
+
+	g_free (device_id);
+	g_free (process_specifier);
+
+	r_io_frida_free (rf);
+
+	return NULL;
+}
+
+static int __close(RIODesc *fd) {
+	RIOFrida *rf;
+
+	if (!fd || !fd->data) {
+		return -1;
+	}
+
+	r_io_frida_free (fd->data);
+	fd->data = NULL;
+	fd->state = R_IO_DESC_TYPE_CLOSED;
+
+	return 0;
+}
+
+static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
+	RIOFrida *rf;
+	JsonBuilder *builder;
+	JsonObject *result;
+	GBytes *bytes;
+	gconstpointer data;
+	gsize n;
+
+	if (!fd || !fd->data) {
+		return -1;
+	}
+
+	rf = fd->data;
+
+	builder = build_request ("read");
+	json_builder_set_member_name (builder, "count");
+	json_builder_add_int_value (builder, count);
+
+	result = perform_request (rf, builder, &bytes);
+	if (!result) {
+		return -1;
+	}
+
+	data = g_bytes_get_data (bytes, &n);
+	memcpy (buf, data, n);
+
+	json_object_unref (result);
+	g_bytes_unref (bytes);
+
+	return n;
+}
+
+static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
+	RIOFrida *rf;
+	char *offset_str;
+	const char *whence_str;
+	JsonBuilder *builder;
+	JsonObject *result;
+	ut64 new_offset;
+
+	if (!fd || !fd->data) {
+		return offset;
+	}
+
+	rf = fd->data;
+
+	offset_str = g_strdup_printf ("0x%" G_GINT64_MODIFIER "x", (guint64) offset);
+
+	switch (whence) {
+	case SEEK_SET:
+		whence_str = "SEEK_SET";
+		break;
+	case SEEK_CUR:
+		whence_str = "SEEK_CUR";
+		break;
+	case SEEK_END:
+		whence_str = "SEEK_END";
+		break;
+	}
+
+	builder = build_request ("seek");
+	json_builder_set_member_name (builder, "offset");
+	json_builder_add_string_value (builder, offset_str);
+	json_builder_set_member_name (builder, "whence");
+	json_builder_add_string_value (builder, whence_str);
+
+	g_free (offset_str);
+
+	result = perform_request (rf, builder, NULL);
+	if (!result) {
+		return -1;
+	}
+
+	new_offset = g_ascii_strtoull (json_object_get_string_member (result, "offset"), NULL, 16);
+
+	json_object_unref (result);
+
+	return new_offset;
+}
 
 static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 	/* TODO: talk with child */
@@ -25,142 +238,222 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
-static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
-	/* TODO: wait for message from client */
-	memset (buf, 0xff, count);
-	return count;
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier) {
+	const char *first_field, *second_field;
+
+	first_field = pathname + 8;
+	second_field = strchr (first_field, '/');
+	if (!second_field) {
+		*device_id = NULL;
+		*process_specifier = g_strdup (first_field);
+		return true;
+	}
+	second_field++;
+
+	*device_id = g_strndup (first_field, second_field - first_field - 1);
+	*process_specifier = g_strdup (second_field);
+	return true;
 }
 
-static int __close(RIODesc *fd) {
-	RIOFrida *rf;
-	if (!fd || !fd->data) {
-		return -1;
+static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device) {
+	FridaDeviceList *candidates;
+	guint count, i;
+	FridaDevice *match;
+
+	candidates = frida_device_manager_enumerate_devices_sync (manager, NULL);
+
+	count = frida_device_list_size (candidates);
+	for (i = 0, match = NULL; i < count && !match; i++) {
+		FridaDevice *candidate;
+
+		candidate = frida_device_list_get (candidates, i);
+		if ((!device_id && frida_device_get_dtype (candidate) == FRIDA_DEVICE_TYPE_LOCAL) ||
+			!strcmp (frida_device_get_id (candidate), device_id)) {
+			match = candidate;
+		} else {
+			g_object_unref (candidate);
+		}
 	}
-	rf = fd->data;
-	free (fd->data);
-	fd->data = NULL;
-	fd->state = R_IO_DESC_TYPE_CLOSED;
-	return 0;
+
+	g_object_unref (candidates);
+
+	if (!match) {
+		eprintf ("Cannot find the specified device\n");
+		return false;
+	}
+
+	*device = match;
+	return true;
 }
 
-static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
-	ut64 r_offset = offset;
-	if (!fd || !fd->data) {
-		return offset;
+static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid) {
+	int number;
+	FridaProcessList *candidates;
+	GError *error = NULL;
+	char *process_name;
+	FridaProcess *match;
+	guint count, i;
+
+	number = atoi (process_specifier);
+	if (number) {
+		*pid = number;
+		return true;
 	}
-	switch (whence) {
-	case SEEK_SET:
-		r_offset = offset;
-		break;
-	case SEEK_CUR:
-		r_offset += (st64)offset;
-		break;
-	case SEEK_END:
-		r_offset = UT64_MAX;
-		break;
+
+	candidates = frida_device_enumerate_processes_sync (device, &error);
+	if (error) {
+		eprintf ("%s\n", error->message);
+		g_error_free (error);
+		return false;
 	}
-	return r_offset;
+
+	process_name = g_utf8_casefold (process_specifier, -1);
+	count = frida_process_list_size (candidates);
+	for (i = 0, match = NULL; i < count && !match; i++) {
+		FridaProcess *candidate;
+		char *candidate_name;
+
+		candidate = frida_process_list_get (candidates, i);
+		candidate_name = g_utf8_casefold (frida_process_get_name (candidate), -1);
+		if (!strcmp (candidate_name, process_name))
+			match = candidate;
+		else
+			g_object_unref (candidate);
+		g_free (candidate_name);
+	}
+	g_free (process_name);
+
+	g_object_unref (candidates);
+
+	if (!match) {
+		eprintf ("Cannot find the specified process\n");
+		return false;
+	}
+
+	*pid = frida_process_get_pid (match);
+	g_object_unref (match);
+	return true;
 }
 
-static bool __check(RIO *io, const char *pathname, bool many) {
-	return (!strncmp (pathname, "frida://", 8));
+static JsonBuilder *build_request(const char *type) {
+	JsonBuilder *builder;
+
+	builder = json_builder_new ();
+	json_builder_begin_object (builder);
+	json_builder_set_member_name (builder, "type");
+	json_builder_add_string_value (builder, type);
+	json_builder_set_member_name (builder, "payload");
+	json_builder_begin_object (builder);
+
+	return builder;
 }
 
-static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
-	frida_init (); // TODO: avoid double initialization
-	if (__check (io, pathname, 0)) {
-		GError *error = NULL;
-		int pid = atoi (pathname + 8);
-		FridaDeviceList *devices;
-		RIOFrida *rf = R_NEW0 (RIOFrida);
-		if (!rf) return NULL;
-		rf->manager = frida_device_manager_new ();
-		devices = frida_device_manager_enumerate_devices_sync (rf->manager, &error);
-		if (error != NULL) {
-			// TODO: free rf->manager
-			eprintf ("Cannot enumerate frida devices\n");
-			frida_device_manager_close_sync (rf->manager);
-			free (rf);
-			return NULL;
-		}
-		int i, num_devices = frida_device_list_size (devices);
-		if (num_devices < 1) {
-			eprintf ("Cannot find any device to attach\n");
-			frida_device_manager_close_sync (rf->manager);
-			free (rf);
-			return NULL;
-		}
-		for (i = 0; i < num_devices ; i++) {
-			FridaDevice *device = frida_device_list_get (devices, i);
-			eprintf ("FridaDevice: %s\n", frida_device_get_name (device));
-			if (frida_device_get_dtype (device) == FRIDA_DEVICE_TYPE_LOCAL) {
-				rf->device = g_object_ref (device);
-			}
-			g_object_unref (device);
-		}
-		if (!rf->device) {
-			eprintf ("Cannot find any device to attach\n");
-			return NULL;
-		}
-		frida_device_attach_sync (rf->device, pid, &error);
-		if (error) {
-			frida_device_manager_close_sync (rf->manager);
-			free (rf);
-			return NULL;
-		}
-#if 0
-    script = frida_session_create_script_sync (session, "example",
-        "Interceptor.attach(Module.findExportByName(null, \"open\"), {\n"
-        "  onEnter: function (args) {\n"
-        "    console.log(\"[*] open(\\\"\" + Memory.readUtf8String(args[0]) + \"\\\")\");\n"
-        "  }\n"
-        "});\n"
-        "Interceptor.attach(Module.findExportByName(null, \"close\"), {\n"
-        "  onEnter: function (args) {\n"
-        "    console.log(\"[*] close(\" + args[0].toInt32() + \")\");\n"
-        "  }\n"
-        "});",
-        &error);
-    g_assert (error == NULL);
+static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **bytes) {
+	JsonNode *root;
+	char *message;
+	GError *error = NULL;
+	JsonObject *reply_stanza = NULL;
+	GBytes *reply_bytes = NULL;
 
-    g_signal_connect (script, "message", G_CALLBACK (on_message), NULL);
+	json_builder_end_object (builder);
+	json_builder_end_object (builder);
+	root = json_builder_get_root (builder);
+	message = json_to_string (root, FALSE);
+	json_node_unref (root);
+	g_object_unref (builder);
 
-    frida_script_load_sync (script, &error);
-    g_assert (error == NULL);
+	frida_script_post_message_sync (rf->script, message, &error);
 
-    g_print ("[*] Script loaded\n");
+	g_free (message);
 
-    if (g_main_loop_is_running (loop))
-      g_main_loop_run (loop);
-
-    g_print ("[*] Stopped\n");
-
-    frida_script_unload_sync (script, NULL);
-    frida_unref (script);
-    g_print ("[*] Unloaded\n");
-
-    frida_session_detach_sync (session);
-    frida_unref (session);
-    g_print ("[*] Detached\n");
-  }
-  else
-  {
-    g_printerr ("Failed to attach: %s\n", error->message);
-    g_error_free (error);
-  }
-
-  frida_unref (local_device);
-
-  frida_device_manager_close_sync (manager);
-  frida_unref (manager);
-  g_print ("[*] Closed\n");
-
-  g_main_loop_unref (loop);
-#endif
-		RETURN_IO_DESC_NEW (&r_io_plugin_malloc,
-			-1, pathname, rw, mode, rf);
+	if (error) {
+		eprintf ("%s\n", error->message);
+		g_error_free (error);
+		return NULL;
 	}
-	return NULL;
+
+	g_mutex_lock (&rf->lock);
+
+	while (!rf->detached && !rf->received_reply)
+		g_cond_wait (&rf->cond, &rf->lock);
+
+	if (rf->received_reply) {
+		reply_stanza = rf->reply_stanza;
+		reply_bytes = rf->reply_bytes;
+		rf->reply_stanza = NULL;
+		rf->reply_bytes = NULL;
+		rf->received_reply = false;
+	}
+
+	g_mutex_unlock (&rf->lock);
+
+	if (!reply_stanza) {
+		eprintf ("Target process terminated\n");
+		return NULL;
+	}
+
+	if (json_object_has_member (reply_stanza, "error")) {
+		eprintf ("%s\n", json_object_get_string_member (reply_stanza, "error"));
+		json_object_unref (reply_stanza);
+		g_bytes_unref (reply_bytes);
+		return NULL;
+	}
+
+	if (bytes) {
+		*bytes = reply_bytes;
+	} else {
+		g_bytes_unref (reply_bytes);
+	}
+
+	return reply_stanza;
+}
+
+static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
+	g_mutex_lock (&rf->lock);
+
+	g_assert (!rf->reply_stanza && !rf->reply_bytes);
+
+	rf->received_reply = true;
+	rf->reply_stanza = stanza;
+	rf->reply_bytes = bytes;
+
+	g_cond_signal (&rf->cond);
+
+	g_mutex_unlock (&rf->lock);
+}
+
+static void on_detached(FridaSession *session, gpointer user_data) {
+	RIOFrida *rf = user_data;
+
+	g_mutex_lock (&rf->lock);
+
+	rf->detached = true;
+	g_cond_signal (&rf->cond);
+
+	g_mutex_unlock (&rf->lock);
+}
+
+static void on_message(FridaScript *script, const char *message, const char *data, int data_size, gpointer user_data) {
+	RIOFrida *rf = user_data;
+	JsonParser *parser;
+	JsonObject *root;
+	const char *type;
+
+	parser = json_parser_new ();
+	json_parser_load_from_data (parser, message, -1, NULL);
+
+	root = json_node_get_object (json_parser_get_root (parser));
+	type = json_object_get_string_member (root, "type");
+
+	if (!strcmp (type, "send")) {
+		on_stanza (rf,
+			json_object_ref (json_object_get_object_member (root, "payload")),
+			g_bytes_new (data, data_size));
+	} else {
+		eprintf ("Unhandled message: %s\n", message);
+	}
+
+	g_object_unref (parser);
 }
 
 RIOPlugin r_io_plugin_frida = {
