@@ -78,3 +78,5 @@ cycript/Makefile: cycript/configure
 
 cycript/src/.libs/libcycript.a: cycript/Makefile
 	$(MAKE) -C cycript
+
+.PHONY: install uninstall
