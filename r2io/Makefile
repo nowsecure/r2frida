@@ -51,6 +51,9 @@ install: all
 	mkdir -p "$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
 
+uninstall:
+	rm -f "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+
 frida-sdk/libfrida-core.a:
 	mkdir -p $(@D)/_
 	curl -Ls https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz | xz -d | tar -C $(@D)/_ -xf -
