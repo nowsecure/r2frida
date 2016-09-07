@@ -2,12 +2,15 @@
 
 const mjolner = require('mjolner');
 
+const pointerSize = Process.pointerSize;
+
 const commandHandlers = {
   'env': dumpEnv,
   'i': dumpInfo,
   'il': dumpModules,
   'dpt': dumpThreads,
   'dm': dumpMemory,
+  'dr': dumpRegisters,
 };
 
 function dumpEnv(args) {
@@ -42,7 +45,7 @@ function setEnv(name, value, overwrite) {
 function dumpInfo() {
   return {
     arch: Process.arch,
-    bits: Process.pointerSize * 8,
+    bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
     objc: ObjC.available,
@@ -60,6 +63,86 @@ function dumpThreads() {
 
 function dumpMemory() {
   return Process.enumerateRangesSync('---');
+}
+
+function dumpRegisters() {
+  return Process.enumerateThreadsSync()
+    .map(thread => {
+      const {id, state, context} = thread;
+
+      const heading = `tid ${id} ${state}`;
+
+      const names = Object.keys(context);
+      names.sort(compareRegisterNames);
+      const values = names
+        .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
+        .map(indent);
+
+      return heading + '\n' + values.join('');
+    })
+    .join('\n\n');
+}
+
+function compareRegisterNames(lhs, rhs) {
+  const lhsIndex = parseRegisterIndex(lhs);
+  const rhsIndex = parseRegisterIndex(rhs);
+
+  const lhsHasIndex = lhsIndex !== null;
+  const rhsHasIndex = rhsIndex !== null;
+
+  if (lhsHasIndex && rhsHasIndex) {
+    return lhsIndex - rhsIndex;
+  } else if (lhsHasIndex === rhsHasIndex) {
+    const lhsLength = lhs.length;
+    const rhsLength = rhs.length;
+    if (lhsLength === rhsLength)
+      return lhs.localeCompare(rhs);
+    else if (lhsLength > rhsLength)
+      return 1;
+    else
+      return -1;
+  } else if (lhsHasIndex) {
+    return 1;
+  } else {
+    return -1;
+  }
+}
+
+function parseRegisterIndex(name) {
+  const length = name.length;
+  for (let index = 1; index < length; index++) {
+    const value = parseInt(name.substr(index));
+    if (!isNaN(value))
+      return value;
+  }
+  return null;
+}
+
+function indent(message, index) {
+  if (index === 0)
+    return message;
+
+  if ((index % 3) === 0)
+    return '\n' + message;
+
+  return '\t' + message;
+}
+
+function alignRight(text, width) {
+  let result = text;
+  while (result.length < width)
+    result = ' ' + result;
+  return result;
+}
+
+function padPointer(value) {
+  let result = value.toString(16);
+
+  const paddedLength = 2 * pointerSize;
+  while (result.length < paddedLength)
+    result = '0' + result;
+
+  return '0x' + result;
 }
 
 const requestHandlers = {
@@ -98,7 +181,7 @@ function perform(params) {
   const value = handler(args);
 
   return [{
-    value: JSON.stringify(value)
+    value: (typeof value === 'string') ? value : JSON.stringify(value),
   }, null];
 }
 
