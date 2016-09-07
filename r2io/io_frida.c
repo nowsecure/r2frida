@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include "cylang.h"
 #include "frida-core.h"
 
 typedef struct {
@@ -65,7 +66,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 }
 
 static bool __check(RIO *io, const char *pathname, bool many) {
-	return (!strncmp (pathname, "frida://", 8));
+	return g_str_has_prefix (pathname, "frida://");
 }
 
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
@@ -219,11 +220,29 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 	rf = fd->data;
 
-	builder = build_request ("perform");
-	json_builder_set_member_name (builder, "command");
-	json_builder_add_string_value (builder, command);
-	json_builder_set_member_name (builder, "blocksize");
-	json_builder_add_int_value (builder, io->desc->obsz);
+	if (command[0] == '.') {
+		GError *error = NULL;
+		char *js;
+
+		js = cylang_compile (command + 1, &error);
+		if (error) {
+			io->cb_printf ("ERROR: %s\n", error->message);
+			g_error_free (error);
+			return -1;
+		}
+
+		builder = build_request ("evaluate");
+		json_builder_set_member_name (builder, "code");
+		json_builder_add_string_value (builder, js);
+
+		g_free (js);
+
+		// TODO: perhaps we could do some cheap syntax-highlighting of the result?
+	} else {
+		builder = build_request ("perform");
+		json_builder_set_member_name (builder, "command");
+		json_builder_add_string_value (builder, command);
+	}
 
 	result = perform_request (rf, builder, NULL);
 	if (!result) {

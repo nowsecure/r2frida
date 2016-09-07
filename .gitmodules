@@ -1,0 +1,3 @@
+[submodule "r2io/cycript"]
+	path = r2io/cycript
+	url = https://github.com/nowsecure/frida-cycript.git
