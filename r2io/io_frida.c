@@ -247,6 +247,38 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		return -1;
 	}
 
+	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
+		io->cb_printf ("Available r2frida commands\n"
+			"+ Use '@' for temporal seeks and ~ for internal grep\n"
+			"!ls -l /       - execute shell command\n"
+			"b <size>       - change blocksize\n"
+			"dr             - show thread regs (see dpt)\n"
+			"dt <addr> ..   - trace list of addresses\n"
+			"dt-            - clear all tracing\n"
+			"di addr arg..  - call function at addr with given args\n"
+			"dl libname     - dlopen\n"
+			"dm             - show memory regions\n"
+			"dp             - show current pid\n"
+			"dpt            - show threads\n"
+			"e [k[=v]]      - evaluate Cfg var (host+target)\n"
+			"env [k[=v]]    - get/set environment variable\n"
+			"p8             - show blocksize in hexpairs\n"
+			"pa mov r0, 33  - assemble instruction at current offset\n"
+			"pad 90909090   - disassemble bytes at current offset\n"
+			"s <addr>       - seek to address\n"
+			"i              - show target information\n"
+			"ic <class>     - list classes or methods of <class>\n"
+			"ip             - list objc protocols\n"
+			"ie <lib>       - list exports/entrypoints of lib\n"
+			"is <sym>       - show address of symbol\n"
+			"is <lib> <sym> - show address of symbol\n"
+			"il             - list libraries\n"
+			"x @ addr       - hexdump at address\n"
+			"q              - quit\n"
+			"ping           - ping the frida-server\n");
+		return true;
+	}
+
 	rf = fd->data;
 
 	if (command[0] == ' ') {
