@@ -249,7 +249,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 	rf = fd->data;
 
-	if (command[0] == '.') {
+	if (command[0] == ' ') {
 		GError *error = NULL;
 		char *js;
 
