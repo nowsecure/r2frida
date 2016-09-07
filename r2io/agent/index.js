@@ -58,7 +58,9 @@ function dumpModules() {
 }
 
 function dumpThreads() {
-  return Process.enumerateThreadsSync();
+  return Process.enumerateThreadsSync()
+    .map(thread => thread.id)
+    .join('\n');
 }
 
 function dumpMemory() {
