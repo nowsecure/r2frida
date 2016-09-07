@@ -8,7 +8,7 @@
 G_BEGIN_DECLS
 
 enum {
-  CYLANG_COMPILER_ERROR_SYNTAX
+	CYLANG_COMPILER_ERROR_SYNTAX
 };
 
 char *cylang_compile(const char *code, GError **error);
