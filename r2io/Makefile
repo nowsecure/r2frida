@@ -44,7 +44,10 @@ _agent.h: _agent.js
 		echo '"'; \
 	) > $@
 
-_agent.js: agent/index.js
+_agent.js: agent/index.js node_modules
+	npm run build
+
+node_modules: package.json
 	npm install
 
 install: all
