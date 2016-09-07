@@ -200,8 +200,37 @@ static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 }
 
 static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
-	/* TODO: talk with child */
-	return -1;
+	RIOFrida *rf;
+	JsonBuilder *builder;
+	int i;
+	JsonObject *result;
+
+	if (!fd || !fd->data) {
+		return -1;
+	}
+
+	rf = fd->data;
+
+	builder = build_request ("write");
+	json_builder_set_member_name (builder, "offset");
+	json_builder_add_int_value (builder, io->off);
+	/*
+	 * FIXME: This is horribly inefficient; should add an out-of-band buffer
+	 *        to the Frida API like we have for received messages.
+	 */
+	json_builder_set_member_name (builder, "bytes");
+	json_builder_begin_array (builder);
+	for (i = 0; i < count; i++)
+		json_builder_add_int_value (builder, buf[i]);
+	json_builder_end_array (builder);
+
+	result = perform_request (rf, builder, NULL);
+	if (!result) {
+		return -1;
+	}
+	json_object_unref (result);
+
+	return count;
 }
 
 static bool __resize(RIO *io, RIODesc *fd, ut64 count) {

@@ -64,6 +64,7 @@ function dumpMemory() {
 
 const requestHandlers = {
   read: read,
+  write: write,
   perform: perform,
   evaluate: evaluate,
 };
@@ -74,6 +75,14 @@ function read(params) {
   const bytes = Memory.readByteArray(ptr(offset), count);
 
   return [{}, bytes];
+}
+
+function write(params) {
+  const {offset, bytes} = params;
+
+  Memory.writeByteArray(ptr(offset), bytes);
+
+  return [{}, null];
 }
 
 function perform(params) {
