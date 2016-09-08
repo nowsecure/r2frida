@@ -17,17 +17,26 @@ const commandHandlers = {
   'icj': listClassesJson,
   'ip': listProtocols,
   'ipj': listProtocolsJson,
-  'dpt': listThreads,
-  'dptj': listThreadsJson,
   'dm': listMemoryRanges,
   'dmj': listMemoryRangesJson,
   'dp': getPid,
   'dpj': getPid,
+  'dpt': listThreads,
+  'dptj': listThreadsJson,
   'dr': dumpRegisters,
   'drj': dumpRegistersJson,
   'env': getOrSetEnv,
   'envj': getOrSetEnvJson,
+  'dl': dlopen,
 };
+
+const RTLD_GLOBAL = 0x8;
+const RTLD_LAZY = 0x1;
+
+const _getenv = new NativeFunction(Module.findExportByName(null, 'getenv'), 'pointer', ['pointer']);
+const _setenv = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
+const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
+const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
 
 function dumpInfo() {
   const properties = dumpInfoJson();
@@ -152,17 +161,6 @@ function listProtocolsJson(args) {
   }
 }
 
-function listThreads() {
-  return Process.enumerateThreadsSync()
-  .map(thread => thread.id)
-  .join('\n');
-}
-
-function listThreadsJson() {
-  return Process.enumerateThreadsSync()
-  .map(thread => thread.id);
-}
-
 function listMemoryRanges() {
   return listMemoryRangesJson()
   .map(({base, size, protection, file}) =>
@@ -187,6 +185,17 @@ function listMemoryRangesJson() {
 
 function getPid() {
   return _getpid();
+}
+
+function listThreads() {
+  return Process.enumerateThreadsSync()
+  .map(thread => thread.id)
+  .join('\n');
+}
+
+function listThreadsJson() {
+  return Process.enumerateThreadsSync()
+  .map(thread => thread.id);
 }
 
 function dumpRegisters() {
@@ -222,7 +231,7 @@ function getOrSetEnvJson(args) {
   if (eq !== -1) {
     const k = kv.substring(0, eq);
     const v = kv.substring(eq + 1);
-    setEnv(k, v, true);
+    setenv(k, v, true);
     return {
       key: k,
       value: v
@@ -230,22 +239,25 @@ function getOrSetEnvJson(args) {
   } else {
     return {
       key: kv,
-      value: getEnv(kv)
+      value: getenv(kv)
     };
   }
 }
 
-const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
-
-const getEnvImpl = new NativeFunction(Module.findExportByName(null, 'getenv'), 'pointer', ['pointer']);
-const setEnvImpl = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
-
-function getEnv(name) {
-  return Memory.readUtf8String(getEnvImpl(Memory.allocUtf8String(name)));
+function dlopen(args) {
+  const path = args[0];
+  const handle = _dlopen(Memory.allocUtf8String(path), RTLD_GLOBAL | RTLD_LAZY);
+  if (handle.isNull())
+    throw new Error('Failed to load: ' + path);
+  return handle.toString();
 }
 
-function setEnv(name, value, overwrite) {
-  return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+function getenv(name) {
+  return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
+}
+
+function setenv(name, value, overwrite) {
+  return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
 function compareRegisterNames(lhs, rhs) {
@@ -380,6 +392,17 @@ function evaluate(params) {
 }
 
 mjolner.register();
+
+Script.setGlobalAccessHandler({
+  enumerate() {
+    return [];
+  },
+  get(property) {
+    let result = mjolner.lookup(property);
+    if (result !== null)
+      return result;
+  }
+});
 
 function onStanza(stanza) {
   const handler = requestHandlers[stanza.type];
