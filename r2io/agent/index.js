@@ -9,7 +9,7 @@ const commandHandlers = {
   'i': dumpInfo,
   'il': dumpModules,
   'dpt': dumpThreads,
-  'dm': dumpMemory,
+  'dm': dumpMemoryRanges,
   'dr': dumpRegisters,
 };
 
@@ -59,12 +59,25 @@ function dumpModules() {
 
 function dumpThreads() {
   return Process.enumerateThreadsSync()
-    .map(thread => thread.id)
-    .join('\n');
+  .map(thread => thread.id)
+  .join('\n');
 }
 
-function dumpMemory() {
-  return Process.enumerateRangesSync('---');
+function dumpMemoryRanges() {
+  return Process.enumerateRangesSync({
+    protection: '---',
+    coalesce: false
+  })
+  .map(({base, size, protection, file}) =>
+    [
+      padPointer(base),
+      padPointer(base.add(size)),
+      protection,
+    ]
+    .concat((file !== undefined) ? [file.path] : [])
+    .join(' ')
+  )
+  .join('\n');
 }
 
 function dumpRegisters() {
@@ -77,8 +90,8 @@ function dumpRegisters() {
       const names = Object.keys(context);
       names.sort(compareRegisterNames);
       const values = names
-        .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
-        .map(indent);
+      .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
+      .map(indent);
 
       return heading + '\n' + values.join('');
     })
