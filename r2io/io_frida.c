@@ -249,6 +249,13 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		io->cb_printf ("Available r2frida commands\n"
+			"i              - show target information\n"
+			"il             - list libraries\n"
+			"ic <class>     - list classes or methods of <class>\n"
+			"ip             - list objc protocols\n"
+			"ie <lib>       - list exports/entrypoints of lib\n"
+			"is <sym>       - show address of symbol\n"
+			"is <lib> <sym> - show address of symbol\n"
 			"dr             - show thread regs (see dpt)\n"
 			"dt <addr> ..   - trace list of addresses\n"
 			"dt-            - clear all tracing\n"
@@ -257,18 +264,8 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dm             - show memory regions\n"
 			"dp             - show current pid\n"
 			"dpt            - show threads\n"
-			"e [k[=v]]      - evaluate Cfg var (host+target)\n"
 			"env [k[=v]]    - get/set environment variable\n"
-			"pa mov r0, 33  - assemble instruction at current offset\n"
-			"pad 90909090   - disassemble bytes at current offset\n"
-			"s <addr>       - seek to address\n"
-			"i              - show target information\n"
-			"ic <class>     - list classes or methods of <class>\n"
-			"ip             - list objc protocols\n"
-			"ie <lib>       - list exports/entrypoints of lib\n"
-			"is <sym>       - show address of symbol\n"
-			"is <lib> <sym> - show address of symbol\n"
-			"il             - list libraries\n");
+			);
 		return true;
 	}
 

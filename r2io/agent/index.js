@@ -5,44 +5,38 @@ const mjolner = require('mjolner');
 const pointerSize = Process.pointerSize;
 
 const commandHandlers = {
-  'env': dumpEnv,
   'i': dumpInfo,
-  'il': dumpModules,
-  'dpt': dumpThreads,
-  'dm': dumpMemoryRanges,
+  'ij': dumpInfoJson,
+  'il': listModules,
+  'ilj': listModulesJson,
+  'ie': listExports,
+  'iej': listExportsJson,
+  'is': lookupSymbol,
+  'isj': lookupSymbolJson,
+  'ic': listClasses,
+  'icj': listClassesJson,
+  'ip': listProtocols,
+  'ipj': listProtocolsJson,
+  'dpt': listThreads,
+  'dptj': listThreadsJson,
+  'dm': listMemoryRanges,
+  'dmj': listMemoryRangesJson,
+  'dp': getPid,
+  'dpj': getPid,
   'dr': dumpRegisters,
+  'drj': dumpRegistersJson,
+  'env': getOrSetEnv,
+  'envj': getOrSetEnvJson,
 };
 
-function dumpEnv(args) {
-  const kv = args.join('');
-  const eq = kv.indexOf('=');
-  if (eq !== -1) {
-    const k = kv.substring(0, eq);
-    const v = kv.substring(eq + 1);
-    setEnv(k, v, true);
-    return true;
-  } else {
-    return {
-      key: kv,
-      value: getEnv(kv)
-    };
-  }
-}
-
-const getPid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
-
-const getEnvImpl = new NativeFunction(Module.findExportByName(null, 'getenv'), 'pointer', ['pointer']);
-const setEnvImpl = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
-
-function getEnv(name) {
-  return Memory.readUtf8String(getEnvImpl(Memory.allocUtf8String(name)));
-}
-
-function setEnv(name, value, overwrite) {
-  return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
-}
-
 function dumpInfo() {
+  const properties = dumpInfoJson();
+  return Object.keys(properties)
+  .map(k => k + '\t' + properties[k])
+  .join('\n');
+}
+
+function dumpInfoJson() {
   return {
     arch: Process.arch,
     bits: pointerSize * 8,
@@ -53,24 +47,128 @@ function dumpInfo() {
   };
 }
 
-function dumpModules() {
+function listModules() {
+  return Process.enumerateModulesSync()
+  .map(m => padPointer(m.base) + ' ' + m.name)
+  .join('\n');
+}
+
+function listModulesJson() {
   return Process.enumerateModulesSync();
 }
 
-function dumpThreads() {
+function listExports(args) {
+  return listExportsJson(args)
+  .map(({type, name, address}) => {
+    return [type[0], name, address].join(' ');
+  })
+  .join('\n');
+}
+
+function listExportsJson(args) {
+  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
+  return modules.reduce((result, moduleName) => {
+    return result.concat(Module.enumerateExportsSync(moduleName));
+  }, []);
+}
+
+function lookupSymbol(args) {
+  return lookupSymbolJson(args)
+  .map(({library, name, address}) => [library, name, address].join(' '))
+  .join('\n');
+}
+
+function lookupSymbolJson(args) {
+  if (args.length === 2) {
+    const [moduleName, exportName] = args;
+    const address = Module.findExportByName(moduleName, exportName);
+    if (address === null)
+      return [];
+    const m = Process.getModuleByAddress(address);
+    return [{
+      library: m.name,
+      name: exportName,
+      address: address
+    }];
+  } else {
+    const exportName = args[0];
+    return Process.enumerateModulesSync()
+    .reduce((result, m) => {
+      const address = Module.findExportByName(m.path, exportName);
+      if (address !== null) {
+        result.push({
+          library: m.name,
+          name: exportName,
+          address: address
+        });
+      }
+      return result;
+    }, []);
+  }
+}
+
+function listClasses(args) {
+  const result = listClassesJson(args);
+  if (result instanceof Array) {
+    return result.join('\n');
+  } else {
+    return Object.keys(result)
+    .map(methodName => {
+      const address = result[methodName];
+      return [padPointer(address), methodName].join(' ')
+    })
+    .join('\n');
+  }
+}
+
+function listClassesJson(args) {
+  if (args.length === 0) {
+    return Object.keys(ObjC.classes);
+  } else {
+    const klass = ObjC.classes[args[0]];
+    if (klass === undefined)
+      throw new Error('Class not found');
+    return klass.$ownMethods
+    .reduce((result, methodName) => {
+      result[methodName] = klass[methodName].implementation;
+      return result;
+    }, {});
+  }
+}
+
+function listProtocols(args) {
+  return listProtocolsJson(args)
+  .join('\n');
+}
+
+function listProtocolsJson(args) {
+  if (args.length === 0) {
+    return Object.keys(ObjC.protocols);
+  } else {
+    const protocol = ObjC.protocols[args[0]];
+    if (protocol === undefined)
+      throw new Error('Protocol not found');
+    return Object.keys(protocol.methods);
+  }
+}
+
+function listThreads() {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id)
   .join('\n');
 }
 
-function dumpMemoryRanges() {
-  return Process.enumerateRangesSync({
-    protection: '---',
-    coalesce: false
-  })
+function listThreadsJson() {
+  return Process.enumerateThreadsSync()
+  .map(thread => thread.id);
+}
+
+function listMemoryRanges() {
+  return listMemoryRangesJson()
   .map(({base, size, protection, file}) =>
     [
       padPointer(base),
+      '-',
       padPointer(base.add(size)),
       protection,
     ]
@@ -78,6 +176,17 @@ function dumpMemoryRanges() {
     .join(' ')
   )
   .join('\n');
+}
+
+function listMemoryRangesJson() {
+  return Process.enumerateRangesSync({
+    protection: '---',
+    coalesce: false
+  });
+}
+
+function getPid() {
+  return _getpid();
 }
 
 function dumpRegisters() {
@@ -96,6 +205,47 @@ function dumpRegisters() {
       return heading + '\n' + values.join('');
     })
     .join('\n\n');
+}
+
+function dumpRegistersJson() {
+  return Process.enumerateThreadsSync();
+}
+
+function getOrSetEnv(args) {
+  const {key, value} = getOrSetEnvJson(args);
+  return key + '=' + value;
+}
+
+function getOrSetEnvJson(args) {
+  const kv = args.join('');
+  const eq = kv.indexOf('=');
+  if (eq !== -1) {
+    const k = kv.substring(0, eq);
+    const v = kv.substring(eq + 1);
+    setEnv(k, v, true);
+    return {
+      key: k,
+      value: v
+    };
+  } else {
+    return {
+      key: kv,
+      value: getEnv(kv)
+    };
+  }
+}
+
+const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
+
+const getEnvImpl = new NativeFunction(Module.findExportByName(null, 'getenv'), 'pointer', ['pointer']);
+const setEnvImpl = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
+
+function getEnv(name) {
+  return Memory.readUtf8String(getEnvImpl(Memory.allocUtf8String(name)));
+}
+
+function setEnv(name, value, overwrite) {
+  return setEnvImpl(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
 function compareRegisterNames(lhs, rhs) {
