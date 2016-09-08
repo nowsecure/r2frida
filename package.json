@@ -1,40 +1,17 @@
 {
-  "name": "r2frida",
-  "version": "0.1.4",
-  "author": {
-    "name": "pancake",
-    "email": "pancake@nowsecure.com"
+  "name": "r2frida-agent",
+  "version": "1.0.0",
+  "description": "Agent for frida:// io plugin",
+  "private": true,
+  "main": "src/agent/index.js",
+  "scripts": {
+    "prepublish": "npm run build",
+    "build": "frida-compile src/agent -o src/_agent.js",
+    "watch": "frida-compile src/agent -o src/_agent.js -w"
   },
-  "description": "Radare2 and Frida together",
-  "contributors": [],
-  "main": "./bin/r2frida.js",
-  "bin": {
-    "r2frida": "./bin/r2frida.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:viaforensics/r2frida.js.git"
-  },
-  "keywords": [
-    "radare2",
-    "frida",
-    "reversing",
-    "tracing",
-    "introspection",
-    "instrumentation"
-  ],
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/viaforensics/r2frida/issues"
-  },
-  "homepage": "https://github.com/viaforensics/r2frida.js",
-  "devDependencies": {
-    "semistandard": "*"
-  },
+  "license": "LGPL-3.0",
   "dependencies": {
-    "frida": "*",
-    "r2pipe": "1.0.2",
-    "colors": "1.1.2"
+    "frida-compile": "^1.2.0",
+    "mjolner": "^1.0.4"
   }
 }
-

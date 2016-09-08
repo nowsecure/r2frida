@@ -1,6 +1,6 @@
 *.o
-/r2io/_agent.h
-/r2io/_agent.js
-/r2io/frida-sdk/
-/r2io/io_frida.dylib
-/r2io/node_modules/
+/ext/frida/
+/io_frida.dylib
+/node_modules/
+/src/_agent.h
+/src/_agent.js
