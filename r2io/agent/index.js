@@ -28,6 +28,8 @@ const commandHandlers = {
   'env': getOrSetEnv,
   'envj': getOrSetEnvJson,
   'dl': dlopen,
+  'dt': trace,
+  'dt-': clearTrace,
 };
 
 const RTLD_GLOBAL = 0x8;
@@ -37,6 +39,8 @@ const _getenv = new NativeFunction(Module.findExportByName(null, 'getenv'), 'poi
 const _setenv = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
 const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
 const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
+
+const traceListeners = [];
 
 function dumpInfo() {
   const properties = dumpInfoJson();
@@ -250,6 +254,20 @@ function dlopen(args) {
   if (handle.isNull())
     throw new Error('Failed to load: ' + path);
   return handle.toString();
+}
+
+function trace(args) {
+  args.forEach(address => {
+    const listener = Interceptor.attach(ptr(address), function () {
+      console.log('Trace probe hit at ' + address + ':\n\t' + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+    });
+    traceListeners.push(listener);
+  });
+  return true;
+}
+
+function clearTrace(args) {
+  traceListeners.splice(0).forEach(listener => listener.detach());
 }
 
 function getenv(name) {
