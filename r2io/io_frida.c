@@ -264,6 +264,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dl libname     - dlopen\n"
 			"dt <addr> ..   - trace list of addresses\n"
 			"dt-            - clear all tracing\n"
+			"<space> code.. - evaluate Cycript code\n"
 			);
 		return true;
 	}
