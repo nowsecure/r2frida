@@ -52,6 +52,10 @@ src/_agent.js: src/agent/index.js node_modules
 node_modules: package.json
 	npm install
 
+clean:
+	$(RM) src/*.o src/_agent.js src/_agent.h
+	$(MAKE) -C ext/cycript clean
+
 install: all
 	mkdir -p "$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
@@ -84,4 +88,4 @@ ext/cycript/Makefile: ext/cycript/configure
 ext/cycript/src/.libs/libcycript.a: ext/cycript/Makefile
 	$(MAKE) -C ext/cycript
 
-.PHONY: all install uninstall
+.PHONY: all clean install uninstall
