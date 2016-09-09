@@ -19,6 +19,7 @@ const commandHandlers = {
   'ipj': listProtocolsJson,
   'dm': listMemoryRanges,
   'dmj': listMemoryRangesJson,
+  'dmp': changeMemoryProtection,
   'dp': getPid,
   'dpj': getPid,
   'dpt': listThreads,
@@ -185,6 +186,14 @@ function listMemoryRangesJson() {
     protection: '---',
     coalesce: false
   });
+}
+
+function changeMemoryProtection(args) {
+  const [address, size, protection] = args;
+
+  Memory.protect(ptr(address), parseInt(size), protection);
+
+  return true;
 }
 
 function getPid() {
