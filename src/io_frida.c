@@ -60,7 +60,12 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
 	g_clear_object (&rf->device);
-	g_clear_object (&rf->manager);
+
+	if (rf->manager) {
+		frida_device_manager_close_sync (rf->manager);
+		g_object_unref (rf->manager);
+		rf->manager = NULL;
+	}
 
 	R_FREE (rf);
 }
