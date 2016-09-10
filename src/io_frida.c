@@ -525,6 +525,8 @@ static void on_message(FridaScript *script, const char *message, const char *dat
 		on_stanza (rf,
 			json_object_ref (json_object_get_object_member (root, "payload")),
 			g_bytes_new (data, data_size));
+	} else if (!strcmp (type, "log")) {
+		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {
 		eprintf ("Unhandled message: %s\n", message);
 	}
