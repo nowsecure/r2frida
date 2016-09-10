@@ -259,18 +259,18 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"ie <lib>                      List exports/entrypoints of lib\n"
 			"is <sym>                      Show address of symbol\n"
 			"is <lib> <sym>                Show address of symbol\n"
-			"ic <class>                    List classes or methods of <class>\n"
-			"ip                            List objc protocols\n"
+			"ic <class>                    List Objective-C classes or methods of <class>\n"
+			"ip <protocol>                 List Objective-C protocols or methods of <protocol>\n"
 			"dm                            Show memory regions\n"
 			"dmp <address> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
 			"dp                            Show current pid\n"
 			"dpt                           Show threads\n"
-			"dr                            Show thread regs (see dpt)\n"
+			"dr                            Show thread registers (see dpt)\n"
 			"env [k[=v]]                   Get/set environment variable\n"
 			"dl libname                    Dlopen\n"
 			"dt <addr> ..                  Trace list of addresses\n"
 			"dt-                           Clear all tracing\n"
-			"<space> code..                Evaluate Cycript code\n"
+			"<space> code..                Evaluate code\n"
 			);
 		return true;
 	}
