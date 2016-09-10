@@ -57,7 +57,7 @@ function dumpInfoJson() {
     os: Process.platform,
     pid: getPid(),
     objc: ObjC.available,
-    dalvik: Dalvik.available,
+    java: Java.available,
   };
 }
 
