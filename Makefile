@@ -1,5 +1,7 @@
 frida_version = 7.3.5
-frida_os_arch = mac-x86_64
+frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
+frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
+frida_os_arch := $(frida_os)-$(frida_arch)
 
 SO_EXT=dylib
 CC?=gcc
