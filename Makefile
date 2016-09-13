@@ -29,6 +29,7 @@ CYCRIPT_LIBS+=ext/cycript/src/.libs/libcycript.a
 all: io_frida.$(SO_EXT)
 
 io_frida.$(SO_EXT): src/io_frida.o src/cylang.o
+	pkg-config --cflags r_core
 	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYCRIPT_LIBS)
 
 src/io_frida.o: src/io_frida.c ext/frida/libfrida-core.a src/_agent.h
