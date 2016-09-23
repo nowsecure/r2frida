@@ -1,6 +1,13 @@
 'use strict';
 
-const mjolner = require('mjolner');
+/* ObjC.available is buggy on non-objc apps, so override this */
+const ObjC_available = ObjC && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+
+if (ObjC_available) {
+  var mjolner = require('mjolner');
+} else {
+  console.error('Warning: r2frida cannot initialize mjolner');
+}
 
 const pointerSize = Process.pointerSize;
 
@@ -56,7 +63,7 @@ function dumpInfoJson() {
     bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
-    objc: ObjC.available,
+    objc: ObjC_available,
     java: Java.available,
   };
 }
@@ -393,7 +400,7 @@ function evaluate(params) {
   return new Promise(resolve => {
     const {code} = params;
 
-    if (ObjC.available)
+    if (ObjC_available)
       ObjC.schedule(ObjC.mainQueue, performEval);
     else
       performEval();
@@ -418,7 +425,9 @@ function evaluate(params) {
   });
 }
 
-mjolner.register();
+if (ObjC_available) {
+  mjolner.register();
+}
 
 Script.setGlobalAccessHandler({
   enumerate() {
