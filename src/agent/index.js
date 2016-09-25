@@ -385,10 +385,12 @@ const requestHandlers = {
 
 function read(params) {
   const {offset, count} = params;
-
-  const bytes = Memory.readByteArray(ptr(offset), count);
-
-  return [{}, bytes];
+  try {
+    const bytes = Memory.readByteArray(ptr(offset), count);
+    return [{}, bytes];
+  } catch (e) {
+    return [{}, 0];
+  }
 }
 
 function write(params) {
@@ -454,9 +456,12 @@ Script.setGlobalAccessHandler({
     return [];
   },
   get(property) {
-    let result = mjolner.lookup(property);
-    if (result !== null)
-      return result;
+    if (mjolner !== undefined) {
+      let result = mjolner.lookup(property);
+      if (result !== null) {
+        return result;
+      }
+    }
   }
 });
 

@@ -181,7 +181,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	}
 
 	data = g_bytes_get_data (bytes, &n);
-	memcpy (buf, data, n);
+	memcpy (buf, data, R_MIN (n, count));
 
 	json_object_unref (result);
 	g_bytes_unref (bytes);
@@ -443,7 +443,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **
 	g_free (message);
 
 	if (error) {
-		eprintf ("%s\n", error->message);
+		eprintf ("error: %s\n", error->message);
 		g_error_free (error);
 		return NULL;
 	}
