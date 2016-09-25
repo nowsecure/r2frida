@@ -13,6 +13,7 @@ const pointerSize = Process.pointerSize;
 
 const commandHandlers = {
   'i': dumpInfo,
+  'i*': dumpInfoR2,
   'ij': dumpInfoJson,
   'il': listModules,
   'ilj': listModulesJson,
@@ -57,9 +58,28 @@ function dumpInfo() {
   .join('\n');
 }
 
+function dumpInfoR2() {
+  const properties = dumpInfoJson();
+  return [
+    'e asm.arch=' + properties.arch,
+    'e asm.bits=' + properties.bits,
+    'e asm.os=' + properties.os
+  ].join('\n');
+}
+
+function getR2Arch(arch) {
+  switch(arch) {
+  case 'x64':
+    return 'x86';
+  case 'arm64':
+    return 'arm';
+  }
+  return arch;
+}
+
 function dumpInfoJson() {
   return {
-    arch: Process.arch,
+    arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
