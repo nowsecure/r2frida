@@ -47,6 +47,9 @@ const commandHandlers = {
   'dl': dlopen,
   'dt': trace,
   'dt-': clearTrace,
+  'di0': interceptRet0,
+  'di1': interceptRet1,
+  'di-1': interceptRet_1,
 };
 
 const RTLD_GLOBAL = 0x8;
@@ -403,6 +406,33 @@ function trace(args) {
 
 function clearTrace(args) {
   traceListeners.splice(0).forEach(listener => listener.detach());
+}
+
+function interceptRet0(args) {
+  const p = ptr(args[0]);
+  Interceptor.attach(p, {
+    onLeave(retval) {
+      retval.replace(ptr('0'));
+    }
+  });
+}
+
+function interceptRet1(args) {
+  const p = ptr(args[0]);
+  Interceptor.attach(p, {
+    onLeave(retval) {
+      retval.replace(ptr('1'));
+    }
+  });
+}
+
+function interceptRet_1(args) {
+  const p = ptr(args[0]);
+  Interceptor.attach(p, {
+    onLeave(retval) {
+      retval.replace(ptr('-1'));
+    }
+  });
 }
 
 function getenv(name) {

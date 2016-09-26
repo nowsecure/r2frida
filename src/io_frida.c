@@ -254,23 +254,25 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		io->cb_printf ("Available r2frida commands\n"
-			"i                             Show target information\n"
-			"il                            List libraries\n"
-			"ie <lib>                      List exports/entrypoints of lib\n"
-			"is <sym>                      Show address of symbol\n"
-			"is <lib> <sym>                Show address of symbol\n"
-			"ic <class>                    List Objective-C classes or methods of <class>\n"
-			"ip <protocol>                 List Objective-C protocols or methods of <protocol>\n"
-			"dm                            Show memory regions\n"
-			"dmp <address> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
-			"dp                            Show current pid\n"
-			"dpt                           Show threads\n"
-			"dr                            Show thread registers (see dpt)\n"
-			"env [k[=v]]                   Get/set environment variable\n"
-			"dl libname                    Dlopen\n"
-			"dt <addr> ..                  Trace list of addresses\n"
-			"dt-                           Clear all tracing\n"
-			"<space> code..                Evaluate code\n"
+			"i                          Show target information\n"
+			"il                         List libraries\n"
+			"ie <lib>                   List exports/entrypoints of lib\n"
+			"is <sym>                   Show address of symbol\n"
+			"is <lib> <sym>             Show address of symbol\n"
+			"ic <class>                 List Objective-C classes or methods of <class>\n"
+			"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
+			"dm[.|j|*]                  Show memory regions\n"
+			"dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
+			"dp                         Show current pid\n"
+			"dpt                        Show threads\n"
+			"dr                         Show thread registers (see dpt)\n"
+			"env [k[=v]]                Get/set environment variable\n"
+			"dl libname                 Dlopen\n"
+			"dt <addr> ..               Trace list of addresses\n"
+			"dt-                        Clear all tracing\n"
+			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
+			". script                   Run script\n"
+			"<space> code..             Evaluate code\n"
 			);
 		return true;
 	}
@@ -311,7 +313,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 	json_object_unref (result);
 
-	return true;
+	return 0;
 }
 
 static bool parse_target(const char *pathname, char **device_id, char **process_specifier) {
