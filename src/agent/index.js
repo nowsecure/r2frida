@@ -12,6 +12,7 @@ if (ObjC_available) {
 const pointerSize = Process.pointerSize;
 
 const commandHandlers = {
+  '.': interpretFile,
   'i': dumpInfo,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
@@ -21,16 +22,20 @@ const commandHandlers = {
   'il': listModules,
   'ilj': listModulesJson,
   'ie': listExports,
+  'ie*': listExportsR2,
   'iej': listExportsJson,
   'is': lookupSymbol,
+  'is*': lookupSymbolR2,
   'isj': lookupSymbolJson,
   'ic': listClasses,
+  'ic*': listClassesR2,
   'icj': listClassesJson,
   'ip': listProtocols,
   'ipj': listProtocolsJson,
   'dm': listMemoryRanges,
   'dmj': listMemoryRangesJson,
   'dmp': changeMemoryProtection,
+  'dm.': listMemoryRangesHere,
   'dp': getPid,
   'dpj': getPid,
   'dpt': listThreads,
@@ -104,7 +109,15 @@ function listModulesJson() {
 function listExports(args) {
   return listExportsJson(args)
   .map(({type, name, address}) => {
-    return [type[0], name, address].join(' ');
+    return [address, type[0], name].join(' ');
+  })
+  .join('\n');
+}
+
+function listExportsR2(args) {
+  return listExportsJson(args)
+  .map(({type, name, address}) => {
+    return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
   })
   .join('\n');
 }
@@ -122,6 +135,13 @@ function lookupSymbol(args) {
   .join('\n');
 }
 
+function lookupSymbolR2(args) {
+  return lookupSymbolJson(args)
+  .map(({name, address}) =>
+    [ 'f', 'sym.' + name, '=', address].join(' '))
+  .join('\n');
+}
+
 function lookupSymbolJson(args) {
   if (args.length === 2) {
     const [moduleName, exportName] = args;
@@ -136,15 +156,17 @@ function lookupSymbolJson(args) {
     }];
   } else {
     const exportName = args[0];
+    let prevAddress = null;
     return Process.enumerateModulesSync()
     .reduce((result, m) => {
       const address = Module.findExportByName(m.path, exportName);
-      if (address !== null) {
+      if (address !== null && address !== prevAddress) {
         result.push({
           library: m.name,
           name: exportName,
           address: address
         });
+        prevAddress = address;
       }
       return result;
     }, []);
@@ -196,6 +218,28 @@ function listClasses(args) {
   }
 }
 
+function listClassesR2(args) {
+  const className = args[0];
+  const result = listClassesJson(args);
+  if (result instanceof Array) {
+    return result.join('\n');
+  } else {
+    function flagName(m) {
+      return 'sym.objc.' +
+        (className + '.' + m)
+        .replace(':', '')
+        .replace(' ', '')
+        .replace('-', '')
+        .replace('+', '');
+    }
+    return Object.keys(result)
+    .map(methodName => {
+      const address = result[methodName];
+      return ['f', flagName(methodName) , '=', padPointer(address)].join(' ')
+    })
+    .join('\n');
+  }
+}
 function listClassesJson(args) {
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
@@ -225,6 +269,27 @@ function listProtocolsJson(args) {
       throw new Error('Protocol not found');
     return Object.keys(protocol.methods);
   }
+}
+
+function listMemoryRangesHere(args) {
+  if (args.length != 1) {
+    return [];
+  }
+  const addr = +args[0];
+  return listMemoryRangesJson()
+  .filter(({base, size}) => {
+    return (addr >= +base && addr < (+base + size));
+  }).map(({base, size, protection, file}) =>
+    [
+      padPointer(base),
+      '-',
+      padPointer(base.add(size)),
+      protection,
+    ]
+    .concat((file !== undefined) ? [file.path] : [])
+    .join(' ')
+  )
+  .join('\n');
 }
 
 function listMemoryRanges() {
@@ -498,6 +563,11 @@ Script.setGlobalAccessHandler({
     }
   }
 });
+
+function interpretFile(args) {
+  console.log("TODO: interpretFile is not yet implemented");
+  return {};
+}
 
 function onStanza(stanza) {
   const handler = requestHandlers[stanza.type];
