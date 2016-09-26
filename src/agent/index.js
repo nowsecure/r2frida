@@ -15,6 +15,9 @@ const commandHandlers = {
   'i': dumpInfo,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
+  'ii': listImports,
+  'ii*': listImportsR2,
+  'iij': listImportsJson,
   'il': listModules,
   'ilj': listModulesJson,
   'ie': listExports,
@@ -145,6 +148,37 @@ function lookupSymbolJson(args) {
       }
       return result;
     }, []);
+  }
+}
+
+function listImports(args) {
+  return listImportsJson(args)
+  .map(({type, name, module, address}) => [type, name, module, address].join(' '))
+  .join('\n');
+}
+
+function listImportsR2(args) {
+  return listImportsJson(args).map((x) => {
+    return "f sym.imp." + x.name + ' = ' + x.address;
+  }).join('\n');
+}
+
+function listImportsJson(args) {
+  const alen = args.length;
+  if (alen === 2) {
+    const [moduleName, importName] = args;
+    const imports = Module.enumerateImportsSync(moduleName);
+    if (imports === null)
+      return [];
+    return imports.filter((x) => {
+      return x.name === importName;
+    });
+  } else if (alen === 1) {
+    return Module.enumerateImportsSync(args[0]) || [];
+  }
+  const modules = Process.enumerateModulesSync() || []
+  if (modules.length > 0) {
+    return Module.enumerateImportsSync(modules[0].name) || [];
   }
 }
 
