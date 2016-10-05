@@ -29,8 +29,8 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device);
 static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
 static JsonBuilder *build_request(const char *type);
-static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **bytes);
-static void on_message(FridaScript *script, const char *message, const char *data, int data_size, gpointer user_data);
+static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
+static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
 
 extern RIOPlugin r_io_plugin_frida;
 
@@ -175,7 +175,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	json_builder_set_member_name (builder, "count");
 	json_builder_add_int_value (builder, count);
 
-	result = perform_request (rf, builder, &bytes);
+	result = perform_request (rf, builder, NULL, &bytes);
 	if (!result) {
 		return -1;
 	}
@@ -219,17 +219,8 @@ static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 	builder = build_request ("write");
 	json_builder_set_member_name (builder, "offset");
 	json_builder_add_int_value (builder, io->off);
-	/*
-	 * FIXME: This is horribly inefficient; should add an out-of-band buffer
-	 *        to the Frida API like we have for received messages.
-	 */
-	json_builder_set_member_name (builder, "bytes");
-	json_builder_begin_array (builder);
-	for (i = 0; i < count; i++)
-		json_builder_add_int_value (builder, buf[i]);
-	json_builder_end_array (builder);
 
-	result = perform_request (rf, builder, NULL);
+	result = perform_request (rf, builder, g_bytes_new (buf, count), NULL);
 	if (!result) {
 		return -1;
 	}
@@ -303,7 +294,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		json_builder_add_string_value (builder, command);
 	}
 
-	result = perform_request (rf, builder, NULL);
+	result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
 		return -1;
 	}
@@ -426,7 +417,7 @@ static JsonBuilder *build_request(const char *type) {
 	return builder;
 }
 
-static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **bytes) {
+static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
 	JsonNode *root;
 	char *message;
 	GError *error = NULL;
@@ -440,9 +431,10 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes **
 	json_node_unref (root);
 	g_object_unref (builder);
 
-	frida_script_post_message_sync (rf->script, message, &error);
+	frida_script_post_sync (rf->script, message, data, &error);
 
 	g_free (message);
+	g_bytes_unref (data);
 
 	if (error) {
 		eprintf ("error: %s\n", error->message);
@@ -493,7 +485,7 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 	rf->received_reply = true;
 	rf->reply_stanza = stanza;
-	rf->reply_bytes = bytes;
+	rf->reply_bytes = (bytes != NULL) ? g_bytes_ref (bytes) : NULL;
 
 	g_cond_signal (&rf->cond);
 
@@ -511,7 +503,7 @@ static void on_detached(FridaSession *session, gpointer user_data) {
 	g_mutex_unlock (&rf->lock);
 }
 
-static void on_message(FridaScript *script, const char *message, const char *data, int data_size, gpointer user_data) {
+static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	JsonParser *parser;
 	JsonObject *root;
@@ -526,7 +518,7 @@ static void on_message(FridaScript *script, const char *message, const char *dat
 	if (!strcmp (type, "send")) {
 		on_stanza (rf,
 			json_object_ref (json_object_get_object_member (root, "payload")),
-			g_bytes_new (data, data_size));
+			data);
 	} else if (!strcmp (type, "log")) {
 		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {

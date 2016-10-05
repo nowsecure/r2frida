@@ -516,16 +516,14 @@ function read(params) {
   const {offset, count} = params;
   try {
     const bytes = Memory.readByteArray(ptr(offset), count);
-    return [{}, bytes];
+    return [{}, (bytes !== null) ? bytes : []];
   } catch (e) {
-    return [{}, 0];
+    return [{}, []];
   }
 }
 
-function write(params) {
-  const {offset, bytes} = params;
-
-  Memory.writeByteArray(ptr(offset), bytes);
+function write(params, data) {
+  Memory.writeByteArray(ptr(params.offset), data);
 
   return [{}, null];
 }
@@ -599,11 +597,11 @@ function interpretFile(args) {
   return {};
 }
 
-function onStanza(stanza) {
+function onStanza(stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
     try {
-      const value = handler(stanza.payload);
+      const value = handler(stanza.payload, data);
       if (value instanceof Promise) {
         value
           .then(([replyStanza, replyBytes]) => {
