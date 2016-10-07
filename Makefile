@@ -15,12 +15,16 @@ LDFLAGS+=$(shell pkg-config --libs r_io)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
 # FRIDA
+FRIDA_SDK=ext/frida/libfrida-core.a
+FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
 # OSX-FRIDA
+ifeq($(shell uname),Darwin)
 FRIDA_LIBS+=-framework Foundation
 FRIDA_LIBS+=-framework AppKit
+endif
 
 # CYCRIPT
 CYCRIPT_CPPFLAGS+=-Iext/cycript/src
@@ -66,11 +70,17 @@ install: all
 uninstall:
 	rm -f "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
-ext/frida/libfrida-core.a:
+$(FRIDA_SDK):
 	mkdir -p $(@D)/_
-	curl -Ls https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz | xz -d | tar -C $(@D)/_ -xf -
+	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 	mv $(@D)/_/* $(@D)
 	rmdir $(@D)/_
+
+update:
+	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
+
+mrproper: clean
+	rm -f $(FRIDA_SDK)
 
 ext/cycript/ext/node/lib:
 	cd ext/cycript && git submodule init && git submodule update
