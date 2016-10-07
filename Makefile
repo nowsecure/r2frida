@@ -21,7 +21,7 @@ FRIDA_CPPFLAGS+=-Iext/frida
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
 # OSX-FRIDA
-ifeq($(shell uname),Darwin)
+ifeq ($(shell uname),Darwin)
 FRIDA_LIBS+=-framework Foundation
 FRIDA_LIBS+=-framework AppKit
 endif
