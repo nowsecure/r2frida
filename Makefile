@@ -76,7 +76,7 @@ $(FRIDA_SDK):
 	mv $(@D)/_/* $(@D)
 	rmdir $(@D)/_
 
-update:
+update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
 
 mrproper: clean
