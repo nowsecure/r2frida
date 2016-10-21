@@ -252,7 +252,11 @@ function listClassesJson(args) {
       throw new Error('Class not found');
     return klass.$ownMethods
     .reduce((result, methodName) => {
-      result[methodName] = klass[methodName].implementation;
+      try {
+        result[methodName] = klass[methodName].implementation;
+      } catch(_) {
+        console.log('warning: unsupported method \'' + methodName + '\'');
+      }
       return result;
     }, {});
   }
