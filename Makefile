@@ -1,6 +1,6 @@
 include config.mk
 
-frida_version = 8.2.0
+frida_version = 8.2.1
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
@@ -101,7 +101,7 @@ ext/frida-$(frida_version):
 	$(MAKE) frida-sdk
 
 update: ext/cycript/ext/node/lib
-	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
+	-cd ext/cycript && git submodule update && $(RM) ext/frida/libfrida-core.a
 
 ifeq ($(WITH_CYCRIPT),1)
 ext/cycript/ext/node/lib:

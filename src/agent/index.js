@@ -57,14 +57,17 @@ const commandHandlers = {
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 
-const _getenv = new NativeFunction(Module.findExportByName(null, 'getenv'), 'pointer', ['pointer']);
-const _setenv = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
-const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
-const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
+function sym(name, ret, arg) {
+  return new NativeFunction(Module.findExportByName(null, name), ret, arg);
+}
 
-const _dup2 = new NativeFunction(Module.findExportByName(null, 'dup2'), 'int', ['int', 'int']);
-const _fstat = new NativeFunction(Module.findExportByName(null, 'fstat'), 'int', ['int', 'pointer']);
-const _close = new NativeFunction(Module.findExportByName(null, 'close'), 'int', ['int']);
+const _getenv = sym('getenv', 'pointer', ['pointer']);
+const _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
+const _getpid = sym('getpid', 'int', []);
+const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
+const _dup2 = sym('dup2', 'int', ['int', 'int']);
+const _fstat = sym('fstat', 'int', ['int', 'pointer']);
+const _close = sym('close', 'int', ['int']);
 
 const traceListeners = [];
 
