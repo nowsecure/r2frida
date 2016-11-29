@@ -73,13 +73,17 @@ node_modules: package.json
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-	$(RM) -r ext/cycript
-	$(RM) -r ext/frida
-	$(RM) -r ext/frida-$(frida_version)
-	$(RM) -r ext/node
-	#$(MAKE) -C ext/cycript clean
+	-$(MAKE) -C ext/cycript clean
 
-install: all
+mrproper: clean
+	$(RM) $(FRIDA_SDK)
+	$(RM) -r ext/cycript
+	$(RM) -r ext/frida-$(frida_version)
+	$(RM) ext/frida
+	$(RM) -r ext/node
+
+
+install:
 	mkdir -p "$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
 
@@ -98,12 +102,6 @@ ext/frida-$(frida_version):
 
 update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
-
-mrproper: clean
-	$(RM) $(FRIDA_SDK)
-	$(RM) -r ext/cycript
-	$(RM) -r ext/frida
-	$(RM) -r ext/node
 
 ifeq ($(WITH_CYCRIPT),1)
 ext/cycript/ext/node/lib:
