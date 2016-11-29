@@ -32,6 +32,8 @@ const commandHandlers = {
   'icj': listClassesJson,
   'ip': listProtocols,
   'ipj': listProtocolsJson,
+  'dd': listFileDescriptors,
+  'dd-': closeFileDescriptors,
   'dm': listMemoryRanges,
   'dmj': listMemoryRangesJson,
   'dmp': changeMemoryProtection,
@@ -59,6 +61,10 @@ const _getenv = new NativeFunction(Module.findExportByName(null, 'getenv'), 'poi
 const _setenv = new NativeFunction(Module.findExportByName(null, 'setenv'), 'int', ['pointer', 'pointer', 'int']);
 const _getpid = new NativeFunction(Module.findExportByName(null, 'getpid'), 'int', []);
 const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
+
+const _dup2 = new NativeFunction(Module.findExportByName(null, 'dup2'), 'int', ['int', 'int']);
+const _fstat = new NativeFunction(Module.findExportByName(null, 'fstat'), 'int', ['int', 'pointer']);
+const _close = new NativeFunction(Module.findExportByName(null, 'close'), 'int', ['int']);
 
 const traceListeners = [];
 
@@ -265,6 +271,28 @@ function listClassesJson(args) {
 function listProtocols(args) {
   return listProtocolsJson(args)
   .join('\n');
+}
+
+function closeFileDescriptors(args) {
+  if (args.length === 0) {
+    return "Please, provide a file descriptor";
+  }
+  return _close(+args[0]);
+}
+
+function listFileDescriptors(args) {
+  if (args.length === 0) {
+    const fds = [];
+    for (let i = 0; i < 1024; i++) {
+      if (_fstat(i, null)) {
+        fds.push(i);
+      }
+    }
+    return fds;
+  } else {
+    const rc = _dup2(args[0], args[1]);
+    return rc;
+  }
 }
 
 function listProtocolsJson(args) {
