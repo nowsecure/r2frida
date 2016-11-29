@@ -73,7 +73,7 @@ node_modules: package.json
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-	-$(MAKE) -C ext/cycript clean
+#	-$(MAKE) -C ext/cycript clean
 
 mrproper: clean
 	$(RM) $(FRIDA_SDK)
