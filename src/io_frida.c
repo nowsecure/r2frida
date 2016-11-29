@@ -88,7 +88,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	rf->manager = frida_device_manager_new ();
 
-	if (!__check (io, pathname, 0)) {
+	if (!__check (io, pathname, false)) {
 		goto error;
 	}
 
@@ -293,7 +293,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
-		return 0;
+		return true;
 	}
 
 	if (command[0] == ' ') {
@@ -336,6 +336,10 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 	const char *first_field, *second_field;
 
 	first_field = pathname + 8;
+	if (*first_field == '/') {
+		eprintf ("r2frida: Spawning is not yet supported\n");
+		return false;
+	}
 	second_field = strchr (first_field, '/');
 	if (!second_field) {
 		*device_id = NULL;
