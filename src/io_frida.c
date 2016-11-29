@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016 - pancake */
+/* radare2 - MIT - Copyright 2016 - pancake, oleavr */
 
 #include <r_io.h>
 #include <r_lib.h>
@@ -444,8 +444,9 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 
 	g_mutex_lock (&rf->lock);
 
-	while (!rf->detached && !rf->received_reply)
+	while (!rf->detached && !rf->received_reply) {
 		g_cond_wait (&rf->cond, &rf->lock);
+	}
 
 	if (rf->received_reply) {
 		reply_stanza = rf->reply_stanza;
@@ -531,7 +532,7 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 RIOPlugin r_io_plugin_frida = {
 	.name = "frida",
 	.desc = "frida:// io plugin",
-	.license = "LGPL3",
+	.license = "MIT",
 	.open = __open,
 	.close = __close,
 	.read = __read,
