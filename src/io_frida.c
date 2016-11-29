@@ -285,6 +285,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			free (path);
 			if (error) {
 				io->cb_printf ("frida_device_inject_library_file_sync: %s\n", error->message);
+				g_clear_error (&error);
 			} else {
 				io->cb_printf ("done\n");
 			}
