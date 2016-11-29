@@ -14,6 +14,7 @@ typedef struct {
 	FridaSession *session;
 	FridaScript *script;
 
+	guint pid;
 	GMutex lock;
 	GCond cond;
 	volatile bool detached;
@@ -39,9 +40,7 @@ static const char *r_io_frida_agent_code =
 ;
 
 static RIOFrida *r_io_frida_new(void) {
-	RIOFrida *rf;
-
-	rf = R_NEW0 (RIOFrida);
+	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
 		return NULL;
 	}
@@ -105,6 +104,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
+	rf->pid = pid;
 	rf->session = frida_device_attach_sync (rf->device, pid, &error);
 	if (error) {
 		eprintf ("Cannot attach: %s\n", error->message);
@@ -259,6 +259,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dr                         Show thread registers (see dpt)\n"
 			"env [k[=v]]                Get/set environment variable\n"
 			"dl libname                 Dlopen\n"
+			"dl2 libname [main]         Inject library using Frida's 8.2 new API\n"
 			"dt <addr> ..               Trace list of addresses\n"
 			"dt-                        Clear all tracing\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
@@ -269,6 +270,29 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	rf = fd->data;
+	if (!strncmp (command, "dl2", 3)) {
+		if (command[3] == ' ') {
+			GError *error = NULL;
+			gchar *path = strdup (command + 4);
+			gchar *entry = strchr (path, ' ');
+			if (entry) {
+				*entry++ = 0;
+			} else {
+				entry = "main";
+			}
+			frida_device_inject_library_file_sync (rf->device,
+				rf->pid, path, entry, NULL, &error);
+			free (path);
+			if (error) {
+				io->cb_printf ("frida_device_inject_library_file_sync: %s\n", error->message);
+			} else {
+				io->cb_printf ("done\n");
+			}
+		} else {
+			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
+		}
+		return 0;
+	}
 
 	if (command[0] == ' ') {
 		GError *error = NULL;
@@ -298,7 +322,6 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	if (!result) {
 		return -1;
 	}
-
 	value = json_object_get_string_member (result, "value");
 	io->cb_printf ("%s\n", value);
 
@@ -405,15 +428,12 @@ static bool resolve_process(FridaDevice *device, const char *process_specifier, 
 }
 
 static JsonBuilder *build_request(const char *type) {
-	JsonBuilder *builder;
-
-	builder = json_builder_new ();
+	JsonBuilder *builder = json_builder_new ();
 	json_builder_begin_object (builder);
 	json_builder_set_member_name (builder, "type");
 	json_builder_add_string_value (builder, type);
 	json_builder_set_member_name (builder, "payload");
 	json_builder_begin_object (builder);
-
 	return builder;
 }
 
