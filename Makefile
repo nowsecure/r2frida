@@ -30,7 +30,7 @@ endif
 CYCRIPT_CPPFLAGS+=-Iext/cycript/src
 CYCRIPT_LIBS+=ext/cycript/src/.libs/libcycript.a
 
-all: io_frida.$(SO_EXT)
+all: io_frida.$(SO_EXT) ext/frida-$(frida_version)
 
 io_frida.$(SO_EXT): src/io_frida.o src/cylang.o
 	pkg-config --cflags r_core
@@ -63,6 +63,7 @@ clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
 	$(RM) -r ext/cycript
 	$(RM) -r ext/frida
+	$(RM) -r ext/frida-$(frida_version)
 	$(RM) -r ext/node
 	#$(MAKE) -C ext/cycript clean
 
@@ -77,7 +78,7 @@ frida-sdk $(FRIDA_SDK):
 	mkdir -p $(@D)/_
 	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 	mv $(@D)/_/* $(@D)
-	cd ext && ln -fs frida frida-$(frida_version)
+	cd ext && mv frida frida-$(frida_version) ; ln -fs frida-$(frida_version) frida
 	rmdir $(@D)/_
 
 ext/frida-$(frida_version): frida-sdk
@@ -92,7 +93,7 @@ mrproper: clean
 	$(RM) -r ext/node
 
 ext/cycript/ext/node/lib:
-	mkdir -p ext/cycript ext/node
+	mkdir -p ext/cycript ext/node/lib
 	cd ext/cycript && git submodule init && git submodule update
 
 ext/cycript/configure: ext/cycript/ext/node/lib
