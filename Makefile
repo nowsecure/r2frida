@@ -1,4 +1,4 @@
-frida_version = 8.0.0
+frida_version = 8.2.0
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
@@ -61,28 +61,38 @@ node_modules: package.json
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-	$(MAKE) -C ext/cycript clean
+	$(RM) -r ext/cycript
+	$(RM) -r ext/frida
+	$(RM) -r ext/node
+	#$(MAKE) -C ext/cycript clean
 
 install: all
 	mkdir -p "$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
 
 uninstall:
-	rm -f "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+	$(RM) "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
-$(FRIDA_SDK):
+frida-sdk $(FRIDA_SDK):
 	mkdir -p $(@D)/_
 	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 	mv $(@D)/_/* $(@D)
+	cd ext && ln -fs frida frida-$(frida_version)
 	rmdir $(@D)/_
+
+ext/frida-$(frida_version): frida-sdk
 
 update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
 
 mrproper: clean
-	rm -f $(FRIDA_SDK)
+	$(RM) $(FRIDA_SDK)
+	$(RM) -r ext/cycript
+	$(RM) -r ext/frida
+	$(RM) -r ext/node
 
 ext/cycript/ext/node/lib:
+	mkdir -p ext/cycript ext/node
 	cd ext/cycript && git submodule init && git submodule update
 
 ext/cycript/configure: ext/cycript/ext/node/lib
