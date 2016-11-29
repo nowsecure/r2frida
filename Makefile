@@ -1,3 +1,5 @@
+include config.mk
+
 frida_version = 8.2.0
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
@@ -27,20 +29,30 @@ FRIDA_LIBS+=-framework AppKit
 endif
 
 # CYCRIPT
+CFLAGS+=-DWITH_CYCRIPT=$(WITH_CYCRIPT)
+ifeq ($(WITH_CYCRIPT),1)
 CYCRIPT_CPPFLAGS+=-Iext/cycript/src
-CYCRIPT_LIBS+=ext/cycript/src/.libs/libcycript.a
+CYCRIPT_ARCHIVE=ext/cycript/src/.libs/libcycript.a
+CYCRIPT_LIBS+=$(CYCRIPT_ARCHIVE)
+CYCRIPT_OBJ=src/cylang.o
+else
+CYCRIPT_CPPFLAGS=
+CYCRIPT_ARCHIVE=
+CYCRIPT_LIBS=
+CYCRIPT_OBJ=
+endif
 
 all: io_frida.$(SO_EXT) ext/frida-$(frida_version)
 
-io_frida.$(SO_EXT): src/io_frida.o src/cylang.o
+config.mk:
+	cp -f config.def.mk config.mk
+
+io_frida.$(SO_EXT): src/io_frida.o $(CYCRIPT_OBJ)
 	pkg-config --cflags r_core
 	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYCRIPT_LIBS)
 
 src/io_frida.o: src/io_frida.c ext/frida/libfrida-core.a src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
-
-src/cylang.o: src/cylang.cpp ext/cycript/src/.libs/libcycript.a
-	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYCRIPT_CPPFLAGS) $< -o $@
 
 src/_agent.h: src/_agent.js
 	( \
@@ -93,6 +105,7 @@ mrproper: clean
 	$(RM) -r ext/frida
 	$(RM) -r ext/node
 
+ifeq ($(WITH_CYCRIPT),1)
 ext/cycript/ext/node/lib:
 	mkdir -p ext/cycript ext/node/lib
 	cd ext/cycript && git submodule init && git submodule update
@@ -112,5 +125,15 @@ ext/cycript/Makefile: ext/cycript/configure
 
 ext/cycript/src/.libs/libcycript.a: ext/cycript/Makefile
 	$(MAKE) -C ext/cycript
+
+src/cylang.o: src/cylang.cpp $(CYCRIPT_ARCHIVE)
+	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYCRIPT_CPPFLAGS) $< -o $@
+else
+ext/cycript/ext/node/lib:
+	@echo do nothing
+
+src/cylang.o:
+	touch src/cylong.o
+endif
 
 .PHONY: all clean install uninstall

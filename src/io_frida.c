@@ -5,7 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#ifndef WITH_CYCRIPT
+#define WITH_CYCRIPT 1
+#endif
+#if WITH_CYCRIPT
 #include "cylang.h"
+#endif
 #include "frida-core.h"
 
 typedef struct {
@@ -299,6 +304,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		GError *error = NULL;
 		char *js;
 
+#if WITH_CYLANG
 		js = cylang_compile (command + 1, &error);
 		if (error) {
 			io->cb_printf ("ERROR: %s\n", error->message);
@@ -311,6 +317,9 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		json_builder_add_string_value (builder, js);
 
 		g_free (js);
+#else
+		io->cb_printf ("error: r2frida compiled without cycript support\n");
+#endif
 
 		// TODO: perhaps we could do some cheap syntax-highlighting of the result?
 	} else {
