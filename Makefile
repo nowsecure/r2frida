@@ -81,7 +81,8 @@ frida-sdk $(FRIDA_SDK):
 	cd ext && mv frida frida-$(frida_version) ; ln -fs frida-$(frida_version) frida
 	rmdir $(@D)/_
 
-ext/frida-$(frida_version): frida-sdk
+ext/frida-$(frida_version):
+	$(MAKE) frida-sdk
 
 update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && rm -f ext/frida/libfrida-core.a
