@@ -24,6 +24,9 @@ const commandHandlers = {
   'ie': listExports,
   'ie*': listExportsR2,
   'iej': listExportsJson,
+  'fd': lookupAddress,
+  'fd*': lookupAddressR2,
+  'fdj': lookupAddressJson,
   'is': lookupSymbol,
   'is*': lookupSymbolR2,
   'isj': lookupSymbolJson,
@@ -138,6 +141,38 @@ function listExportsJson(args) {
   const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
+  }, []);
+}
+
+function lookupAddress(args) {
+  return lookupAddressJson(args)
+  .map(({type, name, address}) => [type, name, address].join(' '))
+  .join('\n');
+}
+
+function lookupAddressR2(args) {
+  return lookupAddressJson(args)
+  .map(({type, name, address}) =>
+    [ 'f', 'sym.' + name, '=', address].join(' '))
+  .join('\n');
+}
+
+function lookupAddressJson(args) {
+  const exportAddress = ptr(args[0]);
+  const result = [];
+  const modules = Process.enumerateModulesSync().map(m => m.path);
+  return modules.reduce((result, moduleName) => {
+    return result.concat(Module.enumerateExportsSync(moduleName));
+  }, [])
+  .reduce((type, obj) => {
+    if (ptr(obj.address).compare(exportAddress) === 0) {
+      result.push({
+        type: obj.type,
+        name: obj.name,
+        address: obj.address
+      });
+    }
+    return result;
   }, []);
 }
 

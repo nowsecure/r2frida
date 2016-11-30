@@ -256,6 +256,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"is[*] (<lib>) <sym>        Show address of symbol\n"
 			"ic <class>                 List Objective-C classes or methods of <class>\n"
 			"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
+			"fd[*j] <address>           Inverse symbol resolution\n"
 			"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
 			"dm[.|j|*]                  Show memory regions\n"
 			"dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
