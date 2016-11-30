@@ -287,13 +287,13 @@ function listFileDescriptors(args) {
   if (args.length === 0) {
     const fds = [];
     for (let i = 0; i < 1024; i++) {
-      if (_fstat(i, null)) {
+      if (_fstat(i, 0)) {
         fds.push(i);
       }
     }
     return fds;
   } else {
-    const rc = _dup2(args[0], args[1]);
+    const rc = _dup2(+args[0], +args[1]);
     return rc;
   }
 }

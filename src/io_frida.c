@@ -299,12 +299,11 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		}
 		return true;
 	}
-
 	if (command[0] == ' ') {
 		GError *error = NULL;
 		char *js;
 
-#if WITH_CYLANG
+#if WITH_CYCRIPT
 		js = cylang_compile (command + 1, &error);
 		if (error) {
 			io->cb_printf ("ERROR: %s\n", error->message);
@@ -319,6 +318,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		g_free (js);
 #else
 		io->cb_printf ("error: r2frida compiled without cycript support\n");
+		return -1;
 #endif
 
 		// TODO: perhaps we could do some cheap syntax-highlighting of the result?
