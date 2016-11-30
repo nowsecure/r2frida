@@ -249,7 +249,9 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
-		io->cb_printf ("Available r2frida commands\n"
+		io->cb_printf ("r2frida commands available via =!\n"
+			"?                          Show this help\n"
+			"?V                         Show target Frida version\n"
 			"i                          Show target information\n"
 			"il                         List libraries\n"
 			"ie[*] <lib>                List exports/entrypoints of lib\n"

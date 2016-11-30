@@ -12,6 +12,7 @@ if (ObjC_available) {
 const pointerSize = Process.pointerSize;
 
 const commandHandlers = {
+  '?V': fridaVersion,
   '.': interpretFile,
   'i': dumpInfo,
   'i*': dumpInfoR2,
@@ -668,6 +669,10 @@ Script.setGlobalAccessHandler({
 function interpretFile(args) {
   console.log("TODO: interpretFile is not yet implemented");
   return {};
+}
+
+function fridaVersion() {
+  return { version: Frida.version };
 }
 
 function onStanza(stanza, data) {
