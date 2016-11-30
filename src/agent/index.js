@@ -172,7 +172,7 @@ function lookupSymbolJson(args) {
     return Process.enumerateModulesSync()
     .reduce((result, m) => {
       const address = Module.findExportByName(m.path, exportName);
-      if (address !== null && address !== prevAddress) {
+      if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
         result.push({
           library: m.name,
           name: exportName,
