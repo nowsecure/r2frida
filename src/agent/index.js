@@ -285,9 +285,10 @@ function closeFileDescriptors(args) {
 
 function listFileDescriptors(args) {
   if (args.length === 0) {
+    const statBuf = Memory.alloc(128);
     const fds = [];
     for (let i = 0; i < 1024; i++) {
-      if (_fstat(i, 0)) {
+      if (_fstat(i, statBuf) === 0) {
         fds.push(i);
       }
     }
@@ -487,20 +488,22 @@ function compareRegisterNames(lhs, rhs) {
 
   if (lhsHasIndex && rhsHasIndex) {
     return lhsIndex - rhsIndex;
-  } else if (lhsHasIndex === rhsHasIndex) {
+  }
+  if (lhsHasIndex === rhsHasIndex) {
     const lhsLength = lhs.length;
     const rhsLength = rhs.length;
-    if (lhsLength === rhsLength)
+    if (lhsLength === rhsLength) {
       return lhs.localeCompare(rhs);
-    else if (lhsLength > rhsLength)
+    }
+    if (lhsLength > rhsLength) {
       return 1;
-    else
-      return -1;
-  } else if (lhsHasIndex) {
-    return 1;
-  } else {
+    }
     return -1;
   }
+  if (lhsHasIndex) {
+    return 1;
+  }
+  return -1;
 }
 
 function parseRegisterIndex(name) {
