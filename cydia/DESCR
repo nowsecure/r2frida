@@ -1,0 +1,2 @@
+Frida plugin for radare2
+This plugin will allow r2 on iOS to use the frida:// URI handler in the IO plugin in order to communicate with a local or remote Frida server and get the benefits of R2 and Frida together!

@@ -5,6 +5,8 @@ frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
 
+DESTDIR?=
+
 SO_EXT=dylib
 CC?=gcc
 CXX?=g++
@@ -106,11 +108,11 @@ mrproper: clean
 	$(RM) -r ext/node
 
 install:
-	mkdir -p "$(R2_PLUGDIR)"
-	cp -f io_frida.$(SO_EXT) "$(R2_PLUGDIR)"
+	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
+	cp -f io_frida.$(SO_EXT) $(DESTDIR)/"$(R2_PLUGDIR)"
 
 uninstall:
-	$(RM) "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
