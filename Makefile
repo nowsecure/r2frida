@@ -17,7 +17,7 @@ LDFLAGS+=$(shell pkg-config --libs r_io)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
 # FRIDA
-FRIDA_SDK=ext/frida/libfrida-core.a
+FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
@@ -29,7 +29,7 @@ ifeq ($(frida_os),ios)
 FRIDA_LIBS+=-framework UIKit
 FRIDA_LIBS+=-framework CoreGraphics
 endif
-ifeq ($(frida_os),Darwin)
+ifeq ($(frida_os),mac)
 FRIDA_LIBS+=-framework AppKit
 endif
 endif
@@ -48,15 +48,24 @@ CYCRIPT_LIBS=
 CYCRIPT_OBJ=
 endif
 
-all: io_frida.$(SO_EXT) ext/frida-$(frida_version)
+all: ext/frida
+	$(MAKE) io_frida.$(SO_EXT)
 
 IOS_ARCH=arm64 armv7
-IOS_ARCH_CFLAGS=$(addprefix -arch,$(IOS_ARCH))
+IOS_ARCH_CFLAGS=$(addprefix -arch ,$(IOS_ARCH))
 IOS_CC=xcrun --sdk iphoneos gcc $(IOS_ARCH_CFLAGS)
 IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 
+.PHONY: io_frida.$(SO_EXT)
+
 ios:
-	$(MAKE) CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios
+	$(MAKE) CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
+
+.PHONY: ext/frida
+
+ext/frida: $(FRIDA_SDK)
+	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
+		(cd ext && rm frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
 
 config.mk:
 	cp -f config.def.mk config.mk
@@ -65,7 +74,7 @@ io_frida.$(SO_EXT): src/io_frida.o $(CYCRIPT_OBJ)
 	pkg-config --cflags r_core
 	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYCRIPT_LIBS)
 
-src/io_frida.o: src/io_frida.c ext/frida/libfrida-core.a src/_agent.h
+src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
 src/_agent.h: src/_agent.js
@@ -103,15 +112,22 @@ install:
 uninstall:
 	$(RM) "$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
-frida-sdk $(FRIDA_SDK):
+frida-sdk: ext/frida-$(frida_os)-$(frida_version)
+	rm -f ext/frida
+	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
+
+ext/frida-$(frida_os)-$(frida_version):
+	echo $(FRIDA_SDK)
+	$(MAKE) $(FRIDA_SDK)
+
+$(FRIDA_SDK):
+	rm -f ext/frida
 	mkdir -p $(@D)/_
 	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 	mv $(@D)/_/* $(@D)
-	cd ext && mv frida frida-$(frida_version) ; ln -fs frida-$(frida_version) frida
 	rmdir $(@D)/_
-
-ext/frida-$(frida_version):
-	$(MAKE) frida-sdk
+	#mv ext/frida ext/frida-$(frida_os)-$(frida_version)
+	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && $(RM) ext/frida/libfrida-core.a
