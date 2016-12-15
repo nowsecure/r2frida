@@ -1,6 +1,6 @@
 include config.mk
 
-frida_version = 8.2.1
+frida_version = 8.2.3
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
@@ -25,7 +25,13 @@ FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
 FRIDA_LIBS+=-framework Foundation
+ifeq ($(frida_os),ios)
+FRIDA_LIBS+=-framework UIKit
+FRIDA_LIBS+=-framework CoreGraphics
+endif
+ifeq ($(frida_os),Darwin)
 FRIDA_LIBS+=-framework AppKit
+endif
 endif
 
 # CYCRIPT
@@ -43,6 +49,14 @@ CYCRIPT_OBJ=
 endif
 
 all: io_frida.$(SO_EXT) ext/frida-$(frida_version)
+
+IOS_ARCH=arm64 armv7
+IOS_ARCH_CFLAGS=$(addprefix -arch,$(IOS_ARCH))
+IOS_CC=xcrun --sdk iphoneos gcc $(IOS_ARCH_CFLAGS)
+IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
+
+ios:
+	$(MAKE) CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios
 
 config.mk:
 	cp -f config.def.mk config.mk
@@ -81,7 +95,6 @@ mrproper: clean
 	$(RM) -r ext/frida-$(frida_version)
 	$(RM) ext/frida
 	$(RM) -r ext/node
-
 
 install:
 	mkdir -p "$(R2_PLUGDIR)"
