@@ -25,6 +25,7 @@ const commandHandlers = {
   'ie': listExports,
   'ie*': listExportsR2,
   'iej': listExportsJson,
+  'fD': lookupDebugInfo,
   'fd': lookupAddress,
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
@@ -143,6 +144,16 @@ function listExportsJson(args) {
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
   }, []);
+}
+
+function lookupDebugInfo(args) {
+  const o = DebugSymbol.fromAddress(ptr(''+args));
+  console.log(o);
+}
+
+function lookupDebugInfoR2(args) {
+  const o = DebugSymbol.fromAddress(ptr(''+args));
+  console.log(o);
 }
 
 function lookupAddress(args) {
