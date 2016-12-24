@@ -282,6 +282,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
+		io->cb_printf ("  +  = show backtrace on trace\n");
 		io->cb_printf ("  x  = show hexadecimal argument\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");

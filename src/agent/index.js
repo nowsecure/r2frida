@@ -497,6 +497,7 @@ function formatArgs(args, fmt) {
   for (let i = 0; i < fmt.length; i++, j++) {
     const arg = args[j];
     switch(fmt[i]) {
+    case '+':
     case '^':
       j--;
       break;
@@ -555,19 +556,30 @@ function traceFormat(args) {
     var format = args[0];
   }
   const traceOnEnter = format.indexOf('^') !== -1;
+  const traceBacktrace = format.indexOf('+') !== -1;
 
   const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
+    myBacktrace: [],
     onEnter: function (args) {
       this.myArgs = formatArgs(args, format);
+      if (traceBacktrace) {
+        this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+      }
       if (traceOnEnter) {
         console.log (at, this.myArgs);
+        if (traceBacktrace) {
+          console.log(this.myBacktrace.join('\n    '));
+        }
       }
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
         console.log (at, this.myArgs, '=', retval);
+        if (traceBacktrace) {
+          console.log(this.myBacktrace.join('\n    '));
+        }
       }
     }
   });
@@ -584,7 +596,8 @@ function traceHere() {
   args.forEach(address => {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
-      console.log('Trace probe hit at ' + address + ':\n\t' + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+      console.log('Trace probe hit at ' + address + ':\n\t' + bt.join('\n\t'));
     });
     traceListeners.push({
       at: at,
