@@ -59,6 +59,7 @@ const commandHandlers = {
   'dl': dlopen,
   'dtf': traceFormat,
   'dt': trace,
+  'dt.': traceHere,
   'dt-': clearTrace,
   'di0': interceptRet0,
   'di1': interceptRet1,
@@ -490,35 +491,118 @@ function dlopen(args) {
   return handle.toString();
 }
 
+function formatArgs(args, fmt) {
+  const a = [];
+  for (let i = 0; i < fmt.length; i++) {
+    switch(fmt[i]) {
+    case 'x':
+      a.push ('' + ptr(args[i]));
+      break;
+    case 'c':
+      a.push ("'" + args[i] + "'");
+      break;
+    case 'i':
+      a.push ( +args[i]);
+      break;
+    case 'z': // *s
+      const s = Memory.readUtf8String(ptr(args[i]));
+      a.push (JSON.stringify(s));
+      break;
+    default:
+      a.push (args[i]);
+      break;
+    }
+  }
+  return a;
+}
+
+function traceList() {
+  traceListeners.forEach((tl) => {
+    console.log('dt', JSON.stringify(tl));
+  });
+  return true;
+}
+
+function getPtr(p) {
+  if (!p || p === '$$') {
+    return ptr(offset);
+  }
+  try {
+    const ptr_p = ptr(p);
+    if (p.startsWith('0x')) {
+      return ptr_p;
+    }
+  } catch (e) {
+  }
+  // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
+  return Module.findExportByName(null, p);
+}
+
 function traceFormat(args) {
-  const address = args[0];
-  const format = args[1];
-  
-console.log("TRACE", address, format);
+  if (args.length == 0) {
+    return traceList();
+  }
+  if (args.length == 2) {
+    var address = '' + getPtr(args[0]);
+    var format = args[1];
+  } else {
+    var address = offset;
+    var format = args[0];
+  }
+
+  const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
+    myArgs: [],
     onEnter: function (args) {
-      console.log(JSON.stringify(args));
+      this.myArgs = formatArgs(args, format);
+      console.log (at, this.myArgs);
     },
     onLeave: function (retval) {
-      console.log(retval);
+      console.log (at, this.myArgs, '=', retval);
     }
   });
-  traceListeners.push(listener);
+  traceListeners.push({
+    at: at,
+    format: format,
+    listener: listener
+  });
+  return true;
+}
+
+function traceHere() {
+  const args = [ offset ];
+  args.forEach(address => {
+    const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
+    const listener = Interceptor.attach(ptr(address), function () {
+      console.log('Trace probe hit at ' + address + ':\n\t' + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+    });
+    traceListeners.push({
+      at: at,
+      listener: listener
+    });
+  });
   return true;
 }
 
 function trace(args) {
+  if (args.length == 0) {
+    return traceList();
+  }
   args.forEach(address => {
+    const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
       console.log('Trace probe hit at ' + address + ':\n\t' + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
     });
-    traceListeners.push(listener);
+    traceListeners.push({
+      at: at,
+      listener: listener
+    });
   });
   return true;
 }
 
 function clearTrace(args) {
-  traceListeners.splice(0).forEach(listener => listener.detach());
+  traceListeners.splice(0).forEach(lo => lo.listener.detach());
 }
 
 function interceptRet0(args) {
