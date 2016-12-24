@@ -554,7 +554,7 @@ function traceFormat(args) {
     var address = offset;
     var format = args[0];
   }
-  const traceOnEnter = format.find('^') !== -1;
+  const traceOnEnter = format.indexOf('^') !== -1;
 
   const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
