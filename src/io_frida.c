@@ -268,6 +268,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"env [k[=v]]                Get/set environment variable\n"
 			"dl libname                 Dlopen\n"
 			"dl2 libname [main]         Inject library using Frida's 8.2 new API\n"
+			"dtf <addr> [fmt]           Trace address with given format\n"
 			"dt <addr> ..               Trace list of addresses\n"
 			"dt-                        Clear all tracing\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
@@ -329,6 +330,20 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		builder = build_request ("perform");
 		json_builder_set_member_name (builder, "command");
 		json_builder_add_string_value (builder, command);
+	}
+
+	/* update seek in agent */
+	{
+		char offstr[127] = {0};
+		JsonBuilder *builder = build_request ("seek");
+		json_builder_set_member_name (builder, "offset");
+		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
+		json_builder_add_string_value (builder, offstr);
+		JsonObject *result = perform_request (rf, builder, NULL, NULL);
+		if (!result) {
+			return -1;
+		}
+		json_object_unref (result);
 	}
 
 	result = perform_request (rf, builder, NULL, NULL);

@@ -11,6 +11,8 @@ if (ObjC_available) {
 
 const pointerSize = Process.pointerSize;
 
+var offset = '0';
+
 const commandHandlers = {
   '?V': fridaVersion,
   '.': interpretFile,
@@ -27,8 +29,11 @@ const commandHandlers = {
   'iej': listExportsJson,
   'fD': lookupDebugInfo,
   'fd': lookupAddress,
+  'fd.': lookupAddress,
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
+  'ie.': lookupSymbolHere,
+  'is.': lookupSymbolHere,
   'is': lookupSymbol,
   'is*': lookupSymbolR2,
   'isj': lookupSymbolJson,
@@ -52,6 +57,7 @@ const commandHandlers = {
   'env': getOrSetEnv,
   'envj': getOrSetEnvJson,
   'dl': dlopen,
+  'dtf': traceFormat,
   'dt': trace,
   'dt-': clearTrace,
   'di0': interceptRet0,
@@ -157,6 +163,9 @@ function lookupDebugInfoR2(args) {
 }
 
 function lookupAddress(args) {
+  if (args.length === 0) {
+    args = [ptr(offset)];
+  }
   return lookupAddressJson(args)
   .map(({type, name, address}) => [type, name, address].join(' '))
   .join('\n');
@@ -186,6 +195,10 @@ function lookupAddressJson(args) {
     }
     return result;
   }, []);
+}
+
+function lookupSymbolHere(args) {
+  return lookupAddress([ptr(offset)]);
 }
 
 function lookupSymbol(args) {
@@ -359,7 +372,7 @@ function listProtocolsJson(args) {
 
 function listMemoryRangesHere(args) {
   if (args.length != 1) {
-    return [];
+    args = [ ptr(offset) ];
   }
   const addr = +args[0];
   return listMemoryRangesJson()
@@ -475,6 +488,23 @@ function dlopen(args) {
   if (handle.isNull())
     throw new Error('Failed to load: ' + path);
   return handle.toString();
+}
+
+function traceFormat(args) {
+  const address = args[0];
+  const format = args[1];
+  
+console.log("TRACE", address, format);
+  const listener = Interceptor.attach(ptr(address), {
+    onEnter: function (args) {
+      console.log(JSON.stringify(args));
+    },
+    onLeave: function (retval) {
+      console.log(retval);
+    }
+  });
+  traceListeners.push(listener);
+  return true;
 }
 
 function trace(args) {
@@ -593,6 +623,7 @@ function padPointer(value) {
 const requestHandlers = {
   read: read,
   write: write,
+  seek: seek,
   perform: perform,
   evaluate: evaluate,
 };
@@ -610,6 +641,11 @@ function read(params) {
 function write(params, data) {
   Memory.writeByteArray(ptr(params.offset), data);
 
+  return [{}, null];
+}
+
+function seek(params, data) {
+  offset = params.offset;
   return [{}, null];
 }
 
