@@ -493,23 +493,28 @@ function dlopen(args) {
 
 function formatArgs(args, fmt) {
   const a = [];
-  for (let i = 0; i < fmt.length; i++) {
+  let j = 0;
+  for (let i = 0; i < fmt.length; i++, j++) {
+    const arg = args[j];
     switch(fmt[i]) {
+    case '^':
+      j--;
+      break;
     case 'x':
-      a.push ('' + ptr(args[i]));
+      a.push ('' + ptr(arg));
       break;
     case 'c':
-      a.push ("'" + args[i] + "'");
+      a.push ("'" + arg + "'");
       break;
     case 'i':
-      a.push ( +args[i]);
+      a.push ( +arg);
       break;
     case 'z': // *s
-      const s = Memory.readUtf8String(ptr(args[i]));
+      const s = Memory.readUtf8String(ptr(arg));
       a.push (JSON.stringify(s));
       break;
     default:
-      a.push (args[i]);
+      a.push (arg);
       break;
     }
   }
@@ -549,16 +554,21 @@ function traceFormat(args) {
     var address = offset;
     var format = args[0];
   }
+  const traceOnEnter = format.find('^') !== -1;
 
   const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     onEnter: function (args) {
       this.myArgs = formatArgs(args, format);
-      console.log (at, this.myArgs);
+      if (traceOnEnter) {
+        console.log (at, this.myArgs);
+      }
     },
     onLeave: function (retval) {
-      console.log (at, this.myArgs, '=', retval);
+      if (!traceOnEnter) {
+        console.log (at, this.myArgs, '=', retval);
+      }
     }
   });
   traceListeners.push({
