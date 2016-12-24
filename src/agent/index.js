@@ -514,6 +514,11 @@ function formatArgs(args, fmt) {
       const s = Memory.readUtf8String(ptr(arg));
       a.push (JSON.stringify(s));
       break;
+    case 'Z': // *s[i]
+      const len = args[j + 1];
+      const s = Memory.readUtf8String(ptr(arg), len);
+      a.push (JSON.stringify(s));
+      break;
     default:
       a.push (arg);
       break;
