@@ -1,6 +1,6 @@
 include config.mk
 
-frida_version = 8.2.5
+frida_version = 9.0.1
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
@@ -11,7 +11,7 @@ SO_EXT=dylib
 CC?=gcc
 CXX?=g++
 CFLAGS+=-fPIC
-LDFLAGS+=-shared
+LDFLAGS+=-shared -fPIC
 
 # R2
 CFLAGS+=$(shell pkg-config --cflags r_io)
@@ -22,10 +22,10 @@ R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
-FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
+FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=-framework Foundation
 ifeq ($(frida_os),ios)
 FRIDA_LIBS+=-framework UIKit
