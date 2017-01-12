@@ -22,6 +22,8 @@ CFLAGS+=$(shell pkg-config --cflags r_io)
 LDFLAGS+=$(shell pkg-config --libs r_io)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
+CXXFLAGS+=$(CFLAGS)
+
 # FRIDA
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
@@ -104,7 +106,9 @@ node_modules: package.json
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-#	-$(MAKE) -C ext/cycript clean
+
+cycript-clean clean2:
+	-$(MAKE) -C ext/cycript clean
 
 mrproper: clean
 	$(RM) $(FRIDA_SDK)
@@ -144,22 +148,32 @@ ifeq ($(WITH_CYCRIPT),1)
 ext/cycript/ext/node/lib:
 	mkdir -p ext/cycript ext/node/lib
 	cd ext/cycript && git submodule init && git submodule update
+	-cd ext/cycript && yes n | patch -p1 < ../../cycript.patch
 
 ext/cycript/configure: ext/cycript/ext/node/lib
 	cd ext/cycript && $(SHELL) ./autogen.sh
 
+ifeq ($(shell uname),Darwin)
+CLANG=-rpath /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib
+else
+CLANG=no
+endif
+
 ext/cycript/Makefile: ext/cycript/configure
+	CFLAGS="$(CFLAGS)" \
+	CXXFLAGS="$(CXXFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" \
 	cd ext/cycript && \
 		$(SHELL) ./configure \
 			--disable-console \
 			--disable-engine \
 			--disable-shared \
 			--enable-static \
-			--with-libclang="-rpath /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib" \
+			--with-libclang="$(CLANG)" \
 			--with-python=/usr/bin/python-config
 
 ext/cycript/src/.libs/libcycript.a: ext/cycript/Makefile
-	$(MAKE) -C ext/cycript
+	$(MAKE) -C ext/cycript CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" V=1 -j4
 
 src/cylang.o: src/cylang.cpp $(CYCRIPT_ARCHIVE)
 	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYCRIPT_CPPFLAGS) $< -o $@
