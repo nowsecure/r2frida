@@ -1,7 +1,7 @@
 'use strict';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const ObjC_available = ObjC && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const ObjC_available = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
 if (ObjC_available) {
   var mjolner = require('mjolner');
@@ -70,7 +70,11 @@ const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 
 function sym(name, ret, arg) {
-  return new NativeFunction(Module.findExportByName(null, name), ret, arg);
+  try {
+    return new NativeFunction(Module.findExportByName(null, name), ret, arg);
+  } catch (e) {
+    console.error(name, ':', e);
+  }
 }
 
 const _getenv = sym('getenv', 'pointer', ['pointer']);

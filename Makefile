@@ -7,7 +7,11 @@ frida_os_arch := $(frida_os)-$(frida_arch)
 
 DESTDIR?=
 
+ifeq ($(shell uname),Darwin)
 SO_EXT=dylib
+else
+SO_EXT=so
+endif
 CC?=gcc
 CXX?=g++
 CFLAGS+=-fPIC
