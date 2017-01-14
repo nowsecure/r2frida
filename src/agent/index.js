@@ -65,10 +65,18 @@ const commandHandlers = {
   'di1': interceptRet1,
   'di-1': interceptRet_1,
   'pd': disasmCode,
+  'eval': evalCode,
 };
 
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
+
+
+function evalCode(args) {
+  const code = args.join(' ');
+  eval(code);
+  return '';
+}
 
 function disasmCode(lenstr) {
   const len = +lenstr || 20;
@@ -87,7 +95,7 @@ function disasm(addr, len) {
       addr = ptr(offset);
     }
   }
-addr = ptr(addr)
+  addr = ptr(addr)
   let oldName = null;
   let lastAt = null;
   let disco = '';
@@ -137,7 +145,8 @@ addr = ptr(addr)
     // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
     disco += [op.address, op.mnemonic, op.opStr, comment].join('\t') + '\n';
     if (op.size < 1) {
-      break;
+      // break; // continue after invalid
+      op.size = 1;
     }
     addr = addr.add(op.size);
   }
@@ -283,7 +292,8 @@ function lookupSymbolHere(args) {
 
 function lookupSymbol(args) {
   return lookupSymbolJson(args)
-  .map(({library, name, address}) => [library, name, address].join(' '))
+  //.map(({library, name, address}) => [library, name, address].join(' '))
+  .map(({address}) => '' + address)
   .join('\n');
 }
 
@@ -327,7 +337,7 @@ function lookupSymbolJson(args) {
 
 function listImports(args) {
   return listImportsJson(args)
-  .map(({type, name, module, address}) => [type, name, module, address].join(' '))
+  .map(({type, name, module, address}) => [address, type[0], name, module].join(' '))
   .join('\n');
 }
 

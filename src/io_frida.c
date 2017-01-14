@@ -253,6 +253,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"?                          Show this help\n"
 			"?V                         Show target Frida version\n"
 			"i                          Show target information\n"
+			"ii[*]                      List imports\n"
 			"il                         List libraries\n"
 			"ie[*] <lib>                List exports/entrypoints of lib\n"
 			"is[*] (<lib>) <sym>        Show address of symbol\n"
@@ -266,14 +267,15 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dpt                        Show threads\n"
 			"dr                         Show thread registers (see dpt)\n"
 			"env [k[=v]]                Get/set environment variable\n"
-			"dl libname                 Dlopen\n"
-			"dl2 libname [main]         Inject library using Frida's 8.2 new API\n"
+			"dl libname                 Dlopen a library\n"
+			"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
 			"dt <addr> ..               Trace list of addresses\n"
 			"dt-                        Clear all tracing\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
 			". script                   Run script\n"
-			"<space> code..             Evaluate code\n"
+			"<space> code..             Evaluate Cycript code\n"
+			"eval code..                Evaluate Javascript code in agent side\n"
 			);
 		return true;
 	}
@@ -314,7 +316,6 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	if (command[0] == ' ') {
 		GError *error = NULL;
 		char *js;
-
 #if WITH_CYCRIPT
 		js = cylang_compile (command + 1, &error);
 		if (error) {
@@ -329,10 +330,12 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 
 		g_free (js);
 #else
-		io->cb_printf ("error: r2frida compiled without cycript support\n");
-		return -1;
+		// io->cb_printf ("error: r2frida compiled without cycript support. Use =!eval instead\n");
+		// return -1;
+		builder = build_request ("evaluate");
+		json_builder_set_member_name (builder, "code");
+		json_builder_add_string_value (builder, command + 1);
 #endif
-
 		// TODO: perhaps we could do some cheap syntax-highlighting of the result?
 	} else {
 		builder = build_request ("perform");
