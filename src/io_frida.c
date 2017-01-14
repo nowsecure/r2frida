@@ -23,6 +23,7 @@ typedef struct {
 	GMutex lock;
 	GCond cond;
 	volatile bool detached;
+	volatile FridaSessionDetachReason detach_reason;
 	volatile bool received_reply;
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
@@ -51,6 +52,7 @@ static RIOFrida *r_io_frida_new(void) {
 	}
 
 	rf->detached = false;
+	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->received_reply = false;
 
 	return rf;
@@ -392,43 +394,27 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 }
 
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device) {
-	FridaDeviceList *candidates;
-	guint count, i;
-	FridaDevice *match;
+	GError *error = NULL;
 
-	candidates = frida_device_manager_enumerate_devices_sync (manager, NULL);
-
-	count = frida_device_list_size (candidates);
-	for (i = 0, match = NULL; i < count && !match; i++) {
-		FridaDevice *candidate;
-
-		candidate = frida_device_list_get (candidates, i);
-		if ((!device_id && frida_device_get_dtype (candidate) == FRIDA_DEVICE_TYPE_LOCAL) ||
-			!strcmp (frida_device_get_id (candidate), device_id)) {
-			match = candidate;
-		} else {
-			g_object_unref (candidate);
-		}
+	if (device_id != NULL) {
+		*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, NULL, &error);
+	} else {
+		*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, NULL, &error);
 	}
 
-	g_object_unref (candidates);
-
-	if (!match) {
-		eprintf ("Cannot find the specified device\n");
+	if (error != NULL) {
+		eprintf ("%s\n", error->message);
+		g_error_free (error);
 		return false;
 	}
 
-	*device = match;
 	return true;
 }
 
 static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid) {
 	int number;
-	FridaProcessList *candidates;
+	FridaProcess *process;
 	GError *error = NULL;
-	char *process_name;
-	FridaProcess *match;
-	guint count, i;
 
 	number = atoi (process_specifier);
 	if (number) {
@@ -436,38 +422,16 @@ static bool resolve_process(FridaDevice *device, const char *process_specifier, 
 		return true;
 	}
 
-	candidates = frida_device_enumerate_processes_sync (device, &error);
-	if (error) {
+	process = frida_device_get_process_by_name_sync (device, process_specifier, 0, NULL, &error);
+	if (error != NULL) {
 		eprintf ("%s\n", error->message);
 		g_error_free (error);
 		return false;
 	}
 
-	process_name = g_utf8_casefold (process_specifier, -1);
-	count = frida_process_list_size (candidates);
-	for (i = 0, match = NULL; i < count && !match; i++) {
-		FridaProcess *candidate;
-		char *candidate_name;
+	*pid = frida_process_get_pid (process);
+	g_object_unref (process);
 
-		candidate = frida_process_list_get (candidates, i);
-		candidate_name = g_utf8_casefold (frida_process_get_name (candidate), -1);
-		if (!strcmp (candidate_name, process_name))
-			match = candidate;
-		else
-			g_object_unref (candidate);
-		g_free (candidate_name);
-	}
-	g_free (process_name);
-
-	g_object_unref (candidates);
-
-	if (!match) {
-		eprintf ("Cannot find the specified process\n");
-		return false;
-	}
-
-	*pid = frida_process_get_pid (match);
-	g_object_unref (match);
 	return true;
 }
 
@@ -523,7 +487,19 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	g_mutex_unlock (&rf->lock);
 
 	if (!reply_stanza) {
-		eprintf ("Target process terminated\n");
+		switch (rf->detach_reason) {
+		case FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED:
+			break;
+		case FRIDA_SESSION_DETACH_REASON_PROCESS_TERMINATED:
+			eprintf ("Target process terminated\n");
+			break;
+		case FRIDA_SESSION_DETACH_REASON_SERVER_TERMINATED:
+			eprintf ("Server terminated\n");
+			break;
+		case FRIDA_SESSION_DETACH_REASON_DEVICE_LOST:
+			eprintf ("Device lost\n");
+			break;
+		}
 		return NULL;
 	}
 
@@ -557,12 +533,13 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 	g_mutex_unlock (&rf->lock);
 }
 
-static void on_detached(FridaSession *session, gpointer user_data) {
+static void on_detached(FridaSession *session, FridaSessionDetachReason reason, gpointer user_data) {
 	RIOFrida *rf = user_data;
 
 	g_mutex_lock (&rf->lock);
 
 	rf->detached = true;
+	rf->detach_reason = reason;
 	g_cond_signal (&rf->cond);
 
 	g_mutex_unlock (&rf->lock);
