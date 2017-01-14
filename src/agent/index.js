@@ -64,10 +64,85 @@ const commandHandlers = {
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
+  'pd': disasmCode,
 };
 
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
+
+function disasmCode(lenstr) {
+  const len = +lenstr || 20;
+  return disasm(offset, len);
+}
+
+function disasm(addr, len) {
+  len = len || 20;
+  if (typeof addr === 'string') {
+    try {
+      addr = Module.findExportByName(null, addr);
+      if (!addr) {
+        throw undefined;
+      }
+    } catch (e) {
+      addr = ptr(offset);
+    }
+  }
+addr = ptr(addr)
+  let oldName = null;
+  let lastAt = null;
+  let disco = '';
+  for (let i = 0; i < len; i++) {
+    const op = Instruction.parse(addr);
+    const ds = DebugSymbol.fromAddress(addr);
+    if (ds.name !== null && ds.name !== oldName) {
+      console.log(';;;', ds.moduleName, ds.name);
+      oldName = ds.name;
+    }
+    var comment = '';
+    const id = op.opStr.indexOf('#0x');
+    if (id !== -1) {
+      try {
+        const at = op.opStr.substring(id + 1).split(' ')[0].split(',')[0].split(']')[0];
+        if (op.opStr.indexOf(']') !== -1) {
+          try {
+            const p = Memory.readPointer(ptr(lastAt).add(at));
+            const str = Memory.readCString(p);
+            //console.log(';  str:', str);
+            disco += ';  str:' + str + '\n';
+          } catch (e) {
+            const p2 = Memory.readPointer(p);
+            const str2 = Memory.readCString(p2);
+            //console.log(';  str2:', str2);
+            disco += ';  str2:' + str2 + '\n';
+            console.log(e);
+          }
+        }
+        lastAt = at;
+        const di = DebugSymbol.fromAddress(ptr(at));
+        if (di.name !== null) {
+          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name
+        } else {
+          const op2 = Instruction.parse(ptr(at));
+          const id2 = op2.opStr.indexOf('#0x');
+          const at2 = op2.opStr.substring(id2 + 1).split(' ')[0].split(',')[0].split(']')[0];
+          const di2 = DebugSymbol.fromAddress(ptr(at2));
+          if (di2.name !== null) {
+            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name
+          }
+        }
+      } catch (e) {
+        // console.log(e);
+      }
+    }
+    // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
+    disco += [op.address, op.mnemonic, op.opStr, comment].join('\t') + '\n';
+    if (op.size < 1) {
+      break;
+    }
+    addr = addr.add(op.size);
+  }
+  return disco;
+}
 
 function sym(name, ret, arg) {
   try {
