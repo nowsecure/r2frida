@@ -65,6 +65,7 @@ const commandHandlers = {
   'di1': interceptRet1,
   'di-1': interceptRet_1,
   'pd': disasmCode,
+  'px': printHexdump,
   'eval': evalCode,
 };
 
@@ -76,6 +77,11 @@ function evalCode(args) {
   const code = args.join(' ');
   eval(code);
   return '';
+}
+
+function printHexdump(lenstr) {
+  const len = +lenstr || 20;
+  return hexdump(ptr(offset), len);
 }
 
 function disasmCode(lenstr) {
