@@ -364,7 +364,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		return -1;
 	}
 	value = json_object_get_string_member (result, "value");
-	if (value) {
+	if (value && strcmp (value, "undefined")) {
 		io->cb_printf ("%s\n", value);
 	}
 	json_object_unref (result);
