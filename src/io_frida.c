@@ -45,6 +45,55 @@ static const char *r_io_frida_agent_code =
 #include "_agent.h"
 ;
 
+static char *slurpFile(const char *str, int *usz) {
+        size_t rsz;
+        char *ret;
+        FILE *fd;
+        long sz;
+        if (!r_file_exists (str)) {
+                return NULL;
+        }
+        fd = r_sandbox_fopen (str, "rb");
+        if (!fd) {
+                return NULL;
+        }
+        (void)fseek (fd, 0, SEEK_END);
+        sz = ftell (fd);
+        if (!sz) {
+                if (r_file_is_regular (str)) {
+                        /* proc file */
+                        fseek (fd, 0, SEEK_SET);
+                        sz = ftell (fd);
+                        if (!sz) {
+                                sz = -1;
+                        }
+                } else {
+                        sz = 65536;
+                }
+        }
+        if (sz < 0) {
+                fclose (fd);
+                return NULL;
+        }
+        (void)fseek (fd, 0, SEEK_SET);
+        ret = (char *)calloc (sz + 1, 1);
+        if (!ret) {
+                fclose (fd);
+                return NULL;
+        }
+        rsz = fread (ret, 1, sz, fd);
+        if (rsz != sz) {
+                // eprintf ("r_file_slurp: fread: error\n");
+                sz = rsz;
+        }
+        fclose (fd);
+        ret[sz] = '\0';
+        if (usz) {
+                *usz = (int)sz;
+        }
+        return ret;
+}
+
 static RIOFrida *r_io_frida_new(void) {
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
@@ -315,35 +364,69 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		}
 		return true;
 	}
-	if (command[0] == ' ') {
-		GError *error = NULL;
-		char *js;
-#if WITH_CYCRIPT
-		js = cylang_compile (command + 1, &error);
-		if (error) {
-			io->cb_printf ("ERROR: %s\n", error->message);
-			g_error_free (error);
-			return -1;
+	char *slurpedData = NULL;
+	if (command[0] == '.') {
+		switch (command[1]) {
+		case ' ':
+			slurpedData = slurpFile (command + 2, NULL);
+			if (!slurpedData) {
+				io->cb_printf ("Cannot slurp %s\n", command + 2);
+				return false;
+			}
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			json_builder_add_string_value (builder, slurpedData);
+			break;
+		case '-':
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			slurpedData = malloc (128);
+			snprintf (slurpedData, 128, "r2frida.pluginUnregister('%s')", command + 2);
+			json_builder_add_string_value (builder, slurpedData);
+			break;
+		case 0:
+			/* list plugins */
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			slurpedData = strdup ("console.log(r2frida.pluginList())");
+			json_builder_add_string_value (builder, slurpedData);
+			break;
+		default:
+			break;
 		}
-
-		builder = build_request ("evaluate");
-		json_builder_set_member_name (builder, "code");
-		json_builder_add_string_value (builder, js);
-
-		g_free (js);
-#else
-		// io->cb_printf ("error: r2frida compiled without cycript support. Use =!eval instead\n");
-		// return -1;
-		builder = build_request ("evaluate");
-		json_builder_set_member_name (builder, "code");
-		json_builder_add_string_value (builder, command + 1);
-#endif
-		// TODO: perhaps we could do some cheap syntax-highlighting of the result?
-	} else {
-		builder = build_request ("perform");
-		json_builder_set_member_name (builder, "command");
-		json_builder_add_string_value (builder, command);
 	}
+	if (!slurpedData) {
+		if (command[0] == ' ') {
+			GError *error = NULL;
+			char *js;
+#if WITH_CYCRIPT
+			js = cylang_compile (command + 1, &error);
+			if (error) {
+				io->cb_printf ("ERROR: %s\n", error->message);
+				g_error_free (error);
+				return -1;
+			}
+
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			json_builder_add_string_value (builder, js);
+
+			g_free (js);
+#else
+			// io->cb_printf ("error: r2frida compiled without cycript support. Use =!eval instead\n");
+			// return -1;
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			json_builder_add_string_value (builder, command + 1);
+#endif
+			// TODO: perhaps we could do some cheap syntax-highlighting of the result?
+		} else {
+			builder = build_request ("perform");
+			json_builder_set_member_name (builder, "command");
+			json_builder_add_string_value (builder, command);
+		}
+	}
+	free (slurpedData);
 
 	/* update seek in agent */
 	{

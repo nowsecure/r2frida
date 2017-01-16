@@ -1,5 +1,7 @@
 'use strict';
 
+const r2frida = require('./plugin');
+
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjC_available = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
@@ -66,6 +68,7 @@ const commandHandlers = {
   'di-1': interceptRet_1,
   'pd': disasmCode,
   'px': printHexdump,
+  'x': printHexdump,
   'eval': evalCode,
 };
 
@@ -81,7 +84,7 @@ function evalCode(args) {
 
 function printHexdump(lenstr) {
   const len = +lenstr || 20;
-  return hexdump(ptr(offset), len);
+  return hexdump(ptr(offset), len) || '';
 }
 
 function disasmCode(lenstr) {
@@ -862,12 +865,14 @@ function perform(params) {
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
 
-  const handler = commandHandlers[name];
-  if (handler === undefined)
+  const userHandler = global.r2frida.commandHandler(name);
+  const handler = userHandler !== undefined
+    ? userHandler : commandHandlers[name];
+  if (handler === undefined) {
     throw new Error('Unhandled command: ' + name);
+  }
 
   const value = handler(args);
-
   return [{
     value: (typeof value === 'string') ? value : JSON.stringify(value),
   }, null];
@@ -887,7 +892,7 @@ function evaluate(params) {
       try {
         const rawResult = (1, eval)(code);
         global._ = rawResult;
-        if (rawResult !== undefined)
+        if (rawResult !== undefined && mjolner !== undefined)
           result = mjolner.toCYON(rawResult);
         else
           result = 'undefined';
@@ -921,7 +926,7 @@ Script.setGlobalAccessHandler({
 });
 
 function interpretFile(args) {
-  console.log("TODO: interpretFile is not yet implemented");
+  console.log('TODO: interpretFile is not yet implemented');
   return {};
 }
 

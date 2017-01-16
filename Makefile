@@ -98,7 +98,7 @@ src/_agent.h: src/_agent.js
 		echo '"'; \
 	) > $@
 
-src/_agent.js: src/agent/index.js node_modules
+src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
 
 node_modules: package.json
