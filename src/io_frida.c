@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016 - pancake, oleavr */
+/* radare2 - MIT - Copyright 2016-2017 - pancake, oleavr */
 
 #include <r_io.h>
 #include <r_lib.h>
@@ -50,13 +50,19 @@ static char *slurpFile(const char *str, int *usz) {
         char *ret;
         FILE *fd;
         long sz;
-        if (!r_file_exists (str)) {
-                return NULL;
-        }
         fd = r_sandbox_fopen (str, "rb");
-        if (!fd) {
-                return NULL;
-        }
+	if (!fd) {
+		if (*str == '/') {
+			return NULL;
+		}
+		char *newfile = r_str_home (".config/r2frida/plugins/");
+		newfile = r_str_concatf (newfile, "%s.js", str);
+		fd = r_sandbox_fopen (newfile, "rb");
+		free (newfile);
+		if (!fd) {
+			return NULL;
+		}
+	}
         (void)fseek (fd, 0, SEEK_END);
         sz = ftell (fd);
         if (!sz) {
