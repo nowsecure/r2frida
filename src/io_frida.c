@@ -486,7 +486,11 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 	GError *error = NULL;
 
 	if (device_id != NULL) {
-		*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, NULL, &error);
+		if (!strcmp (device_id, "localhost") || !strcmp (device_id, "127.0.0.1")) {
+			*device = frida_device_manager_add_remote_device_sync (manager, "127.0.0.1:27042", &error);
+		} else {
+			*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, NULL, &error);
+		}
 	} else {
 		*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, NULL, &error);
 	}
