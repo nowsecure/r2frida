@@ -25,6 +25,7 @@ const commandHandlers = {
   'ii*': listImportsR2,
   'iij': listImportsJson,
   'il': listModules,
+  'il*': listModulesR2,
   'ilj': listModulesJson,
   'ie': listExports,
   'ie*': listExportsR2,
@@ -223,6 +224,12 @@ function listModules() {
   .join('\n');
 }
 
+function listModulesR2() {
+  return Process.enumerateModulesSync()
+  .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
+  .join('\n');
+}
+
 function listModulesJson() {
   return Process.enumerateModulesSync();
 }
@@ -389,8 +396,24 @@ function listClasses(args) {
   }
 }
 
+function classGlob(k, v) {
+  if (!k || !v) {
+    return true;
+  }
+  return k.indexOf(v.replace(/\*/g, '')) !== -1;
+}
+
 function listClassesR2(args) {
   const className = args[0];
+  if (args.length === 0 || args[0].indexOf('*') !== -1) {
+    let methods = '';
+    for (let cn of Object.keys(ObjC.classes)) {
+      if (classGlob(cn, args[0])) {
+        methods += listClassesR2([cn]);
+      }
+    }
+    return methods;
+  }
   const result = listClassesJson(args);
   if (result instanceof Array) {
     return result.join('\n');
@@ -411,13 +434,14 @@ function listClassesR2(args) {
     .join('\n');
   }
 }
+
 function listClassesJson(args) {
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
   } else {
     const klass = ObjC.classes[args[0]];
     if (klass === undefined)
-      throw new Error('Class not found');
+      throw new Error('Class ' + args[0] + ' not found');
     return klass.$ownMethods
     .reduce((result, methodName) => {
       try {
