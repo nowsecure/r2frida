@@ -64,6 +64,7 @@ const commandHandlers = {
   'dt': trace,
   'dt.': traceHere,
   'dt-': clearTrace,
+  'dtr': traceRegs,
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
@@ -713,6 +714,24 @@ function traceFormat(args) {
   traceListeners.push({
     at: at,
     format: format,
+    listener: listener
+  });
+  return true;
+}
+
+function traceRegs(args) {
+  var address = '' + getPtr(args[0]);
+  const listener = Interceptor.attach(ptr(address), function () {
+    const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+    console.log('Trace probe hit at ' + address + ':\n\t' + bt.join('\n\t'));
+    if (args.length === 0) {
+      console.log(JSON.stringify(this.context));
+    } else {
+      console.log(args.map(r => { return this.context[r]; });
+    }
+  });
+  traceListeners.push({
+    at: at,
     listener: listener
   });
   return true;

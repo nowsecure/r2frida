@@ -326,9 +326,10 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"env [k[=v]]                Get/set environment variable\n"
 			"dl libname                 Dlopen a library\n"
 			"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
-			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
 			"dt <addr> ..               Trace list of addresses\n"
 			"dt-                        Clear all tracing\n"
+			"dtr <addr> (<regs>...)     Trace register values\n"
+			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
@@ -345,8 +346,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  x  = show hexadecimal argument\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
-	} else
-	if (!strncmp (command, "dl2", 3)) {
+	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
 			gchar *path = strdup (command + 4);
