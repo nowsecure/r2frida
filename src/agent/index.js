@@ -65,6 +65,7 @@ const commandHandlers = {
   'dt.': traceHere,
   'dt-': clearTrace,
   'dtr': traceRegs,
+  'di': interceptHelp,
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
@@ -772,6 +773,10 @@ function trace(args) {
 
 function clearTrace(args) {
   traceListeners.splice(0).forEach(lo => lo.listener.detach());
+}
+
+function interceptHelp(args) {
+  return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
 function interceptRet0(args) {
