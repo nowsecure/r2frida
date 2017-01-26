@@ -19,6 +19,7 @@ const commandHandlers = {
   '?V': fridaVersion,
   '.': interpretFile,
   'i': dumpInfo,
+  'e': evalConfig,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
   'ii': listImports,
@@ -173,15 +174,38 @@ function sym(name, ret, arg) {
   }
 }
 
+/* This is not available on Windows */
 const _getenv = sym('getenv', 'pointer', ['pointer']);
 const _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
 const _getpid = sym('getpid', 'int', []);
+const _getuid = sym('getuid', 'int', []);
 const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
 const _fstat = sym('fstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 
 const traceListeners = [];
+const config = {
+  'patch.code': true
+};
+
+function evalConfig(args) {
+  if (args.length === 0) {
+    return Object.keys(config)
+    .map(k => 'e ' + k + '\=' + config[k])
+    .join('\n');
+  }
+  const kv = args[0].split(/=/);
+  if (kv.length === 2) {
+    if (config[kv[0]] !== undefined) {
+      config[kv[0]] = kv[1];
+    } else {
+      console.error('unknown variable');
+    }
+    return '';
+  }
+  return config[args[0]];
+}
 
 function dumpInfo() {
   const properties = dumpInfoJson();
@@ -215,6 +239,7 @@ function dumpInfoJson() {
     bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
+    uid: _getuid(),
     objc: ObjC_available,
     java: Java.available,
   };
@@ -728,7 +753,7 @@ function traceRegs(args) {
     if (args.length === 0) {
       console.log(JSON.stringify(this.context));
     } else {
-      console.log(args.map(r => { return this.context[r]; });
+      console.log(args.map(r => { return this.context[r]; }));
     }
   });
   traceListeners.push({
@@ -896,9 +921,21 @@ function read(params) {
   }
 }
 
-function write(params, data) {
-  Memory.writeByteArray(ptr(params.offset), data);
+function isTrue(x) {
+  return (x === true || x === 1 || x === 'true');
+}
 
+function write(params, data) {
+  if (isTrue(config['patch.code'])) {
+    if (typeof Memory.patchCode !== 'function') {
+      return 'Error: Cannot find Memory.patchCode, Disable \\e patch.code=false';
+    }
+    Memory.patchCode(ptr(params.offset), 1, function (ptr) {
+      Memory.writeByteArray(ptr, data);
+    });
+  } else {
+    Memory.writeByteArray(ptr(params.offset), data);
+  }
   return [{}, null];
 }
 
