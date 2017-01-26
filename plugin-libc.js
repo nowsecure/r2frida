@@ -28,9 +28,9 @@ r2frida.pluginRegister('libc', function(name) {
       const command = args.shift();
       for (var arg in args) {
         if (+args[arg]) {
-          args[arg] = +arg[arg];
-        } else if (args[arg].substring(0, 2), '0x') {
-          args[arg] = ptr(arg[arg]);
+          args[arg] = +args[arg];
+        } else if (args[arg].substring(0, 2) === '0x') {
+          args[arg] = ptr(args[arg]);
         } else if (args[arg] === 'true' || args[arg] === 'false') {
           args[arg] = args[arg] === 'true';
         }
