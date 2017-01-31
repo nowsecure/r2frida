@@ -331,6 +331,8 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dtr <addr> (<regs>...)     Trace register values\n"
 			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
+			"dx [hexpairs]              Inject code and execute it (TODO)\n"
+			"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
 			"eval code..                Evaluate Javascript code in agent side\n"

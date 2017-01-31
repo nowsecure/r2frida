@@ -53,6 +53,8 @@ const commandHandlers = {
   'dmp': changeMemoryProtection,
   'dm.': listMemoryRangesHere,
   'dp': getPid,
+  'dxc': dxCall,
+  'dx': dxHexpairs,
   'dpj': getPid,
   'dpt': listThreads,
   'dptj': listThreadsJson,
@@ -79,6 +81,51 @@ const commandHandlers = {
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 
+function dxCall(args) {
+  const nfArgs = [];
+  const nfArgsData = [];
+  for (var i = 1; i < args.length; i++) {
+    if (args[i].substring(0, 2) === '0x') {
+      nfArgs.push('pointer');
+      nfArgsData.push(ptr(args[i]));
+    } else if (args[i][0] === '"') {
+      // string.. join args
+      nfArgs.push('pointer');
+      const str = args[i].substring(1, args[i].length - 1);
+      const buf = Memory.allocUtf8String(str);
+      nfArgsData.push(buf);
+      // TODO: fix memory leak ?
+    } else if (+args[i] > 0) {
+      nfArgs.push('int');
+      nfArgsData.push(+args[i]);
+    } else {
+      nfArgs.push('pointer');
+      const address = Module.findExportByName(null, args[i]);
+      nfArgsData.push(ptr(address));
+    }
+  }
+  let address;
+  if (args[0].substring(0, 2) === '0x') {
+    address = ptr(args[0]);
+  } else {
+    address = Module.findExportByName(null, args[0]);
+  }
+
+  const fun = new NativeFunction(address, 'pointer', nfArgs);
+  switch (nfArgsData.length) {
+  case 0: return fun();
+  case 1: return fun(nfArgsData[0]);
+  case 2: return fun(nfArgsData[0], nfArgsData[1]);
+  case 3: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2]);
+  case 4: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3]);
+  case 5: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3], nfArgsData[4]);
+  }
+  return fun();
+}
+
+function dxHexpairs(args) {
+  return 'TODO';
+}
 
 function evalCode(args) {
   const code = args.join(' ');
