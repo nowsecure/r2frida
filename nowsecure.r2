@@ -25,6 +25,8 @@
 #
 e asm.tabs=6
 e asm.nbytes=4
+e asm.bytes=0
+e asm.ucase=1
 ec comment rgb:ffc41f
 ec fname rgb:ffc41f
 ec fline rgb:ff941a
@@ -35,7 +37,7 @@ ec help rgb:33ccff
 ec args rgb:0099ff
 ec flow rgb:e07010
 ec prompt rgb:0099ff
-ec offset rgb:999cab
+ec offset rgb:606060
 ec input rgb:234
 ec invalid rgb:ef3444
 ec other rgb:0099ff
@@ -50,8 +52,7 @@ ec pop rgb:09f
 ec crypto rgb:f5f5f6
 ec jmp rgb:e07010
 ec cjmp rgb:e07010
-ec call rgb:ffc41f
-ec call rgb:000 rgb:10c41f
+ec call rgb:fc1 rgb:333
 ec nop rgb:7c5
 ec ret rgb:e34
 ec trap rgb:e34
@@ -59,7 +60,7 @@ ec swi rgb:e34
 ec cmp rgb:09f
 ec reg rgb:33ccff
 ec creg rgb:09f
-ec num rgb:ffc41f
+ec num rgb:fc1
 ec mov rgb:99a
 ec ai.read rgb:e34
 ec ai.write rgb:234
