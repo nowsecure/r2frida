@@ -928,11 +928,12 @@ function isTrue(x) {
 function write(params, data) {
   if (isTrue(config['patch.code'])) {
     if (typeof Memory.patchCode !== 'function') {
-      return 'Error: Cannot find Memory.patchCode, Disable \\e patch.code=false';
+      Memory.writeByteArray(ptr(params.offset), data);
+    } else {
+      Memory.patchCode(ptr(params.offset), 1, function (ptr) {
+        Memory.writeByteArray(ptr, data);
+      });
     }
-    Memory.patchCode(ptr(params.offset), 1, function (ptr) {
-      Memory.writeByteArray(ptr, data);
-    });
   } else {
     Memory.writeByteArray(ptr(params.offset), data);
   }
