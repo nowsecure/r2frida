@@ -917,36 +917,37 @@ function parseRegisterIndex(name) {
   const length = name.length;
   for (let index = 1; index < length; index++) {
     const value = parseInt(name.substr(index));
-    if (!isNaN(value))
+    if (!isNaN(value)) {
       return value;
+    }
   }
   return null;
 }
 
 function indent(message, index) {
-  if (index === 0)
+  if (index === 0) {
     return message;
-
-  if ((index % 3) === 0)
+  }
+  if ((index % 3) === 0) {
     return '\n' + message;
-
+  }
   return '\t' + message;
 }
 
 function alignRight(text, width) {
   let result = text;
-  while (result.length < width)
+  while (result.length < width) {
     result = ' ' + result;
+  }
   return result;
 }
 
 function padPointer(value) {
   let result = value.toString(16);
-
   const paddedLength = 2 * pointerSize;
-  while (result.length < paddedLength)
+  while (result.length < paddedLength) {
     result = '0' + result;
-
+  }
   return '0x' + result;
 }
 
@@ -1094,7 +1095,6 @@ function onStanza(stanza, data) {
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
-
   recv(onStanza);
 }
 recv(onStanza);
