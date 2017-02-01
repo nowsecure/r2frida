@@ -52,6 +52,11 @@ const commandHandlers = {
   'dmj': listMemoryRangesJson,
   'dmp': changeMemoryProtection,
   'dm.': listMemoryRangesHere,
+  'dma': allocSize,
+  'dmas': allocString,
+  'dmad': allocDup,
+  'dmal': listAllocs,
+  'dma-': removeAlloc,
   'dp': getPid,
   'dxc': dxCall,
   'dx': dxHexpairs,
@@ -80,6 +85,70 @@ const commandHandlers = {
 
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
+const allocPool = {};
+
+function allocSize (args) {
+  const size = +args[0];
+  if (size > 0) {
+    const a = Memory.alloc(size);
+    return _addAlloc(a);
+  }
+  return 0;
+}
+
+function allocString (args) {
+  const theString = args.join(' ');
+  const a = Memory.allocUtf8String(theString);
+  return _addAlloc(a);
+}
+
+function allocDup (args) {
+  if (args.length < 2) {
+    throw new Error('Missing argument');
+  }
+  const addr = +args[0];
+  const size = +args[1];
+  if (addr > 0 && size > 0) {
+    const a = Memory.dup(ptr(addr), size);
+    return _addAlloc(a);
+  }
+  return 0;
+}
+
+function removeAlloc (args) {
+  if (args.length === 0) {
+    _clearAllocs();
+  } else {
+    for (let addr of args) {
+      _delAlloc(addr);
+    }
+  }
+  return '';
+}
+
+function listAllocs (args) {
+  return Object.values(allocPool)
+    .sort()
+    .map(x => `${x}\t"${Memory.readUtf8String(x, 60)}"`)
+    .join('\n');
+}
+
+function _delAlloc (addr) {
+  delete allocPool[addr];
+}
+
+function _clearAllocs () {
+  Object.keys(allocPool)
+    .forEach(addr => delete allocPool[addr]);
+}
+
+function _addAlloc (allocPtr) {
+  const key = allocPtr.toString();
+  if (!allocPtr.isNull()) {
+    allocPool[key] = allocPtr;
+  }
+  return key;
+}
 
 function dxCall(args) {
   const nfArgs = [];
