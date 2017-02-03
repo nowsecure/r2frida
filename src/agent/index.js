@@ -800,15 +800,16 @@ function traceList() {
 }
 
 function getPtr(p) {
+  p = p.trim();
   if (!p || p === '$$') {
     return ptr(offset);
   }
   try {
-    const ptr_p = ptr(p);
-    if (p.startsWith('0x')) {
-      return ptr_p;
+    if (p.substring(0,2) === '0x') {
+      return ptr(p);
     }
   } catch (e) {
+   // console.error(e);
   }
   // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
   return Module.findExportByName(null, p);
@@ -862,18 +863,31 @@ function traceFormat(args) {
 }
 
 function traceRegs(args) {
-  var address = '' + getPtr(args[0]);
-  const listener = Interceptor.attach(ptr(address), function () {
-    const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-    console.log('Trace probe hit at ' + address + ':\n\t' + bt.join('\n\t'));
-    if (args.length === 0) {
-      console.log(JSON.stringify(this.context));
-    } else {
-      console.log(args.map(r => { return this.context[r]; }));
+  const address = getPtr(args[0]);
+  const rest = args.slice(1);
+  const listener = Interceptor.attach(address, function () {
+    console.log('Trace probe hit at ' + address + ' @ ' + args[0] + ':'); // + bt.join('\n\t'));
+    console.log('\t' + rest.map(r => {
+      let tail = '';
+      const rv = ptr(this.context[r]);
+      try {
+        tail = Memory.readCString(rv);
+        if (tail) {
+          tail = ' (' + tail + ')';
+        }
+      } catch (e) {
+      }
+      return r + ' = ' + this.context[r] + tail;
+    }).join('\n\t'));
+    /* TODO: do we want to show backtrace too? */
+    var showBacktrace = false;
+    if (showBacktrace) {
+      const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+      console.log(bt.join('\n\t'));
     }
   });
   traceListeners.push({
-    at: at,
+    at: address,
     listener: listener
   });
   return true;
