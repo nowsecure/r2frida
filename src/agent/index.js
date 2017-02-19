@@ -22,6 +22,9 @@ const commandHandlers = {
   'e': evalConfig,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
+  'db': breakpoint,
+  'db-': breakpointUnset,
+  'dc': breakpointContinue,
   'ii': listImports,
   'ii*': listImportsR2,
   'iij': listImportsJson,
@@ -347,6 +350,76 @@ function getR2Arch(arch) {
     return 'arm';
   }
   return arch;
+}
+
+var breakpoints = {};
+
+function breakpointUnset(args) {
+  if (args.length === 1) {
+    const symbol = Module.findExportByName(null, args[0]);
+    const addr = symbol? symbol: ptr(args[0]);
+    const newbps = [];
+    for (let k of Object.keys(breakpoints)) {
+      let bp = breakpoints[k];
+      if (args[0] === '*' || bp.address === addr) {
+        Interceptor.revert(ptr(bp.address));
+      } else {
+        newbps.push(bp);
+      }
+    }
+    breakpoints = {};
+    for (let bp of newbps) {
+      breakpoints[bp.address] = bp;
+    }
+    return '';
+  }
+  return 'Usage: db- [addr|*]';
+}
+
+function breakpointExist(addr) {
+  const bp = breakpoints['' + addr];
+  return bp && !bp.continue;
+}
+
+function breakpointContinue(args) {
+  let count = 0;
+  for (let k of Object.keys(breakpoints)) {
+    let bp = breakpoints[k];
+    if (bp.stopped) {
+      count ++;
+      bp.continue = true;
+    }
+  }
+  return 'Continue ' + count + ' thread(s).';
+}
+
+function breakpoint(args) {
+  if (args.length === 1) {
+    const symbol = Module.findExportByName(null, args[0]);
+    const addr = symbol? symbol: ptr(args[0]);
+    if (breakpointExist(addr)) {
+      return 'Cant set a breakpoint twice';
+    }
+    const addrString = '' + addr;
+    const bp = {
+      name: args[0],
+      stopped: false,
+      address: addrString,
+      continue: false,
+      handler: Interceptor.attach(addr, {
+        onEnter: function (args) {
+          breakpoints[addrString].stopped = true;
+          while (breakpointExist(addr)) {
+            Thread.sleep(1);
+          }
+          breakpoints[addrString].stopped = false;
+          breakpoints[addrString].continue = false;
+        }
+      })
+    }
+    breakpoints[addrString] = bp;
+  }
+  return JSON.stringify(breakpoints, null, '  ');
 }
 
 function dumpInfoJson() {
