@@ -889,12 +889,11 @@ function getOrSetEnvJson(args) {
 
 function getEnv() {
   const result = [];
-  for (
-    let envp = __environ;
-    !envp.isNull() && !Memory.readPointer(envp).isNull();
-    envp = envp.add(Process.pointerSize)
-  ) {
-    result.push(Memory.readCString(Memory.readPointer(envp)));
+  let envp = __environ;
+  let env;
+  while (!envp.isNull() && !(env = Memory.readPointer(envp)).isNull()) {
+    result.push(Memory.readCString(env));
+    envp = envp.add(Process.pointerSize);
   }
   return result;
 }
