@@ -657,11 +657,12 @@ function listClassesR2(args) {
   lose track of the output of the command so you cant grep on it */
 function listJavaClassesJsonSync(args) {
     if (args.length === 1) {
-      let methods;
+      let methods = undefined;
       /* list methods */
       Java.perform(function() {
-        var obj = Java.use(args[0])
-        methods = Object.keys(obj).map(x => x + ':' + obj[x] );
+        const obj = Java.use(args[0])
+        methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
+        // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
       });
       while (methods === undefined) {
         /* wait here */
