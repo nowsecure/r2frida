@@ -990,7 +990,19 @@ function traceFormat(args) {
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
 
-  const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
+  var module = Process.enumerateModulesSync()[0].name;
+  var imports = Module.enumerateImportsSync(module);
+  var at = '';
+  for (var index = 0; index < imports.length; index++) {
+    if (imports[index].address == address) {
+      at = imports[index].name;
+      break;
+    }
+  }
+  if (at == '') {
+    '' + ptr(address);
+  }
+  //const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
