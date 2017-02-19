@@ -102,7 +102,7 @@ function nameFromAddress(address) {
         break;
       }
     }
-    if (at === '') {
+    if (at === null) {
       at = '' + ptr(address);
     }
   }
