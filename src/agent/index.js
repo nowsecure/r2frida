@@ -303,6 +303,7 @@ const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
 const _fstat = sym('fstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
+const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
 const traceListeners = [];
 const config = {
@@ -857,11 +858,17 @@ function dumpRegistersJson() {
 }
 
 function getOrSetEnv(args) {
+  if (args.length === 0) {
+    return getEnv().join('\n');
+  }
   const {key, value} = getOrSetEnvJson(args);
   return key + '=' + value;
 }
 
 function getOrSetEnvJson(args) {
+  if (args.length === 0) {
+    return getEnvJson();
+  }
   const kv = args.join('');
   const eq = kv.indexOf('=');
   if (eq !== -1) {
@@ -879,6 +886,29 @@ function getOrSetEnvJson(args) {
     };
   }
 }
+
+function getEnv() {
+  const result = [];
+  for (
+    let envp = __environ;
+    !envp.isNull() && !Memory.readPointer(envp).isNull();
+    envp = envp.add(Process.pointerSize)
+  ) {
+    result.push(Memory.readCString(Memory.readPointer(envp)));
+  }
+  return result;
+}
+
+function getEnvJson() {
+  return getEnv().map(kv => {
+    const eq = kv.indexOf('=');
+    return {
+      key: kv.substring(0, eq),
+      value: kv.substring(eq + 1)
+    };
+  });
+}
+
 
 function dlopen(args) {
   const path = args[0];
