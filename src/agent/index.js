@@ -976,6 +976,22 @@ function getPtr(p) {
   return Module.findExportByName(null, p);
 }
 
+function nameFromAddress(address) {
+  var at = '';
+  const module = Process.enumerateModulesSync()[0].name;
+  const imports = Module.enumerateImportsSync(module);
+  for (let imp of imports) {
+    if (imp.address == address) {
+      at = imp.name;
+      break;
+    }
+  }
+  if (at === '') {
+      at = '' + ptr(address);
+  }
+  return at;
+}
+
 function traceFormat(args) {
   if (args.length == 0) {
     return traceList();
@@ -989,20 +1005,8 @@ function traceFormat(args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
+  let at = nameFromAddress (address);
 
-  var module = Process.enumerateModulesSync()[0].name;
-  var imports = Module.enumerateImportsSync(module);
-  var at = '';
-  for (var index = 0; index < imports.length; index++) {
-    if (imports[index].address == address) {
-      at = imports[index].name;
-      break;
-    }
-  }
-  if (at == '') {
-    '' + ptr(address);
-  }
-  //const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
