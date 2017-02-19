@@ -909,7 +909,6 @@ function getEnvJson() {
   });
 }
 
-
 function dlopen(args) {
   const path = args[0];
   const handle = _dlopen(Memory.allocUtf8String(path), RTLD_GLOBAL | RTLD_LAZY);
