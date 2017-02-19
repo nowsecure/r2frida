@@ -4,6 +4,7 @@ const r2frida = require('./plugin');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjC_available = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const Java_available = Java && Java.available;
 
 if (ObjC_available) {
   var mjolner = require('mjolner');
@@ -430,7 +431,7 @@ function dumpInfoJson() {
     pid: getPid(),
     uid: _getuid(),
     objc: ObjC_available,
-    java: Java.available,
+    java: Java_available,
   };
 }
 
@@ -651,7 +652,65 @@ function listClassesR2(args) {
   }
 }
 
+/* this ugly sync mehtod with while+settimeout is needed because
+  returning a promise is not properly handled yet and makes r2
+  lose track of the output of the command so you cant grep on it */
+function listJavaClassesJsonSync(args) {
+    if (args.length === 1) {
+      let methods;
+      /* list methods */
+      Java.perform(function() {
+        var obj = Java.use(args[0])
+        methods = Object.keys(obj).map(x => x + ':' + obj[x] );
+      });
+      while (methods === undefined) {
+        /* wait here */
+        setTimeout(null, 0);
+      }
+      return methods;
+    }
+    let classes = undefined;
+    /* list all classes */
+    Java.perform(function() {
+      try {
+        classes = Java.enumerateLoadedClassesSync();
+      } catch (e) {
+        classes = null;
+      }
+    });
+    while (classes === undefined) {
+      /* wait here */
+      setTimeout(null, 0);
+    }
+    return classes;
+}
+
+function listJavaClassesJson(args) {
+  return new Promise(function (reject, resolve) {
+    if (args.length === 1) {
+      /* list methods */
+      Java.perform(function() {
+        var obj = Java.use(args[0])
+        resolve(JSON.stringify(obj, null, '  '));
+      });
+      return;
+    }
+    /* list all classes */
+    Java.perform(function() {
+      try {
+        resolve(Java.enumerateLoadedClassesSync().join('\n'));
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
 function listClassesJson(args) {
+  if (Java_available) {
+    return listJavaClassesJsonSync(args);
+    // return listJavaClassesJson(args);
+  }
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
   } else {
