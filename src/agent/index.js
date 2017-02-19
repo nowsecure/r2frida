@@ -91,6 +91,24 @@ const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
 
+function nameFromAddress(address) {
+  let at =  DebugSymbol.fromAddress(ptr(address)).name
+  if (at === null) {
+    const module = Process.enumerateModulesSync()[0].name;
+    const imports = Module.enumerateImportsSync(module);
+    for (let imp of imports) {
+      if (imp.address.equals(ptr(address))) {
+        at = imp.name;
+        break;
+      }
+    }
+    if (at === '') {
+      at = '' + ptr(address);
+    }
+  }
+  return at;
+}
+
 function allocSize (args) {
   const size = +args[0];
   if (size > 0) {
@@ -976,22 +994,6 @@ function getPtr(p) {
   return Module.findExportByName(null, p);
 }
 
-function nameFromAddress(address) {
-  var at = '';
-  const module = Process.enumerateModulesSync()[0].name;
-  const imports = Module.enumerateImportsSync(module);
-  for (let imp of imports) {
-    if (imp.address == address) {
-      at = imp.name;
-      break;
-    }
-  }
-  if (at === '') {
-      at = '' + ptr(address);
-  }
-  return at;
-}
-
 function traceFormat(args) {
   if (args.length == 0) {
     return traceList();
@@ -1005,7 +1007,7 @@ function traceFormat(args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
-  let at = nameFromAddress (address);
+  const at = nameFromAddress (address);
 
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
