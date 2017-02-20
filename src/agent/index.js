@@ -91,19 +91,19 @@ const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
 
-function nameFromAddress(address) {
-  let at =  DebugSymbol.fromAddress(ptr(address)).name
+function nameFromAddress (address) {
+  let at = DebugSymbol.fromAddress(address).name
   if (at === null) {
     const module = Process.enumerateModulesSync()[0].name;
     const imports = Module.enumerateImportsSync(module);
     for (let imp of imports) {
-      if (imp.address.equals(ptr(address))) {
+      if (imp.address.equals(address)) {
         at = imp.name;
         break;
       }
     }
     if (at === null) {
-      at = '' + ptr(address);
+      at = '' + address;
     }
   }
   return at;
@@ -1002,7 +1002,7 @@ function traceFormat(args) {
     var address = '' + getPtr(args[0]);
     var format = args[1];
   } else {
-    var address = offset;
+    var address = ptr(offset);
     var format = args[0];
   }
   const traceOnEnter = format.indexOf('^') !== -1;
