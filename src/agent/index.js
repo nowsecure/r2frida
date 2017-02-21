@@ -228,7 +228,7 @@ function disasm(addr, len) {
       addr = ptr(offset);
     }
   }
-  addr = ptr(addr)
+  addr = ptr('' + addr)
   let oldName = null;
   let lastAt = null;
   let disco = '';
