@@ -88,15 +88,7 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
 src/_agent.h: src/_agent.js
-	( \
-		/bin/echo -n '"'; \
-		awk '{ \
-			gsub("\\\\", "\\\\"); \
-			gsub("\"", "\\\""); \
-			printf "%s\\n", $$0; \
-		}' $<; \
-		echo '"'; \
-	) > $@
+	xxd -i < $< > $@
 
 src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build

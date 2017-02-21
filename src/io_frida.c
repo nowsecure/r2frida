@@ -41,9 +41,12 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 
 extern RIOPlugin r_io_plugin_frida;
 
-static const char *r_io_frida_agent_code =
+#define src__agent__js r_io_frida_agent_code
+
+static const unsigned char r_io_frida_agent_code[] = {
 #include "_agent.h"
-;
+	, 0x00
+};
 
 static char *slurpFile(const char *str, int *usz) {
         size_t rsz;
@@ -173,7 +176,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	rf->script = frida_session_create_script_sync (rf->session, "r2io", r_io_frida_agent_code, &error);
+	rf->script = frida_session_create_script_sync (rf->session, "r2io",
+		(const char *)r_io_frida_agent_code, &error);
 	if (error) {
 		eprintf ("Cannot create script: %s\n", error->message);
 		goto error;
