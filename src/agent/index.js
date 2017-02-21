@@ -301,7 +301,9 @@ const _getpid = sym('getpid', 'int', []);
 const _getuid = sym('getuid', 'int', []);
 const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
-const _fstat = sym('fstat', 'int', ['int', 'pointer']);
+const _fstat = Module.findExportByName(null, 'fstat')
+	? sym('fstat', 'int', ['int', 'pointer'])
+	: sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
