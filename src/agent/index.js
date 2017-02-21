@@ -8,8 +8,6 @@ const Java_available = Java && Java.available;
 
 if (ObjC_available) {
   var mjolner = require('mjolner');
-} else {
-  console.error('Warning: r2frida cannot initialize mjolner');
 }
 
 const pointerSize = Process.pointerSize;
@@ -435,6 +433,7 @@ function dumpInfoJson() {
     uid: _getuid(),
     objc: ObjC_available,
     java: Java_available,
+    cylang: mjolner !== undefined,
   };
 }
 
