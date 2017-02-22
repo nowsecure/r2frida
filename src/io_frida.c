@@ -5,10 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#ifndef WITH_CYCRIPT
-#define WITH_CYCRIPT 1
+#ifndef WITH_CYLANG
+#define WITH_CYLANG 1
 #endif
-#if WITH_CYCRIPT
+#if WITH_CYLANG
 #include "cylang.h"
 #endif
 #include "frida-core.h"
@@ -416,7 +416,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		if (command[0] == ' ') {
 			GError *error = NULL;
 			char *js;
-#if WITH_CYCRIPT
+#if WITH_CYLANG
 			js = cylang_compile (command + 1, &error);
 			if (error) {
 				io->cb_printf ("ERROR: %s\n", error->message);

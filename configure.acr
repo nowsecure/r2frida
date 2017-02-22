@@ -1,0 +1,25 @@
+PKGNAME radare2
+VERSION 1.7.0
+CONTACT pancake ; pancake@nowsecure.com
+
+LANG_C!
+LANG_CXX
+
+PKGCFG! R2_CFLAGS R2_LDFLAGS r_core
+CHKPRG CURL curl
+CHKPRG WGET wget
+CHKPRG! GIT git
+CHKPRG! XZ xz
+CHKPRG! NODE node
+CHKPRG! NPM npm
+
+ARG_WITH WANT_CYLANG cylang build with cylang (mjolner) support ;
+IFAND WANT_CYLANG HAVE_LANG_CXX {
+	WITH_CYLANG = 1 ;
+}{
+	WITH_CYLANG = 0 ;
+}
+
+REPORT WITH_CYLANG ;
+
+SUBDIRS ./config.mk ;

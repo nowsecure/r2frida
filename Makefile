@@ -46,18 +46,18 @@ FRIDA_LIBS+=-framework AppKit
 endif
 endif
 
-# CYCRIPT
-CFLAGS+=-DWITH_CYCRIPT=$(WITH_CYCRIPT)
-ifeq ($(WITH_CYCRIPT),1)
-CYCRIPT_CPPFLAGS+=-Iext/cycript/src
-CYCRIPT_ARCHIVE=ext/cycript/src/.libs/libcycript.a
-CYCRIPT_LIBS+=$(CYCRIPT_ARCHIVE)
-CYCRIPT_OBJ=src/cylang.o
+# CYLANG
+CFLAGS+=-DWITH_CYLANG=$(WITH_CYLANG)
+ifeq ($(WITH_CYLANG),1)
+CYLANG_CPPFLAGS+=-Iext/cycript/src
+CYLANG_ARCHIVE=ext/cycript/src/.libs/libcycript.a
+CYLANG_LIBS+=$(CYLANG_ARCHIVE)
+CYLANG_OBJ=src/cylang.o
 else
-CYCRIPT_CPPFLAGS=
-CYCRIPT_ARCHIVE=
-CYCRIPT_LIBS=
-CYCRIPT_OBJ=
+CYLANG_CPPFLAGS=
+CYLANG_ARCHIVE=
+CYLANG_LIBS=
+CYLANG_OBJ=
 endif
 
 all: ext/frida
@@ -80,11 +80,11 @@ ext/frida: $(FRIDA_SDK)
 		(cd ext && rm frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
 
 config.mk:
-	cp -f config.def.mk config.mk
+	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o $(CYCRIPT_OBJ)
+io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
 	pkg-config --cflags r_core
-	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYCRIPT_LIBS)
+	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYLANG_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
@@ -123,7 +123,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 ext/frida-$(frida_os)-$(frida_version):
-	echo $(FRIDA_SDK)
+	@echo FRIDA_SDK=$(FRIDA_SDK)
 	$(MAKE) $(FRIDA_SDK)
 
 $(FRIDA_SDK):
@@ -143,7 +143,7 @@ endif
 update: ext/cycript/ext/node/lib
 	-cd ext/cycript && git submodule update && $(RM) ext/frida/libfrida-core.a
 
-ifeq ($(WITH_CYCRIPT),1)
+ifeq ($(WITH_CYLANG),1)
 ext/cycript/ext/node/lib:
 	mkdir -p ext/cycript ext/node/lib
 	cd ext/cycript && git submodule init && git submodule update
@@ -174,14 +174,14 @@ ext/cycript/Makefile: ext/cycript/configure
 ext/cycript/src/.libs/libcycript.a: ext/cycript/Makefile
 	$(MAKE) -C ext/cycript CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" V=1 -j4
 
-src/cylang.o: src/cylang.cpp $(CYCRIPT_ARCHIVE)
-	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYCRIPT_CPPFLAGS) $< -o $@
+src/cylang.o: src/cylang.cpp $(CYLANG_ARCHIVE)
+	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYLANG_CPPFLAGS) $< -o $@
 else
 ext/cycript/ext/node/lib:
 	@echo do nothing
 
 src/cylang.o:
-	touch src/cylong.o
+	touch src/cylang.o
 endif
 
 .PHONY: all clean install uninstall
