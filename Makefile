@@ -5,6 +5,8 @@ frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
 
+WGET?=wget
+CURL?=curl
 DESTDIR?=
 
 ifeq ($(shell uname),Darwin)
@@ -127,7 +129,12 @@ ext/frida-$(frida_os)-$(frida_version):
 $(FRIDA_SDK):
 	rm -f ext/frida
 	mkdir -p $(@D)/_
+ifeq ($(USE_WGET),1)
+	$(WGET) -cO frida-sdk.tar.xz $(FRIDA_SDK_URL)
+	tar xJvf frida-sdk.tar.xz -C $(@D)/_
+else
 	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
+endif
 	mv $(@D)/_/* $(@D)
 	rmdir $(@D)/_
 	#mv ext/frida ext/frida-$(frida_os)-$(frida_version)
