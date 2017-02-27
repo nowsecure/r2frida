@@ -15,6 +15,10 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 
 const commandHandlers = {
+  '/': search,
+  '/j': searchJson,
+  '/x': searchHex,
+  '/xj': searchHexJson,
   '?V': fridaVersion,
   '.': interpretFile,
   'i': dumpInfo,
@@ -88,6 +92,7 @@ const commandHandlers = {
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
+const pendingCmds = {};
 
 function allocSize (args) {
   const size = +args[0];
@@ -307,18 +312,76 @@ const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
 const traceListeners = [];
 const config = {
-  'patch.code': true
+  'patch.code': true,
+  'search.in': 'perm:r--'
 };
+
+const configHelp = {
+  'search.in': configHelpSearchIn
+};
+
+const configValidator = {
+  'search.in': configValidateSearchIn
+};
+
+function configHelpSearchIn () {
+  return [
+    'Specify which memory ranges to search in, possible values:',
+    '',
+    'perm:---        filter by permissions (default: \'perm:r--\')',
+    'current         search the range containing current offset',
+    'path:pattern    search ranges mapping paths containing \'pattern\'',
+    ''
+  ].join('\n');
+}
+
+function configValidateSearchIn (val) {
+  const valSplit = val.split(':');
+  const [scope, param] = valSplit;
+  if (param !== undefined) {
+    if (scope === 'perm') {
+      const paramSplit = param.split('');
+      if (paramSplit.length !== 3 || valSplit.length > 2) {
+        return false;
+      }
+      const [r,w,x] = paramSplit;
+      return (r === 'r' || r === '-') &&
+        (w === 'w' || w === '-') &&
+        (x === 'x' || x === '-');
+    }
+    if (scope === 'path') {
+      return true;
+    }
+  } else {
+    if (scope === 'current') {
+      return valSplit.length === 1;
+    }
+  }
+  return false;
+}
 
 function evalConfig(args) {
   if (args.length === 0) {
     return Object.keys(config)
-    .map(k => 'e ' + k + '\=' + config[k])
+    .map(k => 'e ' + k + '=' + config[k])
     .join('\n');
   }
   const kv = args[0].split(/=/);
   if (kv.length === 2) {
     if (config[kv[0]] !== undefined) {
+      if (kv[1] === '?') {
+        if (configHelp[kv[0]] !== undefined) {
+          return configHelp[kv[0]]();
+        } else {
+          console.error(`no help for ${kv[0]}`);
+        }
+      }
+      if (configValidator[kv[0]] !== undefined) {
+        if (!configValidator[kv[0]](kv[1])) {
+          console.error(`invalid value for ${kv[0]}`);
+          return '';
+        }
+      }
       config[kv[0]] = kv[1];
     } else {
       console.error('unknown variable');
@@ -1252,6 +1315,13 @@ function perform(params) {
   }
 
   const value = handler(args);
+  if (value instanceof Promise) {
+    return value.then(output => {
+      return [{
+        value: (typeof output === 'string') ? output : JSON.stringify(output),
+      }, null];
+    });
+  }
   return [{
     value: (typeof value === 'string') ? value : JSON.stringify(value),
   }, null];
@@ -1313,6 +1383,217 @@ function fridaVersion() {
   return { version: Frida.version };
 }
 
+function search(args) {
+  return searchJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchJson(args) {
+  const pattern = _toHexPairs(args.join(' '));
+  return _searchPatternJson(pattern).then(hits => {
+    hits.forEach(hit => {
+      hit.content = Memory.readUtf8String(hit.address, 30).replace(/\n/g, '');
+    });
+    return hits;
+  });
+}
+
+function searchHex(args) {
+  return searchHexJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchHexJson(args) {
+  const pattern = _normHexPairs(args.join(''));
+  return _searchPatternJson(pattern).then(hits => {
+    hits.forEach(hit => {
+      const bytes = Memory.readByteArray(hit.address, hit.size);
+      hit.content = _byteArrayToHex(bytes);
+    });
+    return hits;
+  });
+}
+
+function _byteArrayToHex(arr) {
+  const u8arr = new Uint8Array(arr);
+  const hexs = [];
+  for (let i=0; i != u8arr.length; i += 1) {
+    const h = u8arr[i].toString(16);
+    hexs.push((h.length == 2) ? h : `0${h}`);
+  }
+  return hexs.join('');
+}
+
+function _readableHits(hits) {
+  const output = hits.map(hit => {
+    return `${hit.address} ${hit.flag} ${hit.content}`
+  });
+  return output.join('\n');
+}
+
+function _searchPatternJson(pattern) {
+  return hostCmdj('ej')
+    .then(config => {
+      const flags = config['search.flags'];
+      const prefix = config['search.prefix'];
+      const count = config['search.count'];
+      const kwidx = config['search.kwidx'];
+
+      const ranges = _getRanges(config['search.from'], config['search.to']);
+      const nBytes = pattern.split(' ').length;
+
+      console.log(`Searching ${nBytes} bytes: ${pattern}`);
+
+      let results = [];
+      const commands = [];
+      for (let range of ranges) {
+        if (range.size === 0) {
+          continue;
+        }
+
+        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        console.log(`Searching ${nBytes} bytes in ${rangeStr}`);
+        try {
+          const partial = Memory.scanSync(range.address, range.size, pattern);
+
+          partial.forEach((hit, idx) => {
+            if (flags) {
+              hit.flag = `${prefix}${kwidx}_${idx + count}`;
+              commands.push('fs+searches');
+              commands.push(`f ${hit.flag} ${hit.size} ${hit.address}`);
+              commands.push('fs-');
+            }
+          });
+
+          results = results.concat(partial);
+        } catch (e) {
+        }
+      }
+
+      console.log(`hits: ${results.length}`);
+
+      commands.push(`e search.kwidx=${kwidx + 1}`);
+
+      return hostCmds(commands).then(() => {
+        return results;
+      });
+    });
+}
+
+function _configParseSearchIn () {
+  const res = {
+    current: false,
+    perm: 'r--',
+    path: null
+  };
+
+  const c = config['search.in'];
+  const cSplit = c.split(':');
+  const [scope, param] = cSplit;
+
+  if (scope === 'current') {
+    res.current = true;
+  }
+  if (scope === 'perm') {
+    res.perm = param;
+  }
+  if (scope === 'path') {
+    cSplit.shift();
+    res.path = cSplit.join('');
+  }
+
+  return res;
+}
+
+function _getRanges(fromNum, toNum) {
+  const searchIn = _configParseSearchIn();
+
+  const ranges = Process.enumerateRangesSync({
+    protection: searchIn.perm,
+    coalesce: false
+  }).filter(range => {
+    const start = range.base;
+    const end = start.add(range.size);
+    const offPtr = ptr(offset);
+    if (searchIn.current) {
+      return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
+    }
+    if (searchIn.path !== null) {
+      if (range.file !== undefined) {
+        return range.file.path.indexOf(searchIn.path) >= 0;
+      }
+      return false;
+    }
+    return true;
+  });
+
+  const first = ranges[0];
+  const last = ranges[ranges.length - 1];
+
+  const from = (fromNum === -1) ? first.base : ptr(fromNum);
+  const to = (toNum === -1) ? last.base.add(last.size) : ptr(toNum);
+
+  return ranges.filter(range => {
+    return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
+  }).map(range => {
+    const start = _ptrMax(range.base, from);
+    const end = _ptrMin(range.base.add(range.size), to);
+    return {
+      address: start,
+      size: uint64(end.sub(start).toString()).toNumber()
+    };
+  });
+}
+
+function _ptrMax(a,b) {
+  return a.compare(b) > 0 ? a : b;
+}
+
+function _ptrMin(a,b) {
+  return a.compare(b) < 0 ? a : b;
+}
+
+function _toHexPairs(raw) {
+  const pairs = [];
+  for (let i=0; i != raw.length; i+=1) {
+    const code = raw.charCodeAt(i) & 0xff;
+    const h = code.toString(16);
+    pairs.push((h.length == 2) ? h : `0${h}`);
+  }
+  return pairs.join(' ');
+}
+
+function _normHexPairs(raw) {
+  const norm = raw.replace(/ /g, '');
+  if (_isHex(norm)) {
+    return _toPairs(norm.replace(/\./g, '?'));
+  }
+  throw new Error('Invalid hex string');
+}
+
+function _toPairs(hex) {
+  if ((hex.length % 2) !== 0) {
+    throw new Error('Odd-length string');
+  }
+
+  const pairs = [];
+  for (let i=0; i != hex.length; i += 2) {
+    pairs.push(hex.substr(i,2));
+  }
+  return pairs.join(' ').toLowerCase();
+}
+
+function _isHex(raw) {
+  const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
+  const inSet = new Set(Array.from(raw));
+  for (let h of hexSet) {
+    inSet.delete(h);
+  }
+  return inSet.size === 0;
+}
+
 function onStanza(stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
@@ -1321,25 +1602,87 @@ function onStanza(stanza, data) {
       if (value instanceof Promise) {
         value
           .then(([replyStanza, replyBytes]) => {
-            send(replyStanza, replyBytes);
+            send(wrapStanza('reply', replyStanza), replyBytes);
           })
           .catch(e => {
-            send({
+            send(wrapStanza('reply', {
               error: e.message
-            });
+            }));
           });
       } else {
         const [replyStanza, replyBytes] = value;
-        send(replyStanza, replyBytes);
+        send(wrapStanza('reply', replyStanza), replyBytes);
       }
     } catch (e) {
-      send({
+      send(wrapStanza('reply', {
         error: e.message
-      });
+      }));
     }
+  } else if (stanza.type === 'cmd') {
+    onCmdResp(stanza.payload);
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
   recv(onStanza);
 }
+
+let cmdSerial = 0;
+
+function hostCmds(commands) {
+  let i = 0;
+  function sendOne() {
+    if (i < commands.length) {
+      return hostCmd(commands[i]).then(() => {
+        i += 1;
+        return sendOne();
+      });
+    } else {
+      return Promise.resolve();
+    }
+  }
+  return sendOne();
+}
+
+function hostCmdj(cmd) {
+  return hostCmd(cmd)
+    .then(output => {
+      return JSON.parse(output);
+    });
+}
+
+function hostCmd(cmd) {
+  return new Promise ((resolve) => {
+    const serial = cmdSerial;
+    cmdSerial += 1;
+
+    pendingCmds[serial] = resolve;
+
+    send(wrapStanza('cmd', {
+      'cmd': cmd,
+      'serial': serial
+    }));
+  });
+}
+
+function onCmdResp(params) {
+  const {serial, output} = params;
+
+  if (serial in pendingCmds) {
+    const onFinish = pendingCmds[serial];
+    delete pendingCmds[serial];
+    process.nextTick(() => onFinish(output));
+  } else {
+    throw new Error('Command response out of sync');
+  }
+
+  return [{}, null];
+}
+
+function wrapStanza(name, stanza) {
+  return {
+    name: name,
+    stanza: stanza
+  };
+}
+
 recv(onStanza);
