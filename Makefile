@@ -20,8 +20,6 @@ CFLAGS+=-fPIC
 LDFLAGS+=-shared -fPIC
 
 # R2
-CFLAGS+=$(shell pkg-config --cflags r_io)
-LDFLAGS+=$(shell pkg-config --libs r_io)
 CFLAGS+=$(shell pkg-config --cflags r_core)
 LDFLAGS+=$(shell pkg-config --libs r_core)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins

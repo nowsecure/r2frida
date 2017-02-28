@@ -638,14 +638,12 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 }
 
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
-	JsonNode *root;
-	char *message;
 	GError *error = NULL;
 
 	json_builder_end_object (builder);
 	json_builder_end_object (builder);
-	root = json_builder_get_root (builder);
-	message = json_to_string (root, FALSE);
+	JsonNode *root = json_builder_get_root (builder);
+	char *message = json_to_string (root, FALSE);
 	json_node_unref (root);
 	g_object_unref (builder);
 

@@ -1,12 +1,13 @@
+/* eslint-disable comma-dangle */
 'use strict';
 
-const r2frida = require('./plugin');
+const r2frida = require('./plugin'); // eslint-disable-line
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const ObjC_available = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
-const Java_available = Java && Java.available;
+const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const JavaAvailable = Java && Java.available;
 
-if (ObjC_available) {
+if (ObjCAvailable) {
   var mjolner = require('mjolner');
 }
 
@@ -157,7 +158,7 @@ function _addAlloc (allocPtr) {
   return key;
 }
 
-function dxCall(args) {
+function dxCall (args) {
   const nfArgs = [];
   const nfArgsData = [];
   for (var i = 1; i < args.length; i++) {
@@ -189,49 +190,51 @@ function dxCall(args) {
 
   const fun = new NativeFunction(address, 'pointer', nfArgs);
   switch (nfArgsData.length) {
+  /* eslint-disable indent */
   case 0: return fun();
   case 1: return fun(nfArgsData[0]);
   case 2: return fun(nfArgsData[0], nfArgsData[1]);
   case 3: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2]);
   case 4: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3]);
   case 5: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3], nfArgsData[4]);
+  /* eslint-enable indent */
   }
   return fun();
 }
 
-function dxHexpairs(args) {
+function dxHexpairs (args) {
   return 'TODO';
 }
 
-function evalCode(args) {
+function evalCode (args) {
   const code = args.join(' ');
-  eval(code);
+  eval(code); // eslint-disable-line
   return '';
 }
 
-function printHexdump(lenstr) {
+function printHexdump (lenstr) {
   const len = +lenstr || 20;
   return hexdump(ptr(offset), len) || '';
 }
 
-function disasmCode(lenstr) {
+function disasmCode (lenstr) {
   const len = +lenstr || 20;
   return disasm(offset, len);
 }
 
-function disasm(addr, len) {
+function disasm (addr, len) {
   len = len || 20;
   if (typeof addr === 'string') {
     try {
       addr = Module.findExportByName(null, addr);
       if (!addr) {
-        throw undefined;
+        throw new Error();
       }
     } catch (e) {
       addr = ptr(offset);
     }
   }
-  addr = ptr('' + addr)
+  addr = ptr('' + addr);
   let oldName = null;
   let lastAt = null;
   let disco = '';
@@ -251,12 +254,12 @@ function disasm(addr, len) {
           try {
             const p = Memory.readPointer(ptr(lastAt).add(at));
             const str = Memory.readCString(p);
-            //console.log(';  str:', str);
+            // console.log(';  str:', str);
             disco += ';  str:' + str + '\n';
           } catch (e) {
-            const p2 = Memory.readPointer(p);
+            const p2 = Memory.readPointer(ptr(at));
             const str2 = Memory.readCString(p2);
-            //console.log(';  str2:', str2);
+            // console.log(';  str2:', str2);
             disco += ';  str2:' + str2 + '\n';
             console.log(e);
           }
@@ -264,14 +267,14 @@ function disasm(addr, len) {
         lastAt = at;
         const di = DebugSymbol.fromAddress(ptr(at));
         if (di.name !== null) {
-          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name
+          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name;
         } else {
           const op2 = Instruction.parse(ptr(at));
           const id2 = op2.opStr.indexOf('#0x');
           const at2 = op2.opStr.substring(id2 + 1).split(' ')[0].split(',')[0].split(']')[0];
           const di2 = DebugSymbol.fromAddress(ptr(at2));
           if (di2.name !== null) {
-            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name
+            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name;
           }
         }
       } catch (e) {
@@ -289,7 +292,7 @@ function disasm(addr, len) {
   return disco;
 }
 
-function sym(name, ret, arg) {
+function sym (name, ret, arg) {
   try {
     return new NativeFunction(Module.findExportByName(null, name), ret, arg);
   } catch (e) {
@@ -305,62 +308,58 @@ const _getuid = sym('getuid', 'int', []);
 const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
 const _fstat = Module.findExportByName(null, 'fstat')
-	? sym('fstat', 'int', ['int', 'pointer'])
-	: sym('__fxstat', 'int', ['int', 'pointer']);
+  ? sym('fstat', 'int', ['int', 'pointer'])
+  : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
 const traceListeners = [];
 const config = {
   'patch.code': true,
-  'search.in': 'perm:r--'
+  'search.in': 'perm:r--',
 };
 
 const configHelp = {
-  'search.in': configHelpSearchIn
+  'search.in': configHelpSearchIn,
 };
 
 const configValidator = {
-  'search.in': configValidateSearchIn
+  'search.in': configValidateSearchIn,
 };
 
 function configHelpSearchIn () {
-  return [
-    'Specify which memory ranges to search in, possible values:',
-    '',
-    'perm:---        filter by permissions (default: \'perm:r--\')',
-    'current         search the range containing current offset',
-    'path:pattern    search ranges mapping paths containing \'pattern\'',
-    ''
-  ].join('\n');
+  return `Specify which memory ranges to search in, possible values:
+
+    perm:---        filter by permissions (default: 'perm:r--')
+    current         search the range containing current offset
+    path:pattern    search ranges mapping paths containing 'pattern'
+  `;
 }
 
 function configValidateSearchIn (val) {
   const valSplit = val.split(':');
   const [scope, param] = valSplit;
-  if (param !== undefined) {
-    if (scope === 'perm') {
-      const paramSplit = param.split('');
-      if (paramSplit.length !== 3 || valSplit.length > 2) {
-        return false;
-      }
-      const [r,w,x] = paramSplit;
-      return (r === 'r' || r === '-') &&
-        (w === 'w' || w === '-') &&
-        (x === 'x' || x === '-');
-    }
-    if (scope === 'path') {
-      return true;
-    }
-  } else {
+
+  if (param === undefined) {
     if (scope === 'current') {
       return valSplit.length === 1;
     }
+    return false;
   }
-  return false;
+  if (scope === 'perm') {
+    const paramSplit = param.split('');
+    if (paramSplit.length !== 3 || valSplit.length > 2) {
+      return false;
+    }
+    const [r, w, x] = paramSplit;
+    return (r === 'r' || r === '-') &&
+      (w === 'w' || w === '-') &&
+      (x === 'x' || x === '-');
+  }
+  return scope === 'path';
 }
 
-function evalConfig(args) {
+function evalConfig (args) {
   if (args.length === 0) {
     return Object.keys(config)
     .map(k => 'e ' + k + '=' + config[k])
@@ -372,9 +371,9 @@ function evalConfig(args) {
       if (kv[1] === '?') {
         if (configHelp[kv[0]] !== undefined) {
           return configHelp[kv[0]]();
-        } else {
-          console.error(`no help for ${kv[0]}`);
         }
+        console.error(`no help for ${kv[0]}`);
+        return '';
       }
       if (configValidator[kv[0]] !== undefined) {
         if (!configValidator[kv[0]](kv[1])) {
@@ -391,14 +390,14 @@ function evalConfig(args) {
   return config[args[0]];
 }
 
-function dumpInfo() {
+function dumpInfo () {
   const properties = dumpInfoJson();
   return Object.keys(properties)
   .map(k => k + '\t' + properties[k])
   .join('\n');
 }
 
-function dumpInfoR2() {
+function dumpInfoR2 () {
   const properties = dumpInfoJson();
   return [
     'e asm.arch=' + properties.arch,
@@ -407,22 +406,22 @@ function dumpInfoR2() {
   ].join('\n');
 }
 
-function getR2Arch(arch) {
-  switch(arch) {
-  case 'x64':
-    return 'x86';
-  case 'arm64':
-    return 'arm';
+function getR2Arch (arch) {
+  switch (arch) {
+    case 'x64':
+      return 'x86';
+    case 'arm64':
+      return 'arm';
   }
   return arch;
 }
 
 var breakpoints = {};
 
-function breakpointUnset(args) {
+function breakpointUnset (args) {
   if (args.length === 1) {
     const symbol = Module.findExportByName(null, args[0]);
-    const addr = symbol? symbol: ptr(args[0]);
+    const addr = (symbol !== null) ? symbol : ptr(args[0]);
     const newbps = [];
     for (let k of Object.keys(breakpoints)) {
       let bp = breakpoints[k];
@@ -441,27 +440,27 @@ function breakpointUnset(args) {
   return 'Usage: db- [addr|*]';
 }
 
-function breakpointExist(addr) {
+function breakpointExist (addr) {
   const bp = breakpoints['' + addr];
   return bp && !bp.continue;
 }
 
-function breakpointContinue(args) {
+function breakpointContinue (args) {
   let count = 0;
   for (let k of Object.keys(breakpoints)) {
     let bp = breakpoints[k];
     if (bp.stopped) {
-      count ++;
+      count++;
       bp.continue = true;
     }
   }
   return 'Continue ' + count + ' thread(s).';
 }
 
-function breakpoint(args) {
+function breakpoint (args) {
   if (args.length === 1) {
     const symbol = Module.findExportByName(null, args[0]);
-    const addr = symbol? symbol: ptr(args[0]);
+    const addr = (symbol !== null) ? symbol : ptr(args[0]);
     if (breakpointExist(addr)) {
       return 'Cant set a breakpoint twice';
     }
@@ -481,42 +480,42 @@ function breakpoint(args) {
           breakpoints[addrString].continue = false;
         }
       })
-    }
+    };
     breakpoints[addrString] = bp;
   }
   return JSON.stringify(breakpoints, null, '  ');
 }
 
-function dumpInfoJson() {
+function dumpInfoJson () {
   return {
     arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
     uid: _getuid(),
-    objc: ObjC_available,
-    java: Java_available,
+    objc: ObjCAvailable,
+    java: JavaAvailable,
     cylang: mjolner !== undefined,
   };
 }
 
-function listModules() {
+function listModules () {
   return Process.enumerateModulesSync()
   .map(m => padPointer(m.base) + ' ' + m.name)
   .join('\n');
 }
 
-function listModulesR2() {
+function listModulesR2 () {
   return Process.enumerateModulesSync()
   .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
   .join('\n');
 }
 
-function listModulesJson() {
+function listModulesJson () {
   return Process.enumerateModulesSync();
 }
 
-function listExports(args) {
+function listExports (args) {
   return listExportsJson(args)
   .map(({type, name, address}) => {
     return [address, type[0], name].join(' ');
@@ -524,7 +523,7 @@ function listExports(args) {
   .join('\n');
 }
 
-function listExportsR2(args) {
+function listExportsR2 (args) {
   return listExportsJson(args)
   .map(({type, name, address}) => {
     return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
@@ -532,24 +531,24 @@ function listExportsR2(args) {
   .join('\n');
 }
 
-function listExportsJson(args) {
+function listExportsJson (args) {
   const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
   }, []);
 }
 
-function lookupDebugInfo(args) {
-  const o = DebugSymbol.fromAddress(ptr(''+args));
+function lookupDebugInfo (args) {
+  const o = DebugSymbol.fromAddress(ptr('' + args));
   console.log(o);
 }
 
-function lookupDebugInfoR2(args) {
-  const o = DebugSymbol.fromAddress(ptr(''+args));
+/* function lookupDebugInfoR2 (args) {
+  const o = DebugSymbol.fromAddress(ptr('' + args));
   console.log(o);
-}
+} */
 
-function lookupAddress(args) {
+function lookupAddress (args) {
   if (args.length === 0) {
     args = [ptr(offset)];
   }
@@ -558,14 +557,14 @@ function lookupAddress(args) {
   .join('\n');
 }
 
-function lookupAddressR2(args) {
+function lookupAddressR2 (args) {
   return lookupAddressJson(args)
   .map(({type, name, address}) =>
-    [ 'f', 'sym.' + name, '=', address].join(' '))
+    ['f', 'sym.' + name, '=', address].join(' '))
   .join('\n');
 }
 
-function lookupAddressJson(args) {
+function lookupAddressJson (args) {
   const exportAddress = ptr(args[0]);
   const result = [];
   const modules = Process.enumerateModulesSync().map(m => m.path);
@@ -584,30 +583,31 @@ function lookupAddressJson(args) {
   }, []);
 }
 
-function lookupSymbolHere(args) {
+function lookupSymbolHere (args) {
   return lookupAddress([ptr(offset)]);
 }
 
-function lookupSymbol(args) {
+function lookupSymbol (args) {
   return lookupSymbolJson(args)
-  //.map(({library, name, address}) => [library, name, address].join(' '))
+  // .map(({library, name, address}) => [library, name, address].join(' '))
   .map(({address}) => '' + address)
   .join('\n');
 }
 
-function lookupSymbolR2(args) {
+function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
   .map(({name, address}) =>
-    [ 'f', 'sym.' + name, '=', address].join(' '))
+    ['f', 'sym.' + name, '=', address].join(' '))
   .join('\n');
 }
 
-function lookupSymbolJson(args) {
+function lookupSymbolJson (args) {
   if (args.length === 2) {
     const [moduleName, exportName] = args;
     const address = Module.findExportByName(moduleName, exportName);
-    if (address === null)
+    if (address === null) {
       return [];
+    }
     const m = Process.getModuleByAddress(address);
     return [{
       library: m.name,
@@ -633,38 +633,39 @@ function lookupSymbolJson(args) {
   }
 }
 
-function listImports(args) {
+function listImports (args) {
   return listImportsJson(args)
   .map(({type, name, module, address}) => [address, type[0], name, module].join(' '))
   .join('\n');
 }
 
-function listImportsR2(args) {
+function listImportsR2 (args) {
   return listImportsJson(args).map((x) => {
-    return "f sym.imp." + x.name + ' = ' + x.address;
+    return 'f sym.imp.' + x.name + ' = ' + x.address;
   }).join('\n');
 }
 
-function listImportsJson(args) {
+function listImportsJson (args) {
   const alen = args.length;
   if (alen === 2) {
     const [moduleName, importName] = args;
     const imports = Module.enumerateImportsSync(moduleName);
-    if (imports === null)
+    if (imports === null) {
       return [];
+    }
     return imports.filter((x) => {
       return x.name === importName;
     });
   } else if (alen === 1) {
     return Module.enumerateImportsSync(args[0]) || [];
   }
-  const modules = Process.enumerateModulesSync() || []
+  const modules = Process.enumerateModulesSync() || [];
   if (modules.length > 0) {
     return Module.enumerateImportsSync(modules[0].name) || [];
   }
 }
 
-function listClasses(args) {
+function listClasses (args) {
   const result = listClassesJson(args);
   if (result instanceof Array) {
     return result.join('\n');
@@ -672,20 +673,20 @@ function listClasses(args) {
     return Object.keys(result)
     .map(methodName => {
       const address = result[methodName];
-      return [padPointer(address), methodName].join(' ')
+      return [padPointer(address), methodName].join(' ');
     })
     .join('\n');
   }
 }
 
-function classGlob(k, v) {
+function classGlob (k, v) {
   if (!k || !v) {
     return true;
   }
   return k.indexOf(v.replace(/\*/g, '')) !== -1;
 }
 
-function listClassesR2(args) {
+function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
@@ -700,69 +701,73 @@ function listClassesR2(args) {
   if (result instanceof Array) {
     return result.join('\n');
   } else {
-    function flagName(m) {
-      return 'sym.objc.' +
-        (className + '.' + m)
-        .replace(':', '')
-        .replace(' ', '')
-        .replace('-', '')
-        .replace('+', '');
-    }
     return Object.keys(result)
     .map(methodName => {
       const address = result[methodName];
-      return ['f', flagName(methodName) , '=', padPointer(address)].join(' ')
+      return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
     })
     .join('\n');
+  }
+
+  function flagName (m) {
+    return 'sym.objc.' +
+      (className + '.' + m)
+      .replace(':', '')
+      .replace(' ', '')
+      .replace('-', '')
+      .replace('+', '');
   }
 }
 
 /* this ugly sync mehtod with while+settimeout is needed because
   returning a promise is not properly handled yet and makes r2
   lose track of the output of the command so you cant grep on it */
-function listJavaClassesJsonSync(args) {
-    if (args.length === 1) {
-      let methods = undefined;
-      /* list methods */
-      Java.perform(function() {
-        const obj = Java.use(args[0])
-        methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
-        // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
-      });
-      while (methods === undefined) {
-        /* wait here */
-        setTimeout(null, 0);
-      }
-      return methods;
-    }
-    let classes = undefined;
-    /* list all classes */
-    Java.perform(function() {
-      try {
-        classes = Java.enumerateLoadedClassesSync();
-      } catch (e) {
-        classes = null;
-      }
+function listJavaClassesJsonSync (args) {
+  if (args.length === 1) {
+    let methods;
+    /* list methods */
+    Java.perform(function () {
+      const obj = Java.use(args[0]);
+      methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
+      // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
     });
-    while (classes === undefined) {
+    // eslint-disable-next-line
+    while (methods === undefined) {
       /* wait here */
       setTimeout(null, 0);
     }
-    return classes;
+    return methods;
+  }
+  let classes;
+  /* list all classes */
+  Java.perform(function () {
+    try {
+      classes = Java.enumerateLoadedClassesSync();
+    } catch (e) {
+      classes = null;
+    }
+  });
+  // eslint-disable-next-line
+  while (classes === undefined) {
+    /* wait here */
+    setTimeout(null, 0);
+  }
+  return classes;
 }
 
-function listJavaClassesJson(args) {
-  return new Promise(function (reject, resolve) {
+// eslint-disable-next-line
+function listJavaClassesJson (args) {
+  return new Promise(function (resolve, reject) {
     if (args.length === 1) {
       /* list methods */
-      Java.perform(function() {
-        var obj = Java.use(args[0])
+      Java.perform(function () {
+        var obj = Java.use(args[0]);
         resolve(JSON.stringify(obj, null, '  '));
       });
       return;
     }
     /* list all classes */
-    Java.perform(function() {
+    Java.perform(function () {
       try {
         resolve(Java.enumerateLoadedClassesSync().join('\n'));
       } catch (e) {
@@ -772,8 +777,8 @@ function listJavaClassesJson(args) {
   });
 }
 
-function listClassesJson(args) {
-  if (Java_available) {
+function listClassesJson (args) {
+  if (JavaAvailable) {
     return listJavaClassesJsonSync(args);
     // return listJavaClassesJson(args);
   }
@@ -781,13 +786,14 @@ function listClassesJson(args) {
     return Object.keys(ObjC.classes);
   } else {
     const klass = ObjC.classes[args[0]];
-    if (klass === undefined)
+    if (klass === undefined) {
       throw new Error('Class ' + args[0] + ' not found');
+    }
     return klass.$ownMethods
     .reduce((result, methodName) => {
       try {
         result[methodName] = klass[methodName].implementation;
-      } catch(_) {
+      } catch (_) {
         console.log('warning: unsupported method \'' + methodName + '\'');
       }
       return result;
@@ -795,19 +801,19 @@ function listClassesJson(args) {
   }
 }
 
-function listProtocols(args) {
+function listProtocols (args) {
   return listProtocolsJson(args)
   .join('\n');
 }
 
-function closeFileDescriptors(args) {
+function closeFileDescriptors (args) {
   if (args.length === 0) {
-    return "Please, provide a file descriptor";
+    return 'Please, provide a file descriptor';
   }
   return _close(+args[0]);
 }
 
-function listFileDescriptors(args) {
+function listFileDescriptors (args) {
   if (args.length === 0) {
     const statBuf = Memory.alloc(128);
     const fds = [];
@@ -823,19 +829,20 @@ function listFileDescriptors(args) {
   }
 }
 
-function listProtocolsJson(args) {
+function listProtocolsJson (args) {
   if (args.length === 0) {
     return Object.keys(ObjC.protocols);
   } else {
     const protocol = ObjC.protocols[args[0]];
-    if (protocol === undefined)
+    if (protocol === undefined) {
       throw new Error('Protocol not found');
+    }
     return Object.keys(protocol.methods);
   }
 }
 
-function listMemoryRangesHere(args) {
-  if (args.length != 1) {
+function listMemoryRangesHere (args) {
+  if (args.length !== 1) {
     args = [ ptr(offset) ];
   }
   const addr = +args[0];
@@ -855,7 +862,7 @@ function listMemoryRangesHere(args) {
   .join('\n');
 }
 
-function listMemoryRanges() {
+function listMemoryRanges () {
   return listMemoryRangesJson()
   .map(({base, size, protection, file}) =>
     [
@@ -870,14 +877,14 @@ function listMemoryRanges() {
   .join('\n');
 }
 
-function listMemoryRangesJson() {
+function listMemoryRangesJson () {
   return Process.enumerateRangesSync({
     protection: '---',
     coalesce: false
   });
 }
 
-function changeMemoryProtection(args) {
+function changeMemoryProtection (args) {
   const [address, size, protection] = args;
 
   Memory.protect(ptr(address), parseInt(size), protection);
@@ -885,22 +892,22 @@ function changeMemoryProtection(args) {
   return true;
 }
 
-function getPid() {
+function getPid () {
   return _getpid();
 }
 
-function listThreads() {
+function listThreads () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id)
   .join('\n');
 }
 
-function listThreadsJson() {
+function listThreadsJson () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id);
 }
 
-function dumpRegisters() {
+function dumpRegisters () {
   return Process.enumerateThreadsSync()
     .map(thread => {
       const {id, state, context} = thread;
@@ -918,11 +925,11 @@ function dumpRegisters() {
     .join('\n\n');
 }
 
-function dumpRegistersJson() {
+function dumpRegistersJson () {
   return Process.enumerateThreadsSync();
 }
 
-function getOrSetEnv(args) {
+function getOrSetEnv (args) {
   if (args.length === 0) {
     return getEnv().join('\n');
   }
@@ -930,7 +937,7 @@ function getOrSetEnv(args) {
   return key + '=' + value;
 }
 
-function getOrSetEnvJson(args) {
+function getOrSetEnvJson (args) {
   if (args.length === 0) {
     return getEnvJson();
   }
@@ -952,7 +959,7 @@ function getOrSetEnvJson(args) {
   }
 }
 
-function getEnv() {
+function getEnv () {
   const result = [];
   let envp = __environ;
   let env;
@@ -963,7 +970,7 @@ function getEnv() {
   return result;
 }
 
-function getEnvJson() {
+function getEnvJson () {
   return getEnv().map(kv => {
     const eq = kv.indexOf('=');
     return {
@@ -973,64 +980,65 @@ function getEnvJson() {
   });
 }
 
-function dlopen(args) {
+function dlopen (args) {
   const path = args[0];
   const handle = _dlopen(Memory.allocUtf8String(path), RTLD_GLOBAL | RTLD_LAZY);
-  if (handle.isNull())
+  if (handle.isNull()) {
     throw new Error('Failed to load: ' + path);
+  }
   return handle.toString();
 }
 
-function formatArgs(args, fmt) {
+function formatArgs (args, fmt) {
   const a = [];
   let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
     const arg = args[j];
-    switch(fmt[i]) {
-    case '+':
-    case '^':
-      j--;
-      break;
-    case 'x':
-      a.push ('' + ptr(arg));
-      break;
-    case 'c':
-      a.push ("'" + arg + "'");
-      break;
-    case 'i':
-      a.push ( +arg);
-      break;
-    case 'z': // *s
-      const s = Memory.readUtf8String(ptr(arg));
-      a.push (JSON.stringify(s));
-      break;
-    case 'Z': // *s[i]
-      const len = +args[j + 1];
-      const str = Memory.readUtf8String(ptr(arg), len);
-      a.push (JSON.stringify(str));
-      break;
-    default:
-      a.push (arg);
-      break;
+    switch (fmt[i]) {
+      case '+':
+      case '^':
+        j--;
+        break;
+      case 'x':
+        a.push('' + ptr(arg));
+        break;
+      case 'c':
+        a.push("'" + arg + "'");
+        break;
+      case 'i':
+        a.push(+arg);
+        break;
+      case 'z': // *s
+        const s = Memory.readUtf8String(ptr(arg));
+        a.push(JSON.stringify(s));
+        break;
+      case 'Z': // *s[i]
+        const len = +args[j + 1];
+        const str = Memory.readUtf8String(ptr(arg), len);
+        a.push(JSON.stringify(str));
+        break;
+      default:
+        a.push(arg);
+        break;
     }
   }
   return a;
 }
 
-function traceList() {
+function traceList () {
   traceListeners.forEach((tl) => {
     console.log('dt', JSON.stringify(tl));
   });
   return true;
 }
 
-function getPtr(p) {
+function getPtr (p) {
   p = p.trim();
   if (!p || p === '$$') {
     return ptr(offset);
   }
   try {
-    if (p.substring(0,2) === '0x') {
+    if (p.substring(0, 2) === '0x') {
       return ptr(p);
     }
   } catch (e) {
@@ -1040,16 +1048,17 @@ function getPtr(p) {
   return Module.findExportByName(null, p);
 }
 
-function traceFormat(args) {
-  if (args.length == 0) {
+function traceFormat (args) {
+  if (args.length === 0) {
     return traceList();
   }
-  if (args.length == 2) {
-    var address = '' + getPtr(args[0]);
-    var format = args[1];
+  let address, format;
+  if (args.length === 2) {
+    address = '' + getPtr(args[0]);
+    format = args[1];
   } else {
-    var address = offset;
-    var format = args[0];
+    address = offset;
+    format = args[0];
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
@@ -1064,7 +1073,7 @@ function traceFormat(args) {
         this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       }
       if (traceOnEnter) {
-        console.log (at, this.myArgs);
+        console.log(at, this.myArgs);
         if (traceBacktrace) {
           console.log(this.myBacktrace.join('\n    '));
         }
@@ -1072,7 +1081,7 @@ function traceFormat(args) {
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-        console.log (at, this.myArgs, '=', retval);
+        console.log(at, this.myArgs, '=', retval);
         if (traceBacktrace) {
           console.log(this.myBacktrace.join('\n    '));
         }
@@ -1087,7 +1096,7 @@ function traceFormat(args) {
   return true;
 }
 
-function traceRegs(args) {
+function traceRegs (args) {
   const address = getPtr(args[0]);
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, function () {
@@ -1118,7 +1127,7 @@ function traceRegs(args) {
   return true;
 }
 
-function traceHere() {
+function traceHere () {
   const args = [ offset ];
   args.forEach(address => {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
@@ -1134,8 +1143,8 @@ function traceHere() {
   return true;
 }
 
-function trace(args) {
-  if (args.length == 0) {
+function trace (args) {
+  if (args.length === 0) {
     return traceList();
   }
   args.forEach(address => {
@@ -1151,50 +1160,50 @@ function trace(args) {
   return true;
 }
 
-function clearTrace(args) {
+function clearTrace (args) {
   traceListeners.splice(0).forEach(lo => lo.listener.detach());
 }
 
-function interceptHelp(args) {
+function interceptHelp (args) {
   return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
-function interceptRet0(args) {
+function interceptRet0 (args) {
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('0'));
     }
   });
 }
 
-function interceptRet1(args) {
+function interceptRet1 (args) {
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('1'));
     }
   });
 }
 
-function interceptRet_1(args) {
+function interceptRet_1 (args) { // eslint-disable-line
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('-1'));
     }
   });
 }
 
-function getenv(name) {
+function getenv (name) {
   return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
 }
 
-function setenv(name, value, overwrite) {
+function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
-function compareRegisterNames(lhs, rhs) {
+function compareRegisterNames (lhs, rhs) {
   const lhsIndex = parseRegisterIndex(lhs);
   const rhsIndex = parseRegisterIndex(rhs);
 
@@ -1221,7 +1230,7 @@ function compareRegisterNames(lhs, rhs) {
   return -1;
 }
 
-function parseRegisterIndex(name) {
+function parseRegisterIndex (name) {
   const length = name.length;
   for (let index = 1; index < length; index++) {
     const value = parseInt(name.substr(index));
@@ -1232,7 +1241,7 @@ function parseRegisterIndex(name) {
   return null;
 }
 
-function indent(message, index) {
+function indent (message, index) {
   if (index === 0) {
     return message;
   }
@@ -1242,7 +1251,7 @@ function indent(message, index) {
   return '\t' + message;
 }
 
-function alignRight(text, width) {
+function alignRight (text, width) {
   let result = text;
   while (result.length < width) {
     result = ' ' + result;
@@ -1250,7 +1259,7 @@ function alignRight(text, width) {
   return result;
 }
 
-function padPointer(value) {
+function padPointer (value) {
   let result = value.toString(16);
   const paddedLength = 2 * pointerSize;
   while (result.length < paddedLength) {
@@ -1267,7 +1276,7 @@ const requestHandlers = {
   evaluate: evaluate,
 };
 
-function read(params) {
+function read (params) {
   const {offset, count} = params;
   try {
     const bytes = Memory.readByteArray(ptr(offset), count);
@@ -1277,11 +1286,11 @@ function read(params) {
   }
 }
 
-function isTrue(x) {
+function isTrue (x) {
   return (x === true || x === 1 || x === 'true');
 }
 
-function write(params, data) {
+function write (params, data) {
   if (isTrue(config['patch.code'])) {
     if (typeof Memory.patchCode !== 'function') {
       Memory.writeByteArray(ptr(params.offset), data);
@@ -1296,12 +1305,12 @@ function write(params, data) {
   return [{}, null];
 }
 
-function seek(params, data) {
+function seek (params, data) {
   offset = params.offset;
   return [{}, null];
 }
 
-function perform(params) {
+function perform (params) {
   const {command} = params;
 
   const tokens = command.split(/ /);
@@ -1318,53 +1327,55 @@ function perform(params) {
   if (value instanceof Promise) {
     return value.then(output => {
       return [{
-        value: (typeof output === 'string') ? output : JSON.stringify(output),
+        value: (typeof output === 'string') ? output : JSON.stringify(output)
       }, null];
     });
   }
   return [{
-    value: (typeof value === 'string') ? value : JSON.stringify(value),
+    value: (typeof value === 'string') ? value : JSON.stringify(value)
   }, null];
 }
 
-function evaluate(params) {
+function evaluate (params) {
   return new Promise(resolve => {
     const {code} = params;
 
-    if (ObjC_available)
+    if (ObjCAvailable) {
       ObjC.schedule(ObjC.mainQueue, performEval);
-    else
+    } else {
       performEval();
+    }
 
-    function performEval() {
+    function performEval () {
       let result;
       try {
-        const rawResult = (1, eval)(code);
+        const rawResult = (1, eval)(code); // eslint-disable-line
         global._ = rawResult;
-        if (rawResult !== undefined && mjolner !== undefined)
+        if (rawResult !== undefined && mjolner !== undefined) {
           result = mjolner.toCYON(rawResult);
-        else
+        } else {
           result = 'undefined';
+        }
       } catch (e) {
         result = 'throw new ' + e.name + '("' + e.message + '")';
       }
 
       resolve([{
-        value: result,
+        value: result
       }, null]);
     }
   });
 }
 
-if (ObjC_available) {
+if (ObjCAvailable) {
   mjolner.register();
 }
 
 Script.setGlobalAccessHandler({
-  enumerate() {
+  enumerate () {
     return [];
   },
-  get(property) {
+  get (property) {
     if (mjolner !== undefined) {
       let result = mjolner.lookup(property);
       if (result !== null) {
@@ -1374,22 +1385,22 @@ Script.setGlobalAccessHandler({
   }
 });
 
-function interpretFile(args) {
+function interpretFile (args) {
   console.log('TODO: interpretFile is not yet implemented');
   return {};
 }
 
-function fridaVersion() {
+function fridaVersion () {
   return { version: Frida.version };
 }
 
-function search(args) {
+function search (args) {
   return searchJson(args).then(hits => {
     return _readableHits(hits);
   });
 }
 
-function searchJson(args) {
+function searchJson (args) {
   const pattern = _toHexPairs(args.join(' '));
   return _searchPatternJson(pattern).then(hits => {
     hits.forEach(hit => {
@@ -1399,13 +1410,13 @@ function searchJson(args) {
   });
 }
 
-function searchHex(args) {
+function searchHex (args) {
   return searchHexJson(args).then(hits => {
     return _readableHits(hits);
   });
 }
 
-function searchHexJson(args) {
+function searchHexJson (args) {
   const pattern = _normHexPairs(args.join(''));
   return _searchPatternJson(pattern).then(hits => {
     hits.forEach(hit => {
@@ -1416,24 +1427,24 @@ function searchHexJson(args) {
   });
 }
 
-function _byteArrayToHex(arr) {
+function _byteArrayToHex (arr) {
   const u8arr = new Uint8Array(arr);
   const hexs = [];
-  for (let i=0; i != u8arr.length; i += 1) {
+  for (let i = 0; i !== u8arr.length; i += 1) {
     const h = u8arr[i].toString(16);
-    hexs.push((h.length == 2) ? h : `0${h}`);
+    hexs.push((h.length === 2) ? h : `0${h}`);
   }
   return hexs.join('');
 }
 
-function _readableHits(hits) {
+function _readableHits (hits) {
   const output = hits.map(hit => {
-    return `${hit.address} ${hit.flag} ${hit.content}`
+    return `${hit.address} ${hit.flag} ${hit.content}`;
   });
   return output.join('\n');
 }
 
-function _searchPatternJson(pattern) {
+function _searchPatternJson (pattern) {
   return hostCmdj('ej')
     .then(config => {
       const flags = config['search.flags'];
@@ -1507,7 +1518,7 @@ function _configParseSearchIn () {
   return res;
 }
 
-function _getRanges(fromNum, toNum) {
+function _getRanges (fromNum, toNum) {
   const searchIn = _configParseSearchIn();
 
   const ranges = Process.enumerateRangesSync({
@@ -1547,25 +1558,25 @@ function _getRanges(fromNum, toNum) {
   });
 }
 
-function _ptrMax(a,b) {
+function _ptrMax (a, b) {
   return a.compare(b) > 0 ? a : b;
 }
 
-function _ptrMin(a,b) {
+function _ptrMin (a, b) {
   return a.compare(b) < 0 ? a : b;
 }
 
-function _toHexPairs(raw) {
+function _toHexPairs (raw) {
   const pairs = [];
-  for (let i=0; i != raw.length; i+=1) {
+  for (let i = 0; i !== raw.length; i += 1) {
     const code = raw.charCodeAt(i) & 0xff;
     const h = code.toString(16);
-    pairs.push((h.length == 2) ? h : `0${h}`);
+    pairs.push((h.length === 2) ? h : `0${h}`);
   }
   return pairs.join(' ');
 }
 
-function _normHexPairs(raw) {
+function _normHexPairs (raw) {
   const norm = raw.replace(/ /g, '');
   if (_isHex(norm)) {
     return _toPairs(norm.replace(/\./g, '?'));
@@ -1573,19 +1584,19 @@ function _normHexPairs(raw) {
   throw new Error('Invalid hex string');
 }
 
-function _toPairs(hex) {
+function _toPairs (hex) {
   if ((hex.length % 2) !== 0) {
     throw new Error('Odd-length string');
   }
 
   const pairs = [];
-  for (let i=0; i != hex.length; i += 2) {
-    pairs.push(hex.substr(i,2));
+  for (let i = 0; i !== hex.length; i += 2) {
+    pairs.push(hex.substr(i, 2));
   }
   return pairs.join(' ').toLowerCase();
 }
 
-function _isHex(raw) {
+function _isHex (raw) {
   const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
   const inSet = new Set(Array.from(raw));
   for (let h of hexSet) {
@@ -1594,7 +1605,7 @@ function _isHex(raw) {
   return inSet.size === 0;
 }
 
-function onStanza(stanza, data) {
+function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
     try {
@@ -1628,9 +1639,9 @@ function onStanza(stanza, data) {
 
 let cmdSerial = 0;
 
-function hostCmds(commands) {
+function hostCmds (commands) {
   let i = 0;
-  function sendOne() {
+  function sendOne () {
     if (i < commands.length) {
       return hostCmd(commands[i]).then(() => {
         i += 1;
@@ -1643,15 +1654,15 @@ function hostCmds(commands) {
   return sendOne();
 }
 
-function hostCmdj(cmd) {
+function hostCmdj (cmd) {
   return hostCmd(cmd)
     .then(output => {
       return JSON.parse(output);
     });
 }
 
-function hostCmd(cmd) {
-  return new Promise ((resolve) => {
+function hostCmd (cmd) {
+  return new Promise((resolve) => {
     const serial = cmdSerial;
     cmdSerial += 1;
 
@@ -1664,7 +1675,7 @@ function hostCmd(cmd) {
   });
 }
 
-function onCmdResp(params) {
+function onCmdResp (params) {
   const {serial, output} = params;
 
   if (serial in pendingCmds) {
@@ -1678,7 +1689,7 @@ function onCmdResp(params) {
   return [{}, null];
 }
 
-function wrapStanza(name, stanza) {
+function wrapStanza (name, stanza) {
   return {
     name: name,
     stanza: stanza
