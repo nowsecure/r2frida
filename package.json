@@ -25,6 +25,7 @@
     ]
   },
   "scripts": {
+    "lint": "semistandard src/agent/*.js",
     "prepublish": "npm run build",
     "build": "frida-compile src/agent -o src/_agent.js",
     "watch": "frida-compile src/agent -o src/_agent.js -w"
@@ -36,5 +37,36 @@
     "babel-runtime": "^6.22.0",
     "frida-compile": "5.0.1",
     "mjolner": "^1.0.6"
+  },
+  "devDependencies": {
+    "semistandard": "*"
+  },
+  "semistandard": {
+    "globals": [
+        "DebugSymbol",
+        "File",
+        "Frida",
+        "hexdump",
+        "Instruction",
+        "Interceptor",
+        "Java",
+        "Memory",
+        "Module",
+        "NativeCallback",
+        "NativeFunction",
+        "NativePointer",
+        "NULL",
+        "ObjC",
+        "Process",
+        "recv",
+        "Script",
+        "Socket",
+        "Stalker",
+        "Thread",
+        "ptr",
+        "rpc",
+        "send",
+        "uint64"
+    ]
   }
 }

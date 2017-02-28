@@ -1,5 +1,6 @@
 /* radare2 - MIT - Copyright 2016-2017 - pancake, oleavr */
 
+#include <r_core.h>
 #include <r_io.h>
 #include <r_lib.h>
 #include <stdio.h>
@@ -27,6 +28,7 @@ typedef struct {
 	volatile bool received_reply;
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
+	RCore *r2core;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
@@ -47,6 +49,14 @@ static const unsigned char r_io_frida_agent_code[] = {
 #include "_agent.h"
 	, 0x00
 };
+
+static RCore *get_r_core_main_instance() {
+	RCons * cons = r_cons_singleton ();
+	if (cons && cons->line) {
+		return (RCore*) cons->line->user;
+	}
+	return NULL;
+}
 
 static char *slurpFile(const char *str, int *usz) {
         size_t rsz;
@@ -112,6 +122,8 @@ static RIOFrida *r_io_frida_new(void) {
 	rf->detached = false;
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->received_reply = false;
+	rf->r2core = get_r_core_main_instance ();
+	g_assert (rf->r2core != NULL);
 
 	return rf;
 }
@@ -313,6 +325,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("r2frida commands available via =!\n"
 			"?                          Show this help\n"
 			"?V                         Show target Frida version\n"
+			"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
 			"i                          Show target information\n"
 			"ii[*]                      List imports\n"
 			"il                         List libraries\n"
@@ -350,6 +363,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	rf = fd->data;
+
 	if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
@@ -623,6 +637,27 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	return reply_stanza;
 }
 
+static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
+	GError *error = NULL;
+
+	json_builder_end_object (builder);
+	json_builder_end_object (builder);
+	JsonNode *root = json_builder_get_root (builder);
+	char *message = json_to_string (root, FALSE);
+	json_node_unref (root);
+	g_object_unref (builder);
+
+	frida_script_post_sync (rf->script, message, data, &error);
+
+	g_free (message);
+	g_bytes_unref (data);
+
+	if (error) {
+		eprintf ("error: %s\n", error->message);
+		g_error_free (error);
+	}
+}
+
 static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 	g_mutex_lock (&rf->lock);
 
@@ -649,6 +684,31 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 	g_mutex_unlock (&rf->lock);
 }
 
+static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
+	JsonBuilder *builder;
+	const char *cmd_string;
+	char *output;
+	JsonObject *result;
+	ut64 serial;
+
+	cmd_string = json_object_get_string_member (cmd_stanza, "cmd");
+	serial = json_object_get_int_member (cmd_stanza, "serial");
+
+	output = r_core_cmd_str (rf->r2core, cmd_string);
+
+	if (output) {
+		builder = build_request ("cmd");
+		json_builder_set_member_name (builder, "output");
+		json_builder_add_string_value (builder, output);
+		json_builder_set_member_name (builder, "serial");
+		json_builder_add_int_value (builder, serial);
+
+		R_FREE (output);
+
+		perform_request_unlocked (rf, builder, NULL, NULL);
+	}
+}
+
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	JsonParser *parser;
@@ -662,9 +722,17 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 	type = json_object_get_string_member (root, "type");
 
 	if (!strcmp (type, "send")) {
-		on_stanza (rf,
-			json_object_ref (json_object_get_object_member (root, "payload")),
-			data);
+		JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
+		const char *name = json_object_get_string_member (payload, "name");
+		if (!strcmp (name, "reply")) {
+			on_stanza (rf,
+				json_object_ref (json_object_get_object_member (payload, "stanza")),
+				data);
+		} else if (!strcmp (name, "cmd")) {
+			on_cmd (rf,
+				json_object_get_object_member (payload, "stanza"));
+		}
+		json_object_unref (payload);
 	} else if (!strcmp (type, "log")) {
 		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {
