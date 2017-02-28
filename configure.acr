@@ -1,5 +1,5 @@
 PKGNAME radare2
-VERSION 1.7.0
+VERSION 1.8.0
 CONTACT pancake ; pancake@nowsecure.com
 
 LANG_C!
