@@ -1473,12 +1473,12 @@ function searchValueJson (args, width) {
   return hostCmdj('ej')
     .then(config => {
       const bigEndian = config['cfg.bigendian'];
-      const bytes = renderEndian(value, bigEndian, width);
+      const bytes = _renderEndian(value, bigEndian, width);
       return searchHexJson([_toHexPairs(bytes)]);
     });
 }
 
-function renderEndian (value, bigEndian, width) {
+function _renderEndian (value, bigEndian, width) {
   const bytes = [];
   for (let i = 0; i !== width; i++) {
     if (bigEndian) {
