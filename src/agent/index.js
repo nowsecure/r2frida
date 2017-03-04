@@ -20,6 +20,16 @@ const commandHandlers = {
   '/j': searchJson,
   '/x': searchHex,
   '/xj': searchHexJson,
+  '/w': searchWide,
+  '/wj': searchWideJson,
+  '/v1': searchValueImpl(1),
+  '/v2': searchValueImpl(2),
+  '/v4': searchValueImpl(4),
+  '/v8': searchValueImpl(8),
+  '/v1j': searchValueImplJson(1),
+  '/v2j': searchValueImplJson(2),
+  '/v4j': searchValueImplJson(4),
+  '/v8j': searchValueImplJson(8),
   '?V': fridaVersion,
   '.': interpretFile,
   'i': dumpInfo,
@@ -1427,6 +1437,59 @@ function searchHexJson (args) {
   });
 }
 
+function searchWide (args) {
+  return searchWideJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchWideJson (args) {
+  const pattern = _toWidePairs(args.join(' '));
+  return searchHexJson([pattern]);
+}
+
+function searchValueImpl (width) {
+  return function (args) {
+    return searchValueJson(args, width).then(hits => {
+      return _readableHits(hits);
+    });
+  };
+}
+
+function searchValueImplJson (width) {
+  return function (args) {
+    return searchValueJson(args, width);
+  };
+}
+
+function searchValueJson (args, width) {
+  let value;
+  try {
+    value = uint64(args.join(''));
+  } catch (e) {
+    return new Promise((resolve, reject) => reject(e));
+  }
+
+  return hostCmdj('ej')
+    .then(config => {
+      const bigEndian = config['cfg.bigendian'];
+      const bytes = renderEndian(value, bigEndian, width);
+      return searchHexJson([_toHexPairs(bytes)]);
+    });
+}
+
+function renderEndian (value, bigEndian, width) {
+  const bytes = [];
+  for (let i = 0; i !== width; i++) {
+    if (bigEndian) {
+      bytes.push(value.shr((width - i - 1) * 8).and(0xff).toNumber());
+    } else {
+      bytes.push(value.shr(i * 8).and(0xff).toNumber());
+    }
+  }
+  return bytes;
+}
+
 function _byteArrayToHex (arr) {
   const u8arr = new Uint8Array(arr);
   const hexs = [];
@@ -1540,6 +1603,10 @@ function _getRanges (fromNum, toNum) {
     return true;
   });
 
+  if (ranges.length === 0) {
+    return [];
+  }
+
   const first = ranges[0];
   const last = ranges[ranges.length - 1];
 
@@ -1567,11 +1634,23 @@ function _ptrMin (a, b) {
 }
 
 function _toHexPairs (raw) {
+  const isString = typeof raw === 'string';
+  const pairs = [];
+  for (let i = 0; i !== raw.length; i += 1) {
+    const code = (isString ? raw.charCodeAt(i) : raw[i]) & 0xff;
+    const h = code.toString(16);
+    pairs.push((h.length === 2) ? h : `0${h}`);
+  }
+  return pairs.join(' ');
+}
+
+function _toWidePairs (raw) {
   const pairs = [];
   for (let i = 0; i !== raw.length; i += 1) {
     const code = raw.charCodeAt(i) & 0xff;
     const h = code.toString(16);
     pairs.push((h.length === 2) ? h : `0${h}`);
+    pairs.push('00');
   }
   return pairs.join(' ');
 }

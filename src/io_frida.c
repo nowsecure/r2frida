@@ -326,6 +326,8 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"?                          Show this help\n"
 			"?V                         Show target Frida version\n"
 			"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
+			"/w[j] string               Search wide string\n"
+			"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
 			"i                          Show target information\n"
 			"ii[*]                      List imports\n"
 			"il                         List libraries\n"
