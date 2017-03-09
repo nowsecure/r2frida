@@ -327,6 +327,7 @@ const traceListeners = [];
 const config = {
   'patch.code': true,
   'search.in': 'perm:r--',
+  'search.quiet': false
 };
 
 const configHelp = {
@@ -1414,9 +1415,13 @@ function searchJson (args) {
   const pattern = _toHexPairs(args.join(' '));
   return _searchPatternJson(pattern).then(hits => {
     hits.forEach(hit => {
-      hit.content = Memory.readUtf8String(hit.address, 30).replace(/\n/g, '');
+      try {
+        const bytes = Memory.readByteArray(hit.address, 60);
+        hit.content = _filterPrintable(bytes);
+      } catch (e) {
+      }
     });
-    return hits;
+    return hits.filter(hit => hit.content !== undefined);
   });
 }
 
@@ -1500,9 +1505,27 @@ function _byteArrayToHex (arr) {
   return hexs.join('');
 }
 
+const minPrintable = ' '.charCodeAt(0);
+const maxPrintable = '~'.charCodeAt(0);
+
+function _filterPrintable (arr) {
+  const u8arr = new Uint8Array(arr);
+  const printable = [];
+  for (let i = 0; i !== u8arr.length; i += 1) {
+    const c = u8arr[i];
+    if (c >= minPrintable && c <= maxPrintable) {
+      printable.push(String.fromCharCode(c));
+    }
+  }
+  return printable.join('');
+}
+
 function _readableHits (hits) {
   const output = hits.map(hit => {
-    return `${hit.address} ${hit.flag} ${hit.content}`;
+    if (hit.flag !== undefined) {
+      return `${hit.address} ${hit.flag} ${hit.content}`;
+    }
+    return `${hit.address} ${hit.content}`;
   });
   return output.join('\n');
 }
@@ -1518,27 +1541,29 @@ function _searchPatternJson (pattern) {
       const ranges = _getRanges(config['search.from'], config['search.to']);
       const nBytes = pattern.split(' ').length;
 
-      console.log(`Searching ${nBytes} bytes: ${pattern}`);
+      qlog(`Searching ${nBytes} bytes: ${pattern}`);
 
       let results = [];
       const commands = [];
+      let idx = 0;
       for (let range of ranges) {
         if (range.size === 0) {
           continue;
         }
 
         const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
-        console.log(`Searching ${nBytes} bytes in ${rangeStr}`);
+        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
           const partial = Memory.scanSync(range.address, range.size, pattern);
 
-          partial.forEach((hit, idx) => {
+          partial.forEach((hit) => {
             if (flags) {
               hit.flag = `${prefix}${kwidx}_${idx + count}`;
               commands.push('fs+searches');
               commands.push(`f ${hit.flag} ${hit.size} ${hit.address}`);
               commands.push('fs-');
             }
+            idx += 1;
           });
 
           results = results.concat(partial);
@@ -1546,7 +1571,7 @@ function _searchPatternJson (pattern) {
         }
       }
 
-      console.log(`hits: ${results.length}`);
+      qlog(`hits: ${results.length}`);
 
       commands.push(`e search.kwidx=${kwidx + 1}`);
 
@@ -1554,6 +1579,12 @@ function _searchPatternJson (pattern) {
         return results;
       });
     });
+
+  function qlog (message) {
+    if (!config['search.quiet']) {
+      console.log(message);
+    }
+  }
 }
 
 function _configParseSearchIn () {
