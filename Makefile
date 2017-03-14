@@ -1,7 +1,13 @@
 include config.mk
 
-frida_version = 9.1.14
+radare2_version = 1.3.0
+frida_version = 9.1.16
+
+ifeq ($(shell uname -o 2> /dev/null),Android)
+frida_os := android
+else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
+endif
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
 
@@ -63,21 +69,33 @@ endif
 all: ext/frida
 	$(MAKE) io_frida.$(SO_EXT)
 
-IOS_ARCH=arm64 armv7
+IOS_ARCH=arm64
+#armv7
 IOS_ARCH_CFLAGS=$(addprefix -arch ,$(IOS_ARCH))
 IOS_CC=xcrun --sdk iphoneos gcc $(IOS_ARCH_CFLAGS)
 IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 
 .PHONY: io_frida.$(SO_EXT)
 
-ios:
-	$(MAKE) CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
+ios: r2-sdk-ios/$(r2_version)
+	$(MAKE) \
+	CFLAGS=-Ir2-sdk-ios/include \
+	LDFLAGS="-Lr2-sdk-ios/lib -lr -shared -fPIC" \
+	CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
+
+r2-sdk-ios/$(r2_version):
+	rm -rf r2-sdk-ios
+	wget http://cloud.radare.org/get/$(r2_version)/radare2-ios-arm64-$(r2_version).tar.gz
+	mkdir -p r2-sdk-ios/$(r2_version)
+	tar xzvf radare2-ios-arm64-$(r2_version).tar.gz -C r2-sdk-ios
+	mv r2-sdk-ios/*/* r2-sdk-ios
+	rm -f radare2-ios-arm64-$(r2_version).tar.gz
 
 .PHONY: ext/frida
 
 ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
-		(cd ext && rm frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
+		(cd ext && rm -f frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
 
 config.mk:
 	./configure
@@ -97,6 +115,9 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 
 node_modules: package.json
 	npm install
+
+android-arm64:
+	make frida_os=android frida_arch=aarch64 CC=arm-linux-androideabi-gcc CXX=arm-linux-androideabi-g++
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
