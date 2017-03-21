@@ -69,7 +69,7 @@ static char *slurpFile(const char *str, int *usz) {
 			return NULL;
 		}
 		char *newfile = r_str_home (".config/r2frida/plugins/");
-		newfile = r_str_concatf (newfile, "%s.js", str);
+		newfile = r_str_appendf (newfile, "%s.js", str);
 		fd = r_sandbox_fopen (newfile, "rb");
 		free (newfile);
 		if (!fd) {
