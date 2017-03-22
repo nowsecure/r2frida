@@ -481,15 +481,13 @@ function breakpoint (args) {
       stopped: false,
       address: addrString,
       continue: false,
-      handler: Interceptor.attach(addr, {
-        onEnter: function (args) {
-          breakpoints[addrString].stopped = true;
-          while (breakpointExist(addr)) {
-            Thread.sleep(1);
-          }
-          breakpoints[addrString].stopped = false;
-          breakpoints[addrString].continue = false;
+      handler: Interceptor.attach(addr, function (args) {
+        breakpoints[addrString].stopped = true;
+        while (breakpointExist(addr)) {
+          Thread.sleep(1);
         }
+        breakpoints[addrString].stopped = false;
+        breakpoints[addrString].continue = false;
       })
     };
     breakpoints[addrString] = bp;
