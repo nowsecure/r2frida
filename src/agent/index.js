@@ -431,16 +431,30 @@ var breakpoints = {};
 
 function breakpointUnset (args) {
   if (args.length === 1) {
+    if (args[0] === '*') {
+      for (let k of Object.keys(breakpoints)) {
+          const bp = breakpoints[k];
+          Interceptor.revert(ptr(bp.address));
+      }
+      breakpoints = {};
+      return 'All breakpoints removed';
+    }
     const symbol = Module.findExportByName(null, args[0]);
     const addr = (symbol !== null) ? symbol : ptr(args[0]);
     const newbps = [];
+    let found = false;
     for (let k of Object.keys(breakpoints)) {
-      let bp = breakpoints[k];
-      if (args[0] === '*' || bp.address === addr) {
+      const bp = breakpoints[k];
+      if (args[0] === '*' || bp.address == addr) {
+        found = true;
+        console.log('Breakpoint reverted');
         Interceptor.revert(ptr(bp.address));
       } else {
         newbps.push(bp);
       }
+    }
+    if (!found) {
+      console.error('Cannot found any breakpoint matching');
     }
     breakpoints = {};
     for (let bp of newbps) {
@@ -460,7 +474,7 @@ function breakpointContinue (args) {
   let count = 0;
   for (let k of Object.keys(breakpoints)) {
     let bp = breakpoints[k];
-    if (bp.stopped) {
+    if (bp && bp.stopped) {
       count++;
       bp.continue = true;
     }
@@ -482,12 +496,16 @@ function breakpoint (args) {
       address: addrString,
       continue: false,
       handler: Interceptor.attach(addr, function (args) {
-        breakpoints[addrString].stopped = true;
+        if (breakpoints[addrString]) {
+          breakpoints[addrString].stopped = true;
+        }
         while (breakpointExist(addr)) {
           Thread.sleep(1);
         }
-        breakpoints[addrString].stopped = false;
-        breakpoints[addrString].continue = false;
+        if (breakpoints[addrString]) {
+          breakpoints[addrString].stopped = false;
+          breakpoints[addrString].continue = false;
+        }
       })
     };
     breakpoints[addrString] = bp;
