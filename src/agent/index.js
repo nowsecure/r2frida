@@ -104,6 +104,8 @@ const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
 const pendingCmds = {};
+const pendingCmdSends = [];
+let sendingCommand = false;
 
 function allocSize (args) {
   const size = +args[0];
@@ -1793,16 +1795,31 @@ function hostCmd (cmd) {
     cmdSerial += 1;
 
     pendingCmds[serial] = resolve;
+    sendCommand(cmd, serial);
+  });
+}
+
+function sendCommand (cmd, serial) {
+  function sendIt () {
+    sendingCommand = true;
 
     send(wrapStanza('cmd', {
       'cmd': cmd,
       'serial': serial
     }));
-  });
+  }
+
+  if (sendingCommand) {
+    pendingCmdSends.push(sendIt);
+  } else {
+    sendIt();
+  }
 }
 
 function onCmdResp (params) {
   const {serial, output} = params;
+
+  sendingCommand = false;
 
   if (serial in pendingCmds) {
     const onFinish = pendingCmds[serial];
@@ -1811,6 +1828,15 @@ function onCmdResp (params) {
   } else {
     throw new Error('Command response out of sync');
   }
+
+  process.nextTick(() => {
+    if (!sendingCommand) {
+      const nextSend = pendingCmdSends.shift();
+      if (nextSend !== undefined) {
+        nextSend();
+      }
+    }
+  });
 
   return [{}, null];
 }

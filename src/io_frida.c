@@ -15,6 +15,12 @@
 #include "frida-core.h"
 
 typedef struct {
+	const char * cmd_string;
+	ut64 serial;
+	JsonObject * _cmd_json;
+} RFPendingCmd;
+
+typedef struct {
 	FridaDeviceManager *manager;
 	FridaDevice *device;
 	FridaSession *session;
@@ -29,6 +35,7 @@ typedef struct {
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
 	RCore *r2core;
+	RFPendingCmd * pending_cmd;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
@@ -40,6 +47,9 @@ static bool resolve_process(FridaDevice *device, const char *process_specifier, 
 static JsonBuilder *build_request(const char *type);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
+static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
+static void pending_cmd_free(RFPendingCmd * pending_cmd);
+static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 
 extern RIOPlugin r_io_plugin_frida;
 
@@ -594,6 +604,29 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 
 	while (!rf->detached && !rf->received_reply) {
 		g_cond_wait (&rf->cond, &rf->lock);
+
+		if (rf->pending_cmd) {
+			ut64 serial = rf->pending_cmd->serial;
+			char *output;
+			JsonBuilder *builder;
+
+			output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
+
+			pending_cmd_free (rf->pending_cmd);
+			rf->pending_cmd = NULL;
+
+			if (output) {
+				builder = build_request ("cmd");
+				json_builder_set_member_name (builder, "output");
+				json_builder_add_string_value (builder, output);
+				json_builder_set_member_name (builder, "serial");
+				json_builder_add_int_value (builder, serial);
+
+				R_FREE (output);
+
+				perform_request_unlocked (rf, builder, NULL, NULL);
+			}
+		}
 	}
 
 	if (rf->received_reply) {
@@ -687,28 +720,15 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 }
 
 static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
-	JsonBuilder *builder;
-	const char *cmd_string;
-	char *output;
-	JsonObject *result;
-	ut64 serial;
+	g_mutex_lock (&rf->lock);
 
-	cmd_string = json_object_get_string_member (cmd_stanza, "cmd");
-	serial = json_object_get_int_member (cmd_stanza, "serial");
+	g_assert (!rf->pending_cmd);
 
-	output = r_core_cmd_str (rf->r2core, cmd_string);
+	rf->pending_cmd = pending_cmd_create (cmd_stanza);
 
-	if (output) {
-		builder = build_request ("cmd");
-		json_builder_set_member_name (builder, "output");
-		json_builder_add_string_value (builder, output);
-		json_builder_set_member_name (builder, "serial");
-		json_builder_add_int_value (builder, serial);
+	g_cond_signal (&rf->cond);
 
-		R_FREE (output);
-
-		perform_request_unlocked (rf, builder, NULL, NULL);
-	}
+	g_mutex_unlock (&rf->lock);
 }
 
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data) {
@@ -742,6 +762,24 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 	}
 
 	g_object_unref (parser);
+}
+
+static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
+	RFPendingCmd * pending_cmd;
+
+	pending_cmd = R_NEW0(RFPendingCmd);
+	pending_cmd->_cmd_json = json_object_ref (cmd_json);
+	pending_cmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
+	pending_cmd->serial = json_object_get_int_member (cmd_json, "serial");
+
+	return pending_cmd;
+}
+
+static void pending_cmd_free(RFPendingCmd * pending_cmd) {
+	if (pending_cmd->_cmd_json) {
+		json_object_unref (pending_cmd->_cmd_json);
+	}
+	R_FREE (pending_cmd);
 }
 
 RIOPlugin r_io_plugin_frida = {
