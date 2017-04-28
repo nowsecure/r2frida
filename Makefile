@@ -1,7 +1,7 @@
 include config.mk
 
 radare2_version = 1.3.0
-frida_version = 9.1.26
+frida_version = 9.1.28
 
 ifeq ($(shell uname -o 2> /dev/null),Android)
 frida_os := android
