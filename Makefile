@@ -6,7 +6,7 @@ frida_version = 10.0.6
 ifeq ($(shell uname -o 2> /dev/null),Android)
 frida_os := android
 else
-frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,mac,')
+frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
 frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
