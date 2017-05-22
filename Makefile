@@ -47,7 +47,7 @@ FRIDA_LIBS+=-framework CoreGraphics
 else
 FRIDA_LIBS+=-lbsm
 endif
-ifeq ($(frida_os),mac)
+ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-framework AppKit
 endif
 endif
