@@ -1,6 +1,6 @@
 {
   "name": "r2frida-agent",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Agent for frida:// io plugin",
   "private": true,
   "main": "src/agent/index.js",
@@ -32,9 +32,9 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "babel-plugin-transform-runtime": "^6.22.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
     "babel-preset-es2015": "^6.24.0",
-    "babel-runtime": "^6.22.0",
+    "babel-runtime": "^6.23.0",
     "frida-compile": "5.1.0",
     "mjolner": "^2.0.0"
   },
