@@ -421,6 +421,7 @@ function dumpInfoR2 () {
 
 function getR2Arch (arch) {
   switch (arch) {
+    case 'ia32':
     case 'x64':
       return 'x86';
     case 'arm64':
