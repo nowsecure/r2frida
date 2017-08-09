@@ -193,10 +193,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	if (spawn) {
-		char **argv;
-		gchar **envp;
-
-		argv = r_str_argv (process_specifier, NULL);
+		char **argv = r_str_argv (process_specifier, NULL);
 		if (!argv) {
 			eprintf ("Invalid process specifier\n");
 			goto error;
@@ -207,7 +204,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			goto error;
 		}
 
-		envp = g_get_environ ();
+		gchar **envp = g_get_environ ();
 
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], argv, g_strv_length (argv),
 			envp, g_strv_length (envp), &error);
