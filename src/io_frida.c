@@ -194,7 +194,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	if (spawn) {
 		char **argv;
-		gchar **envp, *path;
+		gchar **envp;
 
 		argv = r_str_argv (process_specifier, NULL);
 		if (!argv) {
@@ -207,15 +207,13 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			goto error;
 		}
 
-		path = g_strdup (argv[0]);
 		envp = g_get_environ ();
 
-		rf->pid = frida_device_spawn_sync (rf->device, path, argv, g_strv_length (argv),
+		rf->pid = frida_device_spawn_sync (rf->device, argv[0], argv, g_strv_length (argv),
 			envp, g_strv_length (envp), &error);
 
 		g_strfreev (envp);
 		r_str_argv_free (argv);
-		g_free (path);
 
 		if (error) {
 			eprintf ("Cannot spawn: %s\n", error->message);
