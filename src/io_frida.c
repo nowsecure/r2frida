@@ -41,7 +41,7 @@ typedef struct {
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier);
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool * spawn);
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device);
 static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
 static JsonBuilder *build_request(const char *type);
@@ -165,6 +165,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	char *device_id = NULL, *process_specifier = NULL;
 	guint pid;
 	GError *error = NULL;
+	bool spawn;
 
 	frida_init ();
 
@@ -179,7 +180,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (!parse_target (pathname, &device_id, &process_specifier)) {
+	if (!parse_target (pathname, &device_id, &process_specifier, &spawn)) {
 		goto error;
 	}
 
@@ -187,12 +188,44 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (!resolve_process (rf->device, process_specifier, &pid)) {
+	if (!spawn && !resolve_process (rf->device, process_specifier, &pid)) {
 		goto error;
 	}
 
-	rf->pid = pid;
-	rf->session = frida_device_attach_sync (rf->device, pid, &error);
+	if (spawn) {
+		char **argv;
+		gchar **envp, *path;
+
+		argv = r_str_argv (process_specifier, NULL);
+		if (!argv) {
+			eprintf ("Invalid process specifier\n");
+			goto error;
+		}
+		if (!*argv) {
+			eprintf ("Invalid arguments for spawning\n");
+			r_str_argv_free (argv);
+			goto error;
+		}
+
+		path = g_strdup (argv[0]);
+		envp = g_get_environ ();
+
+		rf->pid = frida_device_spawn_sync (rf->device, path, argv, g_strv_length (argv),
+			envp, g_strv_length (envp), &error);
+
+		g_strfreev (envp);
+		r_str_argv_free (argv);
+		g_free (path);
+
+		if (error) {
+			eprintf ("Cannot spawn: %s\n", error->message);
+			goto error;
+		}
+	} else {
+		rf->pid = pid;
+	}
+
+	rf->session = frida_device_attach_sync (rf->device, rf->pid, &error);
 	if (error) {
 		eprintf ("Cannot attach: %s\n", error->message);
 		goto error;
@@ -370,6 +403,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
 			"eval code..                Evaluate Javascript code in agent side\n"
+			"resume                     Resume spawned process\n"
 			);
 		return true;
 	}
@@ -406,7 +440,16 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return true;
+	} else if (!strncmp (command, "resume", 6)) {
+		GError *error = NULL;
+		frida_device_resume_sync (rf->device, rf->pid, &error);
+		if (error) {
+			io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
+			g_clear_error (&error);
+		}
+		return true;
 	}
+
 	char *slurpedData = NULL;
 	if (command[0] == '.') {
 		switch (command[1]) {
@@ -498,16 +541,22 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	return 0;
 }
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier) {
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool *spawn) {
 	const char *first_field, *second_field;
 
 	first_field = pathname + 8;
+	*spawn = false;
 	if (*first_field == '/') {
-		eprintf ("r2frida: Spawning is not yet supported\n");
-		return false;
+		// frida:///path/to/file
+		*spawn = true;
+		second_field = NULL;
+	} else {
+		// frida://device/...
+		second_field = strchr (first_field, '/');
 	}
-	second_field = strchr (first_field, '/');
+
 	if (!second_field) {
+		// frida://process or frida:///path/to/file
 		*device_id = NULL;
 		*process_specifier = g_strdup (first_field);
 		return true;
@@ -515,6 +564,14 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 	second_field++;
 
 	*device_id = g_strndup (first_field, second_field - first_field - 1);
+
+	if (*second_field == '/') {
+		// frida://device//com.your.app
+		*spawn = true;
+		second_field++;
+	}
+
+	// frida://device/process or frida://device//com.your.app
 	*process_specifier = g_strdup (second_field);
 	return true;
 }

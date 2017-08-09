@@ -325,6 +325,11 @@ const _fstat = Module.findExportByName(null, 'fstat')
 const _close = sym('close', 'int', ['int']);
 const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
+if (Process.platform === 'darwin') {
+  // required for mjolner.register() to work on early instrumentation
+  dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+}
+
 const traceListeners = [];
 const config = {
   'patch.code': true,
