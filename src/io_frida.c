@@ -392,6 +392,8 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dt-                        Clear all tracing\n"
 			"dtr <addr> (<regs>...)     Trace register values\n"
 			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
+			"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
+			"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
 			"dx [hexpairs]              Inject code and execute it (TODO)\n"
 			"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
