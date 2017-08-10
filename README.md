@@ -28,9 +28,21 @@ Or a PID:
 
 	$ r2 frida://1234
 
+Or the absolute path of a binary to spawn:
+
+	$ r2 frida:///bin/ls
+
+also with arguments:
+
+	$ r2 frida://"/bin/ls -al"
+
 Alternatively also with a device ID that you retrieved through frida-ls-devices:
 
 	$ r2 frida://device-id/Twitter
+
+you can spawn an app on the device too, with an extra `/` and the package name (you can retrieve package names with frida-ps):
+
+	$ r2 frida://device-id//com.atebits.Tweetie2
 
 Design
 ------
