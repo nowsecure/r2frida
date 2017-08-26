@@ -71,9 +71,9 @@ static RCore *get_r_core_main_instance() {
 static char *slurpFile(const char *str, int *usz) {
         size_t rsz;
         char *ret;
-        FILE *fd;
         long sz;
-        fd = r_sandbox_fopen (str, "rb");
+
+        FILE *fd = r_sandbox_fopen (str, "rb");
 	if (!fd) {
 		if (*str == '/') {
 			return NULL;
@@ -244,7 +244,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	g_free (device_id);
 	g_free (process_specifier);
 
-	RETURN_IO_DESC_NEW (&r_io_plugin_frida, -1, pathname, rw, mode, rf);
+	return r_io_desc_new (io, &r_io_plugin_frida, pathname, rw, mode, rf);
 
 error:
 	g_clear_error (&error);
@@ -263,10 +263,11 @@ static int __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return -1;
 	}
+	rf = fd->data;
+	rf->detached = true;
 
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
-	fd->state = R_IO_DESC_TYPE_CLOSED;
 
 	return 0;
 }
@@ -819,9 +820,7 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 }
 
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
-	RFPendingCmd * pending_cmd;
-
-	pending_cmd = R_NEW0(RFPendingCmd);
+	RFPendingCmd *pending_cmd = R_NEW0 (RFPendingCmd);
 	pending_cmd->_cmd_json = json_object_ref (cmd_json);
 	pending_cmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
 	pending_cmd->serial = json_object_get_int_member (cmd_json, "serial");
