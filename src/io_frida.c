@@ -68,61 +68,6 @@ static RCore *get_r_core_main_instance() {
 	return NULL;
 }
 
-static char *slurpFile(const char *str, int *usz) {
-        size_t rsz;
-        char *ret;
-        long sz;
-
-        FILE *fd = r_sandbox_fopen (str, "rb");
-	if (!fd) {
-		if (*str == '/') {
-			return NULL;
-		}
-		char *newfile = r_str_home (".config/r2frida/plugins/");
-		newfile = r_str_appendf (newfile, "%s.js", str);
-		fd = r_sandbox_fopen (newfile, "rb");
-		free (newfile);
-		if (!fd) {
-			return NULL;
-		}
-	}
-        (void)fseek (fd, 0, SEEK_END);
-        sz = ftell (fd);
-        if (!sz) {
-                if (r_file_is_regular (str)) {
-                        /* proc file */
-                        fseek (fd, 0, SEEK_SET);
-                        sz = ftell (fd);
-                        if (!sz) {
-                                sz = -1;
-                        }
-                } else {
-                        sz = 65536;
-                }
-        }
-        if (sz < 0) {
-                fclose (fd);
-                return NULL;
-        }
-        (void)fseek (fd, 0, SEEK_SET);
-        ret = (char *)calloc (sz + 1, 1);
-        if (!ret) {
-                fclose (fd);
-                return NULL;
-        }
-        rsz = fread (ret, 1, sz, fd);
-        if (rsz != sz) {
-                // eprintf ("r_file_slurp: fread: error\n");
-                sz = rsz;
-        }
-        fclose (fd);
-        ret[sz] = '\0';
-        if (usz) {
-                *usz = (int)sz;
-        }
-        return ret;
-}
-
 static RIOFrida *r_io_frida_new(void) {
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
@@ -452,7 +397,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	if (command[0] == '.') {
 		switch (command[1]) {
 		case ' ':
-			slurpedData = slurpFile (command + 2, NULL);
+			slurpedData = r_file_slurp (command + 2, NULL);
 			if (!slurpedData) {
 				io->cb_printf ("Cannot slurp %s\n", command + 2);
 				return false;
