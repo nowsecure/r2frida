@@ -21,7 +21,6 @@ typedef struct {
 } RFPendingCmd;
 
 typedef struct {
-	FridaDeviceManager *manager;
 	FridaDevice *device;
 	FridaSession *session;
 	FridaScript *script;
@@ -52,6 +51,8 @@ static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 
 extern RIOPlugin r_io_plugin_frida;
+static FridaDeviceManager *device_manager = NULL;
+static int device_manager_count = 0;
 
 #define src__agent__js r_io_frida_agent_code
 
@@ -92,10 +93,13 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_clear_object (&rf->session);
 	g_clear_object (&rf->device);
 
-	if (rf->manager) {
-		frida_device_manager_close_sync (rf->manager);
-		g_object_unref (rf->manager);
-		rf->manager = NULL;
+	if (device_manager) {
+		device_manager_count--;
+		if (device_manager_count == 0) {
+			frida_device_manager_close_sync (device_manager);
+			g_object_unref (device_manager);
+			device_manager = NULL;
+		}
 	}
 
 	R_FREE (rf);
@@ -119,7 +123,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	rf->manager = frida_device_manager_new ();
+	if (!device_manager) {
+		device_manager = frida_device_manager_new ();
+	}
+	device_manager_count++;
 
 	if (!__check (io, pathname, false)) {
 		goto error;
@@ -129,7 +136,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (!resolve_device (rf->manager, device_id, &rf->device)) {
+	if (!resolve_device (device_manager, device_id, &rf->device)) {
 		goto error;
 	}
 
