@@ -1,20 +1,26 @@
 /* radare2 - MIT - Copyright 2016-2017 - pancake, oleavr */
 
+#include <r_core.h>
 #include <r_io.h>
 #include <r_lib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#ifndef WITH_CYCRIPT
-#define WITH_CYCRIPT 1
+#ifndef WITH_CYLANG
+#define WITH_CYLANG 1
 #endif
-#if WITH_CYCRIPT
+#if WITH_CYLANG
 #include "cylang.h"
 #endif
 #include "frida-core.h"
 
 typedef struct {
-	FridaDeviceManager *manager;
+	const char * cmd_string;
+	ut64 serial;
+	JsonObject * _cmd_json;
+} RFPendingCmd;
+
+typedef struct {
 	FridaDevice *device;
 	FridaSession *session;
 	FridaScript *script;
@@ -27,77 +33,40 @@ typedef struct {
 	volatile bool received_reply;
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
+	RCore *r2core;
+	RFPendingCmd * pending_cmd;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier);
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool * spawn);
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device);
 static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
 static JsonBuilder *build_request(const char *type);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
+static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
+static void pending_cmd_free(RFPendingCmd * pending_cmd);
+static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 
 extern RIOPlugin r_io_plugin_frida;
+static FridaDeviceManager *device_manager = NULL;
+static int device_manager_count = 0;
 
-static const char *r_io_frida_agent_code =
+#define src__agent__js r_io_frida_agent_code
+
+static const unsigned char r_io_frida_agent_code[] = {
 #include "_agent.h"
-;
+	, 0x00
+};
 
-static char *slurpFile(const char *str, int *usz) {
-        size_t rsz;
-        char *ret;
-        FILE *fd;
-        long sz;
-        fd = r_sandbox_fopen (str, "rb");
-	if (!fd) {
-		if (*str == '/') {
-			return NULL;
-		}
-		char *newfile = r_str_home (".config/r2frida/plugins/");
-		newfile = r_str_concatf (newfile, "%s.js", str);
-		fd = r_sandbox_fopen (newfile, "rb");
-		free (newfile);
-		if (!fd) {
-			return NULL;
-		}
+static RCore *get_r_core_main_instance() {
+	RCons * cons = r_cons_singleton ();
+	if (cons && cons->line) {
+		return (RCore*) cons->line->user;
 	}
-        (void)fseek (fd, 0, SEEK_END);
-        sz = ftell (fd);
-        if (!sz) {
-                if (r_file_is_regular (str)) {
-                        /* proc file */
-                        fseek (fd, 0, SEEK_SET);
-                        sz = ftell (fd);
-                        if (!sz) {
-                                sz = -1;
-                        }
-                } else {
-                        sz = 65536;
-                }
-        }
-        if (sz < 0) {
-                fclose (fd);
-                return NULL;
-        }
-        (void)fseek (fd, 0, SEEK_SET);
-        ret = (char *)calloc (sz + 1, 1);
-        if (!ret) {
-                fclose (fd);
-                return NULL;
-        }
-        rsz = fread (ret, 1, sz, fd);
-        if (rsz != sz) {
-                // eprintf ("r_file_slurp: fread: error\n");
-                sz = rsz;
-        }
-        fclose (fd);
-        ret[sz] = '\0';
-        if (usz) {
-                *usz = (int)sz;
-        }
-        return ret;
+	return NULL;
 }
 
 static RIOFrida *r_io_frida_new(void) {
@@ -109,6 +78,8 @@ static RIOFrida *r_io_frida_new(void) {
 	rf->detached = false;
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->received_reply = false;
+	rf->r2core = get_r_core_main_instance ();
+	g_assert (rf->r2core != NULL);
 
 	return rf;
 }
@@ -122,10 +93,13 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_clear_object (&rf->session);
 	g_clear_object (&rf->device);
 
-	if (rf->manager) {
-		frida_device_manager_close_sync (rf->manager);
-		g_object_unref (rf->manager);
-		rf->manager = NULL;
+	if (device_manager) {
+		device_manager_count--;
+		if (device_manager_count == 0) {
+			frida_device_manager_close_sync (device_manager);
+			g_object_unref (device_manager);
+			device_manager = NULL;
+		}
 	}
 
 	R_FREE (rf);
@@ -140,6 +114,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	char *device_id = NULL, *process_specifier = NULL;
 	guint pid;
 	GError *error = NULL;
+	bool spawn;
 
 	frida_init ();
 
@@ -148,32 +123,63 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	rf->manager = frida_device_manager_new ();
+	if (!device_manager) {
+		device_manager = frida_device_manager_new ();
+	}
+	device_manager_count++;
 
 	if (!__check (io, pathname, false)) {
 		goto error;
 	}
 
-	if (!parse_target (pathname, &device_id, &process_specifier)) {
+	if (!parse_target (pathname, &device_id, &process_specifier, &spawn)) {
 		goto error;
 	}
 
-	if (!resolve_device (rf->manager, device_id, &rf->device)) {
+	if (!resolve_device (device_manager, device_id, &rf->device)) {
 		goto error;
 	}
 
-	if (!resolve_process (rf->device, process_specifier, &pid)) {
+	if (!spawn && !resolve_process (rf->device, process_specifier, &pid)) {
 		goto error;
 	}
 
-	rf->pid = pid;
-	rf->session = frida_device_attach_sync (rf->device, pid, &error);
+	if (spawn) {
+		char **argv = r_str_argv (process_specifier, NULL);
+		if (!argv) {
+			eprintf ("Invalid process specifier\n");
+			goto error;
+		}
+		if (!*argv) {
+			eprintf ("Invalid arguments for spawning\n");
+			r_str_argv_free (argv);
+			goto error;
+		}
+
+		gchar **envp = g_get_environ ();
+
+		rf->pid = frida_device_spawn_sync (rf->device, argv[0], argv, g_strv_length (argv),
+			envp, g_strv_length (envp), &error);
+
+		g_strfreev (envp);
+		r_str_argv_free (argv);
+
+		if (error) {
+			eprintf ("Cannot spawn: %s\n", error->message);
+			goto error;
+		}
+	} else {
+		rf->pid = pid;
+	}
+
+	rf->session = frida_device_attach_sync (rf->device, rf->pid, &error);
 	if (error) {
 		eprintf ("Cannot attach: %s\n", error->message);
 		goto error;
 	}
 
-	rf->script = frida_session_create_script_sync (rf->session, "r2io", r_io_frida_agent_code, &error);
+	rf->script = frida_session_create_script_sync (rf->session, "r2io",
+		(const char *)r_io_frida_agent_code, &error);
 	if (error) {
 		eprintf ("Cannot create script: %s\n", error->message);
 		goto error;
@@ -190,7 +196,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	g_free (device_id);
 	g_free (process_specifier);
 
-	RETURN_IO_DESC_NEW (&r_io_plugin_frida, -1, pathname, rw, mode, rf);
+	return r_io_desc_new (io, &r_io_plugin_frida, pathname, rw, mode, rf);
 
 error:
 	g_clear_error (&error);
@@ -209,10 +215,11 @@ static int __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return -1;
 	}
+	rf = fd->data;
+	rf->detached = true;
 
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
-	fd->state = R_IO_DESC_TYPE_CLOSED;
 
 	return 0;
 }
@@ -309,6 +316,9 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("r2frida commands available via =!\n"
 			"?                          Show this help\n"
 			"?V                         Show target Frida version\n"
+			"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
+			"/w[j] string               Search wide string\n"
+			"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
 			"i                          Show target information\n"
 			"ii[*]                      List imports\n"
 			"il                         List libraries\n"
@@ -335,17 +345,21 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dt-                        Clear all tracing\n"
 			"dtr <addr> (<regs>...)     Trace register values\n"
 			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
+			"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
+			"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
 			"dx [hexpairs]              Inject code and execute it (TODO)\n"
 			"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
 			"eval code..                Evaluate Javascript code in agent side\n"
+			"resume                     Resume spawned process\n"
 			);
 		return true;
 	}
 
 	rf = fd->data;
+
 	if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
@@ -376,12 +390,21 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return true;
+	} else if (!strncmp (command, "resume", 6)) {
+		GError *error = NULL;
+		frida_device_resume_sync (rf->device, rf->pid, &error);
+		if (error) {
+			io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
+			g_clear_error (&error);
+		}
+		return true;
 	}
+
 	char *slurpedData = NULL;
 	if (command[0] == '.') {
 		switch (command[1]) {
 		case ' ':
-			slurpedData = slurpFile (command + 2, NULL);
+			slurpedData = r_file_slurp (command + 2, NULL);
 			if (!slurpedData) {
 				io->cb_printf ("Cannot slurp %s\n", command + 2);
 				return false;
@@ -412,7 +435,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		if (command[0] == ' ') {
 			GError *error = NULL;
 			char *js;
-#if WITH_CYCRIPT
+#if WITH_CYLANG
 			js = cylang_compile (command + 1, &error);
 			if (error) {
 				io->cb_printf ("ERROR: %s\n", error->message);
@@ -468,16 +491,22 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	return 0;
 }
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier) {
+static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool *spawn) {
 	const char *first_field, *second_field;
 
 	first_field = pathname + 8;
+	*spawn = false;
 	if (*first_field == '/') {
-		eprintf ("r2frida: Spawning is not yet supported\n");
-		return false;
+		// frida:///path/to/file
+		*spawn = true;
+		second_field = NULL;
+	} else {
+		// frida://device/...
+		second_field = strchr (first_field, '/');
 	}
-	second_field = strchr (first_field, '/');
+
 	if (!second_field) {
+		// frida://process or frida:///path/to/file
 		*device_id = NULL;
 		*process_specifier = g_strdup (first_field);
 		return true;
@@ -485,6 +514,14 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 	second_field++;
 
 	*device_id = g_strndup (first_field, second_field - first_field - 1);
+
+	if (*second_field == '/') {
+		// frida://device//com.your.app
+		*spawn = true;
+		second_field++;
+	}
+
+	// frida://device/process or frida://device//com.your.app
 	*process_specifier = g_strdup (second_field);
 	return true;
 }
@@ -574,6 +611,29 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 
 	while (!rf->detached && !rf->received_reply) {
 		g_cond_wait (&rf->cond, &rf->lock);
+
+		if (rf->pending_cmd) {
+			ut64 serial = rf->pending_cmd->serial;
+			char *output;
+			JsonBuilder *builder;
+
+			output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
+
+			pending_cmd_free (rf->pending_cmd);
+			rf->pending_cmd = NULL;
+
+			if (output) {
+				builder = build_request ("cmd");
+				json_builder_set_member_name (builder, "output");
+				json_builder_add_string_value (builder, output);
+				json_builder_set_member_name (builder, "serial");
+				json_builder_add_int_value (builder, serial);
+
+				R_FREE (output);
+
+				perform_request_unlocked (rf, builder, NULL, NULL);
+			}
+		}
 	}
 
 	if (rf->received_reply) {
@@ -619,6 +679,27 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	return reply_stanza;
 }
 
+static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
+	GError *error = NULL;
+
+	json_builder_end_object (builder);
+	json_builder_end_object (builder);
+	JsonNode *root = json_builder_get_root (builder);
+	char *message = json_to_string (root, FALSE);
+	json_node_unref (root);
+	g_object_unref (builder);
+
+	frida_script_post_sync (rf->script, message, data, &error);
+
+	g_free (message);
+	g_bytes_unref (data);
+
+	if (error) {
+		eprintf ("error: %s\n", error->message);
+		g_error_free (error);
+	}
+}
+
 static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 	g_mutex_lock (&rf->lock);
 
@@ -645,6 +726,18 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 	g_mutex_unlock (&rf->lock);
 }
 
+static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
+	g_mutex_lock (&rf->lock);
+
+	g_assert (!rf->pending_cmd);
+
+	rf->pending_cmd = pending_cmd_create (cmd_stanza);
+
+	g_cond_signal (&rf->cond);
+
+	g_mutex_unlock (&rf->lock);
+}
+
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	JsonParser *parser;
@@ -658,9 +751,17 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 	type = json_object_get_string_member (root, "type");
 
 	if (!strcmp (type, "send")) {
-		on_stanza (rf,
-			json_object_ref (json_object_get_object_member (root, "payload")),
-			data);
+		JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
+		const char *name = json_object_get_string_member (payload, "name");
+		if (!strcmp (name, "reply")) {
+			on_stanza (rf,
+				json_object_ref (json_object_get_object_member (payload, "stanza")),
+				data);
+		} else if (!strcmp (name, "cmd")) {
+			on_cmd (rf,
+				json_object_get_object_member (payload, "stanza"));
+		}
+		json_object_unref (payload);
 	} else if (!strcmp (type, "log")) {
 		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {
@@ -668,6 +769,22 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 	}
 
 	g_object_unref (parser);
+}
+
+static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
+	RFPendingCmd *pending_cmd = R_NEW0 (RFPendingCmd);
+	pending_cmd->_cmd_json = json_object_ref (cmd_json);
+	pending_cmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
+	pending_cmd->serial = json_object_get_int_member (cmd_json, "serial");
+
+	return pending_cmd;
+}
+
+static void pending_cmd_free(RFPendingCmd * pending_cmd) {
+	if (pending_cmd->_cmd_json) {
+		json_object_unref (pending_cmd->_cmd_json);
+	}
+	R_FREE (pending_cmd);
 }
 
 RIOPlugin r_io_plugin_frida = {

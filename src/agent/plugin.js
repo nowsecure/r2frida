@@ -1,6 +1,6 @@
 const commandHandlers = {};
 
-function pluginRegister(name, ch) {
+function pluginRegister (name, ch) {
   if (commandHandlers.hasOwnProperty(name)) {
     console.log('Cannot register the same handler twice');
     return false;
@@ -9,7 +9,7 @@ function pluginRegister(name, ch) {
   return true;
 }
 
-function pluginUnregister(name) {
+function pluginUnregister (name) {
   if (commandHandlers.hasOwnProperty(name)) {
     delete commandHandlers[name];
     return true;
@@ -17,7 +17,7 @@ function pluginUnregister(name) {
   return false;
 }
 
-function commandHandler(name) {
+function commandHandler (name) {
   for (let key of Object.keys(commandHandlers)) {
     const ch = commandHandlers[key];
     if (typeof ch === 'function') {
@@ -30,12 +30,12 @@ function commandHandler(name) {
   return undefined;
 }
 
-function pluginList() {
+function pluginList () {
   return Object.keys(commandHandlers).join('\n');
 }
 
 global.r2frida = {
-  version: require('../../package.json').version, 
+  version: require('../../package.json').version,
   commandHandler: commandHandler,
   pluginRegister: pluginRegister,
   pluginUnregister: pluginUnregister,

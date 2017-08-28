@@ -1,15 +1,16 @@
+/* eslint-disable comma-dangle */
 'use strict';
 
-const r2frida = require('./plugin');
+const r2frida = require('./plugin'); // eslint-disable-line
+const {stalkFunction, stalkEverything} = require('./stalker');
+
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const ObjC_available = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
-const Java_available = Java && Java.available;
+const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const JavaAvailable = Java && Java.available;
 
-if (ObjC_available) {
+if (ObjCAvailable) {
   var mjolner = require('mjolner');
-} else {
-  console.error('Warning: r2frida cannot initialize mjolner');
 }
 
 const pointerSize = Process.pointerSize;
@@ -17,6 +18,20 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 
 const commandHandlers = {
+  '/': search,
+  '/j': searchJson,
+  '/x': searchHex,
+  '/xj': searchHexJson,
+  '/w': searchWide,
+  '/wj': searchWideJson,
+  '/v1': searchValueImpl(1),
+  '/v2': searchValueImpl(2),
+  '/v4': searchValueImpl(4),
+  '/v8': searchValueImpl(8),
+  '/v1j': searchValueImplJson(1),
+  '/v2j': searchValueImplJson(2),
+  '/v4j': searchValueImplJson(4),
+  '/v8j': searchValueImplJson(8),
   '?V': fridaVersion,
   '.': interpretFile,
   'i': dumpInfo,
@@ -77,6 +92,12 @@ const commandHandlers = {
   'dt.': traceHere,
   'dt-': clearTrace,
   'dtr': traceRegs,
+  'dtS': stalkTraceEverything,
+  'dtSj': stalkTraceEverythingJson,
+  'dtS*': stalkTraceEverythingR2,
+  'dtSf': stalkTraceFunction,
+  'dtSfj': stalkTraceFunctionJson,
+  'dtSf*': stalkTraceFunctionR2,
   'di': interceptHelp,
   'di0': interceptRet0,
   'di1': interceptRet1,
@@ -90,6 +111,9 @@ const commandHandlers = {
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
+const pendingCmds = {};
+const pendingCmdSends = [];
+let sendingCommand = false;
 
 function nameFromAddress (address) {
   let at = DebugSymbol.fromAddress(address).name
@@ -151,7 +175,11 @@ function removeAlloc (args) {
 function listAllocs (args) {
   return Object.values(allocPool)
     .sort()
-    .map(x => `${x}\t"${Memory.readUtf8String(x, 60)}"`)
+    .map((x) => {
+      const bytes = Memory.readByteArray(x, 60);
+      const printables = _filterPrintable(bytes);
+      return `${x}\t"${printables}"`;
+    })
     .join('\n');
 }
 
@@ -172,7 +200,7 @@ function _addAlloc (allocPtr) {
   return key;
 }
 
-function dxCall(args) {
+function dxCall (args) {
   const nfArgs = [];
   const nfArgsData = [];
   for (var i = 1; i < args.length; i++) {
@@ -204,58 +232,66 @@ function dxCall(args) {
 
   const fun = new NativeFunction(address, 'pointer', nfArgs);
   switch (nfArgsData.length) {
+  /* eslint-disable indent */
   case 0: return fun();
   case 1: return fun(nfArgsData[0]);
   case 2: return fun(nfArgsData[0], nfArgsData[1]);
   case 3: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2]);
   case 4: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3]);
   case 5: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3], nfArgsData[4]);
+  /* eslint-enable indent */
   }
   return fun();
 }
 
-function dxHexpairs(args) {
+function dxHexpairs (args) {
   return 'TODO';
 }
 
-function evalCode(args) {
+function evalCode (args) {
   const code = args.join(' ');
-  eval(code);
+  eval(code); // eslint-disable-line
   return '';
 }
 
-function printHexdump(lenstr) {
+function printHexdump (lenstr) {
   const len = +lenstr || 20;
   return hexdump(ptr(offset), len) || '';
 }
 
-function disasmCode(lenstr) {
+function disasmCode (lenstr) {
   const len = +lenstr || 20;
   return disasm(offset, len);
 }
 
-function disasm(addr, len) {
+function disasm (addr, len, initialOldName) {
   len = len || 20;
   if (typeof addr === 'string') {
     try {
       addr = Module.findExportByName(null, addr);
       if (!addr) {
-        throw undefined;
+        throw new Error();
       }
     } catch (e) {
       addr = ptr(offset);
     }
   }
-  addr = ptr(addr)
-  let oldName = null;
+  addr = ptr('' + addr);
+  let oldName = initialOldName !== undefined ? initialOldName : null;
   let lastAt = null;
   let disco = '';
   for (let i = 0; i < len; i++) {
-    const op = Instruction.parse(addr);
+    const [op, next] = _tolerantInstructionParse(addr);
+    if (op === null) {
+      disco += `${addr}\tinvalid`;
+      addr = next;
+      continue;
+    }
     const ds = DebugSymbol.fromAddress(addr);
-    if (ds.name !== null && ds.name !== oldName) {
-      console.log(';;;', ds.moduleName, ds.name);
-      oldName = ds.name;
+    const dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
+    if ((ds.moduleName !== null || dsName !== null) && dsName !== oldName) {
+      disco += `;;; ${ds.moduleName} ${dsName}\n`;
+      oldName = dsName;
     }
     var comment = '';
     const id = op.opStr.indexOf('#0x');
@@ -266,12 +302,12 @@ function disasm(addr, len) {
           try {
             const p = Memory.readPointer(ptr(lastAt).add(at));
             const str = Memory.readCString(p);
-            //console.log(';  str:', str);
+            // console.log(';  str:', str);
             disco += ';  str:' + str + '\n';
           } catch (e) {
-            const p2 = Memory.readPointer(p);
+            const p2 = Memory.readPointer(ptr(at));
             const str2 = Memory.readCString(p2);
-            //console.log(';  str2:', str2);
+            // console.log(';  str2:', str2);
             disco += ';  str2:' + str2 + '\n';
             console.log(e);
           }
@@ -279,14 +315,14 @@ function disasm(addr, len) {
         lastAt = at;
         const di = DebugSymbol.fromAddress(ptr(at));
         if (di.name !== null) {
-          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name
+          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name;
         } else {
           const op2 = Instruction.parse(ptr(at));
           const id2 = op2.opStr.indexOf('#0x');
           const at2 = op2.opStr.substring(id2 + 1).split(' ')[0].split(',')[0].split(']')[0];
           const di2 = DebugSymbol.fromAddress(ptr(at2));
           if (di2.name !== null) {
-            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name
+            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name;
           }
         }
       } catch (e) {
@@ -304,7 +340,7 @@ function disasm(addr, len) {
   return disco;
 }
 
-function sym(name, ret, arg) {
+function sym (name, ret, arg) {
   try {
     return new NativeFunction(Module.findExportByName(null, name), ret, arg);
   } catch (e) {
@@ -319,24 +355,132 @@ const _getpid = sym('getpid', 'int', []);
 const _getuid = sym('getuid', 'int', []);
 const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
-const _fstat = sym('fstat', 'int', ['int', 'pointer']);
+const _fstat = Module.findExportByName(null, 'fstat')
+  ? sym('fstat', 'int', ['int', 'pointer'])
+  : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
+if (Process.platform === 'darwin') {
+  // required for mjolner.register() to work on early instrumentation
+  dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+}
+
 const traceListeners = [];
 const config = {
-  'patch.code': true
+  'patch.code': true,
+  'search.in': 'perm:r--',
+  'search.quiet': false,
+  'stalker.event': 'compile',
+  'stalker.timeout': 5 * 60,
+  'stalker.in': 'raw',
 };
 
-function evalConfig(args) {
+const configHelp = {
+  'search.in': configHelpSearchIn,
+  'stalker.event': configHelpStalkerEvent,
+  'stalker.timeout': configHelpStalkerTimeout,
+  'stalker.in': configHelpStalkerIn,
+};
+
+const configValidator = {
+  'search.in': configValidateSearchIn,
+  'stalker.event': configValidateStalkerEvent,
+  'stalker.timeout': configValidateStalkerTimeout,
+  'stalker.in': configValidateStalkerIn,
+};
+
+function configHelpSearchIn () {
+  return `Specify which memory ranges to search in, possible values:
+
+    perm:---        filter by permissions (default: 'perm:r--')
+    current         search the range containing current offset
+    path:pattern    search ranges mapping paths containing 'pattern'
+  `;
+}
+
+function configValidateSearchIn (val) {
+  const valSplit = val.split(':');
+  const [scope, param] = valSplit;
+
+  if (param === undefined) {
+    if (scope === 'current') {
+      return valSplit.length === 1;
+    }
+    return false;
+  }
+  if (scope === 'perm') {
+    const paramSplit = param.split('');
+    if (paramSplit.length !== 3 || valSplit.length > 2) {
+      return false;
+    }
+    const [r, w, x] = paramSplit;
+    return (r === 'r' || r === '-') &&
+      (w === 'w' || w === '-') &&
+      (x === 'x' || x === '-');
+  }
+  return scope === 'path';
+}
+
+function configHelpStalkerEvent () {
+  return `Specify the event to use when stalking, possible values:
+
+    call            trace calls
+    ret             trace returns
+    exec            trace every instruction
+    block           trace basic block execution (every time)
+    compile         trace basic blocks once (this is the default)
+  `;
+}
+
+function configValidateStalkerEvent (val) {
+  return ['call', 'ret', 'exec', 'block', 'compile'].indexOf(val) !== -1;
+}
+
+function configHelpStalkerTimeout () {
+  return `Time after which the stalker gives up (in seconds). Defaults to 5 minutes,
+ set to 0 to disable.`;
+}
+
+function configValidateStalkerTimeout (val) {
+  return val >= 0;
+}
+
+function configHelpStalkerIn () {
+  return `Restrict stalker results based on where the event has originated:
+
+    raw             stalk everywhere (the default)
+    app             stalk only in the app module
+    modules         stalk in app module and all linked libraries
+  `;
+}
+
+function configValidateStalkerIn (val) {
+  return ['raw', 'app', 'modules'].indexOf(val) !== -1;
+}
+
+function evalConfig (args) {
   if (args.length === 0) {
     return Object.keys(config)
-    .map(k => 'e ' + k + '\=' + config[k])
+    .map(k => 'e ' + k + '=' + config[k])
     .join('\n');
   }
   const kv = args[0].split(/=/);
   if (kv.length === 2) {
     if (config[kv[0]] !== undefined) {
+      if (kv[1] === '?') {
+        if (configHelp[kv[0]] !== undefined) {
+          return configHelp[kv[0]]();
+        }
+        console.error(`no help for ${kv[0]}`);
+        return '';
+      }
+      if (configValidator[kv[0]] !== undefined) {
+        if (!configValidator[kv[0]](kv[1])) {
+          console.error(`invalid value for ${kv[0]}`);
+          return '';
+        }
+      }
       config[kv[0]] = kv[1];
     } else {
       console.error('unknown variable');
@@ -346,14 +490,14 @@ function evalConfig(args) {
   return config[args[0]];
 }
 
-function dumpInfo() {
+function dumpInfo () {
   const properties = dumpInfoJson();
   return Object.keys(properties)
   .map(k => k + '\t' + properties[k])
   .join('\n');
 }
 
-function dumpInfoR2() {
+function dumpInfoR2 () {
   const properties = dumpInfoJson();
   return [
     'e asm.arch=' + properties.arch,
@@ -362,30 +506,45 @@ function dumpInfoR2() {
   ].join('\n');
 }
 
-function getR2Arch(arch) {
-  switch(arch) {
-  case 'x64':
-    return 'x86';
-  case 'arm64':
-    return 'arm';
+function getR2Arch (arch) {
+  switch (arch) {
+    case 'ia32':
+    case 'x64':
+      return 'x86';
+    case 'arm64':
+      return 'arm';
   }
   return arch;
 }
 
 var breakpoints = {};
 
-function breakpointUnset(args) {
+function breakpointUnset (args) {
   if (args.length === 1) {
+    if (args[0] === '*') {
+      for (let k of Object.keys(breakpoints)) {
+        const bp = breakpoints[k];
+        Interceptor.revert(ptr(bp.address));
+      }
+      breakpoints = {};
+      return 'All breakpoints removed';
+    }
     const symbol = Module.findExportByName(null, args[0]);
-    const addr = symbol? symbol: ptr(args[0]);
+    const addr = (symbol !== null) ? symbol : ptr(args[0]);
     const newbps = [];
+    let found = false;
     for (let k of Object.keys(breakpoints)) {
-      let bp = breakpoints[k];
-      if (args[0] === '*' || bp.address === addr) {
+      const bp = breakpoints[k];
+      if (args[0] === '*' || bp.address == addr) {
+        found = true;
+        console.log('Breakpoint reverted');
         Interceptor.revert(ptr(bp.address));
       } else {
         newbps.push(bp);
       }
+    }
+    if (!found) {
+      console.error('Cannot found any breakpoint matching');
     }
     breakpoints = {};
     for (let bp of newbps) {
@@ -396,27 +555,27 @@ function breakpointUnset(args) {
   return 'Usage: db- [addr|*]';
 }
 
-function breakpointExist(addr) {
+function breakpointExist (addr) {
   const bp = breakpoints['' + addr];
   return bp && !bp.continue;
 }
 
-function breakpointContinue(args) {
+function breakpointContinue (args) {
   let count = 0;
   for (let k of Object.keys(breakpoints)) {
     let bp = breakpoints[k];
-    if (bp.stopped) {
-      count ++;
+    if (bp && bp.stopped) {
+      count++;
       bp.continue = true;
     }
   }
   return 'Continue ' + count + ' thread(s).';
 }
 
-function breakpoint(args) {
+function breakpoint (args) {
   if (args.length === 1) {
     const symbol = Module.findExportByName(null, args[0]);
-    const addr = symbol? symbol: ptr(args[0]);
+    const addr = (symbol !== null) ? symbol : ptr(args[0]);
     if (breakpointExist(addr)) {
       return 'Cant set a breakpoint twice';
     }
@@ -426,51 +585,54 @@ function breakpoint(args) {
       stopped: false,
       address: addrString,
       continue: false,
-      handler: Interceptor.attach(addr, {
-        onEnter: function (args) {
+      handler: Interceptor.attach(addr, function (args) {
+        if (breakpoints[addrString]) {
           breakpoints[addrString].stopped = true;
-          while (breakpointExist(addr)) {
-            Thread.sleep(1);
-          }
+        }
+        while (breakpointExist(addr)) {
+          Thread.sleep(1);
+        }
+        if (breakpoints[addrString]) {
           breakpoints[addrString].stopped = false;
           breakpoints[addrString].continue = false;
         }
       })
-    }
+    };
     breakpoints[addrString] = bp;
   }
   return JSON.stringify(breakpoints, null, '  ');
 }
 
-function dumpInfoJson() {
+function dumpInfoJson () {
   return {
     arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
     os: Process.platform,
     pid: getPid(),
     uid: _getuid(),
-    objc: ObjC_available,
-    java: Java_available,
+    objc: ObjCAvailable,
+    java: JavaAvailable,
+    cylang: mjolner !== undefined,
   };
 }
 
-function listModules() {
+function listModules () {
   return Process.enumerateModulesSync()
   .map(m => padPointer(m.base) + ' ' + m.name)
   .join('\n');
 }
 
-function listModulesR2() {
+function listModulesR2 () {
   return Process.enumerateModulesSync()
   .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
   .join('\n');
 }
 
-function listModulesJson() {
+function listModulesJson () {
   return Process.enumerateModulesSync();
 }
 
-function listExports(args) {
+function listExports (args) {
   return listExportsJson(args)
   .map(({type, name, address}) => {
     return [address, type[0], name].join(' ');
@@ -478,7 +640,7 @@ function listExports(args) {
   .join('\n');
 }
 
-function listExportsR2(args) {
+function listExportsR2 (args) {
   return listExportsJson(args)
   .map(({type, name, address}) => {
     return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
@@ -486,24 +648,24 @@ function listExportsR2(args) {
   .join('\n');
 }
 
-function listExportsJson(args) {
+function listExportsJson (args) {
   const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
   }, []);
 }
 
-function lookupDebugInfo(args) {
-  const o = DebugSymbol.fromAddress(ptr(''+args));
+function lookupDebugInfo (args) {
+  const o = DebugSymbol.fromAddress(ptr('' + args));
   console.log(o);
 }
 
-function lookupDebugInfoR2(args) {
-  const o = DebugSymbol.fromAddress(ptr(''+args));
+/* function lookupDebugInfoR2 (args) {
+  const o = DebugSymbol.fromAddress(ptr('' + args));
   console.log(o);
-}
+} */
 
-function lookupAddress(args) {
+function lookupAddress (args) {
   if (args.length === 0) {
     args = [ptr(offset)];
   }
@@ -512,14 +674,14 @@ function lookupAddress(args) {
   .join('\n');
 }
 
-function lookupAddressR2(args) {
+function lookupAddressR2 (args) {
   return lookupAddressJson(args)
   .map(({type, name, address}) =>
-    [ 'f', 'sym.' + name, '=', address].join(' '))
+    ['f', 'sym.' + name, '=', address].join(' '))
   .join('\n');
 }
 
-function lookupAddressJson(args) {
+function lookupAddressJson (args) {
   const exportAddress = ptr(args[0]);
   const result = [];
   const modules = Process.enumerateModulesSync().map(m => m.path);
@@ -538,30 +700,31 @@ function lookupAddressJson(args) {
   }, []);
 }
 
-function lookupSymbolHere(args) {
+function lookupSymbolHere (args) {
   return lookupAddress([ptr(offset)]);
 }
 
-function lookupSymbol(args) {
+function lookupSymbol (args) {
   return lookupSymbolJson(args)
-  //.map(({library, name, address}) => [library, name, address].join(' '))
+  // .map(({library, name, address}) => [library, name, address].join(' '))
   .map(({address}) => '' + address)
   .join('\n');
 }
 
-function lookupSymbolR2(args) {
+function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
   .map(({name, address}) =>
-    [ 'f', 'sym.' + name, '=', address].join(' '))
+    ['f', 'sym.' + name, '=', address].join(' '))
   .join('\n');
 }
 
-function lookupSymbolJson(args) {
+function lookupSymbolJson (args) {
   if (args.length === 2) {
     const [moduleName, exportName] = args;
     const address = Module.findExportByName(moduleName, exportName);
-    if (address === null)
+    if (address === null) {
       return [];
+    }
     const m = Process.getModuleByAddress(address);
     return [{
       library: m.name,
@@ -587,38 +750,39 @@ function lookupSymbolJson(args) {
   }
 }
 
-function listImports(args) {
+function listImports (args) {
   return listImportsJson(args)
   .map(({type, name, module, address}) => [address, type[0], name, module].join(' '))
   .join('\n');
 }
 
-function listImportsR2(args) {
+function listImportsR2 (args) {
   return listImportsJson(args).map((x) => {
-    return "f sym.imp." + x.name + ' = ' + x.address;
+    return 'f sym.imp.' + x.name + ' = ' + x.address;
   }).join('\n');
 }
 
-function listImportsJson(args) {
+function listImportsJson (args) {
   const alen = args.length;
   if (alen === 2) {
     const [moduleName, importName] = args;
     const imports = Module.enumerateImportsSync(moduleName);
-    if (imports === null)
+    if (imports === null) {
       return [];
+    }
     return imports.filter((x) => {
       return x.name === importName;
     });
   } else if (alen === 1) {
     return Module.enumerateImportsSync(args[0]) || [];
   }
-  const modules = Process.enumerateModulesSync() || []
+  const modules = Process.enumerateModulesSync() || [];
   if (modules.length > 0) {
     return Module.enumerateImportsSync(modules[0].name) || [];
   }
 }
 
-function listClasses(args) {
+function listClasses (args) {
   const result = listClassesJson(args);
   if (result instanceof Array) {
     return result.join('\n');
@@ -626,20 +790,20 @@ function listClasses(args) {
     return Object.keys(result)
     .map(methodName => {
       const address = result[methodName];
-      return [padPointer(address), methodName].join(' ')
+      return [padPointer(address), methodName].join(' ');
     })
     .join('\n');
   }
 }
 
-function classGlob(k, v) {
+function classGlob (k, v) {
   if (!k || !v) {
     return true;
   }
   return k.indexOf(v.replace(/\*/g, '')) !== -1;
 }
 
-function listClassesR2(args) {
+function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
@@ -654,69 +818,73 @@ function listClassesR2(args) {
   if (result instanceof Array) {
     return result.join('\n');
   } else {
-    function flagName(m) {
-      return 'sym.objc.' +
-        (className + '.' + m)
-        .replace(':', '')
-        .replace(' ', '')
-        .replace('-', '')
-        .replace('+', '');
-    }
     return Object.keys(result)
     .map(methodName => {
       const address = result[methodName];
-      return ['f', flagName(methodName) , '=', padPointer(address)].join(' ')
+      return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
     })
     .join('\n');
+  }
+
+  function flagName (m) {
+    return 'sym.objc.' +
+      (className + '.' + m)
+      .replace(':', '')
+      .replace(' ', '')
+      .replace('-', '')
+      .replace('+', '');
   }
 }
 
 /* this ugly sync mehtod with while+settimeout is needed because
   returning a promise is not properly handled yet and makes r2
   lose track of the output of the command so you cant grep on it */
-function listJavaClassesJsonSync(args) {
-    if (args.length === 1) {
-      let methods = undefined;
-      /* list methods */
-      Java.perform(function() {
-        const obj = Java.use(args[0])
-        methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
-        // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
-      });
-      while (methods === undefined) {
-        /* wait here */
-        setTimeout(null, 0);
-      }
-      return methods;
-    }
-    let classes = undefined;
-    /* list all classes */
-    Java.perform(function() {
-      try {
-        classes = Java.enumerateLoadedClassesSync();
-      } catch (e) {
-        classes = null;
-      }
+function listJavaClassesJsonSync (args) {
+  if (args.length === 1) {
+    let methods;
+    /* list methods */
+    Java.perform(function () {
+      const obj = Java.use(args[0]);
+      methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
+      // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
     });
-    while (classes === undefined) {
+    // eslint-disable-next-line
+    while (methods === undefined) {
       /* wait here */
       setTimeout(null, 0);
     }
-    return classes;
+    return methods;
+  }
+  let classes;
+  /* list all classes */
+  Java.perform(function () {
+    try {
+      classes = Java.enumerateLoadedClassesSync();
+    } catch (e) {
+      classes = null;
+    }
+  });
+  // eslint-disable-next-line
+  while (classes === undefined) {
+    /* wait here */
+    setTimeout(null, 0);
+  }
+  return classes;
 }
 
-function listJavaClassesJson(args) {
-  return new Promise(function (reject, resolve) {
+// eslint-disable-next-line
+function listJavaClassesJson (args) {
+  return new Promise(function (resolve, reject) {
     if (args.length === 1) {
       /* list methods */
-      Java.perform(function() {
-        var obj = Java.use(args[0])
+      Java.perform(function () {
+        var obj = Java.use(args[0]);
         resolve(JSON.stringify(obj, null, '  '));
       });
       return;
     }
     /* list all classes */
-    Java.perform(function() {
+    Java.perform(function () {
       try {
         resolve(Java.enumerateLoadedClassesSync().join('\n'));
       } catch (e) {
@@ -726,8 +894,8 @@ function listJavaClassesJson(args) {
   });
 }
 
-function listClassesJson(args) {
-  if (Java_available) {
+function listClassesJson (args) {
+  if (JavaAvailable) {
     return listJavaClassesJsonSync(args);
     // return listJavaClassesJson(args);
   }
@@ -735,13 +903,14 @@ function listClassesJson(args) {
     return Object.keys(ObjC.classes);
   } else {
     const klass = ObjC.classes[args[0]];
-    if (klass === undefined)
+    if (klass === undefined) {
       throw new Error('Class ' + args[0] + ' not found');
+    }
     return klass.$ownMethods
     .reduce((result, methodName) => {
       try {
         result[methodName] = klass[methodName].implementation;
-      } catch(_) {
+      } catch (_) {
         console.log('warning: unsupported method \'' + methodName + '\'');
       }
       return result;
@@ -749,19 +918,19 @@ function listClassesJson(args) {
   }
 }
 
-function listProtocols(args) {
+function listProtocols (args) {
   return listProtocolsJson(args)
   .join('\n');
 }
 
-function closeFileDescriptors(args) {
+function closeFileDescriptors (args) {
   if (args.length === 0) {
-    return "Please, provide a file descriptor";
+    return 'Please, provide a file descriptor';
   }
   return _close(+args[0]);
 }
 
-function listFileDescriptors(args) {
+function listFileDescriptors (args) {
   if (args.length === 0) {
     const statBuf = Memory.alloc(128);
     const fds = [];
@@ -777,19 +946,20 @@ function listFileDescriptors(args) {
   }
 }
 
-function listProtocolsJson(args) {
+function listProtocolsJson (args) {
   if (args.length === 0) {
     return Object.keys(ObjC.protocols);
   } else {
     const protocol = ObjC.protocols[args[0]];
-    if (protocol === undefined)
+    if (protocol === undefined) {
       throw new Error('Protocol not found');
+    }
     return Object.keys(protocol.methods);
   }
 }
 
-function listMemoryRangesHere(args) {
-  if (args.length != 1) {
+function listMemoryRangesHere (args) {
+  if (args.length !== 1) {
     args = [ ptr(offset) ];
   }
   const addr = +args[0];
@@ -809,7 +979,7 @@ function listMemoryRangesHere(args) {
   .join('\n');
 }
 
-function listMemoryRanges() {
+function listMemoryRanges () {
   return listMemoryRangesJson()
   .map(({base, size, protection, file}) =>
     [
@@ -824,14 +994,14 @@ function listMemoryRanges() {
   .join('\n');
 }
 
-function listMemoryRangesJson() {
+function listMemoryRangesJson () {
   return Process.enumerateRangesSync({
     protection: '---',
     coalesce: false
   });
 }
 
-function changeMemoryProtection(args) {
+function changeMemoryProtection (args) {
   const [address, size, protection] = args;
 
   Memory.protect(ptr(address), parseInt(size), protection);
@@ -839,22 +1009,22 @@ function changeMemoryProtection(args) {
   return true;
 }
 
-function getPid() {
+function getPid () {
   return _getpid();
 }
 
-function listThreads() {
+function listThreads () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id)
   .join('\n');
 }
 
-function listThreadsJson() {
+function listThreadsJson () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id);
 }
 
-function dumpRegisters() {
+function dumpRegisters () {
   return Process.enumerateThreadsSync()
     .map(thread => {
       const {id, state, context} = thread;
@@ -872,11 +1042,11 @@ function dumpRegisters() {
     .join('\n\n');
 }
 
-function dumpRegistersJson() {
+function dumpRegistersJson () {
   return Process.enumerateThreadsSync();
 }
 
-function getOrSetEnv(args) {
+function getOrSetEnv (args) {
   if (args.length === 0) {
     return getEnv().join('\n');
   }
@@ -884,7 +1054,7 @@ function getOrSetEnv(args) {
   return key + '=' + value;
 }
 
-function getOrSetEnvJson(args) {
+function getOrSetEnvJson (args) {
   if (args.length === 0) {
     return getEnvJson();
   }
@@ -906,7 +1076,7 @@ function getOrSetEnvJson(args) {
   }
 }
 
-function getEnv() {
+function getEnv () {
   const result = [];
   let envp = __environ;
   let env;
@@ -917,7 +1087,7 @@ function getEnv() {
   return result;
 }
 
-function getEnvJson() {
+function getEnvJson () {
   return getEnv().map(kv => {
     const eq = kv.indexOf('=');
     return {
@@ -927,64 +1097,76 @@ function getEnvJson() {
   });
 }
 
-function dlopen(args) {
+function dlopen (args) {
   const path = args[0];
   const handle = _dlopen(Memory.allocUtf8String(path), RTLD_GLOBAL | RTLD_LAZY);
-  if (handle.isNull())
+  if (handle.isNull()) {
     throw new Error('Failed to load: ' + path);
+  }
   return handle.toString();
 }
 
-function formatArgs(args, fmt) {
+function formatArgs (args, fmt) {
   const a = [];
   let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
     const arg = args[j];
-    switch(fmt[i]) {
-    case '+':
-    case '^':
-      j--;
-      break;
-    case 'x':
-      a.push ('' + ptr(arg));
-      break;
-    case 'c':
-      a.push ("'" + arg + "'");
-      break;
-    case 'i':
-      a.push ( +arg);
-      break;
-    case 'z': // *s
-      const s = Memory.readUtf8String(ptr(arg));
-      a.push (JSON.stringify(s));
-      break;
-    case 'Z': // *s[i]
-      const len = +args[j + 1];
-      const str = Memory.readUtf8String(ptr(arg), len);
-      a.push (JSON.stringify(str));
-      break;
-    default:
-      a.push (arg);
-      break;
+    switch (fmt[i]) {
+      case '+':
+      case '^':
+        j--;
+        break;
+      case 'x':
+        a.push('' + ptr(arg));
+        break;
+      case 'c':
+        a.push("'" + arg + "'");
+        break;
+      case 'i':
+        a.push(+arg);
+        break;
+      case 'z': // *s
+        const s = _readUntrustedUtf8(arg);
+        a.push(JSON.stringify(s));
+        break;
+      case 'Z': // *s[i]
+        const len = +args[j + 1];
+        const str = _readUntrustedUtf8(arg, len);
+        a.push(JSON.stringify(str));
+        break;
+      default:
+        a.push(arg);
+        break;
     }
   }
   return a;
 }
 
-function traceList() {
+function _readUntrustedUtf8 (address, length) {
+  try {
+    return Memory.readUtf8String(ptr(address), length);
+  } catch (e) {
+    if (e.message !== 'invalid UTF-8') {
+      throw e;
+    }
+    return '(invalid utf8)';
+  }
+}
+
+function traceList () {
   traceListeners.forEach((tl) => {
     console.log('dt', JSON.stringify(tl));
   });
   return true;
 }
 
-function getPtr(p) {
+function getPtr (p) {
   p = p.trim();
   if (!p || p === '$$') {
     return ptr(offset);
   }
   try {
-    if (p.substring(0,2) === '0x') {
+    if (p.substring(0, 2) === '0x') {
       return ptr(p);
     }
   } catch (e) {
@@ -994,16 +1176,17 @@ function getPtr(p) {
   return Module.findExportByName(null, p);
 }
 
-function traceFormat(args) {
-  if (args.length == 0) {
+function traceFormat (args) {
+  if (args.length === 0) {
     return traceList();
   }
-  if (args.length == 2) {
-    var address = '' + getPtr(args[0]);
-    var format = args[1];
+  let address, format;
+  if (args.length === 2) {
+    address = '' + getPtr(args[0]);
+    format = args[1];
   } else {
-    var address = ptr(offset);
-    var format = args[0];
+    address = offset;
+    format = args[0];
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
@@ -1018,7 +1201,7 @@ function traceFormat(args) {
         this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       }
       if (traceOnEnter) {
-        console.log (at, this.myArgs);
+        console.log(at, this.myArgs);
         if (traceBacktrace) {
           console.log(this.myBacktrace.join('\n    '));
         }
@@ -1026,7 +1209,7 @@ function traceFormat(args) {
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-        console.log (at, this.myArgs, '=', retval);
+        console.log(at, this.myArgs, '=', retval);
         if (traceBacktrace) {
           console.log(this.myBacktrace.join('\n    '));
         }
@@ -1041,7 +1224,7 @@ function traceFormat(args) {
   return true;
 }
 
-function traceRegs(args) {
+function traceRegs (args) {
   const address = getPtr(args[0]);
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, function () {
@@ -1072,7 +1255,7 @@ function traceRegs(args) {
   return true;
 }
 
-function traceHere() {
+function traceHere () {
   const args = [ offset ];
   args.forEach(address => {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
@@ -1088,8 +1271,8 @@ function traceHere() {
   return true;
 }
 
-function trace(args) {
-  if (args.length == 0) {
+function trace (args) {
+  if (args.length === 0) {
     return traceList();
   }
   args.forEach(address => {
@@ -1105,50 +1288,248 @@ function trace(args) {
   return true;
 }
 
-function clearTrace(args) {
+function clearTrace (args) {
   traceListeners.splice(0).forEach(lo => lo.listener.detach());
 }
 
-function interceptHelp(args) {
+function interceptHelp (args) {
   return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
-function interceptRet0(args) {
+function interceptRet0 (args) {
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('0'));
     }
   });
 }
 
-function interceptRet1(args) {
+function interceptRet1 (args) {
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('1'));
     }
   });
 }
 
-function interceptRet_1(args) {
+function interceptRet_1 (args) { // eslint-disable-line
   const p = ptr(args[0]);
   Interceptor.attach(p, {
-    onLeave(retval) {
+    onLeave (retval) {
       retval.replace(ptr('-1'));
     }
   });
 }
 
-function getenv(name) {
+function getenv (name) {
   return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
 }
 
-function setenv(name, value, overwrite) {
+function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
-function compareRegisterNames(lhs, rhs) {
+function stalkTraceFunction (args) {
+  return _stalkTraceSomething(_stalkFunctionAndGetEvents, args);
+}
+
+function stalkTraceFunctionR2 (args) {
+  return _stalkTraceSomethingR2(_stalkFunctionAndGetEvents, args);
+}
+
+function stalkTraceFunctionJson (args) {
+  return _stalkTraceSomethingJson(_stalkFunctionAndGetEvents, args);
+}
+
+function stalkTraceEverything (args) {
+  return _stalkTraceSomething(_stalkEverythingAndGetEvents, args);
+}
+
+function stalkTraceEverythingR2 (args) {
+  return _stalkTraceSomethingR2(_stalkEverythingAndGetEvents, args);
+}
+
+function stalkTraceEverythingJson (args) {
+  return _stalkTraceSomethingJson(_stalkEverythingAndGetEvents, args);
+}
+
+function _stalkTraceSomething (getEvents, args) {
+  return getEvents(args, (isBlock, events) => {
+    let previousSymbolName;
+    const result = [];
+    const threads = Object.keys(events);
+
+    for (const threadId of threads) {
+      result.push(`; --- thread ${threadId} --- ;`)
+      if (isBlock) {
+        result.push(..._mapBlockEvents(events[threadId], (address) => {
+          const pd = disasmOne(address, previousSymbolName);
+          previousSymbolName = getSymbolName(address);
+          return pd;
+        }, (begin, end) => {
+          previousSymbolName = null;
+          return '';
+        }));
+      } else {
+        result.push(...events[threadId].map((event) => {
+          const address = event[0];
+          const pd = disasmOne(address, previousSymbolName);
+          previousSymbolName = getSymbolName(address);
+          return pd;
+        }));
+      }
+    }
+
+    return result.join('\n');
+  });
+
+  function disasmOne (address, previousSymbolName) {
+    const pd = disasm(address, 1, previousSymbolName);
+    if (pd.charAt(pd.length - 1) === '\n') {
+      return pd.slice(0, -1);
+    }
+    return pd;
+  }
+
+  function getSymbolName (address) {
+    const ds = DebugSymbol.fromAddress(address);
+    return (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
+  }
+}
+
+function _stalkTraceSomethingR2 (getEvents, args) {
+  return getEvents(args, (isBlock, events) => {
+    const result = [];
+    const threads = Object.keys(events);
+
+    for (const threadId of threads) {
+      if (isBlock) {
+        result.push(..._mapBlockEvents(events[threadId], (address) => {
+          return `dt+ ${address} 1`;
+        }));
+      } else {
+        result.push(...events[threadId].map((event) => {
+          const location = event[0];
+          return `dt+ ${location} 1`;
+        }));
+      }
+    }
+
+    return result.join('\n');
+  });
+}
+
+function _stalkTraceSomethingJson (getEvents, args) {
+  return getEvents(args, (isBlock, events) => {
+    const result = {
+      event: config['stalker.event'],
+      threads: events
+    };
+
+    return result;
+  });
+}
+
+function _stalkFunctionAndGetEvents (args, eventsHandler) {
+  _requireFridaVersion(10, 3, 13);
+
+  const at = getPtr(args[0]);
+  const conf = {
+    event: config['stalker.event'],
+    timeout: config['stalker.timeout'],
+    stalkin: config['stalker.in']
+  };
+  const isBlock = conf.event === 'block' || conf.event === 'compile';
+
+  const operation = stalkFunction(conf, at)
+    .then((events) => {
+      return eventsHandler(isBlock, events);
+    });
+
+  hostCmd('=!resume');
+  return operation;
+}
+
+function _stalkEverythingAndGetEvents (args, eventsHandler) {
+  _requireFridaVersion(10, 3, 13);
+
+  const timeout = (args.length > 0) ? +args[0] : null;
+  const conf = {
+    event: config['stalker.event'],
+    timeout: config['stalker.timeout'],
+    stalkin: config['stalker.in']
+  };
+  const isBlock = conf.event === 'block' || conf.event === 'compile';
+
+  const operation = stalkEverything(conf, timeout)
+    .then((events) => {
+      return eventsHandler(isBlock, events);
+    });
+
+  hostCmd('=!resume');
+  return operation;
+}
+
+function _requireFridaVersion (major, minor, patch) {
+  const required = [major, minor, patch];
+  const actual = Frida.version.split('.');
+  if (!actual.every((component, i) => component >= required[i])) {
+    throw new Error(`Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`);
+  }
+}
+
+function _mapBlockEvents (events, onInstruction, onBlock) {
+  const result = [];
+
+  events.forEach(([begin, end]) => {
+    if (typeof onBlock === 'function') {
+      result.push(onBlock(begin, end));
+    }
+    let cursor = begin;
+    while (cursor < end) {
+      const [instr, next] = _tolerantInstructionParse(cursor);
+      if (instr !== null) {
+        result.push(onInstruction(cursor));
+      }
+      cursor = next;
+    }
+  });
+
+  return result;
+}
+
+function _tolerantInstructionParse (address) {
+  let instr = null;
+  let cursor = address;
+  try {
+    instr = Instruction.parse(cursor);
+    cursor = instr.next;
+  } catch (e) {
+    if (e.message !== 'invalid instruction' &&
+        e.message !== `access violation accessing ${cursor}`) {
+      throw e;
+    }
+    // skip invalid instructions
+    console.log(`warning: error parsing instruction @ ${cursor}`);
+    switch (Process.arch) {
+      case 'arm64':
+        cursor = cursor.add(4);
+        break;
+      case 'arm':
+        cursor = cursor.add(2);
+        break;
+      default:
+        cursor = cursor.add(1);
+        break;
+    }
+  }
+
+  return [instr, cursor];
+}
+
+function compareRegisterNames (lhs, rhs) {
   const lhsIndex = parseRegisterIndex(lhs);
   const rhsIndex = parseRegisterIndex(rhs);
 
@@ -1175,7 +1556,7 @@ function compareRegisterNames(lhs, rhs) {
   return -1;
 }
 
-function parseRegisterIndex(name) {
+function parseRegisterIndex (name) {
   const length = name.length;
   for (let index = 1; index < length; index++) {
     const value = parseInt(name.substr(index));
@@ -1186,7 +1567,7 @@ function parseRegisterIndex(name) {
   return null;
 }
 
-function indent(message, index) {
+function indent (message, index) {
   if (index === 0) {
     return message;
   }
@@ -1196,7 +1577,7 @@ function indent(message, index) {
   return '\t' + message;
 }
 
-function alignRight(text, width) {
+function alignRight (text, width) {
   let result = text;
   while (result.length < width) {
     result = ' ' + result;
@@ -1204,7 +1585,7 @@ function alignRight(text, width) {
   return result;
 }
 
-function padPointer(value) {
+function padPointer (value) {
   let result = value.toString(16);
   const paddedLength = 2 * pointerSize;
   while (result.length < paddedLength) {
@@ -1221,7 +1602,7 @@ const requestHandlers = {
   evaluate: evaluate,
 };
 
-function read(params) {
+function read (params) {
   const {offset, count} = params;
   try {
     const bytes = Memory.readByteArray(ptr(offset), count);
@@ -1231,11 +1612,11 @@ function read(params) {
   }
 }
 
-function isTrue(x) {
+function isTrue (x) {
   return (x === true || x === 1 || x === 'true');
 }
 
-function write(params, data) {
+function write (params, data) {
   if (isTrue(config['patch.code'])) {
     if (typeof Memory.patchCode !== 'function') {
       Memory.writeByteArray(ptr(params.offset), data);
@@ -1250,12 +1631,12 @@ function write(params, data) {
   return [{}, null];
 }
 
-function seek(params, data) {
+function seek (params, data) {
   offset = params.offset;
   return [{}, null];
 }
 
-function perform(params) {
+function perform (params) {
   const {command} = params;
 
   const tokens = command.split(/ /);
@@ -1269,49 +1650,58 @@ function perform(params) {
   }
 
   const value = handler(args);
+  if (value instanceof Promise) {
+    return value.then(output => {
+      return [{
+        value: (typeof output === 'string') ? output : JSON.stringify(output)
+      }, null];
+    });
+  }
   return [{
-    value: (typeof value === 'string') ? value : JSON.stringify(value),
+    value: (typeof value === 'string') ? value : JSON.stringify(value)
   }, null];
 }
 
-function evaluate(params) {
+function evaluate (params) {
   return new Promise(resolve => {
     const {code} = params;
 
-    if (ObjC_available)
+    if (ObjCAvailable) {
       ObjC.schedule(ObjC.mainQueue, performEval);
-    else
+    } else {
       performEval();
+    }
 
-    function performEval() {
+    function performEval () {
       let result;
       try {
-        const rawResult = (1, eval)(code);
+        const rawResult = (1, eval)(code); // eslint-disable-line
         global._ = rawResult;
-        if (rawResult !== undefined && mjolner !== undefined)
+        if (rawResult !== undefined && mjolner !== undefined) {
           result = mjolner.toCYON(rawResult);
-        else
+        } else {
           result = 'undefined';
+        }
       } catch (e) {
         result = 'throw new ' + e.name + '("' + e.message + '")';
       }
 
       resolve([{
-        value: result,
+        value: result
       }, null]);
     }
   });
 }
 
-if (ObjC_available) {
+if (ObjCAvailable) {
   mjolner.register();
 }
 
 Script.setGlobalAccessHandler({
-  enumerate() {
+  enumerate () {
     return [];
   },
-  get(property) {
+  get (property) {
     if (mjolner !== undefined) {
       let result = mjolner.lookup(property);
       if (result !== null) {
@@ -1321,16 +1711,326 @@ Script.setGlobalAccessHandler({
   }
 });
 
-function interpretFile(args) {
+function interpretFile (args) {
   console.log('TODO: interpretFile is not yet implemented');
   return {};
 }
 
-function fridaVersion() {
+function fridaVersion () {
   return { version: Frida.version };
 }
 
-function onStanza(stanza, data) {
+function search (args) {
+  return searchJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchJson (args) {
+  const pattern = _toHexPairs(args.join(' '));
+  return _searchPatternJson(pattern).then(hits => {
+    hits.forEach(hit => {
+      try {
+        const bytes = Memory.readByteArray(hit.address, 60);
+        hit.content = _filterPrintable(bytes);
+      } catch (e) {
+      }
+    });
+    return hits.filter(hit => hit.content !== undefined);
+  });
+}
+
+function searchHex (args) {
+  return searchHexJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchHexJson (args) {
+  const pattern = _normHexPairs(args.join(''));
+  return _searchPatternJson(pattern).then(hits => {
+    hits.forEach(hit => {
+      const bytes = Memory.readByteArray(hit.address, hit.size);
+      hit.content = _byteArrayToHex(bytes);
+    });
+    return hits;
+  });
+}
+
+function searchWide (args) {
+  return searchWideJson(args).then(hits => {
+    return _readableHits(hits);
+  });
+}
+
+function searchWideJson (args) {
+  const pattern = _toWidePairs(args.join(' '));
+  return searchHexJson([pattern]);
+}
+
+function searchValueImpl (width) {
+  return function (args) {
+    return searchValueJson(args, width).then(hits => {
+      return _readableHits(hits);
+    });
+  };
+}
+
+function searchValueImplJson (width) {
+  return function (args) {
+    return searchValueJson(args, width);
+  };
+}
+
+function searchValueJson (args, width) {
+  let value;
+  try {
+    value = uint64(args.join(''));
+  } catch (e) {
+    return new Promise((resolve, reject) => reject(e));
+  }
+
+  return hostCmdj('ej')
+    .then(config => {
+      const bigEndian = config['cfg.bigendian'];
+      const bytes = _renderEndian(value, bigEndian, width);
+      return searchHexJson([_toHexPairs(bytes)]);
+    });
+}
+
+function _renderEndian (value, bigEndian, width) {
+  const bytes = [];
+  for (let i = 0; i !== width; i++) {
+    if (bigEndian) {
+      bytes.push(value.shr((width - i - 1) * 8).and(0xff).toNumber());
+    } else {
+      bytes.push(value.shr(i * 8).and(0xff).toNumber());
+    }
+  }
+  return bytes;
+}
+
+function _byteArrayToHex (arr) {
+  const u8arr = new Uint8Array(arr);
+  const hexs = [];
+  for (let i = 0; i !== u8arr.length; i += 1) {
+    const h = u8arr[i].toString(16);
+    hexs.push((h.length === 2) ? h : `0${h}`);
+  }
+  return hexs.join('');
+}
+
+const minPrintable = ' '.charCodeAt(0);
+const maxPrintable = '~'.charCodeAt(0);
+
+function _filterPrintable (arr) {
+  const u8arr = new Uint8Array(arr);
+  const printable = [];
+  for (let i = 0; i !== u8arr.length; i += 1) {
+    const c = u8arr[i];
+    if (c >= minPrintable && c <= maxPrintable) {
+      printable.push(String.fromCharCode(c));
+    }
+  }
+  return printable.join('');
+}
+
+function _readableHits (hits) {
+  const output = hits.map(hit => {
+    if (hit.flag !== undefined) {
+      return `${hit.address} ${hit.flag} ${hit.content}`;
+    }
+    return `${hit.address} ${hit.content}`;
+  });
+  return output.join('\n');
+}
+
+function _searchPatternJson (pattern) {
+  return hostCmdj('ej')
+    .then(config => {
+      const flags = config['search.flags'];
+      const prefix = config['search.prefix'];
+      const count = config['search.count'];
+      const kwidx = config['search.kwidx'];
+
+      const ranges = _getRanges(config['search.from'], config['search.to']);
+      const nBytes = pattern.split(' ').length;
+
+      qlog(`Searching ${nBytes} bytes: ${pattern}`);
+
+      let results = [];
+      const commands = [];
+      let idx = 0;
+      for (let range of ranges) {
+        if (range.size === 0) {
+          continue;
+        }
+
+        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
+        try {
+          const partial = Memory.scanSync(range.address, range.size, pattern);
+
+          partial.forEach((hit) => {
+            if (flags) {
+              hit.flag = `${prefix}${kwidx}_${idx + count}`;
+              commands.push('fs+searches');
+              commands.push(`f ${hit.flag} ${hit.size} ${hit.address}`);
+              commands.push('fs-');
+            }
+            idx += 1;
+          });
+
+          results = results.concat(partial);
+        } catch (e) {
+        }
+      }
+
+      qlog(`hits: ${results.length}`);
+
+      commands.push(`e search.kwidx=${kwidx + 1}`);
+
+      return hostCmds(commands).then(() => {
+        return results;
+      });
+    });
+
+  function qlog (message) {
+    if (!config['search.quiet']) {
+      console.log(message);
+    }
+  }
+}
+
+function _configParseSearchIn () {
+  const res = {
+    current: false,
+    perm: 'r--',
+    path: null
+  };
+
+  const c = config['search.in'];
+  const cSplit = c.split(':');
+  const [scope, param] = cSplit;
+
+  if (scope === 'current') {
+    res.current = true;
+  }
+  if (scope === 'perm') {
+    res.perm = param;
+  }
+  if (scope === 'path') {
+    cSplit.shift();
+    res.path = cSplit.join('');
+  }
+
+  return res;
+}
+
+function _getRanges (fromNum, toNum) {
+  const searchIn = _configParseSearchIn();
+
+  const ranges = Process.enumerateRangesSync({
+    protection: searchIn.perm,
+    coalesce: false
+  }).filter(range => {
+    const start = range.base;
+    const end = start.add(range.size);
+    const offPtr = ptr(offset);
+    if (searchIn.current) {
+      return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
+    }
+    if (searchIn.path !== null) {
+      if (range.file !== undefined) {
+        return range.file.path.indexOf(searchIn.path) >= 0;
+      }
+      return false;
+    }
+    return true;
+  });
+
+  if (ranges.length === 0) {
+    return [];
+  }
+
+  const first = ranges[0];
+  const last = ranges[ranges.length - 1];
+
+  const from = (fromNum === -1) ? first.base : ptr(fromNum);
+  const to = (toNum === -1) ? last.base.add(last.size) : ptr(toNum);
+
+  return ranges.filter(range => {
+    return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
+  }).map(range => {
+    const start = _ptrMax(range.base, from);
+    const end = _ptrMin(range.base.add(range.size), to);
+    return {
+      address: start,
+      size: uint64(end.sub(start).toString()).toNumber()
+    };
+  });
+}
+
+function _ptrMax (a, b) {
+  return a.compare(b) > 0 ? a : b;
+}
+
+function _ptrMin (a, b) {
+  return a.compare(b) < 0 ? a : b;
+}
+
+function _toHexPairs (raw) {
+  const isString = typeof raw === 'string';
+  const pairs = [];
+  for (let i = 0; i !== raw.length; i += 1) {
+    const code = (isString ? raw.charCodeAt(i) : raw[i]) & 0xff;
+    const h = code.toString(16);
+    pairs.push((h.length === 2) ? h : `0${h}`);
+  }
+  return pairs.join(' ');
+}
+
+function _toWidePairs (raw) {
+  const pairs = [];
+  for (let i = 0; i !== raw.length; i += 1) {
+    const code = raw.charCodeAt(i) & 0xff;
+    const h = code.toString(16);
+    pairs.push((h.length === 2) ? h : `0${h}`);
+    pairs.push('00');
+  }
+  return pairs.join(' ');
+}
+
+function _normHexPairs (raw) {
+  const norm = raw.replace(/ /g, '');
+  if (_isHex(norm)) {
+    return _toPairs(norm.replace(/\./g, '?'));
+  }
+  throw new Error('Invalid hex string');
+}
+
+function _toPairs (hex) {
+  if ((hex.length % 2) !== 0) {
+    throw new Error('Odd-length string');
+  }
+
+  const pairs = [];
+  for (let i = 0; i !== hex.length; i += 2) {
+    pairs.push(hex.substr(i, 2));
+  }
+  return pairs.join(' ').toLowerCase();
+}
+
+function _isHex (raw) {
+  const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
+  const inSet = new Set(Array.from(raw));
+  for (let h of hexSet) {
+    inSet.delete(h);
+  }
+  return inSet.size === 0;
+}
+
+function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
     try {
@@ -1338,25 +2038,111 @@ function onStanza(stanza, data) {
       if (value instanceof Promise) {
         value
           .then(([replyStanza, replyBytes]) => {
-            send(replyStanza, replyBytes);
+            send(wrapStanza('reply', replyStanza), replyBytes);
           })
           .catch(e => {
-            send({
+            send(wrapStanza('reply', {
               error: e.message
-            });
+            }));
           });
       } else {
         const [replyStanza, replyBytes] = value;
-        send(replyStanza, replyBytes);
+        send(wrapStanza('reply', replyStanza), replyBytes);
       }
     } catch (e) {
-      send({
+      send(wrapStanza('reply', {
         error: e.message
-      });
+      }));
     }
+  } else if (stanza.type === 'cmd') {
+    onCmdResp(stanza.payload);
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
   recv(onStanza);
 }
+
+let cmdSerial = 0;
+
+function hostCmds (commands) {
+  let i = 0;
+  function sendOne () {
+    if (i < commands.length) {
+      return hostCmd(commands[i]).then(() => {
+        i += 1;
+        return sendOne();
+      });
+    } else {
+      return Promise.resolve();
+    }
+  }
+  return sendOne();
+}
+
+function hostCmdj (cmd) {
+  return hostCmd(cmd)
+    .then(output => {
+      return JSON.parse(output);
+    });
+}
+
+function hostCmd (cmd) {
+  return new Promise((resolve) => {
+    const serial = cmdSerial;
+    cmdSerial += 1;
+
+    pendingCmds[serial] = resolve;
+    sendCommand(cmd, serial);
+  });
+}
+
+function sendCommand (cmd, serial) {
+  function sendIt () {
+    sendingCommand = true;
+
+    send(wrapStanza('cmd', {
+      'cmd': cmd,
+      'serial': serial
+    }));
+  }
+
+  if (sendingCommand) {
+    pendingCmdSends.push(sendIt);
+  } else {
+    sendIt();
+  }
+}
+
+function onCmdResp (params) {
+  const {serial, output} = params;
+
+  sendingCommand = false;
+
+  if (serial in pendingCmds) {
+    const onFinish = pendingCmds[serial];
+    delete pendingCmds[serial];
+    process.nextTick(() => onFinish(output));
+  } else {
+    throw new Error('Command response out of sync');
+  }
+
+  process.nextTick(() => {
+    if (!sendingCommand) {
+      const nextSend = pendingCmdSends.shift();
+      if (nextSend !== undefined) {
+        nextSend();
+      }
+    }
+  });
+
+  return [{}, null];
+}
+
+function wrapStanza (name, stanza) {
+  return {
+    name: name,
+    stanza: stanza
+  };
+}
+
 recv(onStanza);
