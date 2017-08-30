@@ -115,6 +115,24 @@ const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
 
+function nameFromAddress (address) {
+  let at = DebugSymbol.fromAddress(address).name
+  if (at === null) {
+    const module = Process.enumerateModulesSync()[0].name;
+    const imports = Module.enumerateImportsSync(module);
+    for (let imp of imports) {
+      if (imp.address.equals(address)) {
+        at = imp.name;
+        break;
+      }
+    }
+    if (at === null) {
+      at = '' + address;
+    }
+  }
+  return at;
+}
+
 function allocSize (args) {
   const size = +args[0];
   if (size > 0) {
@@ -1172,8 +1190,8 @@ function traceFormat (args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
+  const at = nameFromAddress (address);
 
-  const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
