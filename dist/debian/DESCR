@@ -1,0 +1,2 @@
+Frida plugin for radare2
+This plugin enables r2 to talk with frida-server in local or remote devices running on Windows, Linux, Mac, iOS or Android via the frida:// URI handler.
