@@ -1457,8 +1457,13 @@ function _stalkEverythingAndGetEvents (args, eventsHandler) {
 function _requireFridaVersion (major, minor, patch) {
   const required = [major, minor, patch];
   const actual = Frida.version.split('.');
-  if (!actual.every((component, i) => component >= required[i])) {
-    throw new Error(`Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`);
+  for (let i=0; i<actual.length; i++) {
+    if (actual[i] > required[i]) {
+      return;
+    }
+    if (actual[i] < required[i]) {
+      throw new Error(`Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`);
+    }
   }
 }
 
