@@ -344,7 +344,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"dt <addr> ..               Trace list of addresses\n"
 			"dt-                        Clear all tracing\n"
 			"dtr <addr> (<regs>...)     Trace register values\n"
-			"dtf <addr> [fmt]           Trace address with format (^ixz) (see dtf?)\n"
+			"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
 			"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
 			"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
@@ -367,6 +367,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  x  = show hexadecimal argument\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
+		io->cb_printf ("  O  = show pointer to ObjC object\n");
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
