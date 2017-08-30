@@ -517,6 +517,7 @@ function breakpointUnset (args) {
     let found = false;
     for (let k of Object.keys(breakpoints)) {
       const bp = breakpoints[k];
+      // eslint-disable-next-line
       if (args[0] === '*' || bp.address == addr) {
         found = true;
         console.log('Breakpoint reverted');
@@ -1344,7 +1345,7 @@ function _stalkTraceSomething (getEvents, args) {
     const threads = Object.keys(events);
 
     for (const threadId of threads) {
-      result.push(`; --- thread ${threadId} --- ;`)
+      result.push(`; --- thread ${threadId} --- ;`);
       if (isBlock) {
         result.push(..._mapBlockEvents(events[threadId], (address) => {
           const pd = disasmOne(address, previousSymbolName);
@@ -1457,7 +1458,7 @@ function _stalkEverythingAndGetEvents (args, eventsHandler) {
 function _requireFridaVersion (major, minor, patch) {
   const required = [major, minor, patch];
   const actual = Frida.version.split('.');
-  for (let i=0; i<actual.length; i++) {
+  for (let i = 0; i < actual.length; i++) {
     if (actual[i] > required[i]) {
       return;
     }
