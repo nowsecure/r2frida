@@ -116,7 +116,7 @@ const pendingCmdSends = [];
 let sendingCommand = false;
 
 function nameFromAddress (address) {
-  const at = DebugSymbol.fromAddress(ptr(address)).name
+  const at = DebugSymbol.fromAddress(ptr(address)).name;
   if (at === null) {
     const module = Process.findModuleByAddress(address);
     if (module === null) {
@@ -256,8 +256,7 @@ function dxHexpairs (args) {
 
 function evalCode (args) {
   const code = args.join(' ');
-  eval(code); // eslint-disable-line
-  return '';
+  return eval(code); // eslint-disable-line
 }
 
 function printHexdump (lenstr) {
@@ -759,7 +758,7 @@ function lookupSymbolJson (args) {
 
 function listImports (args) {
   return listImportsJson(args)
-  .map(({type, name, module, address}) => [address, type[0], name, module].join(' '))
+  .map(({type, name, module, address}) => [address, type ? type[0] : ' ', name, module].join(' '))
   .join('\n');
 }
 
@@ -1038,7 +1037,7 @@ function dumpRegisters () {
 
       const heading = `tid ${id} ${state}`;
 
-      const names = Object.keys(context);
+      const names = Object.keys(JSON.parse(JSON.stringify(context)));
       names.sort(compareRegisterNames);
       const values = names
       .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
@@ -1197,7 +1196,7 @@ function traceFormat (args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
-  const at = nameFromAddress (address);
+  const at = nameFromAddress(address);
 
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
@@ -1245,6 +1244,7 @@ function traceRegs (args) {
           tail = ' (' + tail + ')';
         }
       } catch (e) {
+        tail = '';
       }
       return r + ' = ' + this.context[r] + tail;
     }).join('\n\t'));
