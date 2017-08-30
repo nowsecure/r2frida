@@ -256,7 +256,8 @@ function dxHexpairs (args) {
 
 function evalCode (args) {
   const code = args.join(' ');
-  return eval(code); // eslint-disable-line
+  const result = eval(code); // eslint-disable-line
+  return (result !== undefined) ? result : '';
 }
 
 function printHexdump (lenstr) {
@@ -1297,6 +1298,7 @@ function trace (args) {
 
 function clearTrace (args) {
   traceListeners.splice(0).forEach(lo => lo.listener.detach());
+  return '';
 }
 
 function interceptHelp (args) {
