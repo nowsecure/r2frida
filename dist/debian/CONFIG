@@ -1,7 +1,7 @@
 PACKAGE=r2frida
-VERSION=1.8
+VERSION=1.8.1
 ARCH=amd64
-# DEPENDS=radare2
+DEPENDS=radare2
 SECTION=user/shell
 PRIORITY=optional
 MAINTAINER=pancake <pancake@nopcode.org>
