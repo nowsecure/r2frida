@@ -92,19 +92,25 @@ const RTLD_LAZY = 0x1;
 const allocPool = {};
 
 function nameFromAddress (address) {
-  let at = DebugSymbol.fromAddress(address).name
+  const at = DebugSymbol.fromAddress(ptr(address)).name
   if (at === null) {
-    const module = Process.enumerateModulesSync()[0].name;
-    const imports = Module.enumerateImportsSync(module);
+    const module = Process.findModuleByAddress(address);
+    if (module === null) {
+      return null;
+    }
+    const imports = Module.enumerateImportsSync(module.name);
     for (let imp of imports) {
       if (imp.address.equals(address)) {
-        at = imp.name;
-        break;
+        return imp.name;
       }
     }
-    if (at === null) {
-      at = '' + address;
+    const exports = Module.enumerateExportsSync(module.name);
+    for (let exp of exports) {
+      if (exp.address.equals(address)) {
+        return exp.name;
+      }
     }
+    return address.toString();
   }
   return at;
 }
@@ -998,12 +1004,13 @@ function traceFormat(args) {
   if (args.length == 0) {
     return traceList();
   }
-  if (args.length == 2) {
-    var address = '' + getPtr(args[0]);
-    var format = args[1];
+  let address, format;
+  if (args.length === 2) {
+    address = '' + getPtr(args[0]);
+    format = args[1];
   } else {
-    var address = ptr(offset);
-    var format = args[0];
+    address = offset;
+    format = args[0];
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
