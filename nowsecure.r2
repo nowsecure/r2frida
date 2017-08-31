@@ -27,6 +27,8 @@ e asm.tabs=6
 e asm.nbytes=4
 e asm.bytes=0
 e asm.ucase=1
+e asm.emustr=1
+e cfg.fortunes=false
 ec comment rgb:ffc41f
 ec fname rgb:ffc41f
 ec fline rgb:ff941a
