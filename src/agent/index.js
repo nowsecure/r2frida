@@ -1141,6 +1141,18 @@ function formatArgs (args, fmt) {
         const str = _readUntrustedUtf8(arg, len);
         a.push(JSON.stringify(str));
         break;
+      case 'O':
+        if (ObjC.available) {
+          if (!arg.isNull()) {
+            const o = new ObjC.Object(arg);
+            a.push(`${o.$className}: "${o.toString()}"`);
+          } else {
+            a.push('nil');
+          }
+        } else {
+          a.push(arg);
+        }
+        break;
       default:
         a.push(arg);
         break;
