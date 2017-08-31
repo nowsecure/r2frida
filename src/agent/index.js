@@ -1396,7 +1396,8 @@ function _stalkTraceSomething (getEvents, args) {
       } else {
         result.push(...events[threadId].map((event) => {
           const address = event[0];
-          const pd = disasmOne(address, previousSymbolName);
+          const target = event[1];
+          const pd = disasmOne(address, previousSymbolName, target);
           previousSymbolName = getSymbolName(address);
           return pd;
         }));
@@ -1406,17 +1407,15 @@ function _stalkTraceSomething (getEvents, args) {
     return result.join('\n');
   });
 
-  function disasmOne (address, previousSymbolName) {
-    const pd = disasm(address, 1, previousSymbolName);
+  function disasmOne (address, previousSymbolName, target) {
+    let pd = disasm(address, 1, previousSymbolName);
     if (pd.charAt(pd.length - 1) === '\n') {
-      return pd.slice(0, -1);
+      pd = pd.slice(0, -1);
+    }
+    if (target) {
+      pd += ` ; ${target} ${getSymbolName(target)}`;
     }
     return pd;
-  }
-
-  function getSymbolName (address) {
-    const ds = DebugSymbol.fromAddress(address);
-    return (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
   }
 }
 
@@ -1432,8 +1431,17 @@ function _stalkTraceSomethingR2 (getEvents, args) {
         }));
       } else {
         result.push(...events[threadId].map((event) => {
+          const commands = [];
+
           const location = event[0];
-          return `dt+ ${location} 1`;
+          commands.push(`dt+ ${location} 1`);
+
+          const target = event[1];
+          if (target) {
+            commands.push(`CC ${target} ${getSymbolName(target)} @ ${location}`);
+          }
+
+          return commands.join('\n');
         }));
       }
     }
@@ -1491,6 +1499,11 @@ function _stalkEverythingAndGetEvents (args, eventsHandler) {
 
   hostCmd('=!resume');
   return operation;
+}
+
+function getSymbolName (address) {
+  const ds = DebugSymbol.fromAddress(address);
+  return (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
 }
 
 function _requireFridaVersion (major, minor, patch) {
