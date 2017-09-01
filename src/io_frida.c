@@ -196,7 +196,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	g_free (device_id);
 	g_free (process_specifier);
 
-	return r_io_desc_new (io, &r_io_plugin_frida, pathname, rw, mode, rf);
+	return r_io_desc_new (io, &r_io_plugin_frida, pathname, R_IO_RW | R_IO_EXEC, mode, rf);
 
 error:
 	g_clear_error (&error);
