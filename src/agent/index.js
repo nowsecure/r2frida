@@ -365,7 +365,6 @@ const _fstat = Module.findExportByName(null, 'fstat')
   ? sym('fstat', 'int', ['int', 'pointer'])
   : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
-const __environ = Memory.readPointer(Module.findExportByName(null, 'environ'));
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
@@ -1085,7 +1084,7 @@ function getOrSetEnvJson (args) {
 
 function getEnv () {
   const result = [];
-  let envp = __environ;
+  let envp = Memory.readPointer(Module.findExportByName(null, 'environ'));
   let env;
   while (!envp.isNull() && !(env = Memory.readPointer(envp)).isNull()) {
     result.push(Memory.readCString(env));
