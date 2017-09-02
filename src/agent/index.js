@@ -47,19 +47,21 @@ const commandHandlers = {
   'il': listModules,
   'il*': listModulesR2,
   'ilj': listModulesJson,
-  'ie': listExports,
-  'ie*': listExportsR2,
-  'iej': listExportsJson,
+
+  'is': listExports,
+  'is.': lookupSymbolHere,
+  'isj': listExportsJson,
+  'is*': listExportsR2,
+
+  'isa': lookupSymbol,
+  'isa*': lookupSymbolR2,
+  'isaj': lookupSymbolJson,
+
   'fD': lookupDebugInfo,
   'fd': lookupAddress,
   'fd.': lookupAddress,
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
-  'ie.': lookupSymbolHere,
-  'is.': lookupSymbolHere,
-  'is': lookupSymbol,
-  'is*': lookupSymbolR2,
-  'isj': lookupSymbolJson,
   'ic': listClasses,
   'ic*': listClassesR2,
   'icj': listClassesJson,
@@ -150,8 +152,11 @@ function allocSize (args) {
 
 function allocString (args) {
   const theString = args.join(' ');
-  const a = Memory.allocUtf8String(theString);
-  return _addAlloc(a);
+  if (theString.length > 0) {
+    const a = Memory.allocUtf8String(theString);
+    return _addAlloc(a);
+  }
+  throw new Error('Usage: dmas [size]');
 }
 
 function allocDup (args) {
