@@ -327,8 +327,8 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"i                          Show target information\n"
 			"ii[*]                      List imports\n"
 			"il                         List libraries\n"
-			"ie[*] <lib>                List exports/entrypoints of lib\n"
-			"is[*] (<lib>) <sym>        Show address of symbol\n"
+			"is[*] <lib>                List exports/entrypoints of lib\n"
+			"isa[*] (<lib>) <sym>       Show address of symbol\n"
 			"ic <class>                 List Objective-C classes or methods of <class>\n"
 			"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 			"fd[*j] <address>           Inverse symbol resolution\n"
@@ -358,7 +358,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
 			"eval code..                Evaluate Javascript code in agent side\n"
-			"resume                     Resume spawned process\n"
+			"dc                         Continue\n"
 			);
 		return true;
 	}

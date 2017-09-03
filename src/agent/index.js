@@ -157,7 +157,7 @@ function allocString (args) {
     const a = Memory.allocUtf8String(theString);
     return _addAlloc(a);
   }
-  throw new Error('Usage: dmas [size]');
+  throw new Error('Usage: dmas [string]');
 }
 
 function allocDup (args) {
