@@ -50,6 +50,7 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
 static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
+static void exec_pending_cmd_if_needed(RIOFrida * rf);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -402,8 +403,10 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		if (error) {
 			io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
 			g_clear_error (&error);
-		}
-		rf->suspended = false;
+		} else {
+			rf->suspended = false;
+			eprintf ("resumed spawned process.\n");
+        }
 		return true;
 	}
 
@@ -618,31 +621,11 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 
 	g_mutex_lock (&rf->lock);
 
+	exec_pending_cmd_if_needed (rf);
+
 	while (!rf->detached && !rf->received_reply) {
 		g_cond_wait (&rf->cond, &rf->lock);
-
-		if (rf->pending_cmd) {
-			ut64 serial = rf->pending_cmd->serial;
-			char *output;
-			JsonBuilder *builder;
-
-			output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
-
-			pending_cmd_free (rf->pending_cmd);
-			rf->pending_cmd = NULL;
-
-			if (output) {
-				builder = build_request ("cmd");
-				json_builder_set_member_name (builder, "output");
-				json_builder_add_string_value (builder, output);
-				json_builder_set_member_name (builder, "serial");
-				json_builder_add_int_value (builder, serial);
-
-				R_FREE (output);
-
-				perform_request_unlocked (rf, builder, NULL, NULL);
-			}
-		}
+		exec_pending_cmd_if_needed (rf);
 	}
 
 	if (rf->received_reply) {
@@ -686,6 +669,30 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	}
 
 	return reply_stanza;
+}
+
+static void exec_pending_cmd_if_needed(RIOFrida * rf) {
+	if (!rf->pending_cmd) {
+		return;
+	}
+
+	char * output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
+
+	ut64 serial = rf->pending_cmd->serial;
+	pending_cmd_free (rf->pending_cmd);
+	rf->pending_cmd = NULL;
+
+	if (output) {
+		JsonBuilder * builder = build_request ("cmd");
+		json_builder_set_member_name (builder, "output");
+		json_builder_add_string_value (builder, output);
+		json_builder_set_member_name (builder, "serial");
+		json_builder_add_int_value (builder, serial);
+
+		R_FREE (output);
+
+		perform_request_unlocked (rf, builder, NULL, NULL);
+	}
 }
 
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
