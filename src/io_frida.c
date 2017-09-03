@@ -28,6 +28,7 @@ typedef struct {
 	guint pid;
 	GMutex lock;
 	GCond cond;
+	bool suspended;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
 	volatile bool received_reply;
@@ -80,6 +81,7 @@ static RIOFrida *r_io_frida_new(void) {
 	rf->received_reply = false;
 	rf->r2core = get_r_core_main_instance ();
 	g_assert (rf->r2core != NULL);
+	rf->suspended = false;
 
 	return rf;
 }
@@ -168,8 +170,11 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			eprintf ("Cannot spawn: %s\n", error->message);
 			goto error;
 		}
+
+		rf->suspended = true;
 	} else {
 		rf->pid = pid;
+		rf->suspended = false;
 	}
 
 	rf->session = frida_device_attach_sync (rf->device, rf->pid, &error);
@@ -391,13 +396,14 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return true;
-	} else if (!strncmp (command, "resume", 6)) {
+	} else if (!strncmp (command, "dc", 2) && rf->suspended) {
 		GError *error = NULL;
 		frida_device_resume_sync (rf->device, rf->pid, &error);
 		if (error) {
 			io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
 			g_clear_error (&error);
 		}
+		rf->suspended = false;
 		return true;
 	}
 
@@ -465,13 +471,15 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	}
 	free (slurpedData);
 
-	/* update seek in agent */
+	/* update state (seek and suspended) in agent */
 	{
 		char offstr[127] = {0};
-		JsonBuilder *builder = build_request ("seek");
+		JsonBuilder *builder = build_request ("state");
 		json_builder_set_member_name (builder, "offset");
 		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
 		json_builder_add_string_value (builder, offstr);
+		json_builder_set_member_name (builder, "suspended");
+		json_builder_add_boolean_value (builder, rf->suspended);
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
 		if (!result) {
 			return -1;

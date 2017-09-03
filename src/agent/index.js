@@ -16,6 +16,7 @@ if (ObjCAvailable) {
 const pointerSize = Process.pointerSize;
 
 var offset = '0';
+var suspended = false;
 
 const commandHandlers = {
   '/': search,
@@ -572,9 +573,14 @@ function breakpointExist (addr) {
 }
 
 function breakpointContinue (args) {
+  if (suspended) {
+    hostCmd('=!dc');
+    suspended = false;
+    return;
+  }
   let count = 0;
   for (let k of Object.keys(breakpoints)) {
-    let bp = breakpoints[k];
+    const bp = breakpoints[k];
     if (bp && bp.stopped) {
       count++;
       bp.continue = true;
@@ -1481,7 +1487,7 @@ function _stalkFunctionAndGetEvents (args, eventsHandler) {
       return eventsHandler(isBlock, events);
     });
 
-  hostCmd('=!resume');
+  breakpointContinue([]);
   return operation;
 }
 
@@ -1501,7 +1507,7 @@ function _stalkEverythingAndGetEvents (args, eventsHandler) {
       return eventsHandler(isBlock, events);
     });
 
-  hostCmd('=!resume');
+  breakpointContinue([]);
   return operation;
 }
 
@@ -1640,7 +1646,7 @@ function padPointer (value) {
 const requestHandlers = {
   read: read,
   write: write,
-  seek: seek,
+  state: state,
   perform: perform,
   evaluate: evaluate,
 };
@@ -1674,8 +1680,9 @@ function write (params, data) {
   return [{}, null];
 }
 
-function seek (params, data) {
+function state (params, data) {
   offset = params.offset;
+  suspended = params.suspended;
   return [{}, null];
 }
 
