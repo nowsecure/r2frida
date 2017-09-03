@@ -51,6 +51,7 @@ static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
 static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
+static int __system(RIO *io, RIODesc *fd, const char *command);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -221,6 +222,9 @@ static int __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return -1;
 	}
+
+	__system (fd->io, fd, "dc");
+
 	rf = fd->data;
 	rf->detached = true;
 
