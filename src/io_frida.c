@@ -406,7 +406,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			rf->suspended = false;
 			eprintf ("resumed spawned process.\n");
-        }
+		}
 		return true;
 	}
 
