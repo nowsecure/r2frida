@@ -46,6 +46,7 @@ const commandHandlers = {
   'ii*': listImportsR2,
   'iij': listImportsJson,
   'il': listModules,
+  'il.': listModulesHere,
   'il*': listModulesR2,
   'ilj': listModulesJson,
 
@@ -647,6 +648,15 @@ function listModulesR2 () {
 
 function listModulesJson () {
   return Process.enumerateModulesSync();
+}
+
+function listModulesHere () {
+  const here = ptr(offset);
+
+  return Process.enumerateModulesSync()
+  .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+  .map(m => padPointer(m.base) + ' ' + m.name)
+  .join('\n');
 }
 
 function listExports (args) {
