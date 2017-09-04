@@ -1716,7 +1716,7 @@ function evaluate (params) {
   return new Promise(resolve => {
     const {code} = params;
 
-    if (ObjCAvailable) {
+    if (ObjCAvailable && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
