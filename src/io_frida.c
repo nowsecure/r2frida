@@ -360,6 +360,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
 			"dx [hexpairs]              Inject code and execute it (TODO)\n"
 			"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
+			"e[?] [a[=b]]               List/get/set config evaluable vars\n"
 			". script                   Run script\n"
 			"<space> code..             Evaluate Cycript code\n"
 			"eval code..                Evaluate Javascript code in agent side\n"
@@ -378,6 +379,14 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
 		io->cb_printf ("  O  = show pointer to ObjC object\n");
+	} else if (!strncmp (command, "e?", 2)) {
+		io->cb_printf ("Usage: e [var[=value]]Evaluable vars\n");
+		io->cb_printf ("  patch.code      = true\n");
+		io->cb_printf ("  search.in       = perm:r--\n");
+		io->cb_printf ("  search.quiet    = false\n");
+		io->cb_printf ("  stalker.event   = compile\n");
+		io->cb_printf ("  stalker.timeout = 300\n");
+		io->cb_printf ("  stalker.in      = raw\n");
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
