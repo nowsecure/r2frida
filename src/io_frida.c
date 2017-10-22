@@ -51,7 +51,7 @@ static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
 static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
-static int __system(RIO *io, RIODesc *fd, const char *command);
+static char *__system(RIO *io, RIODesc *fd, const char *command);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -223,7 +223,7 @@ static int __close(RIODesc *fd) {
 		return -1;
 	}
 
-	__system (fd->io, fd, "dc");
+	free (__system (fd->io, fd, "dc"));
 
 	rf = fd->data;
 	rf->detached = true;
@@ -312,61 +312,60 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
-static int __system(RIO *io, RIODesc *fd, const char *command) {
+static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	RIOFrida *rf;
 	JsonBuilder *builder;
 	JsonObject *result;
 	const char *value;
 
 	if (!fd || !fd->data) {
-		return -1;
+		return NULL;
 	}
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
-		io->cb_printf ("r2frida commands available via =!\n"
-			"?                          Show this help\n"
-			"?V                         Show target Frida version\n"
-			"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
-			"/w[j] string               Search wide string\n"
-			"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
-			"i                          Show target information\n"
-			"ii[*]                      List imports\n"
-			"il                         List libraries\n"
-			"is[*] <lib>                List exports/entrypoints of lib\n"
-			"isa[*] (<lib>) <sym>       Show address of symbol\n"
-			"ic <class>                 List Objective-C classes or methods of <class>\n"
-			"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
-			"fd[*j] <address>           Inverse symbol resolution\n"
-			"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
-			"dm[.|j|*]                  Show memory regions\n"
-			"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
-			"dmas <string>              Allocate a string inited with <string> on the heap\n"
-			"dmad <addr> <size>         Allocate <size> bytes on the heap, copy contents from <addr>\n"
-			"dmal                       List live heap allocations created with dma[s]\n"
-			"dma- (<addr>...)           Kill the allocations at <addr> (or all of them without param)\n"
-			"dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
-			"dp                         Show current pid\n"
-			"dpt                        Show threads\n"
-			"dr                         Show thread registers (see dpt)\n"
-			"env [k[=v]]                Get/set environment variable\n"
-			"dl libname                 Dlopen a library\n"
-			"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
-			"dt <addr> ..               Trace list of addresses\n"
-			"dt-                        Clear all tracing\n"
-			"dtr <addr> (<regs>...)     Trace register values\n"
-			"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
-			"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
-			"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
-			"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
-			"dx [hexpairs]              Inject code and execute it (TODO)\n"
-			"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
-			"e[?] [a[=b]]               List/get/set config evaluable vars\n"
-			". script                   Run script\n"
-			"<space> code..             Evaluate Cycript code\n"
-			"eval code..                Evaluate Javascript code in agent side\n"
-			"dc                         Continue\n"
-			);
-		return true;
+		return strdup ("r2frida commands available via =!\n"
+		"?                          Show this help\n"
+		"?V                         Show target Frida version\n"
+		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
+		"/w[j] string               Search wide string\n"
+		"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
+		"i                          Show target information\n"
+		"ii[*]                      List imports\n"
+		"il                         List libraries\n"
+		"is[*] <lib>                List exports/entrypoints of lib\n"
+		"isa[*] (<lib>) <sym>       Show address of symbol\n"
+		"ic <class>                 List Objective-C classes or methods of <class>\n"
+		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
+		"fd[*j] <address>           Inverse symbol resolution\n"
+		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
+		"dm[.|j|*]                  Show memory regions\n"
+		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
+		"dmas <string>              Allocate a string inited with <string> on the heap\n"
+		"dmad <addr> <size>         Allocate <size> bytes on the heap, copy contents from <addr>\n"
+		"dmal                       List live heap allocations created with dma[s]\n"
+		"dma- (<addr>...)           Kill the allocations at <addr> (or all of them without param)\n"
+		"dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
+		"dp                         Show current pid\n"
+		"dpt                        Show threads\n"
+		"dr                         Show thread registers (see dpt)\n"
+		"env [k[=v]]                Get/set environment variable\n"
+		"dl libname                 Dlopen a library\n"
+		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
+		"dt <addr> ..               Trace list of addresses\n"
+		"dt-                        Clear all tracing\n"
+		"dtr <addr> (<regs>...)     Trace register values\n"
+		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
+		"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
+		"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
+		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
+		"dx [hexpairs]              Inject code and execute it (TODO)\n"
+		"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
+		"e[?] [a[=b]]               List/get/set config evaluable vars\n"
+		". script                   Run script\n"
+		"<space> code..             Evaluate Cycript code\n"
+		"eval code..                Evaluate Javascript code in agent side\n"
+		"dc                         Continue\n"
+		);
 	}
 
 	rf = fd->data;
@@ -409,7 +408,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
-		return true;
+		return NULL;
 	} else if (!strncmp (command, "dc", 2) && rf->suspended) {
 		GError *error = NULL;
 		frida_device_resume_sync (rf->device, rf->pid, &error);
@@ -420,7 +419,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			rf->suspended = false;
 			eprintf ("resumed spawned process.\n");
 		}
-		return true;
+		return NULL;
 	}
 
 	char *slurpedData = NULL;
@@ -430,7 +429,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			slurpedData = r_file_slurp (command + 2, NULL);
 			if (!slurpedData) {
 				io->cb_printf ("Cannot slurp %s\n", command + 2);
-				return false;
+				return NULL;
 			}
 			builder = build_request ("evaluate");
 			json_builder_set_member_name (builder, "code");
@@ -463,7 +462,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 			if (error) {
 				io->cb_printf ("ERROR: %s\n", error->message);
 				g_error_free (error);
-				return -1;
+				return NULL;
 			}
 
 			builder = build_request ("evaluate");
@@ -498,14 +497,14 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 		json_builder_add_boolean_value (builder, rf->suspended);
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
 		if (!result) {
-			return -1;
+			return NULL;
 		}
 		json_object_unref (result);
 	}
 
 	result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
-		return -1;
+		return NULL;
 	}
 	value = json_object_get_string_member (result, "value");
 	if (value && strcmp (value, "undefined")) {
@@ -513,7 +512,7 @@ static int __system(RIO *io, RIODesc *fd, const char *command) {
 	}
 	json_object_unref (result);
 
-	return 0;
+	return NULL;
 }
 
 static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool *spawn) {
