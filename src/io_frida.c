@@ -323,7 +323,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
-		return strdup ("r2frida commands available via =!\n"
+		io->cb_printf ("r2frida commands available via =!\n"
 		"?                          Show this help\n"
 		"?V                         Show target Frida version\n"
 		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
@@ -366,6 +366,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"eval code..                Evaluate Javascript code in agent side\n"
 		"dc                         Continue\n"
 		);
+		return NULL;
 	}
 
 	rf = fd->data;
@@ -507,12 +508,18 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		return NULL;
 	}
 	value = json_object_get_string_member (result, "value");
+	char *sys_result = NULL;
 	if (value && strcmp (value, "undefined")) {
-		io->cb_printf ("%s\n", value);
+		bool is_fs_io = command[0] == 'm';
+		if (is_fs_io) {
+			sys_result = r_str_newf ("%s", value);
+		} else {
+			io->cb_printf ("%s\n", value);
+		}
 	}
 	json_object_unref (result);
 
-	return NULL;
+	return sys_result;
 }
 
 static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool *spawn) {
