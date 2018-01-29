@@ -87,6 +87,7 @@ const commandHandlers = {
   'dpt': listThreads,
   'dptj': listThreadsJson,
   'dr': dumpRegisters,
+  'dr*': dumpRegistersR2,
   'drj': dumpRegistersJson,
   'env': getOrSetEnv,
   'envj': getOrSetEnvJson,
@@ -1049,6 +1050,21 @@ function listThreads () {
 function listThreadsJson () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id);
+}
+
+function dumpRegistersR2 (args) {
+  const threads = Process.enumerateThreadsSync();
+  const thread = threads[0];
+  const {id, state, context} = thread;
+  const names = Object.keys(JSON.parse(JSON.stringify(context)));
+  names.sort(compareRegisterNames);
+  const values = names
+  .map((name, index) => {
+    if (name === 'pc' || name === 'sp') return '';
+    const value = context[name] || 0;
+    return `ar ${name} = ${value}\n`;
+  })
+  return values.join('');
 }
 
 function dumpRegisters () {
