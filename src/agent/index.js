@@ -1400,11 +1400,15 @@ function traceFormat (args) {
 }
 
 function traceRegs (args) {
+  if (args.length < 1) {
+    return 'Usage: dtr [address] [reg ...]';
+  }
   const address = getPtr(args[0]);
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction(_) {
-    console.log('Trace probe hit at ' + address + ((args[0] !== address)? ' (' + args[0] + ')': ''));
+    const extra = (args[0] !== address)? ` (${args[0]})` : '';
+    console.log(`Trace probe hit at ${address} ${extra}`);
     console.log('\t' + rest.map(r => {
       let tail = '';
       if (r.indexOf('=') !== -1) {
