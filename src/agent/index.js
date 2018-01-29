@@ -1289,23 +1289,8 @@ function traceFormat (args) {
 function traceRegs (args) {
   const address = getPtr(args[0]);
   const rest = args.slice(1);
-  const listener = Interceptor.attach(address, {
-    onEnter: onEnter,
-    onLeave: onLeave
-  });
-  function onLeave(_) {
-    rest.map(r => {
-      let tail = '';
-      if (this.context[kv[0]] === _) {
-        _.replace(ptr(kv[1]));
-      } else if (r.indexOf('=') !== -1) {
-        const kv = r.split('=');
-        this.context[kv[0]] = ptr(kv[1]);
-        return r + ' = ' + this.context[kv[0]] + tail;
-      }
-    }
-  }
-  function onEnter(_) {
+  const listener = Interceptor.attach(traceFunction);
+  function traceFunction(_) {
     console.log('Trace probe hit at ' + address + ((args[0] !== address)? ' (' + args[0] + ')': ''));
     console.log('\t' + rest.map(r => {
       let tail = '';
