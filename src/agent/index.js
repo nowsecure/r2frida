@@ -1144,7 +1144,8 @@ function dumpRegisterArena (args) {
   }
   const thread = threads[tidx];
   const {id, state, context} = thread;
-  const names = Object.keys(JSON.parse(JSON.stringify(context)));
+  const names = Object.keys(JSON.parse(JSON.stringify(context)))
+    .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
   let off = 0;
   const inc = Process.pointerSize;
