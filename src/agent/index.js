@@ -49,7 +49,6 @@ const commandHandlers = {
   'il.': listModulesHere,
   'il*': listModulesR2,
   'ilj': listModulesJson,
-
   'is': listExports,
   'is.': lookupSymbolHere,
   'isj': listExportsJson,
@@ -96,6 +95,7 @@ const commandHandlers = {
   'dl': dlopen,
   'dtf': traceFormat,
   'dt': trace,
+  'dt*': traceR2,
   'dt.': traceHere,
   'dt-': clearTrace,
   'dtr': traceRegs,
@@ -1332,10 +1332,7 @@ function _readUntrustedUtf8 (address, length) {
 }
 
 function traceList () {
-  traceListeners.forEach((tl) => {
-    console.log('dt', JSON.stringify(tl));
-  });
-  return true;
+  return traceListeners.map(_ => JSON.stringify(_)).join('\n');
 }
 
 function getPtr (p) {
@@ -1405,7 +1402,7 @@ function traceFormat (args) {
 function traceRegs (args) {
   const address = getPtr(args[0]);
   const rest = args.slice(1);
-  const listener = Interceptor.attach(traceFunction);
+  const listener = Interceptor.attach(address, traceFunction);
   function traceFunction(_) {
     console.log('Trace probe hit at ' + address + ((args[0] !== address)? ' (' + args[0] + ')': ''));
     console.log('\t' + rest.map(r => {
@@ -1435,9 +1432,10 @@ function traceRegs (args) {
   }
   traceListeners.push({
     at: address,
-    listener: listener
+    listener: listener,
+    args: rest
   });
-  return true;
+  return '';
 }
 
 function traceHere () {
@@ -1454,6 +1452,10 @@ function traceHere () {
     });
   });
   return true;
+}
+
+function traceR2 (args) {
+  return traceListeners.map(_ => `CC ${_.args} @ ${_.at}`).join('\n');
 }
 
 function trace (args) {
