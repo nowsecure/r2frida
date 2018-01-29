@@ -1057,8 +1057,7 @@ function listThreadsJson () {
 function regProfileAliasFor(arch) {
   switch (arch) {
   case 'arm64':
-return `
-=PC	pc
+return `=PC	pc
 =SP	sp
 =BP	x29
 =A0	x0
@@ -1073,8 +1072,7 @@ return `
 `;
     break;
   case 'arm':
-return `
-=PC	r15
+return `=PC	r15
 =LR	r14
 =SP	sp
 =BP	fp
@@ -1090,8 +1088,7 @@ return `
 `;
     break;
   case 'x64':
-return `
-=PC	rip
+return `=PC	rip
 =SP	rsp
 =BP	rbp
 =A0	rdi
@@ -1104,8 +1101,7 @@ return `
 `;
     break;
 case 'x86':
-return `
-=PC	eip
+return `=PC	eip
 =SP	esp
 =BP	ebp
 =A0	eax
@@ -1124,7 +1120,8 @@ function dumpRegisterProfile (args) {
   const threads = Process.enumerateThreadsSync();
   const thread = threads[0];
   const {id, state, context} = thread;
-  const names = Object.keys(JSON.parse(JSON.stringify(context)));
+  const names = Object.keys(JSON.parse(JSON.stringify(context)))
+    .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
   let off = 0;
   const inc = Process.pointerSize;
