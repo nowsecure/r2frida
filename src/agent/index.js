@@ -1054,7 +1054,14 @@ function listThreadsJson () {
 
 function dumpRegistersR2 (args) {
   const threads = Process.enumerateThreadsSync();
-  const thread = threads[0];
+  let [tidx] = args;
+  if (!tidx) {
+    tidx = 0;
+  }
+  if (tidx < 0 || tidx >= threads.length) {
+    return '';
+  }
+  const thread = threads[tidx];
   const {id, state, context} = thread;
   const names = Object.keys(JSON.parse(JSON.stringify(context)));
   names.sort(compareRegisterNames);
