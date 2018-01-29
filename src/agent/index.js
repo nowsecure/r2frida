@@ -88,6 +88,8 @@ const commandHandlers = {
   'dptj': listThreadsJson,
   'dr': dumpRegisters,
   'dr*': dumpRegistersR2,
+  'drp': dumpRegisterProfile,
+  'dr8': dumpRegisterArena,
   'drj': dumpRegistersJson,
   'env': getOrSetEnv,
   'envj': getOrSetEnvJson,
@@ -1050,6 +1052,122 @@ function listThreads () {
 function listThreadsJson () {
   return Process.enumerateThreadsSync()
   .map(thread => thread.id);
+}
+
+function regProfileAliasFor(arch) {
+  switch (arch) {
+  case 'arm64':
+return `
+=PC	pc
+=SP	sp
+=BP	x29
+=A0	x0
+=A1	x1
+=A2	x2
+=A3	x3
+=ZF	zf
+=SF	nf
+=OF	vf
+=CF	cf
+=SN	x8
+`;
+    break;
+  case 'arm':
+return `
+=PC	r15
+=LR	r14
+=SP	sp
+=BP	fp
+=A0	r0
+=A1	r1
+=A2	r2
+=A3	r3
+=ZF	zf
+=SF	nf
+=OF	vf
+=CF	cf
+=SN	r7
+`;
+    break;
+  case 'x64':
+return `
+=PC	rip
+=SP	rsp
+=BP	rbp
+=A0	rdi
+=A1	rsi
+=A2	rdx
+=A3	r10
+=A4	r8
+=A5	r9
+=SN	rax
+`;
+    break;
+case 'x86':
+return `
+=PC	eip
+=SP	esp
+=BP	ebp
+=A0	eax
+=A1	ebx
+=A2	ecx
+=A3	edx
+=A4	esi
+=A5	edi
+=SN	eax
+`;
+break;
+  }
+}
+
+function dumpRegisterProfile (args) {
+  const threads = Process.enumerateThreadsSync();
+  const thread = threads[0];
+  const {id, state, context} = thread;
+  const names = Object.keys(JSON.parse(JSON.stringify(context)));
+  names.sort(compareRegisterNames);
+  let off = 0;
+  const inc = Process.pointerSize;
+  let profile = regProfileAliasFor(Process.arch);
+  for (let reg of names) {
+    profile += `gpr\t${reg}\t.${inc}\t${off}\t0\n`;
+    off += inc;
+  }
+  return profile;
+}
+
+function dumpRegisterArena (args) {
+  const threads = Process.enumerateThreadsSync();
+  let [tidx] = args;
+  if (!tidx) {
+    tidx = 0;
+  }
+  if (tidx < 0 || tidx >= threads.length) {
+    return '';
+  }
+  const thread = threads[tidx];
+  const {id, state, context} = thread;
+  const names = Object.keys(JSON.parse(JSON.stringify(context)));
+  names.sort(compareRegisterNames);
+  let off = 0;
+  const inc = Process.pointerSize;
+  let buf = new Buffer(inc * names.length);
+  for (let reg of names) {
+    const r = context[reg];
+    let b = [r.and(0xff),
+      r.shr(8).and(0xff),
+      r.shr(16).and(0xff),
+      r.shr(24).and(0xff),
+      r.shr(32).and(0xff),
+      r.shr(40).and(0xff),
+      r.shr(48).and(0xff),
+      r.shr(56).and(0xff)];
+    for (let i = 0; i < inc; i++) {
+      buf.writeUInt8(b[i], off + i);
+    }
+    off += inc;
+  }
+  return buf.toString('hex');
 }
 
 function dumpRegistersR2 (args) {
