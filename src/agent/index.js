@@ -1097,7 +1097,7 @@ return `
 =A0	rdi
 =A1	rsi
 =A2	rdx
-=A3	r10
+=A3	rcx
 =A4	r8
 =A5	r9
 =SN	rax
