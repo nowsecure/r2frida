@@ -2060,9 +2060,9 @@ function _searchPatternJson (pattern) {
   return hostCmdj('ej')
     .then(config => {
       const flags = config['search.flags'];
-      const prefix = config['search.prefix'];
-      const count = config['search.count'];
-      const kwidx = config['search.kwidx'];
+      const prefix = config['search.prefix'] || 'hit';
+      const count = config['search.count'] || 0;
+      const kwidx = config['search.kwidx'] || 0;
 
       const ranges = _getRanges(config['search.from'], config['search.to']);
       const nBytes = pattern.split(' ').length;
