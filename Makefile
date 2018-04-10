@@ -1,6 +1,6 @@
 include config.mk
 
-radare2_version = 2.4.0
+r2_version = 2.4.0
 frida_version = 10.7.7
 
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -86,15 +86,16 @@ IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 
 .PHONY: io_frida.$(SO_EXT)
 
+# XXX we are statically linking to the .a we should use shared libs if exist
 ios: r2-sdk-ios/$(r2_version)
 	$(MAKE) \
-	CFLAGS=-Ir2-sdk-ios/include \
+	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr" \
 	LDFLAGS="-Lr2-sdk-ios/lib -lr -shared -fPIC" \
 	CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
 
 r2-sdk-ios/$(r2_version):
 	rm -rf r2-sdk-ios
-	wget http://cloud.radare.org/get/$(r2_version)/radare2-ios-arm64-$(r2_version).tar.gz
+	wget http://radare.mikelloc.com/get/$(r2_version)/radare2-ios-arm64-$(r2_version).tar.gz
 	mkdir -p r2-sdk-ios/$(r2_version)
 	tar xzvf radare2-ios-arm64-$(r2_version).tar.gz -C r2-sdk-ios
 	mv r2-sdk-ios/*/* r2-sdk-ios
