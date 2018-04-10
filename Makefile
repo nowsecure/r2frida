@@ -36,8 +36,12 @@ CXXFLAGS+=$(CFLAGS)
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
-#FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
+ifeq ($(frida_os),android)
 FRIDA_LIBS+=ext/frida/libfrida-core.a
+else
+FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
+endif
+
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
   ifeq ($(frida_os),macos)
@@ -48,7 +52,9 @@ FRIDA_LIBS+=-framework Foundation
 FRIDA_LIBS+=-framework UIKit
 FRIDA_LIBS+=-framework CoreGraphics
   else
-#FRIDA_LIBS+=-lbsm
+  ifeq ($(frida_os),macos)
+FRIDA_LIBS+=-lbsm
+endif
   endif
   ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-framework AppKit
