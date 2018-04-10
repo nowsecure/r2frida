@@ -1,5 +1,5 @@
 PACKAGE=r2frida
-VERSION=1.8.1
+VERSION=2.2.0
 ARCH=amd64
 DEPENDS=radare2
 SECTION=user/shell

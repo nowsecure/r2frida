@@ -1,5 +1,5 @@
 PACKAGE=r2frida
-VERSION=1.2
+VERSION=2.2.0
 ARCH=iphoneos-arm
 SECTION=user/shell
 PRIORITY=optional
