@@ -26,8 +26,8 @@ CFLAGS+=-fPIC
 LDFLAGS+=-shared -fPIC
 
 # R2
-CFLAGS+=$(shell pkg-config --cflags r_core)
-LDFLAGS+=$(shell pkg-config --libs r_core)
+CFLAGS+=$(shell pkg-config --cflags r_core r_io r_util)
+LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
 
 CXXFLAGS+=$(CFLAGS)
@@ -36,20 +36,23 @@ CXXFLAGS+=$(CFLAGS)
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
-FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
+#FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
+FRIDA_LIBS+=ext/frida/libfrida-core.a
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
+  ifeq ($(frida_os),macos)
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=-framework Foundation
-ifeq ($(frida_os),ios)
+  endif
+  ifeq ($(frida_os),ios)
 FRIDA_LIBS+=-framework UIKit
 FRIDA_LIBS+=-framework CoreGraphics
-else
-FRIDA_LIBS+=-lbsm
-endif
-ifeq ($(frida_os),macos)
+  else
+#FRIDA_LIBS+=-lbsm
+  endif
+  ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-framework AppKit
-endif
+  endif
 endif
 
 # CYLANG
@@ -116,11 +119,24 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 node_modules: package.json
 	npm install
 
-android-arm64:
-	make frida_os=android frida_arch=aarch64 CC=arm-linux-androideabi-gcc CXX=arm-linux-androideabi-g++
+radare2-android-arm64-libs:
+	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2_2.4.0_aarch64.deb
+	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_2.4.0_aarch64.deb
+	mkdir -p radare2-android-arm64-libs
+	cd radare2-android-arm64-libs ; 7z x ../radare2_2.4.0_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd radare2-android-arm64-libs ; 7z x ../radare2-dev_2.4.0_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	ln -fs radare2-android-arm64-libs//data/data/com.termux/files/
+	
+R2A_DIR=$(shell pwd)/radare2-android-arm64-libs/data/data/com.termux/files/usr
+
+android-arm64: radare2-android-arm64-libs
+	$(MAKE) frida_os=android frida_arch=arm64 CC=ndk-gcc CXX=ndk-g++ \
+		CFLAGS="$(CFLAGS) -I$(R2A_DIR)/include" \
+		LDFLAGS="$(LDFLAGS) -L$(R2A_DIR)/lib" SO_EXT=so
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
+	$(RM) -rf radare2-android-arm64-libs
 
 cycript-clean clean2:
 	-$(MAKE) -C ext/cycript clean
