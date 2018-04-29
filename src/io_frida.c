@@ -670,6 +670,9 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 		case FRIDA_SESSION_DETACH_REASON_DEVICE_LOST:
 			eprintf ("Device lost\n");
 			break;
+		case FRIDA_SESSION_DETACH_REASON_PROCESS_REPLACED:
+			eprintf ("Process replaced\n");
+			break;
 		}
 		return NULL;
 	}
@@ -742,8 +745,7 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 	rf->received_reply = true;
 	rf->reply_stanza = stanza;
-	rf->reply_bytes = (bytes != NULL) ? g_bytes_ref (bytes) : NULL;
-
+	rf->reply_bytes = bytes? g_bytes_ref (bytes): NULL;
 	g_cond_signal (&rf->cond);
 
 	g_mutex_unlock (&rf->lock);
@@ -751,25 +753,18 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 static void on_detached(FridaSession *session, FridaSessionDetachReason reason, gpointer user_data) {
 	RIOFrida *rf = user_data;
-
 	g_mutex_lock (&rf->lock);
-
 	rf->detached = true;
 	rf->detach_reason = reason;
 	g_cond_signal (&rf->cond);
-
 	g_mutex_unlock (&rf->lock);
 }
 
 static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_lock (&rf->lock);
-
 	g_assert (!rf->pending_cmd);
-
 	rf->pending_cmd = pending_cmd_create (cmd_stanza);
-
 	g_cond_signal (&rf->cond);
-
 	g_mutex_unlock (&rf->lock);
 }
 
@@ -807,12 +802,13 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 }
 
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
-	RFPendingCmd *pending_cmd = R_NEW0 (RFPendingCmd);
-	pending_cmd->_cmd_json = json_object_ref (cmd_json);
-	pending_cmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
-	pending_cmd->serial = json_object_get_int_member (cmd_json, "serial");
-
-	return pending_cmd;
+	RFPendingCmd *pcmd = R_NEW0 (RFPendingCmd);
+	if (pcmd) {
+		pcmd->_cmd_json = json_object_ref (cmd_json);
+		pcmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
+		pcmd->serial = json_object_get_int_member (cmd_json, "serial");
+	}
+	return pcmd;
 }
 
 static void pending_cmd_free(RFPendingCmd * pending_cmd) {
