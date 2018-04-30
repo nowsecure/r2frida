@@ -61,6 +61,10 @@ FRIDA_LIBS+=-framework AppKit
   endif
 endif
 
+ifeq ($(frida_os),android)
+LDFLAGS+=-landroid -llog -lm
+endif
+
 # CYLANG
 CFLAGS+=-DWITH_CYLANG=$(WITH_CYLANG)
 ifeq ($(WITH_CYLANG),1)
