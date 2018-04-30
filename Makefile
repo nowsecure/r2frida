@@ -8,7 +8,7 @@ frida_os := android
 else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
-frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g' | sed 's,armv7l,arm,g')
+frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,i386,g' -e 's,armv7l,arm,g' -e 's,aarch64,arm64,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
 
 WGET?=wget
