@@ -787,29 +787,51 @@ function listImports (args) {
 }
 
 function listImportsR2 (args) {
+  const seen = new Set();
   return listImportsJson(args).map((x) => {
-    return 'f sym.imp.' + x.name + ' = ' + x.address;
+    const flags = [];
+    if (!seen.has(x.address)) {
+      seen.add(x.address);
+      flags.push(`f sym.imp.${x.name} = ${x.address}`);
+    }
+    if (x.slot !== undefined) {
+      flags.push(`f reloc.${x.targetModuleName}.${x.name}_${x.index} = ${x.slot}`);
+    }
+    return flags.join('\n');
   }).join('\n');
 }
 
 function listImportsJson (args) {
   const alen = args.length;
+  let result = [];
+  let moduleName = null;
   if (alen === 2) {
-    const [moduleName, importName] = args;
+    moduleName = args[0];
+    const importName = args[1];
     const imports = Module.enumerateImportsSync(moduleName);
-    if (imports === null) {
-      return [];
+    if (imports !== null) {
+      result = imports.filter((x, i) => {
+        x.index = i;
+        return x.name === importName;
+      });
     }
-    return imports.filter((x) => {
-      return x.name === importName;
-    });
   } else if (alen === 1) {
-    return Module.enumerateImportsSync(args[0]) || [];
+    moduleName = args[0];
+    result = Module.enumerateImportsSync(moduleName) || [];
+  } else {
+    const modules = Process.enumerateModulesSync() || [];
+    if (modules.length > 0) {
+      moduleName = modules[0].name;
+      result = Module.enumerateImportsSync(moduleName) || [];
+    }
   }
-  const modules = Process.enumerateModulesSync() || [];
-  if (modules.length > 0) {
-    return Module.enumerateImportsSync(modules[0].name) || [];
-  }
+  result.forEach((x, i) =>  {
+    if (x.index === undefined) {
+      x.index = i;
+    }
+    x.targetModuleName = moduleName;
+  });
+  return result;
 }
 
 function listClasses (args) {
