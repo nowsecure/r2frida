@@ -8,7 +8,7 @@ frida_os := android
 else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
-frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g')
+frida_arch := $(shell uname -m | sed 's,i[0-9]86,i386,g' | sed 's,armv7l,arm,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
 
 WGET?=wget
@@ -28,7 +28,7 @@ LDFLAGS+=-shared -fPIC
 # R2
 CFLAGS+=$(shell pkg-config --cflags r_core r_io r_util)
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
-R2_PLUGDIR=$(shell r2 -hh | grep '^ 'RHOMEDIR | awk '{print $$2}')/plugins
+R2_PLUGDIR=$(shell r2 -H USER_PLUGINS)
 
 CXXFLAGS+=$(CFLAGS)
 
