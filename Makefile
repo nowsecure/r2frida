@@ -63,6 +63,13 @@ endif
 
 ifeq ($(frida_os),android)
 LDFLAGS+=-landroid -llog -lm
+STRIP_SYMBOLS=yes
+endif
+
+ifeq ($(STRIP_SYMBOLS),yes)
+LD_FLAGS+=-Wl,--version-script,ld.script
+LD_FLAGS+=-Wl,--gc-sections
+LD_FLAGS+=-Wl,-dead_strip
 endif
 
 # CYLANG

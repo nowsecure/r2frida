@@ -1,0 +1,6 @@
+_ {
+	global:
+		radare_plugin;
+	local:
+		*;
+};
