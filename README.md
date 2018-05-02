@@ -44,6 +44,17 @@ you can spawn an app on the device too, with an extra `/` and the package name (
 
 	$ r2 frida://device-id//com.atebits.Tweetie2
 
+Termux
+------
+If you are willing to install and use r2frida natively on Android via Termux, there are some caveats with the library dependencies because of some symbol resolutions. The way to make this work is by extending the `LD_LIBRARY_PATH` environment to point to the system directory *before* the termux libdir.
+
+`$ LD_LIBRARY_PATH=/system/lib64:$LD_LIBRARY_PATH r2 frida://...`
+
+To debug plugin loading problems use the following environment variable and grep for `frida`:
+
+`$ R_DEBUG=1 r2 -`
+
+
 Design
 ------
 	 +---------+
