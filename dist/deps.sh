@@ -2,7 +2,6 @@ RV=2.5.0
 RA=amd64
 wget -c http://radare.mikelloc.com/get/${RV}/radare2_${RV}_${RA}.deb
 wget -c http://radare.mikelloc.com/get/${RV}/radare2-dev_${RV}_${RA}.deb
-#wget -c http://www.radare.org/get/debian/radare2-dev_${RV}_${RA}.deb
 sudo dpkg -i radare2_${RV}_${RA}.deb
 sudo dpkg -i radare2-dev_${RV}_${RA}.deb
 
