@@ -2,6 +2,7 @@ include ./CONFIG
 
 DEPENDS=
 ARCH=amd64
+ARCH=x64
 PWD=$(shell pwd)
 PACKAGE_DIR?=${PWD}
 
