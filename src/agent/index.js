@@ -1278,7 +1278,7 @@ function dumpRegisterArena (args) {
   names.sort(compareRegisterNames);
   let off = 0;
   const inc = Process.pointerSize;
-  let buf = new Buffer(inc * names.length);
+  let buf = Buffer.alloc(inc * names.length);
   for (let reg of names) {
     const r = context[reg];
     let b = [r.and(0xff),
