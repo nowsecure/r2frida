@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2017 - pancake, oleavr */
+/* radare2 - MIT - Copyright 2016-2018 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
@@ -323,7 +323,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
-		io->cb_printf ("r2frida commands available via =!\n"
+		// TODO: move this into the .js
+		io->cb_printf ("r2frida commands available via =! or \\ prefix\n"
 		"?                          Show this help\n"
 		"?V                         Show target Frida version\n"
 		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"

@@ -4,7 +4,6 @@
 const r2frida = require('./plugin'); // eslint-disable-line
 const {stalkFunction, stalkEverything} = require('./stalker');
 
-
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const JavaAvailable = Java && Java.available;
@@ -477,8 +476,8 @@ function configValidateStalkerIn (val) {
 function evalConfig (args) {
   if (args.length === 0) {
     return Object.keys(config)
-    .map(k => 'e ' + k + '=' + config[k])
-    .join('\n');
+      .map(k => 'e ' + k + '=' + config[k])
+      .join('\n');
   }
   const kv = args[0].split(/=/);
   if (kv.length === 2) {
@@ -508,8 +507,8 @@ function evalConfig (args) {
 function dumpInfo () {
   const properties = dumpInfoJson();
   return Object.keys(properties)
-  .map(k => k + '\t' + properties[k])
-  .join('\n');
+    .map(k => k + '  ' + properties[k])
+    .join('\n');
 }
 
 function dumpInfoR2 () {
@@ -639,14 +638,14 @@ function dumpInfoJson () {
 
 function listModules () {
   return Process.enumerateModulesSync()
-  .map(m => padPointer(m.base) + ' ' + m.name)
-  .join('\n');
+    .map(m => padPointer(m.base) + ' ' + m.name)
+    .join('\n');
 }
 
 function listModulesR2 () {
   return Process.enumerateModulesSync()
-  .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
-  .join('\n');
+    .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
+    .join('\n');
 }
 
 function listModulesJson () {
@@ -657,25 +656,25 @@ function listModulesHere () {
   const here = ptr(offset);
 
   return Process.enumerateModulesSync()
-  .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
-  .map(m => padPointer(m.base) + ' ' + m.name)
-  .join('\n');
+    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+    .map(m => padPointer(m.base) + ' ' + m.name)
+    .join('\n');
 }
 
 function listExports (args) {
   return listExportsJson(args)
-  .map(({type, name, address}) => {
-    return [address, type[0], name].join(' ');
-  })
-  .join('\n');
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
 }
 
 function listExportsR2 (args) {
   return listExportsJson(args)
-  .map(({type, name, address}) => {
-    return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
-  })
-  .join('\n');
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
 }
 
 function listExportsJson (args) {
@@ -700,15 +699,15 @@ function lookupAddress (args) {
     args = [ptr(offset)];
   }
   return lookupAddressJson(args)
-  .map(({type, name, address}) => [type, name, address].join(' '))
-  .join('\n');
+    .map(({type, name, address}) => [type, name, address].join(' '))
+    .join('\n');
 }
 
 function lookupAddressR2 (args) {
   return lookupAddressJson(args)
-  .map(({type, name, address}) =>
-    ['f', 'sym.' + name, '=', address].join(' '))
-  .join('\n');
+    .map(({type, name, address}) =>
+      ['f', 'sym.' + name, '=', address].join(' '))
+    .join('\n');
 }
 
 function lookupAddressJson (args) {
@@ -718,16 +717,16 @@ function lookupAddressJson (args) {
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
   }, [])
-  .reduce((type, obj) => {
-    if (ptr(obj.address).compare(exportAddress) === 0) {
-      result.push({
-        type: obj.type,
-        name: obj.name,
-        address: obj.address
-      });
-    }
-    return result;
-  }, []);
+    .reduce((type, obj) => {
+      if (ptr(obj.address).compare(exportAddress) === 0) {
+        result.push({
+          type: obj.type,
+          name: obj.name,
+          address: obj.address
+        });
+      }
+      return result;
+    }, []);
 }
 
 function lookupSymbolHere (args) {
@@ -737,15 +736,15 @@ function lookupSymbolHere (args) {
 function lookupSymbol (args) {
   return lookupSymbolJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
-  .map(({address}) => '' + address)
-  .join('\n');
+    .map(({address}) => '' + address)
+    .join('\n');
 }
 
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
-  .map(({name, address}) =>
-    ['f', 'sym.' + name, '=', address].join(' '))
-  .join('\n');
+    .map(({name, address}) =>
+      ['f', 'sym.' + name, '=', address].join(' '))
+    .join('\n');
 }
 
 function lookupSymbolJson (args) {
@@ -765,25 +764,25 @@ function lookupSymbolJson (args) {
     const exportName = args[0];
     let prevAddress = null;
     return Process.enumerateModulesSync()
-    .reduce((result, m) => {
-      const address = Module.findExportByName(m.path, exportName);
-      if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
-        result.push({
-          library: m.name,
-          name: exportName,
-          address: address
-        });
-        prevAddress = address;
-      }
-      return result;
-    }, []);
+      .reduce((result, m) => {
+        const address = Module.findExportByName(m.path, exportName);
+        if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
+          result.push({
+            library: m.name,
+            name: exportName,
+            address: address
+          });
+          prevAddress = address;
+        }
+        return result;
+      }, []);
   }
 }
 
 function listImports (args) {
   return listImportsJson(args)
-  .map(({type, name, module, address}) => [address, type ? type[0] : ' ', name, module].join(' '))
-  .join('\n');
+    .map(({type, name, module, address}) => [address, type ? type[0] : ' ', name, module].join(' '))
+    .join('\n');
 }
 
 function listImportsR2 (args) {
@@ -825,7 +824,7 @@ function listImportsJson (args) {
       result = Module.enumerateImportsSync(moduleName) || [];
     }
   }
-  result.forEach((x, i) =>  {
+  result.forEach((x, i) => {
     if (x.index === undefined) {
       x.index = i;
     }
@@ -840,11 +839,11 @@ function listClasses (args) {
     return result.join('\n');
   } else {
     return Object.keys(result)
-    .map(methodName => {
-      const address = result[methodName];
-      return [padPointer(address), methodName].join(' ');
-    })
-    .join('\n');
+      .map(methodName => {
+        const address = result[methodName];
+        return [padPointer(address), methodName].join(' ');
+      })
+      .join('\n');
   }
 }
 
@@ -871,20 +870,20 @@ function listClassesR2 (args) {
     return result.join('\n');
   } else {
     return Object.keys(result)
-    .map(methodName => {
-      const address = result[methodName];
-      return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
-    })
-    .join('\n');
+      .map(methodName => {
+        const address = result[methodName];
+        return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
+      })
+      .join('\n');
   }
 
   function flagName (m) {
     return 'sym.objc.' +
       (className + '.' + m)
-      .replace(':', '')
-      .replace(' ', '')
-      .replace('-', '')
-      .replace('+', '');
+        .replace(':', '')
+        .replace(' ', '')
+        .replace('-', '')
+        .replace('+', '');
   }
 }
 
@@ -959,20 +958,20 @@ function listClassesJson (args) {
       throw new Error('Class ' + args[0] + ' not found');
     }
     return klass.$ownMethods
-    .reduce((result, methodName) => {
-      try {
-        result[methodName] = klass[methodName].implementation;
-      } catch (_) {
-        console.log('warning: unsupported method \'' + methodName + '\'');
-      }
-      return result;
-    }, {});
+      .reduce((result, methodName) => {
+        try {
+          result[methodName] = klass[methodName].implementation;
+        } catch (_) {
+          console.log('warning: unsupported method \'' + methodName + '\'');
+        }
+        return result;
+      }, {});
   }
 }
 
 function listProtocols (args) {
   return listProtocolsJson(args)
-  .join('\n');
+    .join('\n');
 }
 
 function closeFileDescriptors (args) {
@@ -1010,40 +1009,148 @@ function listProtocolsJson (args) {
   }
 }
 
+function listMallocMaps (args) {
+  const heaps = squashRanges(listMallocRangesJson(args));
+  function inRange (x) {
+    for (let heap of heaps) {
+      if (x.base.compare(heap.base) >= 0 &&
+      x.base.add(x.size).compare(heap.base.add(heap.size))) {
+        return true;
+      }
+    }
+    return false;
+  }
+  return squashRanges(listMemoryRangesJson())
+    .filter(inRange)
+    .map(({base, size, protection, file}) =>
+      [
+        padPointer(base),
+        '-',
+        padPointer(base.add(size)),
+        protection,
+      ]
+        .concat((file !== undefined) ? [file.path] : [])
+        .join(' ')
+    )
+    .join('\n');
+}
+
+function listMallocRangesJson (args) {
+  return Process.enumerateMallocRangesSync();
+}
+
+function listMallocRangesR2 (args) {
+  const chunks = listMallocRangesJson(args)
+    .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
+  return chunks + squashRanges(listMallocRangesJson(args))
+    .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
+}
+
+function listMallocRanges (args) {
+  return squashRanges(listMallocRangesJson(args))
+    .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n');
+}
+
 function listMemoryRangesHere (args) {
   if (args.length !== 1) {
     args = [ ptr(offset) ];
   }
   const addr = +args[0];
   return listMemoryRangesJson()
-  .filter(({base, size}) => {
-    return (addr >= +base && addr < (+base + size));
-  }).map(({base, size, protection, file}) =>
-    [
-      padPointer(base),
-      '-',
-      padPointer(base.add(size)),
-      protection,
-    ]
-    .concat((file !== undefined) ? [file.path] : [])
-    .join(' ')
-  )
-  .join('\n');
+    .filter(({base, size}) => (addr >= +base && addr < (+base + size)))
+    .map(({base, size, protection, file}) =>
+      [
+        padPointer(base),
+        '-',
+        padPointer(base.add(size)),
+        protection,
+      ]
+        .concat((file !== undefined) ? [file.path] : [])
+        .join(' ')
+    )
+    .join('\n');
+}
+
+function rwxstr (x) {
+  let str = '';
+  str += (x & 1) ? 'r' : '-';
+  str += (x & 2) ? 'w' : '-';
+  str += (x & 4) ? 'x' : '-';
+  return str;
+}
+
+function rwxint (x) {
+  const ops = [ '---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx' ];
+  return ops.indexOf([x]);
+}
+
+function squashRanges (ranges) {
+// console.log("SquashRanges");
+  let res = [];
+  let begin = ptr(0);
+  let end = ptr(0);
+  let lastPerm = 0;
+  let lastFile = '';
+  for (let r of ranges) {
+    lastPerm |= rwxint(r.protection);
+    if (r.file) {
+      lastFile = r.file;
+    }
+    // console.log("-", r.base, range.base.add(range.size));
+    if (r.base.equals(end)) {
+      // enlarge segment
+      end = end.add(r.size);
+      // console.log("enlarge", begin, end);
+    } else {
+      if (begin.equals(ptr(0))) {
+        begin = r.base;
+        end = begin.add(r.size);
+        // console.log("  set", begin, end);
+      } else {
+        // console.log("  append", begin, end);
+        res.push({base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile});
+        end = ptr(0);
+        begin = ptr(0);
+        lastPerm = 0;
+        lastFile = '';
+      }
+    }
+  }
+  if (!begin.equals(ptr(0))) {
+    res.push({base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile});
+  }
+  return res;
+}
+
+function listMemoryMaps () {
+  return squashRanges(listMemoryRangesJson())
+    .filter(_ => _.file)
+    .map(({base, size, protection, file}) =>
+      [
+        padPointer(base),
+        '-',
+        padPointer(base.add(size)),
+        protection,
+      ]
+        .concat((file !== undefined) ? [file.path] : [])
+        .join(' ')
+    )
+    .join('\n');
 }
 
 function listMemoryRanges () {
   return listMemoryRangesJson()
-  .map(({base, size, protection, file}) =>
-    [
-      padPointer(base),
-      '-',
-      padPointer(base.add(size)),
-      protection,
-    ]
-    .concat((file !== undefined) ? [file.path] : [])
-    .join(' ')
-  )
-  .join('\n');
+    .map(({base, size, protection, file}) =>
+      [
+        padPointer(base),
+        '-',
+        padPointer(base.add(size)),
+        protection,
+      ]
+        .concat((file !== undefined) ? [file.path] : [])
+        .join(' ')
+    )
+    .join('\n');
 }
 
 function listMemoryRangesJson () {
@@ -1067,19 +1174,19 @@ function getPid () {
 
 function listThreads () {
   return Process.enumerateThreadsSync()
-  .map(thread => thread.id)
-  .join('\n');
+    .map(thread => thread.id)
+    .join('\n');
 }
 
 function listThreadsJson () {
   return Process.enumerateThreadsSync()
-  .map(thread => thread.id);
+    .map(thread => thread.id);
 }
 
-function regProfileAliasFor(arch) {
+function regProfileAliasFor (arch) {
   switch (arch) {
-  case 'arm64':
-return `=PC	pc
+    case 'arm64':
+      return `=PC	pc
 =SP	sp
 =BP	x29
 =A0	x0
@@ -1092,9 +1199,9 @@ return `=PC	pc
 =CF	cf
 =SN	x8
 `;
-    break;
-  case 'arm':
-return `=PC	r15
+      break;
+    case 'arm':
+      return `=PC	r15
 =LR	r14
 =SP	sp
 =BP	fp
@@ -1108,9 +1215,9 @@ return `=PC	r15
 =CF	cf
 =SN	r7
 `;
-    break;
-  case 'x64':
-return `=PC	rip
+      break;
+    case 'x64':
+      return `=PC	rip
 =SP	rsp
 =BP	rbp
 =A0	rdi
@@ -1121,9 +1228,9 @@ return `=PC	rip
 =A5	r9
 =SN	rax
 `;
-    break;
-case 'x86':
-return `=PC	eip
+      break;
+    case 'x86':
+      return `=PC	eip
 =SP	esp
 =BP	ebp
 =A0	eax
@@ -1134,7 +1241,7 @@ return `=PC	eip
 =A5	edi
 =SN	eax
 `;
-break;
+      break;
   }
 }
 
@@ -1204,11 +1311,11 @@ function dumpRegistersR2 (args) {
   const names = Object.keys(JSON.parse(JSON.stringify(context)));
   names.sort(compareRegisterNames);
   const values = names
-  .map((name, index) => {
-    if (name === 'pc' || name === 'sp') return '';
-    const value = context[name] || 0;
-    return `ar ${name} = ${value}\n`;
-  })
+    .map((name, index) => {
+      if (name === 'pc' || name === 'sp') return '';
+      const value = context[name] || 0;
+      return `ar ${name} = ${value}\n`;
+    });
   return values.join('');
 }
 
@@ -1222,8 +1329,8 @@ function dumpRegisters () {
       const names = Object.keys(JSON.parse(JSON.stringify(context)));
       names.sort(compareRegisterNames);
       const values = names
-      .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
-      .map(indent);
+        .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
+        .map(indent);
 
       return heading + '\n' + values.join('');
     })
@@ -1367,7 +1474,7 @@ function getPtr (p) {
       return ptr(p);
     }
   } catch (e) {
-   // console.error(e);
+    // console.error(e);
   }
   // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
   return Module.findExportByName(null, p);
@@ -1428,8 +1535,8 @@ function traceRegs (args) {
   const address = getPtr(args[0]);
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, traceFunction);
-  function traceFunction(_) {
-    const extra = (args[0] !== address)? ` (${args[0]})` : '';
+  function traceFunction (_) {
+    const extra = (args[0] !== address) ? ` (${args[0]})` : '';
     console.log(`Trace probe hit at ${address} ${extra}`);
     console.log('\t' + rest.map(r => {
       let tail = '';
@@ -1874,7 +1981,12 @@ function perform (params) {
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
-
+/*
+  if (name.endsWith('?') && name !== 'e?') {
+    console.error('TODO: show help of \\?~' + name.substring(0, name.length - 1));
+    return;
+  }
+*/
   const userHandler = global.r2frida.commandHandler(name);
   const handler = userHandler !== undefined
     ? userHandler : commandHandlers[name];
