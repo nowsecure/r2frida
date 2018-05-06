@@ -66,13 +66,13 @@ static const unsigned char r_io_frida_agent_code[] = {
 
 static RCore *get_r_core_main_instance() {
 	RCons * cons = r_cons_singleton ();
-	if (cons && cons->line > 1) {
+	if (cons && cons->line > (void*)1) {
 		return (RCore*) cons->line->user;
 	}
 	return NULL;
 }
 
-static RIOFrida *r_io_frida_new(void) {
+static RIOFrida *r_io_frida_new(RIO *io) {
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
 		return NULL;
@@ -81,7 +81,7 @@ static RIOFrida *r_io_frida_new(void) {
 	rf->detached = false;
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->received_reply = false;
-	rf->r2core = get_r_core_main_instance ();
+	rf->r2core = io->user;
 	g_assert (rf->r2core != NULL);
 	rf->suspended = false;
 
@@ -122,7 +122,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	frida_init ();
 
-	rf = r_io_frida_new ();
+	rf = r_io_frida_new (io);
 	if (!rf) {
 		goto error;
 	}
@@ -701,10 +701,7 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 	if (!rf->pending_cmd) {
 		return;
 	}
-	if (!rf->r2core) {
-		rf->r2core = get_r_core_main_instance ();
-		g_assert (rf->r2core != NULL);
-	}
+	// TODO: use io->cb_core_cmdstr instead to avoid depending on RCore directly
 	char * output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
 
 	ut64 serial = rf->pending_cmd->serial;
