@@ -216,6 +216,10 @@ install:
 uninstall:
 	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
+release:
+	$(MAKE) android STRIP_SYMBOLS=yes
+	$(MAKE) -C dist/debian
+
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
@@ -282,4 +286,4 @@ src/cylang.o:
 	touch src/cylang.o
 endif
 
-.PHONY: all clean install uninstall
+.PHONY: all clean install uninstall release
