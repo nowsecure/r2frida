@@ -27,7 +27,11 @@ LDFLAGS+=-shared -fPIC
 
 # R2
 CFLAGS+=$(shell pkg-config --cflags r_core r_io r_util)
+ifeq ($(frida_os),android)
+LDFLAGS+=$(subst -lssl,,$(shell pkg-config --libs r_core r_io r_util))
+else
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
+endif
 R2_PLUGDIR=$(shell r2 -H USER_PLUGINS)
 
 CXXFLAGS+=$(CFLAGS)
@@ -137,24 +141,45 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 node_modules: package.json
 	npm install
 
+R2A_ROOT=$(shell pwd)/radare2-android-libs
+
+android:
+	$(MAKE) android-arm64
+	cp -f io_frida.so io_frida-$(r2_version)-android-arm64.so
+	$(MAKE) android-arm
+	cp -f io_frida.so io_frida-$(r2_version)-android-arm.so
+
 radare2-android-arm64-libs:
-	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2_2.4.0_aarch64.deb
-	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_2.4.0_aarch64.deb
-	mkdir -p radare2-android-arm64-libs
-	cd radare2-android-arm64-libs ; 7z x ../radare2_2.4.0_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
-	cd radare2-android-arm64-libs ; 7z x ../radare2-dev_2.4.0_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
-	ln -fs radare2-android-arm64-libs//data/data/com.termux/files/
+	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2_${r2_version}_aarch64.deb
+	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_${r2_version}_aarch64.deb
+	mkdir -p $(R2A_ROOT)
+	cd $(R2A_ROOT) ; 7z x -y ../radare2_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	ln -fs $(R2A_ROOT)/data/data/com.termux/files/
 	
-R2A_DIR=$(shell pwd)/radare2-android-arm64-libs/data/data/com.termux/files/usr
+R2A_DIR=$(R2A_ROOT)/data/data/com.termux/files/usr
 
 android-arm64: radare2-android-arm64-libs
 	$(MAKE) frida_os=android frida_arch=arm64 CC=ndk-gcc CXX=ndk-g++ \
-		CFLAGS="$(CFLAGS) -I$(R2A_DIR)/include" \
-		LDFLAGS="$(LDFLAGS) -L$(R2A_DIR)/lib" SO_EXT=so
+		CFLAGS="-I$(R2A_DIR)/include $(CFLAGS)" \
+		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
+
+radare2-android-arm-libs:
+	wget -c http://termux.net/dists/stable/main/binary-arm/radare2_${r2_version}_arm.deb
+	wget -c http://termux.net/dists/stable/main/binary-arm/radare2-dev_${r2_version}_arm.deb
+	mkdir -p $(R2A_ROOT)
+	cd $(R2A_ROOT) ; 7z x -y ../radare2_${r2_version}_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_${r2_version}_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	ln -fs $(R2A_ROOT)/data/data/com.termux/files/
+
+android-arm: radare2-android-arm-libs
+	$(MAKE) frida_os=android frida_arch=arm CC=ndk-gcc CXX=ndk-g++ \
+		CFLAGS="-I$(R2A_DIR)/include $(CFLAGS)" \
+		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-	$(RM) -rf radare2-android-arm64-libs
+	$(RM) -rf $(R2A_DIR)
 
 cycript-clean clean2:
 	-$(MAKE) -C ext/cycript clean
