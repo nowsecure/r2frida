@@ -143,11 +143,15 @@ node_modules: package.json
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
 
+R2S=~/prg/radare2/sys/android-shell.sh
+
 android:
-	$(MAKE) android-arm64
-	cp -f io_frida.so io_frida-$(r2_version)-android-arm64.so
-	$(MAKE) android-arm
-	cp -f io_frida.so io_frida-$(r2_version)-android-arm.so
+	git clean -xdf
+	$(R2S) aarch64 $(MAKE) android-arm64 frida_os=android
+	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm64.so
+	git clean -xdf
+	$(R2S) arm $(MAKE) android-arm frida_os=android
+	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm.so
 
 radare2-android-arm64-libs:
 	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2_${r2_version}_aarch64.deb
