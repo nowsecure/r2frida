@@ -66,7 +66,7 @@ static const unsigned char r_io_frida_agent_code[] = {
 
 static RCore *get_r_core_main_instance() {
 	RCons * cons = r_cons_singleton ();
-	if (cons && cons->line) {
+	if (cons && cons->line > 1) {
 		return (RCore*) cons->line->user;
 	}
 	return NULL;
@@ -701,7 +701,10 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 	if (!rf->pending_cmd) {
 		return;
 	}
-
+	if (!rf->r2core) {
+		rf->r2core = get_r_core_main_instance ();
+		g_assert (rf->r2core != NULL);
+	}
 	char * output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
 
 	ut64 serial = rf->pending_cmd->serial;
