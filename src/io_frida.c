@@ -160,17 +160,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			goto error;
 		}
 
-		gchar **envp = g_get_environ ();
-
-#if 0
-		rf->pid = frida_device_spawn_sync (rf->device, argv[0], argv, g_strv_length (argv),
-			envp, g_strv_length (envp), &error);
-#endif
-		FridaSpawnOptions *options = NULL;
-		// TODO: supoprt argv, envp and other options here
+		FridaSpawnOptions *options = frida_spawn_options_new ();
+		frida_spawn_options_set_argv (options, argv, g_strv_length (argv));
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, &error);
-
-		g_strfreev (envp);
+		g_object_unref (options);
 		r_str_argv_free (argv);
 
 		if (error) {
