@@ -64,14 +64,6 @@ static const unsigned char r_io_frida_agent_code[] = {
 	, 0x00
 };
 
-static RCore *get_r_core_main_instance() {
-	RCons * cons = r_cons_singleton ();
-	if (cons && cons->line > (void*)1) {
-		return (RCore*) cons->line->user;
-	}
-	return NULL;
-}
-
 static RIOFrida *r_io_frida_new(RIO *io) {
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
