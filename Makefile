@@ -3,10 +3,12 @@ include config.mk
 r2_version = 2.5.0
 frida_version = 11.0.0
 
+ifneq ($(frida_os),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
 frida_os := android
 else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
+endif
 endif
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,i386,g' -e 's,armv7l,arm,g' -e 's,aarch64,arm64,g')
 frida_os_arch := $(frida_os)-$(frida_arch)
@@ -71,9 +73,9 @@ STRIP_SYMBOLS=yes
 endif
 
 ifeq ($(STRIP_SYMBOLS),yes)
-LD_FLAGS+=-Wl,--version-script,ld.script
-LD_FLAGS+=-Wl,--gc-sections
-LD_FLAGS+=-Wl,-dead_strip
+LDFLAGS+=-Wl,--version-script,ld.script
+LDFLAGS+=-Wl,--gc-sections
+LDFLAGS+=-Wl,-dead_strip
 endif
 
 # CYLANG
@@ -146,11 +148,23 @@ R2A_ROOT=$(shell pwd)/radare2-android-libs
 R2S=~/prg/radare2/sys/android-shell.sh
 
 android:
-	git clean -xdf
+	# git clean -xdf
+	rm -rf ext
+	# building for arm64
+	touch src/io_frida.c
 	$(R2S) aarch64 $(MAKE) android-arm64 frida_os=android
+ifeq ($(STRIP_SYMBOLS),yes)
+	$(R2S) aarch64 aarch64-linux-android-strip io_frida.so
+endif
 	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm64.so
-	git clean -xdf
+	# git clean -xdf
+	touch src/io_frida.c
+	rm -rf ext
+	# building for arm
 	$(R2S) arm $(MAKE) android-arm frida_os=android
+ifeq ($(STRIP_SYMBOLS),yes)
+	$(R2S) arm arm-linux-androideabi-strip io_frida.so
+endif
 	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm.so
 
 radare2-android-arm64-libs:
