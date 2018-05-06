@@ -3,6 +3,8 @@ r2frida
 
 Radare2 and Frida better together.
 
+![logo](r2frida.png)
+
 Description
 -----------
 One of the main aims of the radare project is to provide a complete
