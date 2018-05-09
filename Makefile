@@ -179,7 +179,7 @@ R2A_DIR=$(R2A_ROOT)/data/data/com.termux/files/usr
 
 android-arm64: radare2-android-arm64-libs
 	$(MAKE) frida_os=android frida_arch=arm64 CC=ndk-gcc CXX=ndk-g++ \
-		CFLAGS="-I$(R2A_DIR)/include $(CFLAGS)" \
+		CFLAGS="-I$(R2A_DIR)/include/libr $(CFLAGS)" \
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
 
 radare2-android-arm-libs:
@@ -192,7 +192,7 @@ radare2-android-arm-libs:
 
 android-arm: radare2-android-arm-libs
 	$(MAKE) frida_os=android frida_arch=arm CC=ndk-gcc CXX=ndk-g++ \
-		CFLAGS="-I$(R2A_DIR)/include $(CFLAGS)" \
+		CFLAGS="-I$(R2A_DIR)/include/libr $(CFLAGS)" \
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
 
 clean:
