@@ -1,5 +1,7 @@
 /* eslint-disable comma-dangle */
 'use strict';
+// TODO : implement tracelog eval var and dump trace info into this file
+// this cant be done from the agent-side
 
 const r2frida = require('./plugin'); // eslint-disable-line
 const {stalkFunction, stalkEverything} = require('./stalker');
@@ -17,7 +19,22 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 var suspended = false;
 
+function numEval(expr) {
+  return new Promise ((resolve, reject) => {
+    hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
+  });
+}
+
+function evalNum(args) {
+  return new Promise((resolve, reject) => {
+    numEval(args.join(' ')).then(res => {;
+      resolve(res);
+    });
+  });
+}
+
 const commandHandlers = {
+  'E': evalNum,
   '/': search,
   '/j': searchJson,
   '/x': searchHex,
@@ -1531,6 +1548,10 @@ function traceFormat (args) {
     listener: listener
   });
   return true;
+}
+
+function backtrace (args) {
+  return 'TODO';
 }
 
 function traceRegs (args) {

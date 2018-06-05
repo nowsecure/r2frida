@@ -406,7 +406,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return NULL;
-	} else if (!strncmp (command, "dc", 2) && rf->suspended) {
+	} else if (!strcmp (command, "dc") && rf->suspended) {
 		GError *error = NULL;
 		frida_device_resume_sync (rf->device, rf->pid, &error);
 		if (error) {
