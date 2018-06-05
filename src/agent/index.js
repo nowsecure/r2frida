@@ -87,6 +87,7 @@ const commandHandlers = {
   'dd': listFileDescriptors,
   'dd-': closeFileDescriptors,
   'dm': listMemoryRanges,
+  'dm*': listMemoryRangesR2,
   'dmj': listMemoryRangesJson,
   'dmp': changeMemoryProtection,
   'dm.': listMemoryRangesHere,
@@ -1152,6 +1153,22 @@ function listMemoryMaps () {
         padPointer(base),
         '-',
         padPointer(base.add(size)),
+        protection,
+      ]
+        .concat((file !== undefined) ? [file.path] : [])
+        .join(' ')
+    )
+    .join('\n');
+}
+
+function listMemoryRangesR2 () {
+  return listMemoryRangesJson()
+    .map(({base, size, protection, file}) =>
+      [
+ 'f', 'map.' + padPointer(base),
+        '=', base,
+        // padPointer(base.add(size)),
+'#',
         protection,
       ]
         .concat((file !== undefined) ? [file.path] : [])
