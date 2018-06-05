@@ -57,7 +57,9 @@ const commandHandlers = {
   'ij': dumpInfoJson,
   'db': breakpoint,
   'db-': breakpointUnset,
+  'dbt': backtrace,
   'dc': breakpointContinue,
+  'dcu': breakpointContinueUntil,
   'ii': listImports,
   'ii*': listImportsR2,
   'iij': listImportsJson,
@@ -598,11 +600,24 @@ function breakpointExist (addr) {
   return bp && !bp.continue;
 }
 
+function breakpointContinueUntil (args) {
+  return new Promise ((resolve, reject) => {
+    numEval(args[0]).then(num => {
+      setBreakpoint(num);
+      const shouldPromise = breakpointContinue()
+      if (typeof shouldPromise === 'object') {
+        shouldPromise.then(resolve).catch(reject);;
+      } else {
+        resolve(shouldPromise);
+      }
+    }).catch(reject);
+  });
+}
+
 function breakpointContinue (args) {
   if (suspended) {
-    hostCmd('=!dc');
     suspended = false;
-    return;
+    return hostCmd('=!dc');
   }
   let count = 0;
   for (let k of Object.keys(breakpoints)) {
@@ -616,34 +631,52 @@ function breakpointContinue (args) {
 }
 
 function breakpoint (args) {
-  if (args.length === 1) {
-    const symbol = Module.findExportByName(null, args[0]);
-    const addr = (symbol !== null) ? symbol : ptr(args[0]);
-    if (breakpointExist(addr)) {
-      return 'Cant set a breakpoint twice';
-    }
-    const addrString = '' + addr;
-    const bp = {
-      name: args[0],
-      stopped: false,
-      address: addrString,
-      continue: false,
-      handler: Interceptor.attach(addr, function (args) {
-        if (breakpoints[addrString]) {
-          breakpoints[addrString].stopped = true;
-        }
-        while (breakpointExist(addr)) {
-          Thread.sleep(1);
-        }
-        if (breakpoints[addrString]) {
-          breakpoints[addrString].stopped = false;
-          breakpoints[addrString].continue = false;
-        }
-      })
-    };
-    breakpoints[addrString] = bp;
+  if (args.length === 0) {
+    return JSON.stringify(breakpoints, null, '  ');
   }
-  return JSON.stringify(breakpoints, null, '  ');
+  return new Promise((res, rej) => {
+    numEval(args[0]).then(num => {
+      setBreakpoint(num);
+      res(JSON.stringify(breakpoints, null, '  '));
+    }).catch(e => {
+      console.error(e);
+      rej(e);
+    });
+  });
+}
+
+function setBreakpoint(address) {
+  const symbol = Module.findExportByName(null, address);
+  const addr = (symbol !== null) ? symbol : ptr(address);
+  if (breakpointExist(addr)) {
+    return 'Cant set a breakpoint twice';
+  }
+  const addrString = '' + addr;
+  const bp = {
+    name: address,
+    stopped: false,
+    address: addrString,
+    continue: false,
+    handler: Interceptor.attach(addr, function () {
+      if (breakpoints[addrString]) {
+        breakpoints[addrString].stopped = true;
+        const showBacktrace = true;
+        if (showBacktrace) {
+          console.log(addr);
+          const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+          console.log(bt.join('\n\t'));
+        }
+      }
+      while (breakpointExist(addr)) {
+        Thread.sleep(1);
+      }
+      if (breakpoints[addrString]) {
+        breakpoints[addrString].stopped = false;
+        breakpoints[addrString].continue = false;
+      }
+    })
+  };
+  breakpoints[addrString] = bp;
 }
 
 function dumpInfoJson () {
