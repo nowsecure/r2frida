@@ -19,15 +19,15 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 var suspended = false;
 
-function numEval(expr) {
-  return new Promise ((resolve, reject) => {
+function numEval (expr) {
+  return new Promise((resolve, reject) => {
     hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
   });
 }
 
-function evalNum(args) {
+function evalNum (args) {
   return new Promise((resolve, reject) => {
-    numEval(args.join(' ')).then(res => {;
+    numEval(args.join(' ')).then(res => {
       resolve(res);
     });
   });
@@ -434,11 +434,15 @@ function configHelpSearchIn () {
 
     perm:---        filter by permissions (default: 'perm:r--')
     current         search the range containing current offset
+    heap            search inside the heap allocated regions
     path:pattern    search ranges mapping paths containing 'pattern'
   `;
 }
 
 function configValidateSearchIn (val) {
+  if (val === 'heap') {
+    return true;
+  }
   const valSplit = val.split(':');
   const [scope, param] = valSplit;
 
@@ -516,7 +520,7 @@ function evalConfig (args) {
       }
       if (configValidator[kv[0]] !== undefined) {
         if (!configValidator[kv[0]](kv[1])) {
-          console.error(`invalid value for ${kv[0]}`);
+          console.error(`Invalid value for ${kv[0]}`);
           return '';
         }
       }
@@ -601,12 +605,12 @@ function breakpointExist (addr) {
 }
 
 function breakpointContinueUntil (args) {
-  return new Promise ((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     numEval(args[0]).then(num => {
       setBreakpoint(num);
-      const shouldPromise = breakpointContinue()
+      const shouldPromise = breakpointContinue();
       if (typeof shouldPromise === 'object') {
-        shouldPromise.then(resolve).catch(reject);;
+        shouldPromise.then(resolve).catch(reject);
       } else {
         resolve(shouldPromise);
       }
@@ -645,7 +649,7 @@ function breakpoint (args) {
   });
 }
 
-function setBreakpoint(address) {
+function setBreakpoint (address) {
   const symbol = Module.findExportByName(null, address);
   const addr = (symbol !== null) ? symbol : ptr(address);
   if (breakpointExist(addr)) {
@@ -1198,10 +1202,10 @@ function listMemoryRangesR2 () {
   return listMemoryRangesJson()
     .map(({base, size, protection, file}) =>
       [
- 'f', 'map.' + padPointer(base),
+        'f', 'map.' + padPointer(base),
         '=', base,
         // padPointer(base.add(size)),
-'#',
+        '#',
         protection,
       ]
         .concat((file !== undefined) ? [file.path] : [])
@@ -2057,7 +2061,7 @@ function perform (params) {
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
-/*
+  /*
   if (name.endsWith('?') && name !== 'e?') {
     console.error('TODO: show help of \\?~' + name.substring(0, name.length - 1));
     return;
@@ -2327,7 +2331,8 @@ function _configParseSearchIn () {
   const res = {
     current: false,
     perm: 'r--',
-    path: null
+    path: null,
+    heap: false
   };
 
   const c = config['search.in'];
@@ -2336,6 +2341,9 @@ function _configParseSearchIn () {
 
   if (scope === 'current') {
     res.current = true;
+  }
+  if (scope === 'heap') {
+    res.heap = true;
   }
   if (scope === 'perm') {
     res.perm = param;
@@ -2351,6 +2359,15 @@ function _configParseSearchIn () {
 function _getRanges (fromNum, toNum) {
   const searchIn = _configParseSearchIn();
 
+  if (searchIn.heap) {
+    return Process.enumerateMallocRangesSync()
+      .map(_ => {
+        return {
+          address: _.base,
+          size: _.size
+        };
+      });
+  }
   const ranges = Process.enumerateRangesSync({
     protection: searchIn.perm,
     coalesce: false
