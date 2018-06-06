@@ -1671,14 +1671,39 @@ function traceR2 (args) {
   return traceListeners.map(_ => `CC ${_.args} @ ${_.at}`).join('\n');
 }
 
+function traceJava(klass, method) {
+  Java.perform(function () {
+    var Throwable = Java.use('java.lang.Throwable');
+    var Activity = Java.use("android.app.Activity");
+    Activity.onResume.implementation = function () {
+      console.log("[*] onResume() got called!");
+      this.onResume();
+      const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n');
+      console.log("BACKTRACE", message);
+    };
+  });
+}
+
 function trace (args) {
   if (args.length === 0) {
     return traceList();
   }
   args.forEach(address => {
+    if (address.startsWith('java:')) {
+      const dot = address.lastIndexOf('.');
+      if (dot !== -1) {
+        const klass = address.substring(5, dot)
+        const methd = address.substring(dot + 1);
+        traceJava(klass, methd);
+      } else {
+        console.log('Invalid java method name. Use \\dt java:package.class.method');
+      }
+      return;
+    }
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
-      console.log('Trace probe hit at ' + address + ':\n\t' + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      console.log('Trace probe hit at ' + address + ':\n\t'
+        + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
     });
     traceListeners.push({
       at: at,
