@@ -1332,7 +1332,7 @@ function dumpRegisterProfile (args) {
   const inc = Process.pointerSize;
   let profile = regProfileAliasFor(Process.arch);
   for (let reg of names) {
-    profile += `gpr\t${reg}\t.${inc}\t${off}\t0\n`;
+    profile += `gpr\t${reg}\t${inc}\t${off}\t0\n`;
     off += inc;
   }
   return profile;
