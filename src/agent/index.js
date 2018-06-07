@@ -50,7 +50,7 @@ const commandHandlers = {
   '/v4j': searchValueImplJson(4),
   '/v8j': searchValueImplJson(8),
   '?V': fridaVersion,
-  '.': interpretFile,
+  // '.': // this is implemented in C
   'i': dumpInfo,
   'e': evalConfig,
   'i*': dumpInfoR2,
@@ -2048,6 +2048,9 @@ const requestHandlers = {
 
 function read (params) {
   const {offset, count} = params;
+  if (r2frida.hookedRead !== null) {
+    return r2frida.hookedRead(offset, count);
+  }
   try {
     const bytes = Memory.readByteArray(ptr(offset), count);
     return [{}, (bytes !== null) ? bytes : []];
@@ -2061,6 +2064,9 @@ function isTrue (x) {
 }
 
 function write (params, data) {
+  if (typeof r2frida.hookedWrite === 'function') {
+    return r2frida.hookedWrite(params.offset, data);
+  }
   if (isTrue(config['patch.code'])) {
     if (typeof Memory.patchCode !== 'function') {
       Memory.writeByteArray(ptr(params.offset), data);
@@ -2160,11 +2166,6 @@ Script.setGlobalAccessHandler({
     }
   }
 });
-
-function interpretFile (args) {
-  console.log('TODO: interpretFile is not yet implemented');
-  return {};
-}
 
 function fridaVersion () {
   return { version: Frida.version };
