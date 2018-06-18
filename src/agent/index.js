@@ -67,10 +67,16 @@ const commandHandlers = {
   'il.': listModulesHere,
   'il*': listModulesR2,
   'ilj': listModulesJson,
-  'is': listExports,
+
+  'iE': listExports,
+  'iE.': lookupSymbolHere,
+  'iEj': listExportsJson,
+  'iE*': listExportsR2,
+
+  'is': listSymbols,
   'is.': lookupSymbolHere,
-  'isj': listExportsJson,
-  'is*': listExportsR2,
+  'isj': listSymbolsJson,
+  'is*': listSymbolsR2,
 
   'isa': lookupSymbol,
   'isa*': lookupSymbolR2,
@@ -741,6 +747,29 @@ function listExportsJson (args) {
   const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
+  }, []);
+}
+
+function listSymbols (args) {
+  return listSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listSymbolsR2 (args) {
+  return listSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listSymbolsJson (args) {
+  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
+  return modules.reduce((result, moduleName) => {
+    return result.concat(Module.enumerateSymbolsSync(moduleName));
   }, []);
 }
 
