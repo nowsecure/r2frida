@@ -133,6 +133,9 @@ const commandHandlers = {
   'dt.': traceHere,
   'dt-': clearTrace,
   'dtr': traceRegs,
+  'T': traceLogDump,
+  'T-': traceLogClear,
+  'T*': traceLog,
   'dtS': stalkTraceEverything,
   'dtSj': stalkTraceEverythingJson,
   'dtS*': stalkTraceEverythingR2,
@@ -1709,6 +1712,28 @@ function backtrace (args) {
   return 'TODO';
 }
 
+var log = '';
+var traces = {};
+
+function traceLogDump() {
+  return log;
+}
+
+function traceLogClear() {
+  const output = log;
+  log = '';
+  traces = {};
+  return output;
+}
+
+function traceLog(msg) {
+  if (typeof msg === 'string') {
+    log += msg + '\n';
+    return;
+  }
+  return traceLogClear();
+}
+
 function traceRegs (args) {
   if (args.length < 1) {
     return 'Usage: dtr [address] [reg ...]';
@@ -1802,9 +1827,32 @@ function trace (args) {
       return;
     }
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
+    for (var i in traceListeners) {
+      if (traceListeners.at === at) {
+        console.error('There\'s a trace already in this address');
+        return;
+      }
+    }
     const listener = Interceptor.attach(ptr(address), function () {
-      console.log('Trace probe hit at ' + address + ':\n\t' +
-        Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      console.log('Trace probe hit at ' + address + ':');
+        // Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+        const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+        traceLog('f trace.' + address + ' = ' + address);
+        var prev = address;
+        traceLog('agn ' + prev);
+        for (let i in frames) {
+          var frame = frames[i];
+          var addr = ('' + frame).split(' ')[0];
+          console.log(' - ' + frame);
+          // traceLog('CC ' + addr + '.' + i + ' @ ' + prev);
+          traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
+          if (!traces[prev + addr]) {
+            traceLog('agn ' + addr);
+            traceLog('age ' + prev + ' ' + addr);
+            traces[prev + addr] = true;
+          }
+          prev = addr;
+        }
     });
     traceListeners.push({
       at: at,
@@ -2655,7 +2703,6 @@ function hostCmd (cmd) {
   return new Promise((resolve) => {
     const serial = cmdSerial;
     cmdSerial += 1;
-
     pendingCmds[serial] = resolve;
     sendCommand(cmd, serial);
   });
@@ -2664,7 +2711,6 @@ function hostCmd (cmd) {
 function sendCommand (cmd, serial) {
   function sendIt () {
     sendingCommand = true;
-
     send(wrapStanza('cmd', {
       'cmd': cmd,
       'serial': serial

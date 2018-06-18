@@ -362,6 +362,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"<space> code..             Evaluate Cycript code\n"
 		"eval code..                Evaluate Javascript code in agent side\n"
 		"dc                         Continue\n"
+		"T[-*] [msg]                text-log console, useful to .\\T\n"
 		);
 		return NULL;
 	}
