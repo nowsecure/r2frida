@@ -42,7 +42,7 @@ global.r2frida = {
   pluginList: pluginList,
   // io hook plugin API //
   hookedRead: null,
-  hookedWrite: null,
+  hookedWrite: null
 };
 
 module.exports = global.r2frida;

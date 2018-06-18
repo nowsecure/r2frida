@@ -82,6 +82,10 @@ const commandHandlers = {
   'isa*': lookupSymbolR2,
   'isaj': lookupSymbolJson,
 
+  'iEa': lookupExport,
+  'iEa*': lookupExportR2,
+  'iEaj': lookupExportJson,
+
   'fD': lookupDebugInfo,
   'fd': lookupAddress,
   'fd.': lookupAddress,
@@ -822,21 +826,21 @@ function lookupSymbolHere (args) {
   return lookupAddress([ptr(offset)]);
 }
 
-function lookupSymbol (args) {
-  return lookupSymbolJson(args)
+function lookupExport (args) {
+  return lookupExportJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
     .map(({address}) => '' + address)
     .join('\n');
 }
 
-function lookupSymbolR2 (args) {
-  return lookupSymbolJson(args)
+function lookupExportR2 (args) {
+  return lookupExportJson(args)
     .map(({name, address}) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
 }
 
-function lookupSymbolJson (args) {
+function lookupExportJson (args) {
   if (args.length === 2) {
     const [moduleName, exportName] = args;
     const address = Module.findExportByName(moduleName, exportName);
@@ -865,6 +869,74 @@ function lookupSymbolJson (args) {
         }
         return result;
       }, []);
+  }
+}
+
+// lookup symbols
+
+function lookupSymbol (args) {
+  return lookupSymbolJson(args)
+  // .map(({library, name, address}) => [library, name, address].join(' '))
+    .map(({address}) => '' + address)
+    .join('\n');
+}
+
+function lookupSymbolR2 (args) {
+  return lookupSymbolJson(args)
+    .map(({name, address}) =>
+      ['f', 'sym.' + name, '=', address].join(' '))
+    .join('\n');
+}
+
+function lookupSymbolJson (args) {
+  if (args.length === 2) {
+    let [moduleName, symbolName] = args;
+    try {
+      const m = Process.getModuleByName(moduleName);
+    } catch (e) {
+      const res = Process.enumerateModulesSync().filter(function (x) {
+        return x.name.indexOf(moduleName) !== -1;
+      });
+      if (res.length !== 1) {
+        return [];
+      }
+      moduleName = res[0].name;
+    }
+    let address = 0;
+    Module.enumerateSymbolsSync(moduleName).filter(function (s) {
+      if (s.name === symbolName) {
+        address = s.address;
+      }
+    });
+    if (address === 0) {
+      return [];
+    }
+    return [{
+      library: moduleName,
+      name: symbolName,
+      address: address
+    }];
+  } else {
+    let [symbolName] = args;
+    const modules = Process.enumerateModulesSync();
+    let address = 0;
+    let moduleName = '';
+    for (let m of modules) {
+      Module.enumerateSymbolsSync(m.name).filter(function (s) {
+        if (s.name === symbolName) {
+          moduleName = m.name;
+          address = s.address;
+        }
+      });
+      if (address === 0) {
+        return [];
+      }
+    }
+    return [{
+      library: moduleName,
+      name: symbolName,
+      address: address
+    }];
   }
 }
 
@@ -1700,15 +1772,15 @@ function traceR2 (args) {
   return traceListeners.map(_ => `CC ${_.args} @ ${_.at}`).join('\n');
 }
 
-function traceJava(klass, method) {
+function traceJava (klass, method) {
   Java.perform(function () {
     var Throwable = Java.use('java.lang.Throwable');
-    var Activity = Java.use("android.app.Activity");
+    var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
-      console.log("[*] onResume() got called!");
+      console.log('[*] onResume() got called!');
       this.onResume();
       const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n');
-      console.log("BACKTRACE", message);
+      console.log('BACKTRACE', message);
     };
   });
 }
@@ -1721,7 +1793,7 @@ function trace (args) {
     if (address.startsWith('java:')) {
       const dot = address.lastIndexOf('.');
       if (dot !== -1) {
-        const klass = address.substring(5, dot)
+        const klass = address.substring(5, dot);
         const methd = address.substring(dot + 1);
         traceJava(klass, methd);
       } else {
@@ -1731,8 +1803,8 @@ function trace (args) {
     }
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
-      console.log('Trace probe hit at ' + address + ':\n\t'
-        + Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      console.log('Trace probe hit at ' + address + ':\n\t' +
+        Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
     });
     traceListeners.push({
       at: at,
