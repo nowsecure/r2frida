@@ -1715,18 +1715,18 @@ function backtrace (args) {
 var log = '';
 var traces = {};
 
-function traceLogDump() {
+function traceLogDump () {
   return log;
 }
 
-function traceLogClear() {
+function traceLogClear () {
   const output = log;
   log = '';
   traces = {};
   return output;
 }
 
-function traceLog(msg) {
+function traceLog (msg) {
   if (typeof msg === 'string') {
     log += msg + '\n';
     return;
@@ -1814,6 +1814,24 @@ function trace (args) {
   if (args.length === 0) {
     return traceList();
   }
+  return new Promise(function (resolve, reject) {
+    (function pull () {
+      var arg = args.pop();
+      if (arg === undefined) {
+      	return resolve('');
+      }
+      numEval(arg).then(function (at) {
+			  console.log(traceReal(['' + at]));
+        pull();
+      }).catch(reject);
+    })();
+  });
+}
+
+function traceReal (args) {
+  if (args.length === 0) {
+    return traceList();
+  }
   args.forEach(address => {
     if (address.startsWith('java:')) {
       const dot = address.lastIndexOf('.');
@@ -1828,31 +1846,31 @@ function trace (args) {
     }
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     for (var i in traceListeners) {
-      if (traceListeners.at === at) {
+      if (traceListeners[i].at === at) {
         console.error('There\'s a trace already in this address');
         return;
       }
     }
     const listener = Interceptor.attach(ptr(address), function () {
       console.log('Trace probe hit at ' + address + ':');
-        // Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
-        const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-        traceLog('f trace.' + address + ' = ' + address);
-        var prev = address;
-        traceLog('agn ' + prev);
-        for (let i in frames) {
-          var frame = frames[i];
-          var addr = ('' + frame).split(' ')[0];
-          console.log(' - ' + frame);
-          // traceLog('CC ' + addr + '.' + i + ' @ ' + prev);
-          traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
-          if (!traces[prev + addr]) {
-            traceLog('agn ' + addr);
-            traceLog('age ' + prev + ' ' + addr);
-            traces[prev + addr] = true;
-          }
-          prev = addr;
+      // Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+      traceLog('f trace.' + address + ' = ' + address);
+      var prev = address;
+      traceLog('agn ' + prev);
+      for (let i in frames) {
+        var frame = frames[i];
+        var addr = ('' + frame).split(' ')[0];
+        console.log(' - ' + frame);
+        // traceLog('CC ' + addr + '.' + i + ' @ ' + prev);
+        traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
+        if (!traces[prev + addr]) {
+          traceLog('agn ' + addr);
+          traceLog('age ' + prev + ' ' + addr);
+          traces[prev + addr] = true;
         }
+        prev = addr;
+      }
     });
     traceListeners.push({
       at: at,
