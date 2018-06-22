@@ -60,6 +60,7 @@ const commandHandlers = {
   'dbt': backtrace,
   'dc': breakpointContinue,
   'dcu': breakpointContinueUntil,
+  'dk': sendSignal,
   'ii': listImports,
   'ii*': listImportsR2,
   'iij': listImportsJson,
@@ -412,6 +413,7 @@ const _fstat = Module.findExportByName(null, 'fstat')
   ? sym('fstat', 'int', ['int', 'pointer'])
   : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
+const _kill = sym('kill', 'int', ['int', 'int']);
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
@@ -615,6 +617,21 @@ function breakpointUnset (args) {
 function breakpointExist (addr) {
   const bp = breakpoints['' + addr];
   return bp && !bp.continue;
+}
+
+function sendSignal(args) {
+  const argsLength = args.length;
+  console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
+  if (argsLength === 1) {
+    const sig = +args[0]
+    _kill(_getpid(), sig);
+  } else if (argsLength === 2) {
+    const [pid, sig] = args;
+    _kill(+pid, +sig);
+  } else {
+    return 'Usage: \dk ([pid]) [sig]';
+  }
+  return '';
 }
 
 function breakpointContinueUntil (args) {
