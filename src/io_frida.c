@@ -193,6 +193,62 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	g_free (device_id);
 	g_free (process_specifier);
 
+	const char *autocompletions[] = {
+		"!!!\\eval",
+		"!!!\\e",
+		"!!!\\i",
+		"!!!\\ii",
+		"!!!\\il",
+		"!!!\\is",
+		"!!!\\isa $flag",
+		"!!!\\iE",
+		"!!!\\iEa $flag",
+		"!!!\\ic",
+		"!!!\\ip",
+		"!!!\\fd $flag",
+		"!!!\\dd",
+		"!!!\\?",
+		"!!!\\?V",
+		"!!!\\/",
+		"!!!\\/w",
+		"!!!\\/wj",
+		"!!!\\/x",
+		"!!!\\/xj",
+		"!!!\\/v1 $flag",
+		"!!!\\/v2 $flag",
+		"!!!\\/v4 $flag",
+		"!!!\\/v8 $flag",
+		"!!!\\dt $flag",
+		"!!!\\dt- $flag",
+		"!!!\\dtr",
+		"!!!\\dtS",
+		"!!!\\dc",
+		"!!!\\di",
+		"!!!\\dl",
+		"!!!\\dl2",
+		"!!!\\dx",
+		"!!!\\dm",
+		"!!!\\dma",
+		"!!!\\dma-",
+		"!!!\\dmas",
+		"!!!\\dmad",
+		"!!!\\dmal",
+		"!!!\\dmm",
+		"!!!\\dmh",
+		"!!!\\dmhm",
+		"!!!\\dmp $flag",
+		"!!!\\dp",
+		"!!!\\dpt",
+		"!!!\\dr",
+		"!!!\\drj",
+		"!!!\\. $file",
+		NULL
+	};
+	int i;
+	for (i = 0; autocompletions[i]; i++) {
+		r_core_cmd0 (rf->r2core, autocompletions[i]);
+	}
+
 	return r_io_desc_new (io, &r_io_plugin_frida, pathname, R_IO_RW | R_IO_EXEC, mode, rf);
 
 error:
