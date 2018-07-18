@@ -15,8 +15,8 @@ var libcCommands = {
   'getgid': sym('getgid', 'int', []),
   'setuid': sym('setuid', 'int', ['int']),
   'setgid': sym('setgid', 'int', ['int']),
-  'remove': sym('remove', 'int', ['string']),
-  'system': sym('system', 'int', ['string'])
+  'remove': sym('remove', 'int', ['pointer']),
+  'system': sym('system', 'int', ['pointer'])
 };
 
 r2frida.pluginRegister('libc', function(name) {
