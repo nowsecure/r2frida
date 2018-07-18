@@ -1,6 +1,6 @@
 include config.mk
 
-r2_version = 2.5.0
+r2_version = 2.7.0
 frida_version = 12.0.4
 
 ifeq ($(strip $(frida_os)),)
