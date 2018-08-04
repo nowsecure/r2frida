@@ -1,7 +1,7 @@
 include config.mk
 
-r2_version = 2.7.0
-frida_version = 12.0.4
+r2_version = 2.8.0
+frida_version = 12.0.8
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
