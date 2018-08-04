@@ -65,6 +65,9 @@ static const unsigned char r_io_frida_agent_code[] = {
 };
 
 static RIOFrida *r_io_frida_new(RIO *io) {
+	if (!io) {
+		return NULL;
+	}
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	if (!rf) {
 		return NULL;
@@ -74,7 +77,11 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->received_reply = false;
 	rf->r2core = io->user;
-	g_assert (rf->r2core != NULL);
+	if (!rf->r2core) {
+		eprintf ("ERROR: r2frida cannot find the RCore instance from IO->user.\n");
+		free (rf);
+		return NULL;
+	}
 	rf->suspended = false;
 
 	return rf;
