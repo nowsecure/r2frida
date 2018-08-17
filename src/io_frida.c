@@ -588,7 +588,7 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 
 	first_field = pathname + 8;
 	*spawn = false;
-	if (*first_field == '/') {
+	if (*first_field == '/' || !strncmp (first_field, "./", 2)) {
 		// frida:///path/to/file
 		*spawn = true;
 		second_field = NULL;
