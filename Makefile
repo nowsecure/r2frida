@@ -34,7 +34,7 @@ LDFLAGS+=$(subst -lssl,,$(shell pkg-config --libs r_core r_io r_util))
 else
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 endif
-R2_PLUGDIR=$(shell r2 -H USER_PLUGINS)
+R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 
 CXXFLAGS+=$(CFLAGS)
 
@@ -219,6 +219,9 @@ uninstall:
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
 	$(MAKE) -C dist/debian
+
+indent fix:
+	node_modules/.bin/semistandard --fix src/agent/*.js
 
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
