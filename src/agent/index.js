@@ -1998,6 +1998,7 @@ function traceReal (args) {
           traceLog('age ' + prevName + ' ' + addrName);
           traces[prev + addr] = true;
         }
+        prevName = addrName;
         prev = addr;
       }
     });
