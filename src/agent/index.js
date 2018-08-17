@@ -130,6 +130,7 @@ const commandHandlers = {
   'dl': dlopen,
   'dtf': traceFormat,
   'dt': trace,
+  'dtj': traceJson,
   'dt*': traceR2,
   'dt.': traceHere,
   'dt-': clearTrace,
@@ -1658,6 +1659,12 @@ function _readUntrustedUtf8 (address, length) {
 }
 
 function traceList () {
+  return traceListeners.map(_ => {
+    return _.at.address + '\t' + _.at.moduleName + '\t' + _.at.name;
+  }).join('\n');
+}
+
+function traceListJson () {
   return traceListeners.map(_ => JSON.stringify(_)).join('\n');
 }
 
@@ -1829,9 +1836,9 @@ function traceJava (klass, method) {
   });
 }
 
-function trace (args) {
+function traceJson (args) {
   if (args.length === 0) {
-    return traceList();
+    return traceListJson();
   }
   return new Promise(function (resolve, reject) {
     (function pull () {
@@ -1845,6 +1852,13 @@ function trace (args) {
       }).catch(reject);
     })();
   });
+}
+
+function trace (args) {
+  if (args.length === 0) {
+    return traceList();
+  }
+  return traceJson(args);
 }
 
 function traceReal (args) {
