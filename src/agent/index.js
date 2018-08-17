@@ -619,11 +619,11 @@ function breakpointExist (addr) {
   return bp && !bp.continue;
 }
 
-function sendSignal(args) {
+function sendSignal (args) {
   const argsLength = args.length;
   console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
   if (argsLength === 1) {
-    const sig = +args[0]
+    const sig = +args[0];
     _kill(_getpid(), sig);
   } else if (argsLength === 2) {
     const [pid, sig] = args;
@@ -1760,7 +1760,8 @@ function traceRegs (args) {
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
     const extra = (args[0] !== address) ? ` (${args[0]})` : '';
-    console.log(`Trace probe hit at ${address} ${extra}`);
+    const at = nameFromAddress(address);
+    console.log(`\nTrace probe hit at ${address} ${extra} ${at}`);
     console.log('\t' + rest.map(r => {
       let tail = '';
       if (r.indexOf('=') !== -1) {
@@ -1800,7 +1801,8 @@ function traceHere () {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
       const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-      console.log('Trace probe hit at ' + address + ':\n\t' + bt.join('\n\t'));
+      const at = nameFromAddress(address);
+      console.log('Trace probe hit at ' + address + '::' + at + '\n\t' + bt.join('\n\t'));
     });
     traceListeners.push({
       at: at,
@@ -1838,7 +1840,7 @@ function trace (args) {
       	return resolve('');
       }
       numEval(arg).then(function (at) {
-			  console.log(traceReal(['' + at]));
+        console.log(traceReal(['' + at]));
         pull();
       }).catch(reject);
     })();
@@ -1869,8 +1871,8 @@ function traceReal (args) {
       }
     }
     const listener = Interceptor.attach(ptr(address), function () {
-      console.log('Trace probe hit at ' + address + ':');
-      // Thread.backtrace(this.context).map(DebugSymbol.fromAddress).join('\n\t'));
+      const at = nameFromAddress(address);
+      console.log('Trace probe hit at ' + address + ' aka ' + at);
       const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       traceLog('f trace.' + address + ' = ' + address);
       var prev = address;
@@ -1879,10 +1881,10 @@ function traceReal (args) {
         var frame = frames[i];
         var addr = ('' + frame).split(' ')[0];
         console.log(' - ' + frame);
-        // traceLog('CC ' + addr + '.' + i + ' @ ' + prev);
         traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
         if (!traces[prev + addr]) {
           traceLog('agn ' + addr);
+          traceLog('agn ' + prev);
           traceLog('age ' + prev + ' ' + addr);
           traces[prev + addr] = true;
         }
@@ -1894,8 +1896,8 @@ function traceReal (args) {
       listener: listener
     });
   });
-  return true;
 }
+// return true;
 
 function clearTrace (args) {
   traceListeners.splice(0).forEach(lo => lo.listener.detach());
