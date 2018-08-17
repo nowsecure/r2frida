@@ -1948,8 +1948,7 @@ function tracehook(address, args) {
         var [a, l] = v.split(',');
         var addr = ptr(args[a]);
         var buf = Memory.readByteArray(addr, +args[l]);
-        //console.log('buf', arrayBufferToHex(buf));
-        fmtarg.push(Memory.readCString(ptr(args[+v])));
+        fmtarg.push(arrayBufferToHex(buf));
         break;
       }
     }
