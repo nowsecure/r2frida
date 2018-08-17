@@ -1928,33 +1928,28 @@ function tracehook(address, args) {
       var [k, v] = fmt.split(':');
       switch (k) {
       case 'i':
-        console.log('int', args[v]);
+        //console.log('int', args[v]);
         fmtarg.push(+args[v]);
-       // traceLog('?e ' + args[v]);
         break;
       case 's':
         var [a, l] = v.split(',');
         var addr = ptr(args[a]);
         var size = +args[l];
         var buf = Memory.readByteArray(addr, size);
-        console.log('buf', arrayBufferToHex(buf));
-        console.log('string', Memory.readCString(addr, size));
+        //console.log('buf', arrayBufferToHex(buf));
+        //console.log('string', Memory.readCString(addr, size));
         fmtarg.push(Memory.readCString(addr, size));
-       // traceLog('?e 8080');
-      //  traceLog('?e 8080');
         break;
       case 'z':
         //console.log('string', Memory.readCString(args[+v]));
         fmtarg.push(Memory.readCString(ptr(args[+v])));
-      //  traceLog('?e 8080');
         break;
       case 'v':
         var [a, l] = v.split(',');
         var addr = ptr(args[a]);
         var buf = Memory.readByteArray(addr, +args[l]);
-        console.log('buf', arrayBufferToHex(buf));
+        //console.log('buf', arrayBufferToHex(buf));
         fmtarg.push(Memory.readCString(ptr(args[+v])));
-       // traceLog('?e 8080');
         break;
       }
     }
