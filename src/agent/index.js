@@ -1984,16 +1984,18 @@ function traceReal (args) {
       const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       traceLog('f trace.' + address + ' = ' + address);
       var prev = address;
-      traceLog('agn ' + prev);
+      var prevName = nameFromAddress(prev);
+      traceLog('agn ' + prevName);
       for (let i in frames) {
         var frame = frames[i];
         var addr = ('' + frame).split(' ')[0];
+        var addrName = nameFromAddress(ptr(addr));
         console.log(' - ' + frame);
         traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
         if (!traces[prev + addr]) {
-          traceLog('agn ' + addr);
-          traceLog('agn ' + prev);
-          traceLog('age ' + prev + ' ' + addr);
+          traceLog('agn ' + addrName);
+          traceLog('agn ' + prevName);
+          traceLog('age ' + prevName + ' ' + addrName);
           traces[prev + addr] = true;
         }
         prev = addr;
