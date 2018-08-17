@@ -21,6 +21,10 @@ var suspended = false;
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
+    var symbol = DebugSymbol.fromName(expr);
+    if (symbol) {
+      return resolve(symbol.address);
+    }
     hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
   });
 }
@@ -923,6 +927,11 @@ function lookupSymbolJson (args) {
       }
       moduleName = res[0].name;
     }
+    return [{
+      library: moduleName,
+      name: symbolName,
+      address: address
+    }];
     let address = 0;
     Module.enumerateSymbolsSync(moduleName).filter(function (s) {
       if (s.name === symbolName) {
@@ -939,6 +948,14 @@ function lookupSymbolJson (args) {
     }];
   } else {
     let [symbolName] = args;
+    var at = DebugSymbol.fromName(symbolName);
+    if (at) {
+    return [{
+      library: moduleName,
+      name: symbolName,
+      address: at.address
+    }];
+    }
     const modules = Process.enumerateModulesSync();
     let address = 0;
     let moduleName = '';
