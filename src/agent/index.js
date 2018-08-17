@@ -22,7 +22,7 @@ var suspended = false;
 function numEval (expr) {
   return new Promise((resolve, reject) => {
     var symbol = DebugSymbol.fromName(expr);
-    if (symbol) {
+    if (symbol != 0) {
       return resolve(symbol.address);
     }
     hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
@@ -133,6 +133,7 @@ const commandHandlers = {
   'envj': getOrSetEnvJson,
   'dl': dlopen,
   'dtf': traceFormat,
+  'dth': traceHook,
   'dt': trace,
   'dtj': traceJson,
   'dt*': traceR2,
@@ -166,27 +167,27 @@ const pendingCmdSends = [];
 let sendingCommand = false;
 
 function nameFromAddress (address) {
-  const at = DebugSymbol.fromAddress(ptr(address)).name;
-  if (at === null) {
-    const module = Process.findModuleByAddress(address);
-    if (module === null) {
-      return null;
-    }
-    const imports = Module.enumerateImportsSync(module.name);
-    for (let imp of imports) {
-      if (imp.address.equals(address)) {
-        return imp.name;
-      }
-    }
-    const exports = Module.enumerateExportsSync(module.name);
-    for (let exp of exports) {
-      if (exp.address.equals(address)) {
-        return exp.name;
-      }
-    }
-    return address.toString();
+  const at = DebugSymbol.fromAddress(ptr(address));
+  if (at) {
+    return at.name;
   }
-  return at;
+  const module = Process.findModuleByAddress(address);
+  if (module === null) {
+    return null;
+  }
+  const imports = Module.enumerateImportsSync(module.name);
+  for (let imp of imports) {
+    if (imp.address.equals(address)) {
+      return imp.name;
+    }
+  }
+  const exports = Module.enumerateExportsSync(module.name);
+  for (let exp of exports) {
+    if (exp.address.equals(address)) {
+      return exp.name;
+    }
+  }
+  return address.toString();
 }
 
 function allocSize (args) {
@@ -1538,15 +1539,12 @@ function dumpRegisters () {
   return Process.enumerateThreadsSync()
     .map(thread => {
       const {id, state, context} = thread;
-
       const heading = `tid ${id} ${state}`;
-
       const names = Object.keys(JSON.parse(JSON.stringify(context)));
       names.sort(compareRegisterNames);
       const values = names
         .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
         .map(indent);
-
       return heading + '\n' + values.join('');
     })
     .join('\n\n');
@@ -1699,6 +1697,17 @@ function getPtr (p) {
   }
   // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
   return Module.findExportByName(null, p);
+}
+
+function traceHook (args) {
+  if (args.length === 0) {
+    return JSON.stringify(tracehooks, null, 2);
+  }
+  var arg = args[0];
+  if (arg !== undefined) {
+    tracehookSet(arg, args.slice(1).join(' '));
+  }
+  return '';
 }
 
 function traceFormat (args) {
@@ -1878,6 +1887,81 @@ function trace (args) {
   return traceJson(args);
 }
 
+var tracehooks = {};
+
+function tracehookSet(name, format, callback) {
+  if (name === null) {
+    console.error('Cannot resolve name for ' + address);
+    return false;
+  }
+  tracehooks[name] = {
+    format: format,
+    callback: callback
+  };
+  return true;
+}
+
+function arrayBufferToHex (arrayBuffer) {
+  if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
+    throw new TypeError('Expected input to be an ArrayBuffer')
+  }
+
+  var view = new Uint8Array(arrayBuffer)
+  var result = ''
+  var value
+
+  for (var i = 0; i < view.length; i++) {
+    value = view[i].toString(16)
+    result += (value.length === 1 ? '0' + value : value)
+  }
+
+  return result
+}
+
+// \dth printf 0,1
+function tracehook(address, args) {
+  const at = nameFromAddress(address);
+  const th = tracehooks[at];
+  var fmtarg = [];
+  if (th && th.format) {
+    for (let fmt of th.format.split(' ')) {
+      var [k, v] = fmt.split(':');
+      switch (k) {
+      case 'i':
+        console.log('int', args[v]);
+        fmtarg.push(+args[v]);
+       // traceLog('?e ' + args[v]);
+        break;
+      case 's':
+        var [a, l] = v.split(',');
+        var addr = ptr(args[a]);
+        var size = +args[l];
+        var buf = Memory.readByteArray(addr, size);
+        console.log('buf', arrayBufferToHex(buf));
+        console.log('string', Memory.readCString(addr, size));
+        fmtarg.push(Memory.readCString(addr, size));
+       // traceLog('?e 8080');
+      //  traceLog('?e 8080');
+        break;
+      case 'z':
+        //console.log('string', Memory.readCString(args[+v]));
+        fmtarg.push(Memory.readCString(ptr(args[+v])));
+      //  traceLog('?e 8080');
+        break;
+      case 'v':
+        var [a, l] = v.split(',');
+        var addr = ptr(args[a]);
+        var buf = Memory.readByteArray(addr, +args[l]);
+        console.log('buf', arrayBufferToHex(buf));
+        fmtarg.push(Memory.readCString(ptr(args[+v])));
+       // traceLog('?e 8080');
+        break;
+      }
+    }
+  }
+  console.log('[TRACE]', address, '(', at, ')', JSON.stringify(fmtarg));
+}
+
 function traceReal (args) {
   if (args.length === 0) {
     return traceList();
@@ -1901,9 +1985,8 @@ function traceReal (args) {
         return;
       }
     }
-    const listener = Interceptor.attach(ptr(address), function () {
-      const at = nameFromAddress(address);
-      console.log('Trace probe hit at ' + address + ' aka ' + at);
+    const listener = Interceptor.attach(ptr(address), function (args) {
+      tracehook(address, args);
       const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       traceLog('f trace.' + address + ' = ' + address);
       var prev = address;
