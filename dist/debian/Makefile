@@ -27,4 +27,7 @@ root:
 purge: clean
 	rm -rf root
 
+summary:
+	echo $(VERSION)
+
 include deb.mk
