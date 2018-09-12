@@ -24,4 +24,7 @@ root:
 	mkdir -p root/$(R2PLUGDIR)
 	cp ../../io_frida.so root/$(R2PLUGDIR)
 
+purge:
+	rm -rf root
+
 include deb.mk
