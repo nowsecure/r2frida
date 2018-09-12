@@ -20,6 +20,21 @@ For more information about those projects:
 * http://github.com/radare/radare2
 * http://www.frida.re
 
+Installation
+------------
+
+In GNU/Debian you will need to install the following packages:
+
+	$ sudo apt install cmake make libzip-dev nodejs npm curl
+
+The recommended way to install r2frida is via r2pm:
+
+	$ r2pm -ci r2frida
+
+But you can always follow the standard way in here:
+
+	$ make ; make install
+
 Usage:
 ------
 r2frida is used from r2 by specifying a process name:
