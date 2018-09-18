@@ -25,7 +25,7 @@ Installation
 
 In GNU/Debian you will need to install the following packages:
 
-	$ sudo apt install cmake make libzip-dev nodejs npm curl
+	$ sudo apt install -y make gcc libzip-dev nodejs npm curl pkg-config git
 
 The recommended way to install r2frida is via r2pm:
 
@@ -33,6 +33,7 @@ The recommended way to install r2frida is via r2pm:
 
 But you can always follow the standard way in here:
 
+	$ git clone https://github.com/nowsecure/r2frida.git
 	$ make ; make install
 
 Usage:
