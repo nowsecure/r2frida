@@ -396,7 +396,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 		"fd[*j] <address>           Inverse symbol resolution\n"
 		"db (<addr>|<sym>)          List or place breakpoint\n"
-		"db- (<addr>|<syml>)|*      Remove breakpoint(s)\n"
+		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
 		"dm[.|j|*]                  Show memory regions\n"
