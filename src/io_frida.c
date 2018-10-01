@@ -160,7 +160,9 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		}
 
 		FridaSpawnOptions *options = frida_spawn_options_new ();
-		//frida_spawn_options_set_argv (options, argv, g_strv_length (argv));
+		if (argv[1]) {
+			frida_spawn_options_set_argv (options, argv, g_strv_length (argv));
+		}
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, &error);
 		g_object_unref (options);
 		r_str_argv_free (argv);
@@ -393,8 +395,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"ic <class>                 List Objective-C classes or methods of <class>\n"
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 		"fd[*j] <address>           Inverse symbol resolution\n"
-		"db (<addr>|<symbol>)       List or place breakpoint\n"
-		"db- (<addr>|<symbol>)|*    Remove breakpoint(s)\n"
+		"db (<addr>|<sym>)          List or place breakpoint\n"
+		"db- (<addr>|<syml>)|*      Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
 		"dm[.|j|*]                  Show memory regions\n"
