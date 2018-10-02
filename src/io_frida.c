@@ -160,7 +160,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		}
 
 		FridaSpawnOptions *options = frida_spawn_options_new ();
-		frida_spawn_options_set_argv (options, argv, g_strv_length (argv));
+		const int argc = g_strv_length (argv);
+		if (argc > 1) {
+			frida_spawn_options_set_argv (options, argv, argc);
+		}
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, &error);
 		g_object_unref (options);
 		r_str_argv_free (argv);
@@ -244,6 +247,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\dmh",
 		"!!!\\dmhm",
 		"!!!\\dmp $flag",
+		"!!!\\db",
 		"!!!\\dp",
 		"!!!\\dpt",
 		"!!!\\dr",
@@ -392,6 +396,9 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"ic <class>                 List Objective-C classes or methods of <class>\n"
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 		"fd[*j] <address>           Inverse symbol resolution\n"
+		"db (<addr>|<sym>)          List or place breakpoint\n"
+		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
+		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
 		"dm[.|j|*]                  Show memory regions\n"
 		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
@@ -424,7 +431,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		". script                   Run script\n"
 		"<space> code..             Evaluate Cycript code\n"
 		"eval code..                Evaluate Javascript code in agent side\n"
-		"dc                         Continue\n"
 		"T[-*] [msg]                text-log console, useful to .\\T\n"
 		);
 		return NULL;
