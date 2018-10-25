@@ -2406,13 +2406,23 @@ function perform (params) {
   if (value instanceof Promise) {
     return value.then(output => {
       return [{
-        value: (typeof output === 'string') ? output : JSON.stringify(output)
+        value: normalizeValue(output)
       }, null];
     });
   }
   return [{
-    value: (typeof value === 'string') ? value : JSON.stringify(value)
+    value: normalizeValue(value)
   }, null];
+}
+
+function normalizeValue (value) {
+  if (typeof value === 'undefined') {
+    return 'undefined';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return JSON.stringify(value);
 }
 
 function evaluate (params) {
