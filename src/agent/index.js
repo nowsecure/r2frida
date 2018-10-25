@@ -1748,8 +1748,15 @@ function listMemoryRanges () {
 }
 
 function listMemoryRangesJson () {
-  return Process.enumerateRanges({
-    protection: '---',
+  return _getMemoryRanges('---');
+}
+
+function _getMemoryRanges (protection) {
+  if (r2frida.hookedRanges !== null) {
+    return r2frida.hookedRanges(protection);
+  }
+  return Process.enumerateRangesSync({
+    protection,
     coalesce: false
   });
 }
@@ -3239,7 +3246,10 @@ function searchJson (args) {
   return _searchPatternJson(pattern).then(hits => {
     hits.forEach(hit => {
       try {
-        const bytes = Memory.readByteArray(hit.address, 60);
+        const bytes = io.read({
+          offset: hit.address,
+          count: 60
+        })[1];
         hit.content = _filterPrintable(bytes);
       } catch (e) {
       }
@@ -3376,6 +3386,9 @@ function _filterPrintable (arr) {
   const printable = [];
   for (let i = 0; i !== u8arr.length; i += 1) {
     const c = u8arr[i];
+    if (c == 0) {
+      break;
+    }
     if (c >= minPrintable && c <= maxPrintable) {
       printable.push(String.fromCharCode(c));
     }
@@ -3386,11 +3399,18 @@ function _filterPrintable (arr) {
 function _readableHits (hits) {
   const output = hits.map(hit => {
     if (hit.flag !== undefined) {
-      return `${hit.address} ${hit.flag} ${hit.content}`;
+      return `${hexPtr(hit.address)} ${hit.flag} ${hit.content}`;
     }
-    return `${hit.address} ${hit.content}`;
+    return `${hexPtr(hit.address)} ${hit.content}`;
   });
   return output.join('\n') + '\n';
+}
+
+function hexPtr (p) {
+  if (p instanceof UInt64) {
+    return `0x${p.toString(16)}`;
+  }
+  return p.toString();
 }
 
 function _searchPatternJson (pattern) {
@@ -3417,12 +3437,13 @@ function _searchPatternJson (pattern) {
         const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
-          const partial = Memory.scanSync(range.address, range.size, pattern);
+          const partial = _scanForPattern(range.address, range.size, pattern);
+
           partial.forEach((hit) => {
             if (flags) {
               hit.flag = `${prefix}${kwidx}_${idx + count}`;
               commands.push('fs+searches');
-              commands.push(`f ${hit.flag} ${hit.size} ${hit.address}`);
+              commands.push(`f ${hit.flag} ${hit.size} ${hexPtr(hit.address)}`);
               commands.push('fs-');
             }
             idx += 1;
@@ -3448,6 +3469,13 @@ function _searchPatternJson (pattern) {
       console.log(message);
     }
   }
+}
+
+function _scanForPattern (address, size, pattern) {
+  if (r2frida.hookedScan !== null) {
+    return r2frida.hookedScan(address, size, pattern);
+  }
+  return Memory.scanSync(address, size, pattern);
 }
 
 function _configParseSearchIn () {
@@ -3491,10 +3519,7 @@ function _getRanges (fromNum, toNum) {
         };
       });
   }
-  const ranges = Process.enumerateRanges({
-    protection: searchIn.perm,
-    coalesce: false
-  }).filter(range => {
+  const ranges = _getMemoryRanges(searchIn.perm).filter(range => {
     const start = range.base;
     const end = start.add(range.size);
     const offPtr = ptr(offset);
