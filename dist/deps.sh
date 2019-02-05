@@ -1,12 +1,14 @@
-RV=2.9.0
+. ../config.mk
+RV=${VERSION}
 RA=amd64
 wget -c http://radare.mikelloc.com/get/${RV}/radare2_${RV}_${RA}.deb
 wget -c http://radare.mikelloc.com/get/${RV}/radare2-dev_${RV}_${RA}.deb
+sudo apt install -y libssl-dev
 sudo dpkg -i radare2_${RV}_${RA}.deb
 sudo dpkg -i radare2-dev_${RV}_${RA}.deb
 
 # install NodeJS LTS
-NV=v10.0.0
+NV=v10.15.1
 NA=linux-x64
 wget -c https://nodejs.org/dist/${NV}/node-${NV}-${NA}.tar.xz
 cd /work
