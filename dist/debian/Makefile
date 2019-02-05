@@ -20,7 +20,7 @@ all: root
 root:
 	cd ../.. && \
 	$(DOCKCROSS) --image dockcross/linux-$(CROSSARCH) bash -c \
-	"R2_PLUGDIR=$(R2PLUGDIR) DESTDIR=$(PWD)/root bash dist/deps.sh"
+	"R2_PLUGDIR=$(R2PLUGDIR) DESTDIR=$(PWD)/root VERSION=$(VERSION) bash dist/deps.sh"
 	mkdir -p root/$(R2PLUGDIR)
 	cp ../../io_frida.so root/$(R2PLUGDIR)
 

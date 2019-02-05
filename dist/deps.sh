@@ -1,4 +1,4 @@
-. ../config.mk
+[ -z "${VERSION}" ] VERSION=3.2.1
 RV=${VERSION}
 RA=amd64
 wget -c http://radare.mikelloc.com/get/${RV}/radare2_${RV}_${RA}.deb
