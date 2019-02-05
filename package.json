@@ -32,12 +32,12 @@
   "scripts": {
     "lint": "semistandard src/agent/*.js",
     "prepublish": "npm run build",
-    "build": "frida-compile src/agent -o src/_agent.js",
-    "watch": "frida-compile src/agent -o src/_agent.js -w"
+    "build": "frida-compile -x src/agent -o src/_agent.js",
+    "watch": "frida-compile -x src/agent -o src/_agent.js -w"
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "@babel/core": "^7.1.2",
+    "@babel/core": "^7.2.2",
     "@babel/plugin-transform-runtime": "^7.1.0",
     "@babel/preset-env": "^7.1.0",
     "@babel/runtime-corejs2": "^7.1.2",
