@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2018 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2019 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
@@ -112,6 +112,18 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
 }
 
+static bool user_wants_v8() {
+	bool do_want = true;
+	char *env = r_sys_getenv ("R2FRIDA_DISABLE_JIT");
+	if (env) {
+		if (*env) {
+			do_want = false;
+		}
+		free (env);
+	}
+	return do_want;
+}
+
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	RIOFrida *rf;
 	char *device_id = NULL, *process_specifier = NULL;
@@ -183,6 +195,13 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	if (error) {
 		eprintf ("Cannot attach: %s\n", error->message);
 		goto error;
+	}
+	if (user_wants_v8 ()) {
+		frida_session_enable_jit_sync (rf->session, &error);
+		if (error) {
+			eprintf ("Cannot enable JIT: %s\n", error->message);
+			goto error;
+		}
 	}
 
 	rf->script = frida_session_create_script_sync (rf->session, "r2io",
