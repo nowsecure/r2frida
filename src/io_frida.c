@@ -878,10 +878,10 @@ static void on_message(FridaScript *script, const char *message, GBytes *data, g
 	root = json_node_get_object (json_parser_get_root (parser));
 	type = json_object_get_string_member (root, "type");
 
-	if (!strcmp (type, "send")) {
+	if (type && !strcmp (type, "send")) {
 		JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
 		const char *name = json_object_get_string_member (payload, "name");
-		if (!strcmp (name, "reply")) {
+		if (name && !strcmp (name, "reply")) {
 			on_stanza (rf,
 				json_object_ref (json_object_get_object_member (payload, "stanza")),
 				data);

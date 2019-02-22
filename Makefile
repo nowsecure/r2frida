@@ -27,6 +27,9 @@ CXX?=g++
 CFLAGS+=-fPIC
 LDFLAGS+=-shared -fPIC
 
+CFLAGS+=-g
+LDFLAGS+=-g
+
 # R2
 CFLAGS+=$(shell pkg-config --cflags r_core r_io r_util)
 ifeq ($(frida_os),android)
@@ -211,7 +214,8 @@ mrproper: clean
 
 install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
-	cp -f io_frida.$(SO_EXT) $(DESTDIR)/"$(R2_PLUGDIR)"
+	#cp -f io_frida.$(SO_EXT) $(DESTDIR)/"$(R2_PLUGDIR)"
+	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
 uninstall:
 	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
