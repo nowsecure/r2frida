@@ -114,7 +114,7 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 
 static bool user_wants_v8() {
 	bool do_want = true;
-	char *env = r_sys_getenv ("R2FRIDA_DISABLE_JIT");
+	char *env = r_sys_getenv ("R2FRIDA_DISABLE_V8");
 	if (env) {
 		if (*env) {
 			do_want = false;

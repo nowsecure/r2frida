@@ -40,6 +40,7 @@ But you can always follow the standard way in here:
 
 Usage:
 ------
+
 r2frida is used from r2 by specifying a process name:
 
 	$ r2 frida://Twitter
@@ -63,6 +64,19 @@ Alternatively also with a device ID that you retrieved through frida-ls-devices:
 you can spawn an app on the device too, with an extra `/` and the package name (you can retrieve package names with frida-ps):
 
 	$ r2 frida://device-id//com.atebits.Tweetie2
+
+V8/JIT
+------
+
+In r2frida, the V8 runtime is enabled by default, set this variable to use duktape instead of v8:
+
+	$ export R2FRIDA_DISABLE_V8=1
+
+**Pros**: it's faster, supports ES6 and you can use the chrome tools to debug and run javascript in the agent side.
+**Cons**: requires JIT permissions, so it's not working on all the iOS versions. Only on newest.
+
+In case the target operating system doesnt supports RWX pages, frida-agent will fallback to duktape, so it's recommended to
+check the `Script.runtime` variable that is also available in the `\i` r2frida command.
 
 Termux
 ------

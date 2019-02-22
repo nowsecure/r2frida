@@ -727,6 +727,7 @@ function dumpInfoJson () {
     pid: getPid(),
     uid: _getuid(),
     objc: ObjCAvailable,
+    runtime: Script.runtime,
     java: JavaAvailable,
     cylang: mjolner !== undefined,
   };
