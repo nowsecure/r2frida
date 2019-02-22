@@ -431,6 +431,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dmhj                       List all heap allocated chunks in JSON\n"
 		"dmh*                       Export heap chunks and regions as r2 flags\n"
 		"dmhm                       Show which maps are used to allocate heap chunks\n"
+		"d.                         Start the chrome tools debugger\n"
 		"dp                         Show current pid\n"
 		"dpt                        Show threads\n"
 		"dr                         Show thread registers (see dpt)\n"
@@ -456,8 +457,19 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	rf = fd->data;
-
-	if (!strncmp (command, "dtf?", 4)) {
+	if (!strncmp (command, "d.", 2)) {
+		int port = 0; // 9229
+		if (command[2] == ' ') {
+			port = r_num_math (NULL, command + 3);
+		}
+		GError *error = NULL;
+		frida_session_enable_debugger_sync (rf->session, port, &error);
+		if (error) {
+			eprintf ("frida_session_enable_debugger_sync error: %s\n", error->message);
+			g_error_free (error);
+		}
+		return NULL;
+	} else if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
 		io->cb_printf ("  +  = show backtrace on trace\n");
