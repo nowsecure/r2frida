@@ -2385,6 +2385,10 @@ function state (params, data) {
   return [{}, null];
 }
 
+function isPromise(value) {
+  return typeof value == 'object' && typeof value.then === 'function';
+}
+
 function perform (params) {
   const {command} = params;
 
@@ -2404,11 +2408,13 @@ function perform (params) {
   }
 
   const value = handler(args);
-  if (value instanceof Promise) {
+  if (isPromise(value)) {
     return value.then(output => {
       return [{
         value: normalizeValue(output)
       }, null];
+    }).catch(error => {
+      console.log("ERROR", error);
     });
   }
   return [{
