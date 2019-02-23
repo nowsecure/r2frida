@@ -78,6 +78,10 @@ In r2frida, the V8 runtime is enabled by default, set this variable to use dukta
 In case the target operating system doesnt supports RWX pages, frida-agent will fallback to duktape, so it's recommended to
 check the `Script.runtime` variable that is also available in the `\i` r2frida command.
 
+Once the agent is running you can run the `d.` command to start the chrometools debugger, after this load this URL in your Google Chrome:
+
+	chrome://inspect
+
 Termux
 ------
 If you are willing to install and use r2frida natively on Android via Termux, there are some caveats with the library dependencies because of some symbol resolutions. The way to make this work is by extending the `LD_LIBRARY_PATH` environment to point to the system directory *before* the termux libdir.
@@ -87,7 +91,6 @@ If you are willing to install and use r2frida natively on Android via Termux, th
 To debug plugin loading problems use the following environment variable and grep for `frida`:
 
 `$ R_DEBUG=1 r2 -`
-
 
 Design
 ------

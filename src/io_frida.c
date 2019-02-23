@@ -3,6 +3,7 @@
 #include <r_core.h>
 #include <r_io.h>
 #include <r_lib.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -31,6 +32,7 @@ typedef struct {
 	bool suspended;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
+	volatile FridaCrash *crash;
 	volatile bool received_reply;
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
@@ -75,6 +77,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 
 	rf->detached = false;
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
+	rf->crash = NULL;
 	rf->received_reply = false;
 	rf->r2core = io->user;
 	if (!rf->r2core) {
@@ -91,6 +94,8 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (!rf) {
 		return;
 	}
+
+	g_clear_object (&rf->crash);
 
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
@@ -849,11 +854,12 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 	g_mutex_unlock (&rf->lock);
 }
 
-static void on_detached(FridaSession *session, FridaSessionDetachReason reason, gpointer user_data) {
+static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	rf->detach_reason = reason;
+	rf->crash = (crash != NULL) ? g_object_ref (crash) : NULL;
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
 }
@@ -866,37 +872,46 @@ static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_unlock (&rf->lock);
 }
 
-static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data) {
+static void on_message(FridaScript *script, const char *raw_message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
-	JsonParser *parser;
-	JsonObject *root;
-	const char *type;
-
-	parser = json_parser_new ();
-	json_parser_load_from_data (parser, message, -1, NULL);
-
-	root = json_node_get_object (json_parser_get_root (parser));
-	type = json_object_get_string_member (root, "type");
+	JsonNode *message = json_from_string (raw_message, NULL);
+	assert (message != NULL);
+	JsonObject *root = json_node_get_object (message);
+	const char *type = json_object_get_string_member (root, "type");
 
 	if (type && !strcmp (type, "send")) {
-		JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-		const char *name = json_object_get_string_member (payload, "name");
-		if (name && !strcmp (name, "reply")) {
-			on_stanza (rf,
-				json_object_ref (json_object_get_object_member (payload, "stanza")),
-				data);
-		} else if (!strcmp (name, "cmd")) {
-			on_cmd (rf,
-				json_object_get_object_member (payload, "stanza"));
+		JsonNode *payload_node = json_object_get_member (root, "payload");
+		JsonNodeType type = json_node_get_node_type (payload_node);
+		if (type == JSON_NODE_OBJECT) {
+			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
+			const char *name = json_object_get_string_member (payload, "name");
+			if (name && !strcmp (name, "reply")) {
+				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+				if (stanza_node) {
+					JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
+					if (stanza_type == JSON_NODE_OBJECT) {
+						on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+					} else {
+						eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", message);
+					}
+				} else {
+					eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
+				}
+			} else if (!strcmp (name, "cmd")) {
+				on_cmd (rf,
+					json_object_get_object_member (payload, "stanza"));
+			}
+			json_object_unref (payload);
+		} else {
+			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
-		json_object_unref (payload);
 	} else if (!strcmp (type, "log")) {
 		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {
-		eprintf ("Unhandled message: %s\n", message);
+		eprintf ("Unhandled message: %s\n", raw_message);
 	}
 
-	g_object_unref (parser);
+	json_node_unref (message);
 }
 
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
