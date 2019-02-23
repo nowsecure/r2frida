@@ -3,7 +3,6 @@
 #include <r_core.h>
 #include <r_io.h>
 #include <r_lib.h>
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -96,7 +95,6 @@ static void r_io_frida_free(RIOFrida *rf) {
 	}
 
 	g_clear_object (&rf->crash);
-
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
 	g_clear_object (&rf->device);
@@ -112,6 +110,24 @@ static void r_io_frida_free(RIOFrida *rf) {
 
 	R_FREE (rf);
 }
+
+static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
+	RFPendingCmd *pcmd = R_NEW0 (RFPendingCmd);
+	if (pcmd) {
+		pcmd->_cmd_json = json_object_ref (cmd_json);
+		pcmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
+		pcmd->serial = json_object_get_int_member (cmd_json, "serial");
+	}
+	return pcmd;
+}
+
+static void pending_cmd_free(RFPendingCmd * pending_cmd) {
+	if (pending_cmd->_cmd_json) {
+		json_object_unref (pending_cmd->_cmd_json);
+	}
+	R_FREE (pending_cmd);
+}
+
 
 static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
@@ -610,6 +626,10 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	if (!result) {
 		return NULL;
 	}
+
+	if (!json_object_has_member (result, "value")) {
+		return NULL;
+	}
 	value = json_object_get_string_member (result, "value");
 	char *sys_result = NULL;
 	if (value && strcmp (value, "undefined")) {
@@ -867,7 +887,11 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_lock (&rf->lock);
 	g_assert (!rf->pending_cmd);
-	rf->pending_cmd = pending_cmd_create (cmd_stanza);
+	if (cmd_stanza) {
+		rf->pending_cmd = pending_cmd_create (cmd_stanza);
+	} else {
+		rf->pending_cmd = R_NEW0 (RFPendingCmd);
+	}
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
 }
@@ -875,7 +899,7 @@ static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 static void on_message(FridaScript *script, const char *raw_message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	JsonNode *message = json_from_string (raw_message, NULL);
-	assert (message != NULL);
+	g_assert (message != NULL);
 	JsonObject *root = json_node_get_object (message);
 	const char *type = json_object_get_string_member (root, "type");
 
@@ -892,14 +916,13 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					if (stanza_type == JSON_NODE_OBJECT) {
 						on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
 					} else {
-						eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", message);
+						eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
 					}
 				} else {
 					eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 				}
 			} else if (!strcmp (name, "cmd")) {
-				on_cmd (rf,
-					json_object_get_object_member (payload, "stanza"));
+				on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 			}
 			json_object_unref (payload);
 		} else {
@@ -912,23 +935,6 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	}
 
 	json_node_unref (message);
-}
-
-static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
-	RFPendingCmd *pcmd = R_NEW0 (RFPendingCmd);
-	if (pcmd) {
-		pcmd->_cmd_json = json_object_ref (cmd_json);
-		pcmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
-		pcmd->serial = json_object_get_int_member (cmd_json, "serial");
-	}
-	return pcmd;
-}
-
-static void pending_cmd_free(RFPendingCmd * pending_cmd) {
-	if (pending_cmd->_cmd_json) {
-		json_object_unref (pending_cmd->_cmd_json);
-	}
-	R_FREE (pending_cmd);
 }
 
 RIOPlugin r_io_plugin_frida = {
