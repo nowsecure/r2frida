@@ -41,6 +41,14 @@ R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 
 CXXFLAGS+=$(CFLAGS)
 
+USE_ASAN?=0
+ifeq ($(USE_ASAN),1)
+ASAN_CFLAGS=-fsanitize=address,integer,undefined
+ASAN_LDFLAGS=$(ASAN_CFLAGS)
+CFLAGS+=$(ASAN_CFLAGS)
+LDFLAGS+=$(ASAN_LDFLAGS)
+endif
+
 # FRIDA
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
