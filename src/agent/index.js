@@ -2407,16 +2407,20 @@ function perform (params) {
     throw new Error('Unhandled command: ' + name);
   }
 
+  if (isPromise(handler)) {
+    throw new Error("The handler can't be a promise");
+  }
   const value = handler(args);
   if (isPromise(value)) {
-    return value.then(output => {
-      return [{
-        value: normalizeValue(output)
-      }, null];
-    }).catch(error => {
-      console.log("ERROR", error);
+    return new Promise ((resolve, reject) => {
+      return value.then(output => {
+        resolve ([{
+          value: normalizeValue(output)
+        }, null]);
+      }).catch(reject);
     });
-  }
+    return value;
+ }
   return [{
     value: normalizeValue(value)
   }, null];
@@ -2814,6 +2818,7 @@ function onStanza (stanza, data) {
     try {
       const value = handler(stanza.payload, data);
       if (value instanceof Promise) {
+        // handle async stuff in here
         value
           .then(([replyStanza, replyBytes]) => {
             send(wrapStanza('reply', replyStanza), replyBytes);
