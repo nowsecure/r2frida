@@ -291,17 +291,7 @@ function dxCall (args) {
   }
 
   const fun = new NativeFunction(address, 'pointer', nfArgs);
-  switch (nfArgsData.length) {
-  /* eslint-disable indent */
-  case 0: return fun();
-  case 1: return fun(nfArgsData[0]);
-  case 2: return fun(nfArgsData[0], nfArgsData[1]);
-  case 3: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2]);
-  case 4: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3]);
-  case 5: return fun(nfArgsData[0], nfArgsData[1], nfArgsData[2], nfArgsData[3], nfArgsData[4]);
-  /* eslint-enable indent */
-  }
-  return fun();
+  return fun(...nfArgsData);
 }
 
 function dxHexpairs (args) {
