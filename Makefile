@@ -144,7 +144,7 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
 
 node_modules: package.json
-	npm install
+	((test packages.json -nt packages-lock.json) || (test -d node_modules && false || true)) && npm i || true
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
 
