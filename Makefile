@@ -38,6 +38,11 @@ else
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 endif
 R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
+ifeq ($(R2_PLUGDIR),)
+r2:
+	@echo Please install r2
+	@exit 1
+endif
 
 CXXFLAGS+=$(CFLAGS)
 
