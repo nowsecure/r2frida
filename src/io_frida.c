@@ -47,12 +47,15 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
 static JsonBuilder *build_request(const char *type);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
-static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
 static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
+
+// event handlers
+static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
+static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -233,6 +236,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
+	g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
 
 	frida_script_load_sync (rf->script, &error);
 	if (error) {
@@ -876,6 +880,10 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data) {
 	RIOFrida *rf = user_data;
+	if (crash) {
+		const char *crash_report = frida_crash_get_report (crash);
+		eprintf ("CrashReport: %s\n", crash_report);
+	}
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	rf->detach_reason = reason;
