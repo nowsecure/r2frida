@@ -884,6 +884,23 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 		const char *crash_report = frida_crash_get_report (crash);
 		eprintf ("CrashReport: %s\n", crash_report);
 	}
+	switch (reason) {
+	case FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED:
+		eprintf ("DetachReason: APPLICATION_REQUESTED\n");
+		break;
+	case FRIDA_SESSION_DETACH_REASON_PROCESS_TERMINATED:
+		eprintf ("DetachReason: PROCESS_TERMINATED\n");
+		break;
+	case FRIDA_SESSION_DETACH_REASON_SERVER_TERMINATED:
+		eprintf ("DetachReason: SERVER_TERMINATED\n");
+		break;
+	case FRIDA_SESSION_DETACH_REASON_DEVICE_LOST:
+		eprintf ("DetachReason: DEVICE_LOST\n");
+		break;
+	case FRIDA_SESSION_DETACH_REASON_PROCESS_REPLACED:
+		eprintf ("DetachReason: PROCESS_REPLACED\n");
+		break;
+	}
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	rf->detach_reason = reason;
