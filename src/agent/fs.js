@@ -1,6 +1,7 @@
 'use strict';
 
 const {normalize} = require('path');
+const {platform, pointerSize} = Process;
 
 module.exports = {
   ls,
@@ -9,6 +10,34 @@ module.exports = {
 };
 
 let fs = null;
+
+const direntSpecs = {
+  'linux-32': {
+    'd_name': [11, 'Utf8String'],
+    'd_type': [10, 'U8']
+  },
+  'linux-64': {
+    'd_name': [19, 'Utf8String'],
+    'd_type': [18, 'U8']
+  },
+  'darwin-32': {
+    'd_name': [21, 'Utf8String'],
+    'd_type': [20, 'U8']
+  },
+  'darwin-64': {
+    'd_name': [
+      [8, 'Utf8String'],
+      [21, 'Utf8String']
+    ],
+    'd_type': [
+      [6, 'U8'],
+      [20, 'U8']
+    ]
+  },
+};
+
+let has64BitInode = null;
+const direntSpec = direntSpecs[`${platform}-${pointerSize * 8}`];
 
 function ls (path) {
   if (fs === null) {
@@ -354,7 +383,7 @@ class PosixFSApi {
     if (res === -1) {
       return -1;
     }
-    if (Process.pointerSize === 8) {
+    if (pointerSize === 8) {
       return Memory.readU64(statPtr.add(96)).toNumber();
     } else {
       return Memory.readU64(statPtr.add(60)).toNumber();
@@ -364,9 +393,48 @@ class PosixFSApi {
 
 class DirEnt {
   constructor (dirEntPtr) {
-    this.type = Memory.readU8(dirEntPtr.add(20));
-    this.name = Memory.readUtf8String(dirEntPtr.add(21));
+    this.type = readDirentField(dirEntPtr, 'd_type');
+    try {
+      this.name = readDirentField(dirEntPtr, 'd_name');
+    } catch (e) {
+      this.name = '(decode error)';
+    }
   }
+}
+
+function readDirentField(entry, name) {
+  let spec = direntSpec[name];
+  if (platform === 'darwin') {
+    if (direntHas64BitInode(entry)) {
+      spec = spec[1];
+    } else {
+      spec = spec[0];
+    }
+  }
+  const [offset, type] = spec;
+
+  const read = (typeof type === 'string') ? Memory['read' + type] : type;
+
+  const value = read(entry.add(offset));
+  if (value instanceof Int64 || value instanceof UInt64)
+    return value.valueOf();
+
+  return value;
+}
+
+function direntHas64BitInode (dirEntPtr) {
+  if (has64BitInode !== null) {
+    return has64BitInode;
+  }
+
+  const recLen = dirEntPtr.add(4).readU16();
+  const nameLen = dirEntPtr.add(7).readU8();
+  const compLen = (8 + nameLen + 3) & ~3;
+
+  console.log(recLen, '!==', compLen);
+
+  has64BitInode = compLen !== recLen;
+  return has64BitInode;
 }
 
 function resolveExports (names) {
@@ -401,7 +469,7 @@ function nsArrayMap (array, callback) {
 }
 
 function isiOS () {
-  return Process.platform === 'darwin' &&
+  return platform === 'darwin' &&
     Process.arch.indexOf('arm') === 0 &&
     ObjC.available;
 }
