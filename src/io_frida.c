@@ -250,6 +250,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	const char *autocompletions[] = {
 		"!!!\\eval",
 		"!!!\\e",
+		"!!!\\env",
 		"!!!\\i",
 		"!!!\\ii",
 		"!!!\\il",
@@ -274,8 +275,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\/v8 $flag",
 		"!!!\\dt $flag",
 		"!!!\\dt- $flag",
+		"!!!\\dth",
 		"!!!\\dtr",
 		"!!!\\dtS",
+		"!!!\\dtSf $flag",
 		"!!!\\dc",
 		"!!!\\di",
 		"!!!\\dl",
@@ -463,7 +466,9 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"env [k[=v]]                Get/set environment variable\n"
 		"dl libname                 Dlopen a library\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
-		"dt <addr> ..               Trace list of addresses\n"
+		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
+		"dt.               			Trace at current offset\n"
+		"dth (<addr>|<sym>) (x y..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
 		"dt-                        Clear all tracing\n"
 		"dtr <addr> (<regs>...)     Trace register values\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
