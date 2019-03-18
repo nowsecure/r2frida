@@ -510,6 +510,14 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.event   = compile\n");
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
+	} else if (!strncmp (command, "s", 1)) {
+		if (command[1] == ' ') {
+			// do nothing
+		} else {
+			ut64 entry = 0;
+			io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
+		}
+		return NULL;
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;

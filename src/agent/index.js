@@ -309,17 +309,21 @@ function evalCode (args) {
 }
 
 function printHexdump (lenstr) {
-  const len = +lenstr || 20;
-  return hexdump(ptr(offset), len) || '';
+  const len = +lenstr || 32;
+  try {
+    return hexdump(ptr(offset), len) || '';
+  } catch (e) {
+    return 'Cannot read memory.';
+  }
 }
 
 function disasmCode (lenstr) {
-  const len = +lenstr || 20;
+  const len = +lenstr || 32;
   return disasm(offset, len);
 }
 
 function disasm (addr, len, initialOldName) {
-  len = len || 20;
+  len = len || 32;
   if (typeof addr === 'string') {
     try {
       addr = Module.findExportByName(null, addr);
@@ -330,21 +334,23 @@ function disasm (addr, len, initialOldName) {
       addr = ptr(offset);
     }
   }
-  addr = ptr('' + addr);
   let oldName = initialOldName !== undefined ? initialOldName : null;
   let lastAt = null;
   let disco = '';
   for (let i = 0; i < len; i++) {
     const [op, next] = _tolerantInstructionParse(addr);
+    const vaddr = padPointer(addr);
     if (op === null) {
-      disco += `${addr}\tinvalid`;
+      disco += `${vaddr}\tinvalid\n`;
       addr = next;
       continue;
     }
     const ds = DebugSymbol.fromAddress(addr);
     const dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
-    if ((ds.moduleName !== null || dsName !== null) && dsName !== oldName) {
-      disco += `;;; ${ds.moduleName} ${dsName}\n`;
+    if (!ds.moduleName) ds.moduleName = '';
+    if (!dsName) dsName = '';
+    if ((ds.moduleName || dsName) && dsName !== oldName)  {
+      disco += ';;; ' + (ds.moduleName?ds.moduleName: dsName) + '\n';
       oldName = dsName;
     }
     var comment = '';
@@ -384,7 +390,7 @@ function disasm (addr, len, initialOldName) {
       }
     }
     // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
-    disco += [op.address, op.mnemonic, op.opStr, comment].join('\t') + '\n';
+    disco += [padPointer(op.address), op.mnemonic, op.opStr, comment].join('\t') + '\n';
     if (op.size < 1) {
       // break; // continue after invalid
       op.size = 1;
@@ -2274,8 +2280,12 @@ function _tolerantInstructionParse (address) {
         e.message !== `access violation accessing ${cursor}`) {
       throw e;
     }
+    if (e.message.indexOf('access violation') !== -1) {
+      // cannot access the memory
+    } else {
+      // console.log(`warning: error parsing instruction at ${cursor}`);
+    }
     // skip invalid instructions
-    console.log(`warning: error parsing instruction @ ${cursor}`);
     switch (Process.arch) {
       case 'arm64':
         cursor = cursor.add(4);
