@@ -53,7 +53,7 @@ const statSpecs = {
 
 const statxSpecs = {
   'linux-64': {
-    'size': [ 38, 'S64' ],
+    'size': [ 40, 'S64' ],
   },
 };
 
@@ -62,7 +62,7 @@ const STATX_SIZE = 0x200;
 let has64BitInode = null;
 const direntSpec = direntSpecs[`${platform}-${pointerSize * 8}`];
 const statSpec = statSpecs[`${platform}-${pointerSize * 8}`] || null;
-const statxSpec = statSpecs[`${platform}-${pointerSize * 8}`] || null;
+const statxSpec = statxSpecs[`${platform}-${pointerSize * 8}`] || null;
 
 function ls (path) {
   if (fs === null) {
