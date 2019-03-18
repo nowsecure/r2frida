@@ -5,6 +5,7 @@
 
 const r2frida = require('./plugin'); // eslint-disable-line
 const {stalkFunction, stalkEverything} = require('./stalker');
+const fs = require('./fs');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -153,6 +154,9 @@ const commandHandlers = {
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
+  'md': fsList,
+  'mg': fsCat,
+  'm': fsOpen,
   'pd': disasmCode,
   'px': printHexdump,
   'x': printHexdump,
@@ -765,7 +769,7 @@ function listExportsR2 (args) {
 }
 
 function listExportsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
+  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args.join(' ')];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExportsSync(moduleName));
   }, []);
@@ -1633,6 +1637,10 @@ function formatArgs (args, fmt) {
         const str = _readUntrustedUtf8(arg, len);
         a.push(JSON.stringify(str));
         break;
+      case 'S': // **s
+        const sss = _readUntrustedUtf8(Memory.readPointer(arg));
+        a.push(JSON.stringify(sss));
+        break;
       case 'O':
         if (ObjC.available) {
           if (!arg.isNull()) {
@@ -1644,6 +1652,24 @@ function formatArgs (args, fmt) {
         } else {
           a.push(arg);
         }
+        break;
+      default:
+        a.push(arg);
+        break;
+    }
+  }
+  return a;
+}
+
+function cloneArgs (args, fmt) {
+  const a = [];
+  let j = 0;
+  for (let i = 0; i < fmt.length; i++, j++) {
+    const arg = args[j];
+    switch (fmt[i]) {
+      case '+':
+      case '^':
+        j--;
         break;
       default:
         a.push(arg);
@@ -1721,7 +1747,11 @@ function traceFormat (args) {
     myArgs: [],
     myBacktrace: [],
     onEnter: function (args) {
-      this.myArgs = formatArgs(args, format);
+      if (!traceOnEnter) {
+        this.keepArgs = cloneArgs(args, format);
+      } else {
+        this.myArgs = formatArgs(args, format);
+      }
       if (traceBacktrace) {
         this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       }
@@ -1734,6 +1764,7 @@ function traceFormat (args) {
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
+        this.myArgs = formatArgs(this.keepArgs, format);
         console.log(at, this.myArgs, '=', retval);
         if (traceBacktrace) {
           console.log(this.myBacktrace.join('\n    '));
@@ -2800,6 +2831,18 @@ function _isHex (raw) {
     inSet.delete(h);
   }
   return inSet.size === 0;
+}
+
+function fsList (args) {
+  return fs.ls(args[0]);
+}
+
+function fsCat (args) {
+  return fs.cat(args[0]);
+}
+
+function fsOpen (args) {
+  return fs.open(args[0]);
 }
 
 function onStanza (stanza, data) {
