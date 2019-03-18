@@ -36,8 +36,33 @@ const direntSpecs = {
   },
 };
 
+const statSpecs = {
+  'linux-32': {
+    'size': [ 44, 'S32' ],
+  },
+  'linux-64': {
+    'size': [ 48, 'S64' ],
+  },
+  'darwin-32': {
+    'size': [ 60, 'S64'  ],
+  },
+  'darwin-64': {
+    'size': [ 96, 'S64'  ],
+  }
+};
+
+const statxSpecs = {
+  'linux-64': {
+    'size': [ 38, 'S64' ],
+  },
+};
+
+const STATX_SIZE = 0x200;
+
 let has64BitInode = null;
 const direntSpec = direntSpecs[`${platform}-${pointerSize * 8}`];
+const statSpec = statSpecs[`${platform}-${pointerSize * 8}`] || null;
+const statxSpec = statSpecs[`${platform}-${pointerSize * 8}`] || null;
 
 function ls (path) {
   if (fs === null) {
@@ -325,7 +350,7 @@ class PosixFSApi {
 
   get api () {
     if (this._api === null) {
-      const exports = resolveExports(['opendir', 'readdir', 'closedir', 'fopen', 'fclose', 'fread', 'stat']);
+      const exports = resolveExports(['opendir', 'readdir', 'closedir', 'fopen', 'fclose', 'fread']);
       const available = Object.keys(exports).filter(name => exports[name] === null).length === 0;
       if (!available) {
         throw new Error('ERROR: is this a POSIX system?');
@@ -338,8 +363,18 @@ class PosixFSApi {
         fopen: new NativeFunction(exports.fopen, 'pointer', ['pointer', 'pointer']),
         fclose: new NativeFunction(exports.fclose, 'int', ['pointer']),
         fread: new NativeFunction(exports.fread, 'int', ['pointer', 'int', 'int', 'pointer']),
-        stat: new NativeFunction(exports.stat, 'int', ['pointer', 'pointer'])
+        stat: null,
+        statx: null
       };
+
+      const stats = resolveExports(['stat', 'stat64', 'statx']);
+      const stat = stats.stat64 || stats.stat;
+      const { statx } = stats;
+      if (stat !== null) {
+        this._api.stat = new NativeFunction(stat, 'int', ['pointer', 'pointer']);
+      } else if (statx !== null) {
+        this._api.statx = new NativeFunction(statx, 'int', ['int', 'pointer', 'int', 'int', 'pointer']);
+      }
     }
 
     return this._api;
@@ -378,15 +413,20 @@ class PosixFSApi {
   }
 
   getFileSize (path) {
-    const statPtr = Memory.alloc(144);
-    const res = this.api.stat(Memory.allocUtf8String(path), statPtr);
-    if (res === -1) {
-      return -1;
-    }
-    if (pointerSize === 8) {
-      return Memory.readU64(statPtr.add(96)).toNumber();
-    } else {
-      return Memory.readU64(statPtr.add(60)).toNumber();
+    const statPtr = Memory.alloc(Process.pageSize);
+    const pathStr = Memory.allocUtf8String(path);
+    if (this.api.stat !== null) {
+      const res = this.api.stat(pathStr, statPtr);
+      if (res === -1) {
+        return -1;
+      }
+      return readStatField(statPtr, 'size');
+    } else if (this.api.statx) {
+      const res = this.api.statx(0, pathStr, 0, STATX_SIZE, statPtr);
+      if (res === -1) {
+        return -1;
+      }
+      return readStatxField(statPtr, 'size');
     }
   }
 }
@@ -394,11 +434,7 @@ class PosixFSApi {
 class DirEnt {
   constructor (dirEntPtr) {
     this.type = readDirentField(dirEntPtr, 'd_type');
-    try {
-      this.name = readDirentField(dirEntPtr, 'd_name');
-    } catch (e) {
-      this.name = '(decode error)';
-    }
+    this.name = readDirentField(dirEntPtr, 'd_name');
   }
 }
 
@@ -422,6 +458,40 @@ function readDirentField(entry, name) {
   return value;
 }
 
+function readStatField(entry, name) {
+  let field = statSpec[name];
+  if (field === undefined) {
+    return undefined;
+  }
+
+  const [offset, type] = field;
+
+  const read = (typeof type === 'string') ? Memory['read' + type] : type;
+
+  const value = read(entry.add(offset));
+  if (value instanceof Int64 || value instanceof UInt64)
+    return value.valueOf();
+
+  return value;
+}
+
+function readStatxField(entry, name) {
+  let field = statxSpec[name];
+  if (field === undefined) {
+    return undefined;
+  }
+
+  const [offset, type] = field;
+
+  const read = (typeof type === 'string') ? Memory['read' + type] : type;
+
+  const value = read(entry.add(offset));
+  if (value instanceof Int64 || value instanceof UInt64)
+    return value.valueOf();
+
+  return value;
+}
+
 function direntHas64BitInode (dirEntPtr) {
   if (has64BitInode !== null) {
     return has64BitInode;
@@ -430,8 +500,6 @@ function direntHas64BitInode (dirEntPtr) {
   const recLen = dirEntPtr.add(4).readU16();
   const nameLen = dirEntPtr.add(7).readU8();
   const compLen = (8 + nameLen + 3) & ~3;
-
-  console.log(recLen, '!==', compLen);
 
   has64BitInode = compLen !== recLen;
   return has64BitInode;
