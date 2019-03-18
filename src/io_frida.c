@@ -467,7 +467,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dl libname                 Dlopen a library\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
-		"dt.               			Trace at current offset\n"
+		"dt.                        Trace at current offset\n"
 		"dth (<addr>|<sym>) (x y..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
 		"dt-                        Clear all tracing\n"
 		"dtr <addr> (<regs>...)     Trace register values\n"
