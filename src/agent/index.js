@@ -66,6 +66,11 @@ const commandHandlers = {
   'dc': breakpointContinue,
   'dcu': breakpointContinueUntil,
   'dk': sendSignal,
+
+  'ie': listEntrypoint,
+  'ie*': listEntrypointR2,
+  'iej': listEntrypointJson,
+
   'ii': listImports,
   'ii*': listImportsR2,
   'iij': listImportsJson,
@@ -979,6 +984,43 @@ function lookupSymbolJson (args) {
       address: address
     }];
   }
+}
+
+function listEntrypointJson (args) {
+  function isEntrypoint(s) {
+    if (s.type === 'section')
+    switch (s.name) {
+    case '_start':
+    case 'start':
+    case 'main':
+      return true;
+    }
+    return false;
+  }
+  const firstModule = Process.enumerateModules()[0];
+  return Module.enumerateSymbols(firstModule.name)
+    .filter((symbol) => {
+      return isEntrypoint(symbol);
+    }).map((symbol) => {
+      symbol.moduleName = Process.getModuleByAddress(symbol.address).name;
+      return symbol;
+    })
+}
+
+function listEntrypointR2 (args) {
+  let n = 0;
+  return listEntrypointJson ()
+    .map((entry) => {
+      return 'f entry' + (n++) + ' = ' + entry.address;
+    }).join('\n');
+}
+
+function listEntrypoint (args) {
+  let n = 0;
+  return listEntrypointJson ()
+    .map((entry) => {
+      return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
+    }).join('\n');
 }
 
 function listImports (args) {
