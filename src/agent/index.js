@@ -2598,7 +2598,7 @@ function perform (params) {
   const [name, ...args] = tokens;
   if (name.length > 0 && name.endsWith('?')) {
     const prefix = name.substring(0,name.length - 1);
-    const value = Object.keys(commandHandlers)
+    const value = Object.keys(commandHandlers).sort()
       .filter((k) => {
         return (k.startsWith(prefix));
       })
