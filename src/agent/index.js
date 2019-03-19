@@ -2477,12 +2477,23 @@ function perform (params) {
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
-  /*
-  if (name.endsWith('?') && name !== 'e?') {
-    console.error('TODO: show help of \\?~' + name.substring(0, name.length - 1));
-    return;
+  if (name.length > 0 && name.endsWith('?')) {
+    const prefix = name.substring(0,name.length - 1);
+    const value = Object.keys(commandHandlers)
+      .filter((k) => {
+        return (k.startsWith(prefix));
+      })
+      .map((k) => {
+        const desc = commandHandlers[k].name
+          .replace(/(?:^|\.?)([A-Z])/g, function (x,y) {
+            return " " + y.toLowerCase()
+          }).replace(/^_/, "");
+        return ' ' + k + '\t' + desc;
+      }).join('\n');
+    return [{
+      value: normalizeValue(value)
+    }, null];
   }
-*/
   const userHandler = global.r2frida.commandHandler(name);
   const handler = userHandler !== undefined
     ? userHandler : commandHandlers[name];
