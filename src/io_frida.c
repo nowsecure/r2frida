@@ -468,7 +468,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
 		"dt.                        Trace at current offset\n"
-		"dth (<addr>|<sym>) (x y..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
+		"dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
 		"dt-                        Clear all tracing\n"
 		"dtr <addr> (<regs>...)     Trace register values\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
