@@ -1390,9 +1390,31 @@ function getPid () {
 }
 
 function listThreads () {
-  return Process.enumerateThreadsSync()
-    .map(thread => thread.id)
-    .join('\n');
+  let canGetThreadName = false;
+  try {
+    const addr = Module.getExportByName(null, 'pthread_getname_np');
+    var pthread_getname_np = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
+    const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
+    var pthread_from_mach_thread_np = new NativeFunction (addr2, 'pointer', ['uint'])
+    canGetThreadName = true;
+  } catch (e) {
+    // do nothing
+  }
+
+  function getThreadName(tid) {
+    if (!canGetThreadName) {
+      return '';
+    }
+    const buffer = Memory.alloc(4096);
+    let p = pthread_from_mach_thread_np (tid);
+    let q = pthread_getname_np (p, buffer, 4096);
+    return buffer.readCString();
+  }
+
+  return Process.enumerateThreads().map((thread) => {
+    const threadName = getThreadName(thread.id);
+    return [thread.id, threadName].join(' ');
+  }).join('\n');
 }
 
 function listThreadsJson () {
