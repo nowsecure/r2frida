@@ -107,6 +107,8 @@ const commandHandlers = {
   'iEa*': lookupExportR2,
   'iEaj': lookupExportJson,
 
+  'init': initBasicInfoFromTarget,
+
   'fD': lookupDebugInfo,
   'fd': lookupAddress,
   'fd.': lookupAddress,
@@ -185,6 +187,22 @@ const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
+
+async function initBasicInfoFromTarget (args) {
+  const str = `
+e dbg.backend =io
+e anal.autoname=true
+e cmd.fcn.new=aan
+.=!i*
+.=!ie*
+s entry0
+.=!ii*
+.=!iE*
+.=!dr*
+.=!is*
+ `
+  return str;
+}
 
 function nameFromAddress (address) {
   const at = DebugSymbol.fromAddress(ptr(address));
