@@ -84,6 +84,16 @@ const commandHandlers = {
   'iEj': listExportsJson,
   'iE*': listExportsR2,
 
+  'ia': listAllHelp,
+
+  'ias': listAllSymbols,
+  'iasj': listAllSymbolsJson,
+  'ias*': listAllSymbolsR2,
+
+  'iaE': listAllExports,
+  'iaEj': listAllExportsJson,
+  'iaE*': listAllExportsR2,
+
   'is': listSymbols,
   'is.': lookupSymbolHere,
   'isj': listSymbolsJson,
@@ -780,11 +790,61 @@ function listExportsR2 (args) {
     .join('\n');
 }
 
-function listExportsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args.join(' ')];
+function listAllExportsJson (args) {
+  const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
   return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateExportsSync(moduleName));
+    return result.concat(Module.enumerateExports(moduleName));
   }, []);
+}
+
+function listAllExports (args) {
+  return listAllExportsJson(args)
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllExportsR2 (args) {
+  return listAllExportsJson(args)
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
+}
+function listAllSymbolsJson (args) {
+  const modules = Process.enumerateModules().map(m => m.path);;
+  const res = [];
+  for (let module of modules) {
+    const symbols = Module.enumerateSymbols(module);
+    res.push(...symbols);
+  }
+  return res;
+}
+
+function listAllHelp (args) {
+  return 'See \\ia? for more information. Those commands may take a while to run.';
+}
+
+function listAllSymbols (args) {
+  return listAllSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllSymbolsR2 (args) {
+  return listAllSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listExportsJson (args) {
+  const currentModule = Process.getModuleByAddress(offset);
+  return Module.enumerateExports(currentModule.name);
 }
 
 function listSymbols (args) {
@@ -804,10 +864,9 @@ function listSymbolsR2 (args) {
 }
 
 function listSymbolsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
-  return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateSymbolsSync(moduleName));
-  }, []);
+  const addr = ptr(offset);
+  const currentModule = Process.getModuleByAddress(addr);
+  return Module.enumerateSymbolsSync(currentModule.name);
 }
 
 function lookupDebugInfo (args) {
