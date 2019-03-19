@@ -103,6 +103,7 @@ const commandHandlers = {
   'ip': listProtocols,
   'ipj': listProtocolsJson,
   'dd': listFileDescriptors,
+  'ddj': listFileDescriptorsJson,
   'dd-': closeFileDescriptors,
   'dm': listMemoryRanges,
   'dm*': listMemoryRangesR2,
@@ -1183,6 +1184,26 @@ function closeFileDescriptors (args) {
 }
 
 function listFileDescriptors (args) {
+  return listFileDescriptorsJson(args).map(([fd,name]) => {
+    return fd + ' ' + name;
+  }).join('\n');
+}
+
+function listFileDescriptorsJson (args) {
+  function getFdName(fd) {
+    try {
+      // TODO: port this to Linux, Android, iOS
+      const F_GETPATH = 50; // on macOS
+      const PATH_MAX = 4096; // on macOS
+      const buffer = Memory.alloc(PATH_MAX);
+      const addr = Module.getExportByName(null, 'fcntl');
+      const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
+      fcntl (fd, F_GETPATH, buffer);
+      return buffer.readCString();
+    } catch (e) {
+      return '';
+    }
+  }
   if (args.length === 0) {
     const statBuf = Memory.alloc(128);
     const fds = [];
@@ -1191,7 +1212,9 @@ function listFileDescriptors (args) {
         fds.push(i);
       }
     }
-    return fds;
+    return fds.map((fd) => {
+      return [fd, getFdName(fd)];
+    });
   } else {
     const rc = _dup2(+args[0], +args[1]);
     return rc;

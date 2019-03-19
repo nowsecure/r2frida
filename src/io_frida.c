@@ -444,7 +444,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"db (<addr>|<sym>)          List or place breakpoint\n"
 		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
-		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
+		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		"dm[.|j|*]                  Show memory regions\n"
 		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
 		"dmas <string>              Allocate a string inited with <string> on the heap\n"
