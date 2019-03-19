@@ -635,7 +635,7 @@ function sendSignal (args) {
     const [pid, sig] = args;
     _kill(+pid, +sig);
   } else {
-    return 'Usage: \dk ([pid]) [sig]';
+    return 'Usage: \\dk ([pid]) [sig]';
   }
   return '';
 }
@@ -2380,12 +2380,19 @@ function read (params) {
   if (r2frida.hookedRead !== null) {
     return r2frida.hookedRead(offset, count);
   }
-  try {
-    const bytes = Memory.readByteArray(ptr(offset), count);
-    return [{}, (bytes !== null) ? bytes : []];
-  } catch (e) {
-    return [{}, []];
+  for (let size = count; size > 4; size -= 4) {
+    try {
+      const bytes = Memory.readByteArray(ptr(offset), size);
+      return [{}, (bytes !== null) ? bytes : []];
+    } catch (e) {
+      try {
+        Memory.readByteArray(ptr(offset), 8);
+      } catch (e) {
+        return [{}, []];
+      }
+    }
   }
+  return [{}, []];
 }
 
 function isTrue (x) {

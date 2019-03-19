@@ -346,9 +346,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	gconstpointer data;
 	gsize n;
 
-	if (!fd || !fd->data) {
-		return -1;
-	}
+	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
 	rf = fd->data;
 
