@@ -37,6 +37,7 @@ typedef struct {
 	GBytes *reply_bytes;
 	RCore *r2core;
 	RFPendingCmd * pending_cmd;
+	char *crash_report;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
@@ -80,6 +81,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->detached = false;
 	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
 	rf->crash = NULL;
+	rf->crash_report = NULL;
 	rf->received_reply = false;
 	rf->r2core = io->user;
 	if (!rf->r2core) {
@@ -97,6 +99,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 		return;
 	}
 
+	free (rf->crash_report);
 	g_clear_object (&rf->crash);
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
@@ -461,6 +464,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dpt                        Show threads\n"
 		"dr                         Show thread registers (see dpt)\n"
 		"env [k[=v]]                Get/set environment variable\n"
+		"dk [signal] [pid]          Send specific signal to specific pid in the remote system\n"
+		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 		"dt <addr> ..               Trace list of addresses\n"
@@ -516,6 +521,11 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			ut64 entry = 0;
 			io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
+		}
+		return NULL;
+	} else if (!strncmp (command, "dkr", 3)) {
+		if (rf->crash_report) {
+			io->cb_printf ("%s\n", rf->crash_report);
 		}
 		return NULL;
 	} else if (!strncmp (command, "dl2", 3)) {
@@ -890,6 +900,8 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 	RIOFrida *rf = user_data;
 	if (crash) {
 		const char *crash_report = frida_crash_get_report (crash);
+		free (rf->crash_report);
+		rf->crash_report = strdup (crash_report);
 		eprintf ("CrashReport: %s\n", crash_report);
 	}
 	switch (reason) {
