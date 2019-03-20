@@ -66,6 +66,11 @@ const commandHandlers = {
   'dc': breakpointContinue,
   'dcu': breakpointContinueUntil,
   'dk': sendSignal,
+
+  'ie': listEntrypoint,
+  'ie*': listEntrypointR2,
+  'iej': listEntrypointJson,
+
   'ii': listImports,
   'ii*': listImportsR2,
   'iij': listImportsJson,
@@ -78,6 +83,16 @@ const commandHandlers = {
   'iE.': lookupSymbolHere,
   'iEj': listExportsJson,
   'iE*': listExportsR2,
+
+  'ia': listAllHelp,
+
+  'ias': listAllSymbols,
+  'iasj': listAllSymbolsJson,
+  'ias*': listAllSymbolsR2,
+
+  'iaE': listAllExports,
+  'iaEj': listAllExportsJson,
+  'iaE*': listAllExportsR2,
 
   'is': listSymbols,
   'is.': lookupSymbolHere,
@@ -92,6 +107,8 @@ const commandHandlers = {
   'iEa*': lookupExportR2,
   'iEaj': lookupExportJson,
 
+  'init': initBasicInfoFromTarget,
+
   'fD': lookupDebugInfo,
   'fd': lookupAddress,
   'fd.': lookupAddress,
@@ -103,6 +120,7 @@ const commandHandlers = {
   'ip': listProtocols,
   'ipj': listProtocolsJson,
   'dd': listFileDescriptors,
+  'ddj': listFileDescriptorsJson,
   'dd-': closeFileDescriptors,
   'dm': listMemoryRanges,
   'dm*': listMemoryRangesR2,
@@ -169,6 +187,23 @@ const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
+
+async function initBasicInfoFromTarget (args) {
+  const str = `
+e dbg.backend =io
+e anal.autoname=true
+e cmd.fcn.new=aan
+.=!i*
+.=!ie*
+m / io 0
+s entry0
+.=!ii*
+.=!iE*
+.=!dr*
+.=!is*
+ `
+  return str;
+}
 
 function nameFromAddress (address) {
   const at = DebugSymbol.fromAddress(ptr(address));
@@ -309,17 +344,21 @@ function evalCode (args) {
 }
 
 function printHexdump (lenstr) {
-  const len = +lenstr || 20;
-  return hexdump(ptr(offset), len) || '';
+  const len = +lenstr || 32;
+  try {
+    return hexdump(ptr(offset), len) || '';
+  } catch (e) {
+    return 'Cannot read memory.';
+  }
 }
 
 function disasmCode (lenstr) {
-  const len = +lenstr || 20;
+  const len = +lenstr || 32;
   return disasm(offset, len);
 }
 
 function disasm (addr, len, initialOldName) {
-  len = len || 20;
+  len = len || 32;
   if (typeof addr === 'string') {
     try {
       addr = Module.findExportByName(null, addr);
@@ -330,21 +369,23 @@ function disasm (addr, len, initialOldName) {
       addr = ptr(offset);
     }
   }
-  addr = ptr('' + addr);
   let oldName = initialOldName !== undefined ? initialOldName : null;
   let lastAt = null;
   let disco = '';
   for (let i = 0; i < len; i++) {
     const [op, next] = _tolerantInstructionParse(addr);
+    const vaddr = padPointer(addr);
     if (op === null) {
-      disco += `${addr}\tinvalid`;
+      disco += `${vaddr}\tinvalid\n`;
       addr = next;
       continue;
     }
     const ds = DebugSymbol.fromAddress(addr);
     const dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
-    if ((ds.moduleName !== null || dsName !== null) && dsName !== oldName) {
-      disco += `;;; ${ds.moduleName} ${dsName}\n`;
+    if (!ds.moduleName) ds.moduleName = '';
+    if (!dsName) dsName = '';
+    if ((ds.moduleName || dsName) && dsName !== oldName)  {
+      disco += ';;; ' + (ds.moduleName?ds.moduleName: dsName) + '\n';
       oldName = dsName;
     }
     var comment = '';
@@ -384,7 +425,7 @@ function disasm (addr, len, initialOldName) {
       }
     }
     // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
-    disco += [op.address, op.mnemonic, op.opStr, comment].join('\t') + '\n';
+    disco += [padPointer(op.address), op.mnemonic, op.opStr, comment].join('\t') + '\n';
     if (op.size < 1) {
       // break; // continue after invalid
       op.size = 1;
@@ -629,7 +670,7 @@ function sendSignal (args) {
     const [pid, sig] = args;
     _kill(+pid, +sig);
   } else {
-    return 'Usage: \dk ([pid]) [sig]';
+    return 'Usage: \\dk ([pid]) [sig]';
   }
   return '';
 }
@@ -768,11 +809,61 @@ function listExportsR2 (args) {
     .join('\n');
 }
 
-function listExportsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args.join(' ')];
+function listAllExportsJson (args) {
+  const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
   return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateExportsSync(moduleName));
+    return result.concat(Module.enumerateExports(moduleName));
   }, []);
+}
+
+function listAllExports (args) {
+  return listAllExportsJson(args)
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllExportsR2 (args) {
+  return listAllExportsJson(args)
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
+}
+function listAllSymbolsJson (args) {
+  const modules = Process.enumerateModules().map(m => m.path);;
+  const res = [];
+  for (let module of modules) {
+    const symbols = Module.enumerateSymbols(module);
+    res.push(...symbols);
+  }
+  return res;
+}
+
+function listAllHelp (args) {
+  return 'See \\ia? for more information. Those commands may take a while to run.';
+}
+
+function listAllSymbols (args) {
+  return listAllSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllSymbolsR2 (args) {
+  return listAllSymbolsJson(args)
+    .map(({type, name, address}) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listExportsJson (args) {
+  const currentModule = Process.getModuleByAddress(offset);
+  return Module.enumerateExports(currentModule.name);
 }
 
 function listSymbols (args) {
@@ -792,10 +883,9 @@ function listSymbolsR2 (args) {
 }
 
 function listSymbolsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModulesSync().map(m => m.path) : [args[0]];
-  return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateSymbolsSync(moduleName));
-  }, []);
+  const addr = ptr(offset);
+  const currentModule = Process.getModuleByAddress(addr);
+  return Module.enumerateSymbolsSync(currentModule.name);
 }
 
 function lookupDebugInfo (args) {
@@ -972,6 +1062,43 @@ function lookupSymbolJson (args) {
       address: address
     }];
   }
+}
+
+function listEntrypointJson (args) {
+  function isEntrypoint(s) {
+    if (s.type === 'section')
+    switch (s.name) {
+    case '_start':
+    case 'start':
+    case 'main':
+      return true;
+    }
+    return false;
+  }
+  const firstModule = Process.enumerateModules()[0];
+  return Module.enumerateSymbols(firstModule.name)
+    .filter((symbol) => {
+      return isEntrypoint(symbol);
+    }).map((symbol) => {
+      symbol.moduleName = Process.getModuleByAddress(symbol.address).name;
+      return symbol;
+    })
+}
+
+function listEntrypointR2 (args) {
+  let n = 0;
+  return listEntrypointJson ()
+    .map((entry) => {
+      return 'f entry' + (n++) + ' = ' + entry.address;
+    }).join('\n');
+}
+
+function listEntrypoint (args) {
+  let n = 0;
+  return listEntrypointJson ()
+    .map((entry) => {
+      return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
+    }).join('\n');
 }
 
 function listImports (args) {
@@ -1177,6 +1304,26 @@ function closeFileDescriptors (args) {
 }
 
 function listFileDescriptors (args) {
+  return listFileDescriptorsJson(args).map(([fd,name]) => {
+    return fd + ' ' + name;
+  }).join('\n');
+}
+
+function listFileDescriptorsJson (args) {
+  function getFdName(fd) {
+    try {
+      // TODO: port this to Linux, Android, iOS
+      const F_GETPATH = 50; // on macOS
+      const PATH_MAX = 4096; // on macOS
+      const buffer = Memory.alloc(PATH_MAX);
+      const addr = Module.getExportByName(null, 'fcntl');
+      const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
+      fcntl (fd, F_GETPATH, buffer);
+      return buffer.readCString();
+    } catch (e) {
+      return '';
+    }
+  }
   if (args.length === 0) {
     const statBuf = Memory.alloc(128);
     const fds = [];
@@ -1185,7 +1332,9 @@ function listFileDescriptors (args) {
         fds.push(i);
       }
     }
-    return fds;
+    return fds.map((fd) => {
+      return [fd, getFdName(fd)];
+    });
   } else {
     const rc = _dup2(+args[0], +args[1]);
     return rc;
@@ -1384,9 +1533,31 @@ function getPid () {
 }
 
 function listThreads () {
-  return Process.enumerateThreadsSync()
-    .map(thread => thread.id)
-    .join('\n');
+  let canGetThreadName = false;
+  try {
+    const addr = Module.getExportByName(null, 'pthread_getname_np');
+    var pthread_getname_np = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
+    const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
+    var pthread_from_mach_thread_np = new NativeFunction (addr2, 'pointer', ['uint'])
+    canGetThreadName = true;
+  } catch (e) {
+    // do nothing
+  }
+
+  function getThreadName(tid) {
+    if (!canGetThreadName) {
+      return '';
+    }
+    const buffer = Memory.alloc(4096);
+    let p = pthread_from_mach_thread_np (tid);
+    let q = pthread_getname_np (p, buffer, 4096);
+    return buffer.readCString();
+  }
+
+  return Process.enumerateThreads().map((thread) => {
+    const threadName = getThreadName(thread.id);
+    return [thread.id, threadName].join(' ');
+  }).join('\n');
 }
 
 function listThreadsJson () {
@@ -2274,8 +2445,12 @@ function _tolerantInstructionParse (address) {
         e.message !== `access violation accessing ${cursor}`) {
       throw e;
     }
+    if (e.message.indexOf('access violation') !== -1) {
+      // cannot access the memory
+    } else {
+      // console.log(`warning: error parsing instruction at ${cursor}`);
+    }
     // skip invalid instructions
-    console.log(`warning: error parsing instruction @ ${cursor}`);
     switch (Process.arch) {
       case 'arm64':
         cursor = cursor.add(4);
@@ -2371,11 +2546,23 @@ function read (params) {
     return r2frida.hookedRead(offset, count);
   }
   try {
-    const bytes = Memory.readByteArray(ptr(offset), count);
+    const readStarts = ptr(offset);
+    const readEnds = readStarts.add(count);
+    const currentRange = Process.getRangeByAddress(readStarts);
+    const moduleEnds = currentRange.base.add(currentRange.size);
+    const left = (readEnds.compare(moduleEnds) > 0
+      ? readEnds: moduleEnds).sub(offset);
+    const bytes = Memory.readByteArray(ptr(offset), +left);
     return [{}, (bytes !== null) ? bytes : []];
   } catch (e) {
-    return [{}, []];
+    try {
+      const bytes = Memory.readByteArray(ptr(offset), +count);
+      return [{}, (bytes !== null) ? bytes : []];
+    } catch(e) {
+      // do nothing
+    }
   }
+  return [{}, []];
 }
 
 function isTrue (x) {
@@ -2415,12 +2602,23 @@ function perform (params) {
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
-  /*
-  if (name.endsWith('?') && name !== 'e?') {
-    console.error('TODO: show help of \\?~' + name.substring(0, name.length - 1));
-    return;
+  if (name.length > 0 && name.endsWith('?')) {
+    const prefix = name.substring(0,name.length - 1);
+    const value = Object.keys(commandHandlers).sort()
+      .filter((k) => {
+        return (k.startsWith(prefix));
+      })
+      .map((k) => {
+        const desc = commandHandlers[k].name
+          .replace(/(?:^|\.?)([A-Z])/g, function (x,y) {
+            return " " + y.toLowerCase()
+          }).replace(/^_/, "");
+        return ' ' + k + '\t' + desc;
+      }).join('\n');
+    return [{
+      value: normalizeValue(value)
+    }, null];
   }
-*/
   const userHandler = global.r2frida.commandHandler(name);
   const handler = userHandler !== undefined
     ? userHandler : commandHandlers[name];

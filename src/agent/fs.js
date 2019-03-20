@@ -549,6 +549,7 @@ function encodeBuf (buf, size, encoding) {
 
   const result = [];
 
+console.error("ENCODE BUF");
   for (let i = 0; i < size; i++) {
     const val = Memory.readU8(buf.add(i));
     const valHex = val.toString(16);

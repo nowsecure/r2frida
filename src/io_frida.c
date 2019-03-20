@@ -37,6 +37,7 @@ typedef struct {
 	GBytes *reply_bytes;
 	RCore *r2core;
 	RFPendingCmd * pending_cmd;
+	char *crash_report;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
@@ -78,8 +79,9 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	}
 
 	rf->detached = false;
-	rf->detach_reason = FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED;
+	rf->detach_reason = 0;
 	rf->crash = NULL;
+	rf->crash_report = NULL;
 	rf->received_reply = false;
 	rf->r2core = io->user;
 	if (!rf->r2core) {
@@ -97,6 +99,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 		return;
 	}
 
+	free (rf->crash_report);
 	g_clear_object (&rf->crash);
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
@@ -112,6 +115,16 @@ static void r_io_frida_free(RIOFrida *rf) {
 	}
 
 	R_FREE (rf);
+}
+
+static const char *detachReasonAsString(RIOFrida *rf) {
+	if (!rf->detach_reason) {
+		return "NONE";
+	}
+	GEnumClass *enum_class = g_type_class_ref (FRIDA_TYPE_SESSION_DETACH_REASON);
+	GEnumValue *enum_value = g_enum_get_value (enum_class, rf->detach_reason);
+	g_type_class_unref (enum_class);
+	return enum_value->value_name;
 }
 
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
@@ -341,31 +354,25 @@ static int __close(RIODesc *fd) {
 }
 
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
-	RIOFrida *rf;
-	JsonBuilder *builder;
-	JsonObject *result;
 	GBytes *bytes;
-	gconstpointer data;
 	gsize n;
 
-	if (!fd || !fd->data) {
-		return -1;
-	}
+	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
-	rf = fd->data;
+	RIOFrida *rf = fd->data;
 
-	builder = build_request ("read");
+	JsonBuilder *builder = build_request ("read");
 	json_builder_set_member_name (builder, "offset");
 	json_builder_add_int_value (builder, io->off);
 	json_builder_set_member_name (builder, "count");
 	json_builder_add_int_value (builder, count);
 
-	result = perform_request (rf, builder, NULL, &bytes);
+	JsonObject *result = perform_request (rf, builder, NULL, &bytes);
 	if (!result) {
 		return -1;
 	}
 
-	data = g_bytes_get_data (bytes, &n);
+	gconstpointer data = g_bytes_get_data (bytes, &n);
 	memcpy (buf, data, R_MIN (n, count));
 
 	json_object_unref (result);
@@ -448,7 +455,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"db (<addr>|<sym>)          List or place breakpoint\n"
 		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
-		"dd[-][fd] ([newfd])        List, dup2 or close filedescriptors\n"
+		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		"dk ([pid]) [sig]           Send signal to pid (kill -<sig> <pid>)\n"
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dm[.|j|*]                  Show memory regions\n"
@@ -468,6 +475,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dpt                        Show threads\n"
 		"dr                         Show thread registers (see dpt)\n"
 		"env [k[=v]]                Get/set environment variable\n"
+		"dk [signal] [pid]          Send specific signal to specific pid in the remote system\n"
+		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
@@ -519,6 +528,18 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.event   = compile\n");
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
+	} else if (!strcmp (command, "s")) {
+		io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
+		return NULL;
+	} else if (!strncmp (command, "s ", 2)) {
+		r_core_cmd0 (rf->r2core, command);
+		return NULL;
+	} else if (!strncmp (command, "dkr", 3)) {
+		io->cb_printf ("DetachReason: %s\n", detachReasonAsString (rf));
+		if (rf->crash_report) {
+			io->cb_printf ("%s\n", rf->crash_report);
+		}
+		return NULL;
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
@@ -889,30 +910,16 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data) {
 	RIOFrida *rf = user_data;
-	if (crash) {
-		const char *crash_report = frida_crash_get_report (crash);
-		eprintf ("CrashReport: %s\n", crash_report);
-	}
-	switch (reason) {
-	case FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED:
-		eprintf ("DetachReason: APPLICATION_REQUESTED\n");
-		break;
-	case FRIDA_SESSION_DETACH_REASON_PROCESS_TERMINATED:
-		eprintf ("DetachReason: PROCESS_TERMINATED\n");
-		break;
-	case FRIDA_SESSION_DETACH_REASON_SERVER_TERMINATED:
-		eprintf ("DetachReason: SERVER_TERMINATED\n");
-		break;
-	case FRIDA_SESSION_DETACH_REASON_DEVICE_LOST:
-		eprintf ("DetachReason: DEVICE_LOST\n");
-		break;
-	case FRIDA_SESSION_DETACH_REASON_PROCESS_REPLACED:
-		eprintf ("DetachReason: PROCESS_REPLACED\n");
-		break;
-	}
-	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	rf->detach_reason = reason;
+	eprintf ("DetachReason: %s\n", detachReasonAsString (rf));
+	if (crash) {
+		const char *crash_report = frida_crash_get_report (crash);
+		free (rf->crash_report);
+		rf->crash_report = strdup (crash_report);
+		eprintf ("CrashReport: %s\n", crash_report);
+	}
+	g_mutex_lock (&rf->lock);
 	rf->crash = (crash != NULL) ? g_object_ref (crash) : NULL;
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
