@@ -263,6 +263,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	const char *autocompletions[] = {
 		"!!!\\eval",
 		"!!!\\e",
+		"!!!\\env",
 		"!!!\\i",
 		"!!!\\ii",
 		"!!!\\il",
@@ -287,8 +288,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\/v8 $flag",
 		"!!!\\dt $flag",
 		"!!!\\dt- $flag",
+		"!!!\\dth",
 		"!!!\\dtr",
 		"!!!\\dtS",
+		"!!!\\dtSf $flag",
 		"!!!\\dc",
 		"!!!\\di",
 		"!!!\\dl",
@@ -309,6 +312,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\dpt",
 		"!!!\\dr",
 		"!!!\\drj",
+		"!!!\\dk",
+		"!!!\\dkr",
 		"!!!\\. $file",
 		NULL
 	};
@@ -451,6 +456,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
+		"dk ([pid]) [sig]           Send signal to pid (kill -<sig> <pid>)\n"
+		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dm[.|j|*]                  Show memory regions\n"
 		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
 		"dmas <string>              Allocate a string inited with <string> on the heap\n"
@@ -472,7 +479,9 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
-		"dt <addr> ..               Trace list of addresses\n"
+		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
+		"dt.                        Trace at current offset\n"
+		"dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
 		"dt-                        Clear all tracing\n"
 		"dtr <addr> (<regs>...)     Trace register values\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
