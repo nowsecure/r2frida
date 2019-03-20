@@ -2545,16 +2545,21 @@ function read (params) {
   if (r2frida.hookedRead !== null) {
     return r2frida.hookedRead(offset, count);
   }
-  for (let size = count; size > 4; size -= 4) {
+  try {
+    const readStarts = ptr(offset);
+    const readEnds = readStarts.add(count);
+    const currentRange = Process.getRangeByAddress(readStarts);
+    const moduleEnds = currentRange.base.add(currentRange.size);
+    const left = (readEnds.compare(moduleEnds) > 0
+      ? readEnds: moduleEnds).sub(offset);
+    const bytes = Memory.readByteArray(ptr(offset), +left);
+    return [{}, (bytes !== null) ? bytes : []];
+  } catch (e) {
     try {
-      const bytes = Memory.readByteArray(ptr(offset), size);
+      const bytes = Memory.readByteArray(ptr(offset), +count);
       return [{}, (bytes !== null) ? bytes : []];
-    } catch (e) {
-      try {
-        Memory.readByteArray(ptr(offset), 8);
-      } catch (e) {
-        return [{}, []];
-      }
+    } catch(e) {
+      // do nothing
     }
   }
   return [{}, []];
