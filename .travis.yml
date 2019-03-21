@@ -1,0 +1,19 @@
+langauge: generic
+dist: trusty
+sudo: required
+
+branches:
+  only:
+  - master
+
+oservices:
+  - docker
+
+before_install:
+  - git clone --depth=1 https://github.com/radare/radare2
+  - cd radare2 && sys/install.sh
+
+scriptble:
+  - ./configure
+  - make
+  - make install
