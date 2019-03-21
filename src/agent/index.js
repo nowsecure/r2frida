@@ -71,6 +71,7 @@ const commandHandlers = {
   // '.': // this is implemented in C
   'i': dumpInfo,
   'e': evalConfig,
+  'e/': evalConfigSearch,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
   'db': breakpoint,
@@ -563,6 +564,18 @@ function configHelpStalkerIn () {
 
 function configValidateStalkerIn (val) {
   return ['raw', 'app', 'modules'].indexOf(val) !== -1;
+}
+
+function evalConfigSearch (args) {
+  const currentRange = Process.getRangeByAddress(offset);
+  const from = currentRange.base;
+  const to = from.add(currentRange.size);
+  return `e search.in=raw
+e search.from=${from}
+e search.to=${to}
+e anal.in=raw
+e anal.from=${from}
+e anal.to=${to}`;
 }
 
 function evalConfig (args) {

@@ -499,7 +499,10 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	rf = fd->data;
-	if (!strncmp (command, "d.", 2)) {
+	if (!strncmp (command, "o/", 2)) {
+		r_core_cmd0 (rf->r2core, "?E Yay!");
+		return NULL;
+	} else if (!strncmp (command, "d.", 2)) {
 		int port = 0; // 9229
 		if (command[2] == ' ') {
 			port = r_num_math (NULL, command + 3);
