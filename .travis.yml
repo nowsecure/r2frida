@@ -11,7 +11,7 @@ oservices:
 
 before_install:
   - git clone --depth=1 https://github.com/radare/radare2
-  - cd radare2 && sh sys/install.sh
+  - cd radare2 && ./configure --prefix=/usr && make -j4 && sudo make install
 
 script:
   - ./configure
