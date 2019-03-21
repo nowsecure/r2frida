@@ -924,11 +924,6 @@ function lookupDebugInfo (args) {
   console.log(o);
 }
 
-/* function lookupDebugInfoR2 (args) {
-  const o = DebugSymbol.fromAddress(ptr('' + args));
-  console.log(o);
-} */
-
 function lookupAddress (args) {
   if (args.length === 0) {
     args = [ptr(offset)];
@@ -1934,8 +1929,9 @@ function traceFormat (args) {
     return traceList();
   }
   let address, format;
+  const name = args[0];
   if (args.length === 2) {
-    address = '' + getPtr(args[0]);
+    address = '' + getPtr(name);
     format = args[1];
   } else {
     address = offset;
@@ -1974,8 +1970,12 @@ function traceFormat (args) {
       }
     }
   });
+  const currentModule = Process.getModuleByAddress(address);
   traceListeners.push({
-    at: at,
+    source: 'dtf',
+    at: ptr(address),
+    name: name,
+    moduleName: currentModule? currentModule.name: '',
     format: format,
     listener: listener
   });
@@ -2205,13 +2205,6 @@ function traceReal (name, address) {
     }
     return;
   }
-  const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
-  for (let i in traceListeners) {
-    if (traceListeners[i].at === at) {
-      console.error('There\'s a trace already in this address');
-      return;
-    }
-  }
   const listener = Interceptor.attach(ptr(address), function (args) {
     tracehook(address, args);
     const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
@@ -2237,7 +2230,7 @@ function traceReal (name, address) {
   });
   const currentModule = Process.findModuleByAddress(ptr(0));
   traceListeners.push({
-    at: at,
+    at: address,
     name: name,
     moduleName: currentModule? currentModule.name: 'unknown',
     source: 'dt',
