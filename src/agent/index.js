@@ -309,6 +309,7 @@ function _addAlloc (allocPtr) {
 function dxCall (args) {
   const nfArgs = [];
   const nfArgsData = [];
+  // push arguments
   for (var i = 1; i < args.length; i++) {
     if (args[i].substring(0, 2) === '0x') {
       nfArgs.push('pointer');
@@ -325,18 +326,17 @@ function dxCall (args) {
       nfArgsData.push(+args[i]);
     } else {
       nfArgs.push('pointer');
-      const address = Module.findExportByName(null, args[i]);
-      nfArgsData.push(ptr(address));
+      const address = Module.getExportByName(null, args[i]);
+      nfArgsData.push(address);
     }
   }
-  let address;
-  if (args[0].substring(0, 2) === '0x') {
-    address = ptr(args[0]);
-  } else {
-    address = Module.findExportByName(null, args[0]);
-  }
-
+  let address = (args[0].substring(0, 2) === '0x')
+    ? ptr(args[0]);
+    : Module.getExportByName(null, args[0]);
   const fun = new NativeFunction(address, 'pointer', nfArgs);
+  if (nfArgs.length === 0) {
+    return fun();
+  }
   return fun(...nfArgsData);
 }
 
@@ -2063,7 +2063,7 @@ function traceHere () {
     const listener = Interceptor.attach(ptr(address), function () {
       const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       const at = nameFromAddress(address);
-      console.log('Trace probe hit at ' + address + '::' + at + '\n\t' + bt.join('\n\t'));
+      console.log('Trace here probe hit at ' + address + '::' + at + '\n\t' + bt.join('\n\t'));
     });
     traceListeners.push({
       at: at,
