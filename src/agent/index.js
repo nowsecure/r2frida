@@ -1140,10 +1140,9 @@ function listImportsJson (args) {
     moduleName = args[0];
     result = Module.enumerateImportsSync(moduleName) || [];
   } else {
-    const modules = Process.enumerateModulesSync() || [];
-    if (modules.length > 0) {
-      moduleName = modules[0].name;
-      result = Module.enumerateImportsSync(moduleName) || [];
+    const currentModule = Process.getModuleByAddress(offset);
+    if (currentModule) {
+      result = Module.enumerateImports(currentModule.name) || [];
     }
   }
   result.forEach((x, i) => {
