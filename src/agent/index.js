@@ -221,13 +221,13 @@ function nameFromAddress (address) {
   if (module === null) {
     return null;
   }
-  const imports = Module.enumerateImportsSync(module.name);
+  const imports = Module.enumerateImports(module.name);
   for (let imp of imports) {
     if (imp.address.equals(address)) {
       return imp.name;
     }
   }
-  const exports = Module.enumerateExportsSync(module.name);
+  const exports = Module.enumerateExports(module.name);
   for (let exp of exports) {
     if (exp.address.equals(address)) {
       return exp.name;
@@ -331,7 +331,7 @@ function dxCall (args) {
     }
   }
   let address = (args[0].substring(0, 2) === '0x')
-    ? ptr(args[0]);
+    ? ptr(args[0])
     : Module.getExportByName(null, args[0]);
   const fun = new NativeFunction(address, 'pointer', nfArgs);
   if (nfArgs.length === 0) {
@@ -795,25 +795,25 @@ function dumpInfoJson () {
 }
 
 function listModules () {
-  return Process.enumerateModulesSync()
+  return Process.enumerateModules()
     .map(m => padPointer(m.base) + ' ' + m.name)
     .join('\n');
 }
 
 function listModulesR2 () {
-  return Process.enumerateModulesSync()
+  return Process.enumerateModules()
     .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
     .join('\n');
 }
 
 function listModulesJson () {
-  return Process.enumerateModulesSync();
+  return Process.enumerateModules();
 }
 
 function listModulesHere () {
   const here = ptr(offset);
 
-  return Process.enumerateModulesSync()
+  return Process.enumerateModules()
     .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
     .map(m => padPointer(m.base) + ' ' + m.name)
     .join('\n');
@@ -911,7 +911,7 @@ function listSymbolsR2 (args) {
 function listSymbolsJson (args) {
   const addr = ptr(offset);
   const currentModule = Process.getModuleByAddress(addr);
-  return Module.enumerateSymbolsSync(currentModule.name);
+  return Module.enumerateSymbols(currentModule.name);
 }
 
 function lookupDebugInfo (args) {
@@ -938,9 +938,9 @@ function lookupAddressR2 (args) {
 function lookupAddressJson (args) {
   const exportAddress = ptr(args[0]);
   const result = [];
-  const modules = Process.enumerateModulesSync().map(m => m.path);
+  const modules = Process.enumerateModules().map(m => m.path);
   return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateExportsSync(moduleName));
+    return result.concat(Module.enumerateExports(moduleName));
   }, [])
     .reduce((type, obj) => {
       if (ptr(obj.address).compare(exportAddress) === 0) {
@@ -988,7 +988,7 @@ function lookupExportJson (args) {
   } else {
     const exportName = args[0];
     let prevAddress = null;
-    return Process.enumerateModulesSync()
+    return Process.enumerateModules()
       .reduce((result, m) => {
         const address = Module.findExportByName(m.path, exportName);
         if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
@@ -1026,7 +1026,7 @@ function lookupSymbolJson (args) {
     try {
       const m = Process.getModuleByName(moduleName);
     } catch (e) {
-      const res = Process.enumerateModulesSync().filter(function (x) {
+      const res = Process.enumerateModules().filter(function (x) {
         return x.name.indexOf(moduleName) !== -1;
       });
       if (res.length !== 1) {
@@ -1040,7 +1040,7 @@ function lookupSymbolJson (args) {
       address: address
     }];
     let address = 0;
-    Module.enumerateSymbolsSync(moduleName).filter(function (s) {
+    Module.enumerateSymbols(moduleName).filter(function (s) {
       if (s.name === symbolName) {
         address = s.address;
       }
@@ -1067,7 +1067,7 @@ function lookupSymbolJson (args) {
     let address = 0;
     let moduleName = '';
     for (let m of modules) {
-      Module.enumerateSymbolsSync(m.name).filter(function (s) {
+      Module.enumerateSymbols(m.name).filter(function (s) {
         if (s.name === symbolName) {
           moduleName = m.name;
           address = s.address;
@@ -1150,7 +1150,7 @@ function listImportsJson (args) {
   if (alen === 2) {
     moduleName = args[0];
     const importName = args[1];
-    const imports = Module.enumerateImportsSync(moduleName);
+    const imports = Module.enumerateImports(moduleName);
     if (imports !== null) {
       result = imports.filter((x, i) => {
         x.index = i;
@@ -1159,7 +1159,7 @@ function listImportsJson (args) {
     }
   } else if (alen === 1) {
     moduleName = args[0];
-    result = Module.enumerateImportsSync(moduleName) || [];
+    result = Module.enumerateImports(moduleName) || [];
   } else {
     const currentModule = Process.getModuleByAddress(offset);
     if (currentModule) {
@@ -1252,7 +1252,7 @@ function listJavaClassesJsonSync (args) {
   /* list all classes */
   Java.perform(function () {
     try {
-      classes = Java.enumerateLoadedClassesSync();
+      classes = Java.enumerateLoadedClasses();
     } catch (e) {
       classes = null;
     }
@@ -1279,7 +1279,7 @@ function listJavaClassesJson (args) {
     /* list all classes */
     Java.perform(function () {
       try {
-        resolve(Java.enumerateLoadedClassesSync().join('\n'));
+        resolve(Java.enumerateLoadedClasses().join('\n'));
       } catch (e) {
         reject(e);
       }
@@ -1400,7 +1400,7 @@ function listMallocMaps (args) {
 }
 
 function listMallocRangesJson (args) {
-  return Process.enumerateMallocRangesSync();
+  return Process.enumerateMallocRanges();
 }
 
 function listMallocRangesR2 (args) {
@@ -1534,7 +1534,7 @@ function listMemoryRanges () {
 }
 
 function listMemoryRangesJson () {
-  return Process.enumerateRangesSync({
+  return Process.enumerateRanges({
     protection: '---',
     coalesce: false
   });
@@ -1581,7 +1581,7 @@ function listThreads () {
 }
 
 function listThreadsJson () {
-  return Process.enumerateThreadsSync()
+  return Process.enumerateThreads()
     .map(thread => thread.id);
 }
 
@@ -1648,7 +1648,7 @@ function regProfileAliasFor (arch) {
 }
 
 function dumpRegisterProfile (args) {
-  const threads = Process.enumerateThreadsSync();
+  const threads = Process.enumerateThreads();
   const thread = threads[0];
   const {id, state, context} = thread;
   const names = Object.keys(JSON.parse(JSON.stringify(context)))
@@ -1665,7 +1665,7 @@ function dumpRegisterProfile (args) {
 }
 
 function dumpRegisterArena (args) {
-  const threads = Process.enumerateThreadsSync();
+  const threads = Process.enumerateThreads();
   let [tidx] = args;
   if (!tidx) {
     tidx = 0;
@@ -1700,7 +1700,7 @@ function dumpRegisterArena (args) {
 }
 
 function dumpRegistersR2 (args) {
-  const threads = Process.enumerateThreadsSync();
+  const threads = Process.enumerateThreads();
   let [tidx] = args;
   if (!tidx) {
     tidx = 0;
@@ -1722,7 +1722,7 @@ function dumpRegistersR2 (args) {
 }
 
 function dumpRegisters () {
-  return Process.enumerateThreadsSync()
+  return Process.enumerateThreads()
     .map(thread => {
       const {id, state, context} = thread;
       const heading = `tid ${id} ${state}`;
@@ -1737,7 +1737,7 @@ function dumpRegisters () {
 }
 
 function dumpRegistersJson () {
-  return Process.enumerateThreadsSync();
+  return Process.enumerateThreads();
 }
 
 function getOrSetEnv (args) {
@@ -2925,7 +2925,7 @@ function _searchPatternJson (pattern) {
         const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
-          const partial = Memory.scanSync(range.address, range.size, pattern);
+          const partial = Memory.scan(range.address, range.size, pattern);
 
           partial.forEach((hit) => {
             if (flags) {
@@ -2991,7 +2991,7 @@ function _getRanges (fromNum, toNum) {
   const searchIn = _configParseSearchIn();
 
   if (searchIn.heap) {
-    return Process.enumerateMallocRangesSync()
+    return Process.enumerateMallocRanges()
       .map(_ => {
         return {
           address: _.base,
@@ -2999,7 +2999,7 @@ function _getRanges (fromNum, toNum) {
         };
       });
   }
-  const ranges = Process.enumerateRangesSync({
+  const ranges = Process.enumerateRanges({
     protection: searchIn.perm,
     coalesce: false
   }).filter(range => {
