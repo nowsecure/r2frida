@@ -1,9 +1,9 @@
 r2frida
 =======
 
+[![Build Status](https://travis-ci.org/nowsecure/r2frida.svg?branch=master)](https://travis-ci.org/nowsecure/r2frida)
 Radare2 and Frida better together.
 
-| **TravisCI**  | [![Build Status](https://travis-ci.org/nowsecure/r2frida.svg?branch=master)](https://travis-ci.org/nowsecure/r2frida)|
 ![logo](r2frida.png)
 
 Description
