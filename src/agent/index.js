@@ -6,6 +6,7 @@
 const r2frida = require('./plugin'); // eslint-disable-line
 const { stalkFunction, stalkEverything } = require('./stalker');
 const fs = require('./fs');
+const path = require('path');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -444,7 +445,7 @@ function disasm (addr, len, initialOldName) {
 
 function sym (name, ret, arg) {
   try {
-    return new NativeFunction(Module.findExportByName(null, name), ret, arg);
+    return new NativeFunction(Module.getExportByName(null, name), ret, arg);
   } catch (e) {
     console.error(name, ':', e);
   }
@@ -1362,10 +1363,24 @@ function listFileDescriptors (args) {
 
 function listFileDescriptorsJson (args) {
   function getFdName (fd) {
+    const PATH_MAX = 4096;
+    if (Process.platform === 'linux') {
+      const fdPath = path.join('proc', ''+getPid(), 'fd', ''+fd);
+      const readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
+      if (readlink) {
+        const buffer = Memory.alloc(PATH_MAX);
+        const source = Memory.alloc(PATH_MAX);
+        source.writeUtf8String(fdPath);
+        buffer.writeUtf8String('');
+        if (readlink(source, buffer, PATH_MAX) !== -1) {
+          return buffer.readUtf8String();
+        }
+       }
+       return undefined;
+    }
     try {
       // TODO: port this to Linux, Android, iOS
       const F_GETPATH = 50; // on macOS
-      const PATH_MAX = 4096; // on macOS
       const buffer = Memory.alloc(PATH_MAX);
       const addr = Module.getExportByName(null, 'fcntl');
       const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
