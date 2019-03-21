@@ -152,7 +152,6 @@ const commandHandlers = {
   'dma-': removeAlloc,
   'dp': getPid,
   'dxc': dxCall,
-  'dx': dxHexpairs,
   'dpj': getPid,
   'dpt': listThreads,
   'dptj': listThreadsJson,
@@ -339,10 +338,6 @@ function dxCall (args) {
 
   const fun = new NativeFunction(address, 'pointer', nfArgs);
   return fun(...nfArgsData);
-}
-
-function dxHexpairs (args) {
-  return 'TODO';
 }
 
 function evalCode (args) {
@@ -2606,18 +2601,23 @@ function read (params) {
   if (r2frida.hookedRead !== null) {
     return r2frida.hookedRead(offset, count);
   }
+  if (offset < 0) {
+    return [{},[]];
+  }
   try {
-    const readStarts = ptr(offset);
-    const readEnds = readStarts.add(count);
-    const currentRange = Process.getRangeByAddress(readStarts);
-    const moduleEnds = currentRange.base.add(currentRange.size);
-    const left = (readEnds.compare(moduleEnds) > 0
-      ? readEnds: moduleEnds).sub(offset);
-    const bytes = Memory.readByteArray(ptr(offset), +left);
+    const bytes = Memory.readByteArray(ptr(offset), count);
+    // console.log("FAST", offset);
     return [{}, (bytes !== null) ? bytes : []];
   } catch (e) {
     try {
-      const bytes = Memory.readByteArray(ptr(offset), +count);
+      // console.log("SLOW", offset);
+      const readStarts = ptr(offset);
+      const readEnds = readStarts.add(count);
+      const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
+      const moduleEnds = currentRange.base.add(currentRange.size);
+      const left = (readEnds.compare(moduleEnds) > 0
+        ? readEnds: moduleEnds).sub(offset);
+      const bytes = Memory.readByteArray(ptr(offset), +left);
       return [{}, (bytes !== null) ? bytes : []];
     } catch(e) {
       // do nothing

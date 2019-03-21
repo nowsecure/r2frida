@@ -485,16 +485,15 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dt-                        Clear all tracing\n"
 		"dtr <addr> (<regs>...)     Trace register values\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
-		"dtSf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
-		"dtS[*j] seconds            Trace all threads for given seconds using the stalker\n"
+		"dtsf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
+		"dts[*j] seconds            Trace all threads for given seconds using the stalker\n"
+		"dtl[-*] [msg]              debug trace log console, useful to .\\T*\n"
 		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
-		"dx [hexpairs]              Inject code and execute it (TODO)\n"
 		"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
 		"e[?] [a[=b]]               List/get/set config evaluable vars\n"
 		". script                   Run script\n"
 		"<space> code..             Evaluate Cycript code\n"
 		"eval code..                Evaluate Javascript code in agent side\n"
-		"T[-*] [msg]                text-log console, useful to .\\T\n"
 		);
 		return NULL;
 	}
@@ -516,10 +515,13 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
 		io->cb_printf ("  +  = show backtrace on trace\n");
-		io->cb_printf ("  x  = show hexadecimal argument\n");
+		io->cb_printf (" p/x = show pointer in hexadecimal\n");
+		io->cb_printf ("  c  = show value as a string (char)\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
+		io->cb_printf ("  s  = show string in place\n");
 		io->cb_printf ("  O  = show pointer to ObjC object\n");
+		io->cb_printf ("Undocumented: Z, S\n");
 	} else if (!strncmp (command, "e?", 2)) {
 		io->cb_printf ("Usage: e [var[=value]]Evaluable vars\n");
 		io->cb_printf ("  patch.code      = true\n");
