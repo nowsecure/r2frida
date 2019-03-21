@@ -206,7 +206,7 @@ function _initModules (config) {
       inModules.push(...Process.enumerateModulesSync().map((module) => {
         return [module.base, module.base.add(module.size)];
       }));
-
+      break;
     default:
       break;
   }

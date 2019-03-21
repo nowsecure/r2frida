@@ -3,10 +3,11 @@
 // TODO : implement tracelog eval var and dump trace info into this file
 // this cant be done from the agent-side
 
-const r2frida = require('./plugin'); // eslint-disable-line
 const { stalkFunction, stalkEverything } = require('./stalker');
 const fs = require('./fs');
 const path = require('path');
+const config = require('./config');
+const io = require('./io');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -36,7 +37,7 @@ let sendingCommand = false;
 function numEval (expr) {
   return new Promise((resolve, reject) => {
     var symbol = DebugSymbol.fromName(expr);
-    if (symbol != 0) {
+    if (symbol) {
       return resolve(symbol.address);
     }
     hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
@@ -385,7 +386,7 @@ function disasm (addr, len, initialOldName) {
       continue;
     }
     const ds = DebugSymbol.fromAddress(addr);
-    const dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
+    let dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
     if (!ds.moduleName) {
       ds.moduleName = '';
     }
@@ -470,157 +471,6 @@ if (Process.platform === 'darwin') {
 }
 
 const traceListeners = [];
-const config = {
-  'patch.code': true,
-  'search.in': 'perm:r--',
-  'search.quiet': false,
-  'stalker.event': 'compile',
-  'stalker.timeout': 5 * 60,
-  'stalker.in': 'raw',
-  'hook.backtrace': 'true'
-};
-
-const configHelp = {
-  'search.in': configHelpSearchIn,
-  'stalker.event': configHelpStalkerEvent,
-  'stalker.timeout': configHelpStalkerTimeout,
-  'stalker.in': configHelpStalkerIn,
-  'hook.backtrace': configHelpHookBacktrace,
-};
-
-const configValidator = {
-  'search.in': configValidateSearchIn,
-  'stalker.event': configValidateStalkerEvent,
-  'stalker.timeout': configValidateStalkerTimeout,
-  'stalker.in': configValidateStalkerIn,
-  'hook.backtrace': configValidateHookBacktrace,
-};
-
-function configHelpSearchIn () {
-  return `Specify which memory ranges to search in, possible values:
-
-    perm:---        filter by permissions (default: 'perm:r--')
-    current         search the range containing current offset
-    heap            search inside the heap allocated regions
-    path:pattern    search ranges mapping paths containing 'pattern'
-  `;
-}
-
-function configValidateSearchIn (val) {
-  if (val === 'heap') {
-    return true;
-  }
-  const valSplit = val.split(':');
-  const [scope, param] = valSplit;
-
-  if (param === undefined) {
-    if (scope === 'current') {
-      return valSplit.length === 1;
-    }
-    return false;
-  }
-  if (scope === 'perm') {
-    const paramSplit = param.split('');
-    if (paramSplit.length !== 3 || valSplit.length > 2) {
-      return false;
-    }
-    const [r, w, x] = paramSplit;
-    return (r === 'r' || r === '-') &&
-      (w === 'w' || w === '-') &&
-      (x === 'x' || x === '-');
-  }
-  return scope === 'path';
-}
-
-function configHelpStalkerEvent () {
-  return `Specify the event to use when stalking, possible values:
-
-    call            trace calls
-    ret             trace returns
-    exec            trace every instruction
-    block           trace basic block execution (every time)
-    compile         trace basic blocks once (this is the default)
-  `;
-}
-
-function configValidateStalkerEvent (val) {
-  return ['call', 'ret', 'exec', 'block', 'compile'].indexOf(val) !== -1;
-}
-
-function configHelpStalkerTimeout () {
-  return `Time after which the stalker gives up (in seconds). Defaults to 5 minutes,
- set to 0 to disable.`;
-}
-
-function configValidateStalkerTimeout (val) {
-  return val >= 0;
-}
-
-function configHelpHookBacktrace () {
-  return `Append the backtrace on each trace hook registered with \\dt commands
-
-    true | false    to enable or disable the option
-  `;
-}
-function configHelpStalkerIn () {
-  return `Restrict stalker results based on where the event has originated:
-
-    raw             stalk everywhere (the default)
-    app             stalk only in the app module
-    modules         stalk in app module and all linked libraries
-  `;
-}
-
-function configValidateHookBacktrace (val) {
-  return ['true', 'false'].indexOf(val) !== -1;
-}
-
-function configValidateStalkerIn (val) {
-  return ['raw', 'app', 'modules'].indexOf(val) !== -1;
-}
-
-function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(offset);
-  const from = currentRange.base;
-  const to = from.add(currentRange.size);
-  return `e search.in=raw
-e search.from=${from}
-e search.to=${to}
-e anal.in=raw
-e anal.from=${from}
-e anal.to=${to}`;
-}
-
-function evalConfig (args) {
-  if (args.length === 0) {
-    return Object.keys(config)
-      .map(k => 'e ' + k + '=' + config[k])
-      .join('\n');
-  }
-  const kv = args[0].split(/=/);
-  if (kv.length === 2) {
-    if (config[kv[0]] !== undefined) {
-      if (kv[1] === '?') {
-        if (configHelp[kv[0]] !== undefined) {
-          return configHelp[kv[0]]();
-        }
-        console.error(`no help for ${kv[0]}`);
-        return '';
-      }
-      if (configValidator[kv[0]] !== undefined) {
-        if (!configValidator[kv[0]](kv[1])) {
-          console.error(`Invalid value for ${kv[0]}`);
-          return '';
-        }
-      }
-      config[kv[0]] = kv[1];
-    } else {
-      console.error('unknown variable');
-    }
-    return '';
-  }
-  return config[args[0]];
-}
 
 function dumpInfo () {
   const properties = dumpInfoJson();
@@ -760,12 +610,12 @@ function breakpoint (args) {
       return [bp.address, bp.moduleName, bp.name, stop, cont].join('\t');
     }).join('\n');
   }
-  return new Promise((res, rej) => {
+  return new Promise((resolve, reject) => {
     numEval(args[0]).then(num => {
-      res(setBreakpoint(args[0], num));
+      resolve(setBreakpoint(args[0], num));
     }).catch(e => {
       console.error(e);
-      rej(e);
+      reject(e);
     });
   });
 }
@@ -787,7 +637,7 @@ function setBreakpoint (name, address) {
     handler: Interceptor.attach(addr, function () {
       if (breakpoints[addrString]) {
         breakpoints[addrString].stopped = true;
-        if (config['hook.backtrace']) {
+        if (config.getBoolean('hook.backtrace')) {
           console.log(addr);
           const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
           console.log(bt.join('\n\t'));
@@ -1059,31 +909,30 @@ function lookupSymbolJson (args) {
       }
       moduleName = res[0].name;
     }
-    return [{
-      library: moduleName,
-      name: symbolName,
-      address: address
-    }];
     let address = 0;
     Module.enumerateSymbols(moduleName).filter(function (s) {
       if (s.name === symbolName) {
         address = s.address;
       }
     });
-    if (address === 0) {
-      return [];
-    }
     return [{
       library: moduleName,
       name: symbolName,
       address: address
     }];
+/*
+    return [{
+      library: moduleName,
+      name: symbolName,
+      address: address
+    }];
+*/
   } else {
     let [symbolName] = args;
     var at = DebugSymbol.fromName(symbolName);
-    if (at) {
+    if (at.name) {
       return [{
-        library: moduleName,
+        library: at.moduleName,
         name: symbolName,
         address: at.address
       }];
@@ -1365,7 +1214,7 @@ function listFileDescriptorsJson (args) {
   function getFdName (fd) {
     const PATH_MAX = 4096;
     if (Process.platform === 'linux') {
-      const fdPath = path.join('proc', ''+getPid(), 'fd', ''+fd);
+      const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
       const readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
       if (readlink) {
         const buffer = Memory.alloc(PATH_MAX);
@@ -1375,8 +1224,8 @@ function listFileDescriptorsJson (args) {
         if (readlink(source, buffer, PATH_MAX) !== -1) {
           return buffer.readUtf8String();
         }
-       }
-       return undefined;
+      }
+      return undefined;
     }
     try {
       // TODO: port this to Linux, Android, iOS
@@ -1616,7 +1465,7 @@ function listThreads () {
     }
     const buffer = Memory.alloc(4096);
     let p = pthread_from_mach_thread_np(tid);
-    let q = pthread_getname_np(p, buffer, 4096);
+    pthread_getname_np(p, buffer, 4096);
     return buffer.readCString();
   }
 
@@ -1647,7 +1496,6 @@ function regProfileAliasFor (arch) {
 =CF	cf
 =SN	x8
 `;
-      break;
     case 'arm':
       return `=PC	r15
 =LR	r14
@@ -1663,7 +1511,6 @@ function regProfileAliasFor (arch) {
 =CF	cf
 =SN	r7
 `;
-      break;
     case 'x64':
       return `=PC	rip
 =SP	rsp
@@ -1676,7 +1523,6 @@ function regProfileAliasFor (arch) {
 =A5	r9
 =SN	rax
 `;
-      break;
     case 'x86':
       return `=PC	eip
 =SP	esp
@@ -1689,14 +1535,12 @@ function regProfileAliasFor (arch) {
 =A5	edi
 =SN	eax
 `;
-      break;
   }
 }
 
 function dumpRegisterProfile (args) {
   const threads = Process.enumerateThreads();
-  const thread = threads[0];
-  const { id, state, context } = thread;
+  const context = threads[0].context;
   const names = Object.keys(JSON.parse(JSON.stringify(context)))
     .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
@@ -1719,8 +1563,7 @@ function dumpRegisterArena (args) {
   if (tidx < 0 || tidx >= threads.length) {
     return '';
   }
-  const thread = threads[tidx];
-  const { id, state, context } = thread;
+  const context = threads[tidx].context;
   const names = Object.keys(JSON.parse(JSON.stringify(context)))
     .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
@@ -1754,8 +1597,7 @@ function dumpRegistersR2 (args) {
   if (tidx < 0 || tidx >= threads.length) {
     return '';
   }
-  const thread = threads[tidx];
-  const { id, state, context } = thread;
+  const context = threads[tidx].context;
   const names = Object.keys(JSON.parse(JSON.stringify(context)));
   names.sort(compareRegisterNames);
   const values = names
@@ -2038,7 +1880,9 @@ function traceLog (msg) {
   if (typeof msg === 'object') {
     msg = JSON.stringify(msg);
   }
-  console.error(msg);
+  if (config.getBoolean('hook.verbose')) {
+    console.error(msg);
+  }
   if (typeof msg === 'string') {
     log += msg + '\n';
     return;
@@ -2066,22 +1910,21 @@ function traceRegs (args) {
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
-    const extra = (args[0] !== address) ? ` (${args[0]})` : '';
-    const at = nameFromAddress(address);
+    // const at = nameFromAddress(address);
     const regState = {};
     rest.map((r) => {
       let regName = r;
-      let regValue = 0;
+      let regValue;
       if (r.indexOf('=') !== -1) {
         const kv = r.split('=');
         this.context[kv[0]] = ptr(kv[1]); // set register value
         regName = kv[0];
         regValue = kv[1];
       } else {
-        const rv = ptr(this.context[r]);
-        regValue = rv;
         try {
-          tail = Memory.readCString(rv);
+          const rv = ptr(this.context[r]);
+          regValue = rv;
+          let tail = Memory.readCString(rv);
           if (tail) {
             tail = ' (' + tail + ')';
           }
@@ -2098,7 +1941,7 @@ function traceRegs (args) {
       timestamp: new Date(),
       values: regState,
     };
-    if (config['hook.backtrace']) {
+    if (config.getBoolean('hook.backtrace')) {
       traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
     traceLog(traceMessage);
@@ -2157,7 +2000,7 @@ function traceJson (args) {
     (function pull () {
       var arg = args.pop();
       if (arg === undefined) {
-      	return resolve('');
+        return resolve('');
       }
       numEval(arg).then(function (at) {
         console.error(traceReal(arg, at));
@@ -2176,7 +2019,7 @@ function trace (args) {
 
 function tracehookSet (name, format, callback) {
   if (name === null) {
-    console.error('Cannot resolve name for ' + address);
+    console.error('Name was not resolved');
     return false;
   }
   tracehooks[name] = {
@@ -2217,23 +2060,27 @@ function tracehook (address, args) {
           fmtarg.push(+args[v]);
           break;
         case 's':
-          var [a, l] = v.split(',');
-          var addr = ptr(args[a]);
-          var size = +args[l];
-          var buf = Memory.readByteArray(addr, size);
-          // console.log('buf', arrayBufferToHex(buf));
-          // console.log('string', Memory.readCString(addr, size));
-          fmtarg.push(Memory.readCString(addr, size));
+          {
+            const [a, l] = v.split(',');
+            const addr = ptr(args[a]);
+            const size = +args[l];
+            // const buf = Memory.readByteArray(addr, size);
+            // console.log('buf', arrayBufferToHex(buf));
+            // console.log('string', Memory.readCString(addr, size));
+            fmtarg.push(Memory.readCString(addr, size));
+          }
           break;
         case 'z':
         // console.log('string', Memory.readCString(args[+v]));
           fmtarg.push(Memory.readCString(ptr(args[+v])));
           break;
         case 'v':
-          var [a, l] = v.split(',');
-          var addr = ptr(args[a]);
-          var buf = Memory.readByteArray(addr, +args[l]);
-          fmtarg.push(arrayBufferToHex(buf));
+          {
+            const [a, l] = v.split(',');
+            const addr = ptr(args[a]);
+            const buf = Memory.readByteArray(addr, +args[l]);
+            fmtarg.push(arrayBufferToHex(buf));
+          }
           break;
       }
     }
@@ -2463,7 +2310,7 @@ function _stalkTraceSomethingR2 (getEvents, args) {
 function _stalkTraceSomethingJson (getEvents, args) {
   return getEvents(args, (isBlock, events) => {
     const result = {
-      event: config['stalker.event'],
+      event: config.get('stalker.event'),
       threads: events
     };
 
@@ -2476,9 +2323,9 @@ function _stalkFunctionAndGetEvents (args, eventsHandler) {
 
   const at = getPtr(args[0]);
   const conf = {
-    event: config['stalker.event'],
-    timeout: config['stalker.timeout'],
-    stalkin: config['stalker.in']
+    event: config.get('stalker.event'),
+    timeout: config.get('stalker.timeout'),
+    stalkin: config.get('stalker.in')
   };
   const isBlock = conf.event === 'block' || conf.event === 'compile';
 
@@ -2496,9 +2343,9 @@ function _stalkEverythingAndGetEvents (args, eventsHandler) {
 
   const timeout = (args.length > 0) ? +args[0] : null;
   const conf = {
-    event: config['stalker.event'],
-    timeout: config['stalker.timeout'],
-    stalkin: config['stalker.in']
+    event: config.get('stalker.event'),
+    timeout: config.get('stalker.timeout'),
+    stalkin: config.get('stalker.in')
   };
   const isBlock = conf.event === 'block' || conf.event === 'compile';
 
@@ -2648,64 +2495,12 @@ function padPointer (value) {
 }
 
 const requestHandlers = {
-  read: read,
-  write: write,
+  read: io.read,
+  write: io.write,
   state: state,
   perform: perform,
   evaluate: evaluate,
 };
-
-function read (params) {
-  const { offset, count } = params;
-  if (r2frida.hookedRead !== null) {
-    return r2frida.hookedRead(offset, count);
-  }
-  if (offset < 0) {
-    return [{}, []];
-  }
-  try {
-    const bytes = Memory.readByteArray(ptr(offset), count);
-    // console.log("FAST", offset);
-    return [{}, (bytes !== null) ? bytes : []];
-  } catch (e) {
-    try {
-      // console.log("SLOW", offset);
-      const readStarts = ptr(offset);
-      const readEnds = readStarts.add(count);
-      const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
-      const moduleEnds = currentRange.base.add(currentRange.size);
-      const left = (readEnds.compare(moduleEnds) > 0
-        ? readEnds : moduleEnds).sub(offset);
-      const bytes = Memory.readByteArray(ptr(offset), +left);
-      return [{}, (bytes !== null) ? bytes : []];
-    } catch (e) {
-      // do nothing
-    }
-  }
-  return [{}, []];
-}
-
-function isTrue (x) {
-  return (x === true || x === 1 || x === 'true');
-}
-
-function write (params, data) {
-  if (typeof r2frida.hookedWrite === 'function') {
-    return r2frida.hookedWrite(params.offset, data);
-  }
-  if (isTrue(config['patch.code'])) {
-    if (typeof Memory.patchCode !== 'function') {
-      Memory.writeByteArray(ptr(params.offset), data);
-    } else {
-      Memory.patchCode(ptr(params.offset), 1, function (ptr) {
-        Memory.writeByteArray(ptr, data);
-      });
-    }
-  } else {
-    Memory.writeByteArray(ptr(params.offset), data);
-  }
-  return [{}, null];
-}
 
 function state (params, data) {
   offset = params.offset;
@@ -2765,7 +2560,6 @@ function perform (params) {
         }, null]);
       }).catch(reject);
     });
-    return value;
   }
   return [{
     value: normalizeValue(value)
@@ -2906,11 +2700,47 @@ function searchValueJson (args, width) {
   }
 
   return hostCmdj('ej')
-    .then(config => {
-      const bigEndian = config['cfg.bigendian'];
+    .then((r2cfg) => {
+      const bigEndian = r2cfg['cfg.bigendian'];
       const bytes = _renderEndian(value, bigEndian, width);
       return searchHexJson([_toHexPairs(bytes)]);
     });
+}
+
+function evalConfigSearch (args) {
+  const currentRange = Process.getRangeByAddress(offset);
+  const from = currentRange.base;
+  const to = from.add(currentRange.size);
+  return `e search.in=raw
+e search.from=${from}
+e search.to=${to}
+e anal.in=raw
+e anal.from=${from}
+e anal.to=${to}`;
+}
+
+function evalConfig (args) {
+  // list
+  if (args.length === 0) {
+    return config.asR2Script();
+  }
+  const kv = args[0].split(/=/);
+  const [k, v] = kv;
+  if (kv.length === 2) {
+    if (config.get(k) !== undefined) {
+      // help
+      if (v === '?') {
+        return config.helpFor(kv[0]);
+      }
+      // set
+      config.set(kv[0], kv[1]);
+    } else {
+      console.error('unknown variable');
+    }
+    return '';
+  }
+  // get
+  return config.getString(args[0]);
 }
 
 function _renderEndian (value, bigEndian, width) {
@@ -2963,12 +2793,12 @@ function _readableHits (hits) {
 function _searchPatternJson (pattern) {
   return hostCmdj('ej')
     .then(config => {
-      const flags = config['search.flags'];
-      const prefix = config['search.prefix'] || 'hit';
-      const count = config['search.count'] || 0;
-      const kwidx = config['search.kwidx'] || 0;
+      const flags = config.get('search.flags');
+      const prefix = config.get('search.prefix') || 'hit';
+      const count = config.get('search.count') || 0;
+      const kwidx = config.get('search.kwidx') || 0;
 
-      const ranges = _getRanges(config['search.from'], config['search.to']);
+      const ranges = _getRanges(config.get('search.from'), config.get('search.to'));
       const nBytes = pattern.split(' ').length;
 
       qlog(`Searching ${nBytes} bytes: ${pattern}`);
@@ -3011,7 +2841,7 @@ function _searchPatternJson (pattern) {
     });
 
   function qlog (message) {
-    if (!config['search.quiet']) {
+    if (!config.getBoolean('search.quiet')) {
       console.log(message);
     }
   }
@@ -3025,7 +2855,7 @@ function _configParseSearchIn () {
     heap: false
   };
 
-  const c = config['search.in'];
+  const c = config.getString('search.in');
   const cSplit = c.split(':');
   const [scope, param] = cSplit;
 
