@@ -142,7 +142,7 @@ function _followThread (config, threadId) {
     events: _eventsFromConfig(config),
     onReceive: function (events) {
       const parsed = Stalker
-        .parse(events, {annotate: false})
+        .parse(events, { annotate: false })
         .filter(_filterEvent);
 
       if (parsed.length === 0) {

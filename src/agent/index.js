@@ -4,7 +4,7 @@
 // this cant be done from the agent-side
 
 const r2frida = require('./plugin'); // eslint-disable-line
-const {stalkFunction, stalkEverything} = require('./stalker');
+const { stalkFunction, stalkEverything } = require('./stalker');
 const fs = require('./fs');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
@@ -208,7 +208,7 @@ s entry0
 .=!iE*
 .=!dr*
 .=!is*
- `
+ `;
   return str;
 }
 
@@ -391,8 +391,8 @@ function disasm (addr, len, initialOldName) {
     if (!dsName) {
       dsName = '';
     }
-    if ((ds.moduleName || dsName) && dsName !== oldName)  {
-      disco += ';;; ' + (ds.moduleName? ds.moduleName: dsName) + '\n';
+    if ((ds.moduleName || dsName) && dsName !== oldName) {
+      disco += ';;; ' + (ds.moduleName ? ds.moduleName : dsName) + '\n';
       oldName = dsName;
     }
     var comment = '';
@@ -754,8 +754,8 @@ function breakpoint (args) {
   if (args.length === 0) {
     return Object.keys(breakpoints).map((bpat) => {
       const bp = breakpoints[bpat];
-      const stop = bp.stopped? 'stop': 'nostop';
-      const cont = bp.continue? 'cont': 'nocont';
+      const stop = bp.stopped ? 'stop' : 'nostop';
+      const cont = bp.continue ? 'cont' : 'nocont';
       return [bp.address, bp.moduleName, bp.name, stop, cont].join('\t');
     }).join('\n');
   }
@@ -779,7 +779,7 @@ function setBreakpoint (name, address) {
   const currentModule = Process.findModuleByAddress(address);
   const bp = {
     name: name,
-    moduleName: currentModule? currentModule.name: '',
+    moduleName: currentModule ? currentModule.name : '',
     stopped: false,
     address: address,
     continue: false,
@@ -845,7 +845,7 @@ function listModulesHere () {
 
 function listExports (args) {
   return listExportsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return [address, type[0], name].join(' ');
     })
     .join('\n');
@@ -853,7 +853,7 @@ function listExports (args) {
 
 function listExportsR2 (args) {
   return listExportsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
     })
     .join('\n');
@@ -868,7 +868,7 @@ function listAllExportsJson (args) {
 
 function listAllExports (args) {
   return listAllExportsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return [address, type[0], name].join(' ');
     })
     .join('\n');
@@ -876,13 +876,13 @@ function listAllExports (args) {
 
 function listAllExportsR2 (args) {
   return listAllExportsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
     })
     .join('\n');
 }
 function listAllSymbolsJson (args) {
-  const modules = Process.enumerateModules().map(m => m.path);;
+  const modules = Process.enumerateModules().map(m => m.path);
   const res = [];
   for (let module of modules) {
     const symbols = Module.enumerateSymbols(module);
@@ -897,7 +897,7 @@ function listAllHelp (args) {
 
 function listAllSymbols (args) {
   return listAllSymbolsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return [address, type[0], name].join(' ');
     })
     .join('\n');
@@ -905,7 +905,7 @@ function listAllSymbols (args) {
 
 function listAllSymbolsR2 (args) {
   return listAllSymbolsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
     })
     .join('\n');
@@ -918,7 +918,7 @@ function listExportsJson (args) {
 
 function listSymbols (args) {
   return listSymbolsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return [address, type[0], name].join(' ');
     })
     .join('\n');
@@ -926,7 +926,7 @@ function listSymbols (args) {
 
 function listSymbolsR2 (args) {
   return listSymbolsJson(args)
-    .map(({type, name, address}) => {
+    .map(({ type, name, address }) => {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
     })
     .join('\n');
@@ -948,13 +948,13 @@ function lookupAddress (args) {
     args = [ptr(offset)];
   }
   return lookupAddressJson(args)
-    .map(({type, name, address}) => [type, name, address].join(' '))
+    .map(({ type, name, address }) => [type, name, address].join(' '))
     .join('\n');
 }
 
 function lookupAddressR2 (args) {
   return lookupAddressJson(args)
-    .map(({type, name, address}) =>
+    .map(({ type, name, address }) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
 }
@@ -985,13 +985,13 @@ function lookupSymbolHere (args) {
 function lookupExport (args) {
   return lookupExportJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
-    .map(({address}) => '' + address)
+    .map(({ address }) => '' + address)
     .join('\n');
 }
 
 function lookupExportR2 (args) {
   return lookupExportJson(args)
-    .map(({name, address}) =>
+    .map(({ name, address }) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
 }
@@ -1033,13 +1033,13 @@ function lookupExportJson (args) {
 function lookupSymbol (args) {
   return lookupSymbolJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
-    .map(({address}) => '' + address)
+    .map(({ address }) => '' + address)
     .join('\n');
 }
 
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
-    .map(({name, address}) =>
+    .map(({ name, address }) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
 }
@@ -1081,11 +1081,11 @@ function lookupSymbolJson (args) {
     let [symbolName] = args;
     var at = DebugSymbol.fromName(symbolName);
     if (at) {
-    return [{
-      library: moduleName,
-      name: symbolName,
-      address: at.address
-    }];
+      return [{
+        library: moduleName,
+        name: symbolName,
+        address: at.address
+      }];
     }
     const modules = Process.enumerateModules();
     let address = 0;
@@ -1110,13 +1110,14 @@ function lookupSymbolJson (args) {
 }
 
 function listEntrypointJson (args) {
-  function isEntrypoint(s) {
-    if (s.type === 'section')
-    switch (s.name) {
-    case '_start':
-    case 'start':
-    case 'main':
-      return true;
+  function isEntrypoint (s) {
+    if (s.type === 'section') {
+      switch (s.name) {
+        case '_start':
+        case 'start':
+        case 'main':
+          return true;
+      }
     }
     return false;
   }
@@ -1133,12 +1134,12 @@ function listEntrypointJson (args) {
     }).map((symbol) => {
       symbol.moduleName = Process.getModuleByAddress(symbol.address).name;
       return symbol;
-    })
+    });
 }
 
 function listEntrypointR2 (args) {
   let n = 0;
-  return listEntrypointJson ()
+  return listEntrypointJson()
     .map((entry) => {
       return 'f entry' + (n++) + ' = ' + entry.address;
     }).join('\n');
@@ -1146,7 +1147,7 @@ function listEntrypointR2 (args) {
 
 function listEntrypoint (args) {
   let n = 0;
-  return listEntrypointJson ()
+  return listEntrypointJson()
     .map((entry) => {
       return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
     }).join('\n');
@@ -1154,7 +1155,7 @@ function listEntrypoint (args) {
 
 function listImports (args) {
   return listImportsJson(args)
-    .map(({type, name, module, address}) => [address, type ? type[0] : ' ', name, module].join(' '))
+    .map(({ type, name, module, address }) => [address, type ? type[0] : ' ', name, module].join(' '))
     .join('\n');
 }
 
@@ -1354,13 +1355,13 @@ function closeFileDescriptors (args) {
 }
 
 function listFileDescriptors (args) {
-  return listFileDescriptorsJson(args).map(([fd,name]) => {
+  return listFileDescriptorsJson(args).map(([fd, name]) => {
     return fd + ' ' + name;
   }).join('\n');
 }
 
 function listFileDescriptorsJson (args) {
-  function getFdName(fd) {
+  function getFdName (fd) {
     try {
       // TODO: port this to Linux, Android, iOS
       const F_GETPATH = 50; // on macOS
@@ -1368,7 +1369,7 @@ function listFileDescriptorsJson (args) {
       const buffer = Memory.alloc(PATH_MAX);
       const addr = Module.getExportByName(null, 'fcntl');
       const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
-      fcntl (fd, F_GETPATH, buffer);
+      fcntl(fd, F_GETPATH, buffer);
       return buffer.readCString();
     } catch (e) {
       return '';
@@ -1416,7 +1417,7 @@ function listMallocMaps (args) {
   }
   return squashRanges(listMemoryRangesJson())
     .filter(inRange)
-    .map(({base, size, protection, file}) =>
+    .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
         '-',
@@ -1451,8 +1452,8 @@ function listMemoryRangesHere (args) {
   }
   const addr = +args[0];
   return listMemoryRangesJson()
-    .filter(({base, size}) => (addr >= +base && addr < (+base + size)))
-    .map(({base, size, protection, file}) =>
+    .filter(({ base, size }) => (addr >= +base && addr < (+base + size)))
+    .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
         '-',
@@ -1502,7 +1503,7 @@ function squashRanges (ranges) {
         // console.log("  set", begin, end);
       } else {
         // console.log("  append", begin, end);
-        res.push({base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile});
+        res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
         end = ptr(0);
         begin = ptr(0);
         lastPerm = 0;
@@ -1511,7 +1512,7 @@ function squashRanges (ranges) {
     }
   }
   if (!begin.equals(ptr(0))) {
-    res.push({base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile});
+    res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
   }
   return res;
 }
@@ -1519,7 +1520,7 @@ function squashRanges (ranges) {
 function listMemoryMaps () {
   return squashRanges(listMemoryRangesJson())
     .filter(_ => _.file)
-    .map(({base, size, protection, file}) =>
+    .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
         '-',
@@ -1534,7 +1535,7 @@ function listMemoryMaps () {
 
 function listMemoryRangesR2 () {
   return listMemoryRangesJson()
-    .map(({base, size, protection, file}) =>
+    .map(({ base, size, protection, file }) =>
       [
         'f', 'map.' + padPointer(base),
         '=', base,
@@ -1550,7 +1551,7 @@ function listMemoryRangesR2 () {
 
 function listMemoryRanges () {
   return listMemoryRangesJson()
-    .map(({base, size, protection, file}) =>
+    .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
         '-',
@@ -1588,19 +1589,19 @@ function listThreads () {
     const addr = Module.getExportByName(null, 'pthread_getname_np');
     var pthread_getname_np = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
     const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
-    var pthread_from_mach_thread_np = new NativeFunction (addr2, 'pointer', ['uint'])
+    var pthread_from_mach_thread_np = new NativeFunction(addr2, 'pointer', ['uint']);
     canGetThreadName = true;
   } catch (e) {
     // do nothing
   }
 
-  function getThreadName(tid) {
+  function getThreadName (tid) {
     if (!canGetThreadName) {
       return '';
     }
     const buffer = Memory.alloc(4096);
-    let p = pthread_from_mach_thread_np (tid);
-    let q = pthread_getname_np (p, buffer, 4096);
+    let p = pthread_from_mach_thread_np(tid);
+    let q = pthread_getname_np(p, buffer, 4096);
     return buffer.readCString();
   }
 
@@ -1680,7 +1681,7 @@ function regProfileAliasFor (arch) {
 function dumpRegisterProfile (args) {
   const threads = Process.enumerateThreads();
   const thread = threads[0];
-  const {id, state, context} = thread;
+  const { id, state, context } = thread;
   const names = Object.keys(JSON.parse(JSON.stringify(context)))
     .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
@@ -1704,7 +1705,7 @@ function dumpRegisterArena (args) {
     return '';
   }
   const thread = threads[tidx];
-  const {id, state, context} = thread;
+  const { id, state, context } = thread;
   const names = Object.keys(JSON.parse(JSON.stringify(context)))
     .filter(_ => _ !== 'pc' && _ !== 'sp');
   names.sort(compareRegisterNames);
@@ -1739,7 +1740,7 @@ function dumpRegistersR2 (args) {
     return '';
   }
   const thread = threads[tidx];
-  const {id, state, context} = thread;
+  const { id, state, context } = thread;
   const names = Object.keys(JSON.parse(JSON.stringify(context)));
   names.sort(compareRegisterNames);
   const values = names
@@ -1754,7 +1755,7 @@ function dumpRegistersR2 (args) {
 function dumpRegisters () {
   return Process.enumerateThreads()
     .map(thread => {
-      const {id, state, context} = thread;
+      const { id, state, context } = thread;
       const heading = `tid ${id} ${state}`;
       const names = Object.keys(JSON.parse(JSON.stringify(context)));
       names.sort(compareRegisterNames);
@@ -1774,7 +1775,7 @@ function getOrSetEnv (args) {
   if (args.length === 0) {
     return getEnv().join('\n');
   }
-  const {key, value} = getOrSetEnvJson(args);
+  const { key, value } = getOrSetEnvJson(args);
   return key + '=' + value;
 }
 
@@ -2000,7 +2001,7 @@ function traceFormat (args) {
     source: 'dtf',
     at: ptr(address),
     name: name,
-    moduleName: currentModule? currentModule.name: '',
+    moduleName: currentModule ? currentModule.name : '',
     format: format,
     listener: listener
   });
@@ -2030,7 +2031,7 @@ function traceLog (msg) {
   return traceLogClear();
 }
 
-function haveTraceAt(address) {
+function haveTraceAt (address) {
   for (let trace of traceListeners) {
     if (trace.at.compare(address) === 0) {
       return true;
@@ -2091,7 +2092,7 @@ function traceRegs (args) {
   traceListeners.push({
     source: 'dtr',
     at: address,
-    moduleName: currentModule? currentModule.name: 'unknown',
+    moduleName: currentModule ? currentModule.name : 'unknown',
     name: args[0],
     listener: listener,
     args: rest
@@ -2158,7 +2159,7 @@ function trace (args) {
   return traceJson(args);
 }
 
-function tracehookSet(name, format, callback) {
+function tracehookSet (name, format, callback) {
   if (name === null) {
     console.error('Cannot resolve name for ' + address);
     return false;
@@ -2172,23 +2173,23 @@ function tracehookSet(name, format, callback) {
 
 function arrayBufferToHex (arrayBuffer) {
   if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
-    throw new TypeError('Expected input to be an ArrayBuffer')
+    throw new TypeError('Expected input to be an ArrayBuffer');
   }
 
-  var view = new Uint8Array(arrayBuffer)
-  var result = ''
-  var value
+  var view = new Uint8Array(arrayBuffer);
+  var result = '';
+  var value;
 
   for (var i = 0; i < view.length; i++) {
-    value = view[i].toString(16)
-    result += (value.length === 1 ? '0' + value : value)
+    value = view[i].toString(16);
+    result += (value.length === 1 ? '0' + value : value);
   }
 
-  return result
+  return result;
 }
 
 // \dth printf 0,1
-function tracehook(address, args) {
+function tracehook (address, args) {
   const at = nameFromAddress(address);
   const th = tracehooks[at];
   var fmtarg = [];
@@ -2196,29 +2197,29 @@ function tracehook(address, args) {
     for (let fmt of th.format.split(' ')) {
       var [k, v] = fmt.split(':');
       switch (k) {
-      case 'i':
-        //console.log('int', args[v]);
-        fmtarg.push(+args[v]);
-        break;
-      case 's':
-        var [a, l] = v.split(',');
-        var addr = ptr(args[a]);
-        var size = +args[l];
-        var buf = Memory.readByteArray(addr, size);
-        //console.log('buf', arrayBufferToHex(buf));
-        //console.log('string', Memory.readCString(addr, size));
-        fmtarg.push(Memory.readCString(addr, size));
-        break;
-      case 'z':
-        //console.log('string', Memory.readCString(args[+v]));
-        fmtarg.push(Memory.readCString(ptr(args[+v])));
-        break;
-      case 'v':
-        var [a, l] = v.split(',');
-        var addr = ptr(args[a]);
-        var buf = Memory.readByteArray(addr, +args[l]);
-        fmtarg.push(arrayBufferToHex(buf));
-        break;
+        case 'i':
+        // console.log('int', args[v]);
+          fmtarg.push(+args[v]);
+          break;
+        case 's':
+          var [a, l] = v.split(',');
+          var addr = ptr(args[a]);
+          var size = +args[l];
+          var buf = Memory.readByteArray(addr, size);
+          // console.log('buf', arrayBufferToHex(buf));
+          // console.log('string', Memory.readCString(addr, size));
+          fmtarg.push(Memory.readCString(addr, size));
+          break;
+        case 'z':
+        // console.log('string', Memory.readCString(args[+v]));
+          fmtarg.push(Memory.readCString(ptr(args[+v])));
+          break;
+        case 'v':
+          var [a, l] = v.split(',');
+          var addr = ptr(args[a]);
+          var buf = Memory.readByteArray(addr, +args[l]);
+          fmtarg.push(arrayBufferToHex(buf));
+          break;
       }
     }
   }
@@ -2270,7 +2271,7 @@ function traceReal (name, address) {
   traceListeners.push({
     at: address,
     name: name,
-    moduleName: currentModule? currentModule.name: 'unknown',
+    moduleName: currentModule ? currentModule.name : 'unknown',
     source: 'dt',
     args: '',
     listener: listener
@@ -2640,12 +2641,12 @@ const requestHandlers = {
 };
 
 function read (params) {
-  const {offset, count} = params;
+  const { offset, count } = params;
   if (r2frida.hookedRead !== null) {
     return r2frida.hookedRead(offset, count);
   }
   if (offset < 0) {
-    return [{},[]];
+    return [{}, []];
   }
   try {
     const bytes = Memory.readByteArray(ptr(offset), count);
@@ -2659,10 +2660,10 @@ function read (params) {
       const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
       const moduleEnds = currentRange.base.add(currentRange.size);
       const left = (readEnds.compare(moduleEnds) > 0
-        ? readEnds: moduleEnds).sub(offset);
+        ? readEnds : moduleEnds).sub(offset);
       const bytes = Memory.readByteArray(ptr(offset), +left);
       return [{}, (bytes !== null) ? bytes : []];
-    } catch(e) {
+    } catch (e) {
       // do nothing
     }
   }
@@ -2697,33 +2698,33 @@ function state (params, data) {
   return [{}, null];
 }
 
-function isPromise(value) {
-  return typeof value == 'object' && typeof value.then === 'function';
+function isPromise (value) {
+  return typeof value === 'object' && typeof value.then === 'function';
 }
 
-function stalkTraceEverythingHelp() {
-return `Usage: dts[j*] [symbol|address] - Trace given symbol using the Frida Stalker
+function stalkTraceEverythingHelp () {
+  return `Usage: dts[j*] [symbol|address] - Trace given symbol using the Frida Stalker
 dtsf[*j] [sym|addr]        Trace address or symbol using the stalker
 dts[*j] seconds            Trace all threads for given seconds using the stalker
 `;
 }
 
 function perform (params) {
-  const {command} = params;
+  const { command } = params;
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
   if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
-    const prefix = name.substring(0,name.length - 1);
+    const prefix = name.substring(0, name.length - 1);
     const value = Object.keys(commandHandlers).sort()
       .filter((k) => {
         return (k.startsWith(prefix));
       })
       .map((k) => {
         const desc = commandHandlers[k].name
-          .replace(/(?:^|\.?)([A-Z])/g, function (x,y) {
-            return " " + y.toLowerCase()
-          }).replace(/^_/, "");
+          .replace(/(?:^|\.?)([A-Z])/g, function (x, y) {
+            return ' ' + y.toLowerCase();
+          }).replace(/^_/, '');
         return ' ' + k + '\t' + desc;
       }).join('\n');
     return [{
@@ -2742,15 +2743,15 @@ function perform (params) {
   }
   const value = handler(args);
   if (isPromise(value)) {
-    return new Promise ((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       return value.then(output => {
-        resolve ([{
+        resolve([{
           value: normalizeValue(output)
         }, null]);
       }).catch(reject);
     });
     return value;
- }
+  }
   return [{
     value: normalizeValue(value)
   }, null];
@@ -2768,7 +2769,7 @@ function normalizeValue (value) {
 
 function evaluate (params) {
   return new Promise(resolve => {
-    const {code} = params;
+    const { code } = params;
 
     if (ObjCAvailable && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
@@ -3237,7 +3238,7 @@ function sendCommand (cmd, serial) {
 }
 
 function onCmdResp (params) {
-  const {serial, output} = params;
+  const { serial, output } = params;
 
   sendingCommand = false;
 

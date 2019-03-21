@@ -1,7 +1,7 @@
 'use strict';
 
-const {normalize} = require('path');
-const {platform, pointerSize} = Process;
+const { normalize } = require('path');
+const { platform, pointerSize } = Process;
 
 module.exports = {
   ls,
@@ -33,28 +33,28 @@ const direntSpecs = {
       [6, 'U8'],
       [20, 'U8']
     ]
-  },
+  }
 };
 
 const statSpecs = {
   'linux-32': {
-    'size': [ 44, 'S32' ],
+    'size': [ 44, 'S32' ]
   },
   'linux-64': {
-    'size': [ 48, 'S64' ],
+    'size': [ 48, 'S64' ]
   },
   'darwin-32': {
-    'size': [ 60, 'S64'  ],
+    'size': [ 60, 'S64' ]
   },
   'darwin-64': {
-    'size': [ 96, 'S64'  ],
+    'size': [ 96, 'S64' ]
   }
 };
 
 const statxSpecs = {
   'linux-64': {
-    'size': [ 40, 'S64' ],
-  },
+    'size': [ 40, 'S64' ]
+  }
 };
 
 const STATX_SIZE = 0x200;
@@ -199,7 +199,6 @@ class FridaFS {
     }
     return result;
   }
-
 }
 
 class PathTransform {
@@ -438,7 +437,7 @@ class DirEnt {
   }
 }
 
-function readDirentField(entry, name) {
+function readDirentField (entry, name) {
   let spec = direntSpec[name];
   if (platform === 'darwin') {
     if (direntHas64BitInode(entry)) {
@@ -452,13 +451,12 @@ function readDirentField(entry, name) {
   const read = (typeof type === 'string') ? Memory['read' + type] : type;
 
   const value = read(entry.add(offset));
-  if (value instanceof Int64 || value instanceof UInt64)
-    return value.valueOf();
+  if (value instanceof Int64 || value instanceof UInt64) { return value.valueOf(); }
 
   return value;
 }
 
-function readStatField(entry, name) {
+function readStatField (entry, name) {
   let field = statSpec[name];
   if (field === undefined) {
     return undefined;
@@ -469,13 +467,12 @@ function readStatField(entry, name) {
   const read = (typeof type === 'string') ? Memory['read' + type] : type;
 
   const value = read(entry.add(offset));
-  if (value instanceof Int64 || value instanceof UInt64)
-    return value.valueOf();
+  if (value instanceof Int64 || value instanceof UInt64) { return value.valueOf(); }
 
   return value;
 }
 
-function readStatxField(entry, name) {
+function readStatxField (entry, name) {
   let field = statxSpec[name];
   if (field === undefined) {
     return undefined;
@@ -486,8 +483,7 @@ function readStatxField(entry, name) {
   const read = (typeof type === 'string') ? Memory['read' + type] : type;
 
   const value = read(entry.add(offset));
-  if (value instanceof Int64 || value instanceof UInt64)
-    return value.valueOf();
+  if (value instanceof Int64 || value instanceof UInt64) { return value.valueOf(); }
 
   return value;
 }
@@ -549,7 +545,7 @@ function encodeBuf (buf, size, encoding) {
 
   const result = [];
 
-console.error("ENCODE BUF");
+  console.error('ENCODE BUF');
   for (let i = 0; i < size; i++) {
     const val = Memory.readU8(buf.add(i));
     const valHex = val.toString(16);
