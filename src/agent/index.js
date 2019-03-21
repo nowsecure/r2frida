@@ -162,13 +162,13 @@ const commandHandlers = {
   'T': traceLogDump,
   'T-': traceLogClear,
   'T*': traceLog,
-  'dtS': stalkTraceEverything,
-  'dtS?': stalkTraceEverythingHelp,
-  'dtSj': stalkTraceEverythingJson,
-  'dtS*': stalkTraceEverythingR2,
-  'dtSf': stalkTraceFunction,
-  'dtSfj': stalkTraceFunctionJson,
-  'dtSf*': stalkTraceFunctionR2,
+  'dts': stalkTraceEverything,
+  'dts?': stalkTraceEverythingHelp,
+  'dtsj': stalkTraceEverythingJson,
+  'dts*': stalkTraceEverythingR2,
+  'dtsf': stalkTraceFunction,
+  'dtsfj': stalkTraceFunctionJson,
+  'dtsf*': stalkTraceFunctionR2,
   'di': interceptHelp,
   'di0': interceptRet0,
   'di1': interceptRet1,
@@ -2260,14 +2260,23 @@ function stalkTraceFunctionJson (args) {
 }
 
 function stalkTraceEverything (args) {
+  if (args.length === 0) {
+    return 'Warnnig: dts is experimental and slow\nUsage: dts [symbol]';
+  }
   return _stalkTraceSomething(_stalkEverythingAndGetEvents, args);
 }
 
 function stalkTraceEverythingR2 (args) {
+  if (args.length === 0) {
+    return 'Warnnig: dts is experimental and slow\nUsage: dts* [symbol]';
+  }
   return _stalkTraceSomethingR2(_stalkEverythingAndGetEvents, args);
 }
 
 function stalkTraceEverythingJson (args) {
+  if (args.length === 0) {
+    return 'Warnnig: dts is experimental and slow\nUsage: dtsj [symbol]';
+  }
   return _stalkTraceSomethingJson(_stalkEverythingAndGetEvents, args);
 }
 
@@ -2598,9 +2607,9 @@ function isPromise(value) {
 }
 
 function stalkTraceEverythingHelp() {
-return `Usage: dtS[j*] [symbol|address] - Trace given symbol using the Frida Stalker
-dtSf[*j] [sym|addr]        Trace address or symbol using the stalker
-dtS[*j] seconds            Trace all threads for given seconds using the stalker
+return `Usage: dts[j*] [symbol|address] - Trace given symbol using the Frida Stalker
+dtsf[*j] [sym|addr]        Trace address or symbol using the stalker
+dts[*j] seconds            Trace all threads for given seconds using the stalker
 `;
 }
 
