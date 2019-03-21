@@ -15,10 +15,19 @@ if (ObjCAvailable) {
   var mjolner = require('mjolner');
 }
 
+/* globals */
 const pointerSize = Process.pointerSize;
 
 var offset = '0';
 var suspended = false;
+var tracehooks = {};
+const RTLD_GLOBAL = 0x8;
+const RTLD_LAZY = 0x1;
+const allocPool = {};
+const pendingCmds = {};
+const pendingCmdSends = [];
+let sendingCommand = false;
+
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -181,13 +190,6 @@ const commandHandlers = {
   'x': printHexdump,
   'eval': evalCode,
 };
-
-const RTLD_GLOBAL = 0x8;
-const RTLD_LAZY = 0x1;
-const allocPool = {};
-const pendingCmds = {};
-const pendingCmdSends = [];
-let sendingCommand = false;
 
 async function initBasicInfoFromTarget (args) {
   const str = `
@@ -383,10 +385,14 @@ function disasm (addr, len, initialOldName) {
     }
     const ds = DebugSymbol.fromAddress(addr);
     const dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
-    if (!ds.moduleName) ds.moduleName = '';
-    if (!dsName) dsName = '';
+    if (!ds.moduleName) {
+      ds.moduleName = '';
+    }
+    if (!dsName) {
+      dsName = '';
+    }
     if ((ds.moduleName || dsName) && dsName !== oldName)  {
-      disco += ';;; ' + (ds.moduleName?ds.moduleName: dsName) + '\n';
+      disco += ';;; ' + (ds.moduleName? ds.moduleName: dsName) + '\n';
       oldName = dsName;
     }
     var comment = '';
@@ -1043,7 +1049,7 @@ function lookupSymbolJson (args) {
       address: at.address
     }];
     }
-    const modules = Process.enumerateModulesSync();
+    const modules = Process.enumerateModules();
     let address = 0;
     let moduleName = '';
     for (let m of modules) {
@@ -1862,8 +1868,9 @@ function _readUntrustedUtf8 (address, length) {
 }
 
 function traceList () {
-  return traceListeners.map(_ => {
-    return _.at.address + '\t' + _.at.moduleName + '\t' + _.at.name;
+  let count = 0;
+  return traceListeners.map((t) => {
+    return [count++, t.at, t.source, t.moduleName, t.name, t.args].join('\t');
   }).join('\n');
 }
 
@@ -1977,11 +1984,23 @@ function traceLog (msg) {
   return traceLogClear();
 }
 
+function haveTraceAt(address) {
+  for (let trace of traceListeners) {
+    if (trace.at.compare(address) === 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function traceRegs (args) {
   if (args.length < 1) {
-    return 'Usage: dtr [address] [reg ...]';
+    return 'Usage: dtr [name|address] [reg ...]';
   }
   const address = getPtr(args[0]);
+  if (haveTraceAt(address)) {
+    return 'There\'s already a trace in here';
+  }
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
@@ -2013,8 +2032,12 @@ function traceRegs (args) {
       console.log(bt.join('\n\t'));
     }
   }
+  const currentModule = Process.getModuleByAddress(address);
   traceListeners.push({
+    source: 'dtr',
     at: address,
+    moduleName: currentModule? currentModule.name: 'unknown',
+    name: args[0],
     listener: listener,
     args: rest
   });
@@ -2066,7 +2089,7 @@ function traceJson (args) {
       	return resolve('');
       }
       numEval(arg).then(function (at) {
-        console.log(traceReal(['' + at]));
+        console.error(traceReal(arg, at));
         pull();
       }).catch(reject);
     })();
@@ -2079,8 +2102,6 @@ function trace (args) {
   }
   return traceJson(args);
 }
-
-var tracehooks = {};
 
 function tracehookSet(name, format, callback) {
   if (name === null) {
@@ -2149,62 +2170,83 @@ function tracehook(address, args) {
   console.log('[TRACE]', address, '(', at, ')', JSON.stringify(fmtarg));
 }
 
-function traceReal (args) {
-  if (args.length === 0) {
+function traceReal (name, address) {
+  if (arguments.length === 0) {
     return traceList();
   }
-  args.forEach(address => {
-    if (address.startsWith('java:')) {
-      const dot = address.lastIndexOf('.');
-      if (dot !== -1) {
-        const klass = address.substring(5, dot);
-        const methd = address.substring(dot + 1);
-        traceJava(klass, methd);
-      } else {
-        console.log('Invalid java method name. Use \\dt java:package.class.method');
-      }
+  if (haveTraceAt(address)) {
+    return 'There\'s already a trace in here';
+  }
+  if (name.startsWith('java:')) {
+    const dot = name.lastIndexOf('.');
+    if (dot !== -1) {
+      const klass = address.substring(5, dot);
+      const methd = address.substring(dot + 1);
+      traceJava(klass, methd);
+    } else {
+      console.log('Invalid java method name. Use \\dt java:package.class.method');
+    }
+    return;
+  }
+  const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
+  for (let i in traceListeners) {
+    if (traceListeners[i].at === at) {
+      console.error('There\'s a trace already in this address');
       return;
     }
-    const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
-    for (var i in traceListeners) {
-      if (traceListeners[i].at === at) {
-        console.error('There\'s a trace already in this address');
-        return;
+  }
+  const listener = Interceptor.attach(ptr(address), function (args) {
+    tracehook(address, args);
+    const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
+    traceLog('f trace.' + address + ' = ' + address);
+    var prev = address;
+    var prevName = nameFromAddress(prev);
+    traceLog('agn ' + prevName);
+    for (let i in frames) {
+      var frame = frames[i];
+      var addr = ('' + frame).split(' ')[0];
+      var addrName = nameFromAddress(ptr(addr));
+      console.log(' - ' + frame);
+      traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
+      if (!traces[prev + addr]) {
+        traceLog('agn ' + addrName);
+        traceLog('agn ' + prevName);
+        traceLog('age ' + prevName + ' ' + addrName);
+        traces[prev + addr] = true;
       }
+      prevName = addrName;
+      prev = addr;
     }
-    const listener = Interceptor.attach(ptr(address), function (args) {
-      tracehook(address, args);
-      const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-      traceLog('f trace.' + address + ' = ' + address);
-      var prev = address;
-      var prevName = nameFromAddress(prev);
-      traceLog('agn ' + prevName);
-      for (let i in frames) {
-        var frame = frames[i];
-        var addr = ('' + frame).split(' ')[0];
-        var addrName = nameFromAddress(ptr(addr));
-        console.log(' - ' + frame);
-        traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
-        if (!traces[prev + addr]) {
-          traceLog('agn ' + addrName);
-          traceLog('agn ' + prevName);
-          traceLog('age ' + prevName + ' ' + addrName);
-          traces[prev + addr] = true;
-        }
-        prevName = addrName;
-        prev = addr;
-      }
-    });
-    traceListeners.push({
-      at: at,
-      listener: listener
-    });
+  });
+  const currentModule = Process.findModuleByAddress(ptr(0));
+  traceListeners.push({
+    at: at,
+    name: name,
+    moduleName: currentModule? currentModule.name: 'unknown',
+    source: 'dt',
+    args: '',
+    listener: listener
   });
 }
-// return true;
+
+function clearAllTrace (args) {
+  traceListeners.splice(0).forEach(lo => lo.listener.detach());
+  return '';
+}
 
 function clearTrace (args) {
-  traceListeners.splice(0).forEach(lo => lo.listener.detach());
+  if (args.length > 0 && +args[0] > 0) {
+    const res = [];
+    const nth = +args[0];
+    for (let i = 0; i < traceListeners.length; i++) {
+      const tl = traceListeners[i];
+      if (i === nth) {
+        tl.listener.detach();
+      } else {
+        res.push(tl);
+      }
+    }
+  }
   return '';
 }
 
