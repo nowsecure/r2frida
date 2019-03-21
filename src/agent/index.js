@@ -459,6 +459,7 @@ const _getpid = sym('getpid', 'int', []);
 const _getuid = sym('getuid', 'int', []);
 const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
+const _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
 const _fstat = Module.findExportByName(null, 'fstat')
   ? sym('fstat', 'int', ['int', 'pointer'])
   : sym('__fxstat', 'int', ['int', 'pointer']);
@@ -1213,17 +1214,14 @@ function listFileDescriptors (args) {
 function listFileDescriptorsJson (args) {
   function getFdName (fd) {
     const PATH_MAX = 4096;
-    if (Process.platform === 'linux') {
+    if (_readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
-      const readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
-      if (readlink) {
-        const buffer = Memory.alloc(PATH_MAX);
-        const source = Memory.alloc(PATH_MAX);
-        source.writeUtf8String(fdPath);
-        buffer.writeUtf8String('');
-        if (readlink(source, buffer, PATH_MAX) !== -1) {
-          return buffer.readUtf8String();
-        }
+      const buffer = Memory.alloc(PATH_MAX);
+      const source = Memory.alloc(PATH_MAX);
+      source.writeUtf8String(fdPath);
+      buffer.writeUtf8String('');
+      if (_readlink(source, buffer, PATH_MAX) !== -1) {
+        return buffer.readUtf8String();
       }
       return undefined;
     }
