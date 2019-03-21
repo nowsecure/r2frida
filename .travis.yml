@@ -1,0 +1,19 @@
+langauge: generic
+dist: trusty
+sudo: required
+
+branches:
+  only:
+  - master
+
+oservices:
+  - docker
+
+before_script:
+  - git clone --depth=1 https://github.com/radare/radare2
+  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
+
+script:
+  - ./configure
+  - make
+  - sudo make install
