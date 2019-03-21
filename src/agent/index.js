@@ -21,13 +21,17 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 var suspended = false;
 var tracehooks = {};
+var log = '';
+var traces = {};
+var breakpoints = {};
+
+
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
-
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -70,8 +74,8 @@ const commandHandlers = {
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
   'db': breakpoint,
+  'dbj': breakpointJson,
   'db-': breakpointUnset,
-  'dbt': backtrace,
   'dc': breakpointContinue,
   'dcu': breakpointContinueUntil,
   'dk': sendSignal,
@@ -167,6 +171,7 @@ const commandHandlers = {
   'dt*': traceR2,
   'dt.': traceHere,
   'dt-': clearTrace,
+  'dt-*': clearAllTrace,
   'dtr': traceRegs,
   'dtl': traceLogDump,
   'dtl-': traceLogClear,
@@ -623,8 +628,6 @@ function getR2Arch (arch) {
   return arch;
 }
 
-var breakpoints = {};
-
 function breakpointUnset (args) {
   if (args.length === 1) {
     if (args[0] === '*') {
@@ -712,7 +715,7 @@ function breakpointContinue (args) {
   return 'Continue ' + count + ' thread(s).';
 }
 
-function breakpoint (args) {
+function breakpointJson (args) {
   if (args.length === 0) {
     return JSON.stringify(breakpoints, null, '  ');
   }
@@ -727,17 +730,38 @@ function breakpoint (args) {
   });
 }
 
-function setBreakpoint (address) {
-  const symbol = Module.findExportByName(null, address);
+function breakpoint (args) {
+  if (args.length === 0) {
+    return Object.keys(breakpoints).map((bpat) => {
+      const bp = breakpoints[bpat];
+      const stop = bp.stopped? 'stop': 'nostop';
+      const cont = bp.continue? 'cont': 'nocont';
+      return [bp.address, bp.moduleName, bp.name, stop, cont].join('\t');
+    }).join('\n');
+  }
+  return new Promise((res, rej) => {
+    numEval(args[0]).then(num => {
+      res(setBreakpoint(args[0], num));
+    }).catch(e => {
+      console.error(e);
+      rej(e);
+    });
+  });
+}
+
+function setBreakpoint (name, address) {
+  const symbol = Module.findExportByName(null, name);
   const addr = (symbol !== null) ? symbol : ptr(address);
   if (breakpointExist(addr)) {
     return 'Cant set a breakpoint twice';
   }
   const addrString = '' + addr;
+  const currentModule = Process.findModuleByAddress(address);
   const bp = {
-    name: address,
+    name: name,
+    moduleName: currentModule? currentModule.name: '',
     stopped: false,
-    address: addrString,
+    address: address,
     continue: false,
     handler: Interceptor.attach(addr, function () {
       if (breakpoints[addrString]) {
@@ -1957,13 +1981,6 @@ function traceFormat (args) {
   });
   return true;
 }
-
-function backtrace (args) {
-  return 'TODO';
-}
-
-var log = '';
-var traces = {};
 
 function traceLogDump () {
   return log;
