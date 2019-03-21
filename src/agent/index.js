@@ -1120,6 +1120,12 @@ function listEntrypointJson (args) {
     }
     return false;
   }
+  if (Process.platform === 'linux') {
+    var at = DebugSymbol.fromName('main');
+    if (at) {
+      return [at];
+    }
+  }
   const firstModule = Process.enumerateModules()[0];
   return Module.enumerateSymbols(firstModule.name)
     .filter((symbol) => {
