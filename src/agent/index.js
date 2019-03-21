@@ -163,6 +163,7 @@ const commandHandlers = {
   'T-': traceLogClear,
   'T*': traceLog,
   'dtS': stalkTraceEverything,
+  'dtS?': stalkTraceEverythingHelp,
   'dtSj': stalkTraceEverythingJson,
   'dtS*': stalkTraceEverythingR2,
   'dtSf': stalkTraceFunction,
@@ -2596,12 +2597,19 @@ function isPromise(value) {
   return typeof value == 'object' && typeof value.then === 'function';
 }
 
+function stalkTraceEverythingHelp() {
+return `Usage: dtS[j*] [symbol|address] - Trace given symbol using the Frida Stalker
+dtSf[*j] [sym|addr]        Trace address or symbol using the stalker
+dtS[*j] seconds            Trace all threads for given seconds using the stalker
+`;
+}
+
 function perform (params) {
   const {command} = params;
 
   const tokens = command.split(/ /);
   const [name, ...args] = tokens;
-  if (name.length > 0 && name.endsWith('?')) {
+  if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
     const prefix = name.substring(0,name.length - 1);
     const value = Object.keys(commandHandlers).sort()
       .filter((k) => {
