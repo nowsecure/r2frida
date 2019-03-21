@@ -25,7 +25,6 @@ var log = '';
 var traces = {};
 var breakpoints = {};
 
-
 const RTLD_GLOBAL = 0x8;
 const RTLD_LAZY = 0x1;
 const allocPool = {};
@@ -477,6 +476,7 @@ const config = {
   'stalker.event': 'compile',
   'stalker.timeout': 5 * 60,
   'stalker.in': 'raw',
+  'hook.backtrace': 'true'
 };
 
 const configHelp = {
@@ -484,6 +484,7 @@ const configHelp = {
   'stalker.event': configHelpStalkerEvent,
   'stalker.timeout': configHelpStalkerTimeout,
   'stalker.in': configHelpStalkerIn,
+  'hook.backtrace': configHelpHookBacktrace,
 };
 
 const configValidator = {
@@ -491,6 +492,7 @@ const configValidator = {
   'stalker.event': configValidateStalkerEvent,
   'stalker.timeout': configValidateStalkerTimeout,
   'stalker.in': configValidateStalkerIn,
+  'hook.backtrace': configValidateHookBacktrace,
 };
 
 function configHelpSearchIn () {
@@ -553,6 +555,12 @@ function configValidateStalkerTimeout (val) {
   return val >= 0;
 }
 
+function configHelpHookBacktrace () {
+  return `Append the backtrace on each trace hook registered with \\dt commands
+
+    true | false    to enable or disable the option
+  `;
+}
 function configHelpStalkerIn () {
   return `Restrict stalker results based on where the event has originated:
 
@@ -560,6 +568,10 @@ function configHelpStalkerIn () {
     app             stalk only in the app module
     modules         stalk in app module and all linked libraries
   `;
+}
+
+function configValidateHookBacktrace (val) {
+  return ['true', 'false'].indexOf(val) !== -1;
 }
 
 function configValidateStalkerIn (val) {
@@ -774,8 +786,7 @@ function setBreakpoint (name, address) {
     handler: Interceptor.attach(addr, function () {
       if (breakpoints[addrString]) {
         breakpoints[addrString].stopped = true;
-        const showBacktrace = true;
-        if (showBacktrace) {
+        if (config['hook.backtrace']) {
           console.log(addr);
           const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
           console.log(bt.join('\n\t'));
@@ -2002,6 +2013,10 @@ function traceLogClear () {
 }
 
 function traceLog (msg) {
+  if (typeof msg === 'object') {
+    msg = JSON.stringify(msg);
+  }
+  console.error(msg);
   if (typeof msg === 'string') {
     log += msg + '\n';
     return;
@@ -2031,31 +2046,40 @@ function traceRegs (args) {
   function traceFunction (_) {
     const extra = (args[0] !== address) ? ` (${args[0]})` : '';
     const at = nameFromAddress(address);
-    console.log(`\nTrace probe hit at ${address} ${extra} ${at}`);
-    console.log('\t' + rest.map(r => {
-      let tail = '';
+    const regState = {};
+    rest.map((r) => {
+      let regName = r;
+      let regValue = 0;
       if (r.indexOf('=') !== -1) {
         const kv = r.split('=');
-        this.context[kv[0]] = ptr(kv[1]);
+        this.context[kv[0]] = ptr(kv[1]); // set register value
+        regName = kv[0];
+        regValue = kv[1];
       } else {
         const rv = ptr(this.context[r]);
+        regValue = rv;
         try {
           tail = Memory.readCString(rv);
           if (tail) {
             tail = ' (' + tail + ')';
           }
+          regValue += tail;
         } catch (e) {
-          tail = '';
+          // do nothing
         }
       }
-      return r + ' = ' + this.context[r] + tail;
-    }).join('\n\t'));
-    /* TODO: do we want to show backtrace too? */
-    const showBacktrace = false;
-    if (showBacktrace) {
-      const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-      console.log(bt.join('\n\t'));
+      regState[regName] = regValue;
+    });
+    const traceMessage = {
+      source: 'dtr',
+      address: address,
+      timestamp: new Date(),
+      values: regState,
+    };
+    if (config['hook.backtrace']) {
+      traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
+    traceLog(traceMessage);
   }
   const currentModule = Process.getModuleByAddress(address);
   traceListeners.push({
