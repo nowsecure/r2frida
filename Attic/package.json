@@ -34,7 +34,7 @@
   "dependencies": {
     "frida": "*",
     "r2pipe": "2.6.3",
-    "colors": "1.1.2"
+    "colors": "1.3.3"
   }
 }
 
