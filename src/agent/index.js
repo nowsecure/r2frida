@@ -2798,13 +2798,13 @@ function _readableHits (hits) {
 
 function _searchPatternJson (pattern) {
   return hostCmdj('ej')
-    .then(config => {
-      const flags = config.get('search.flags');
-      const prefix = config.get('search.prefix') || 'hit';
-      const count = config.get('search.count') || 0;
-      const kwidx = config.get('search.kwidx') || 0;
+    .then(r2cfg => {
+      const flags = r2cfg['search.flags'];
+      const prefix = r2cfg['search.prefix'] || 'hit';
+      const count = r2cfg['search.count'] || 0;
+      const kwidx = r2cfg['search.kwidx'] || 0;
 
-      const ranges = _getRanges(config.get('search.from'), config.get('search.to'));
+      const ranges = _getRanges(r2cfg['search.from'], r2cfg['search.to']);
       const nBytes = pattern.split(' ').length;
 
       qlog(`Searching ${nBytes} bytes: ${pattern}`);
