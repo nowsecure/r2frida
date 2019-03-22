@@ -37,7 +37,7 @@ let sendingCommand = false;
 function numEval (expr) {
   return new Promise((resolve, reject) => {
     var symbol = DebugSymbol.fromName(expr);
-    if (symbol) {
+    if (symbol && symbol.name) {
       return resolve(symbol.address);
     }
     hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
@@ -591,13 +591,13 @@ function breakpointJson (args) {
   if (args.length === 0) {
     return JSON.stringify(breakpoints, null, '  ');
   }
-  return new Promise((res, rej) => {
+  return new Promise((resolve, reject) => {
     numEval(args[0]).then(num => {
       setBreakpoint(num);
-      res(JSON.stringify(breakpoints, null, '  '));
+      resolve(JSON.stringify(breakpoints, null, '  '));
     }).catch(e => {
       console.error(e);
-      rej(e);
+      reject(e);
     });
   });
 }
@@ -901,6 +901,7 @@ function lookupSymbolJson (args) {
     let [moduleName, symbolName] = args;
     try {
       const m = Process.getModuleByName(moduleName);
+      // unused, this needs to be rewritten
     } catch (e) {
       const res = Process.enumerateModules().filter(function (x) {
         return x.name.indexOf(moduleName) !== -1;
@@ -921,7 +922,7 @@ function lookupSymbolJson (args) {
       name: symbolName,
       address: address
     }];
-/*
+    /*
     return [{
       library: moduleName,
       name: symbolName,
@@ -2044,7 +2045,7 @@ function arrayBufferToHex (arrayBuffer) {
   return result;
 }
 
-// \dth printf 0,1
+// \dth printf 0,1 .. kind of dtf
 function tracehook (address, args) {
   const at = nameFromAddress(address);
   const th = tracehooks[at];
@@ -2083,7 +2084,7 @@ function tracehook (address, args) {
       }
     }
   }
-  console.log('[TRACE]', address, '(', at, ')', JSON.stringify(fmtarg));
+  return fmtarg;
 }
 
 function traceReal (name, address) {
@@ -2105,27 +2106,34 @@ function traceReal (name, address) {
     return;
   }
   const listener = Interceptor.attach(ptr(address), function (args) {
-    tracehook(address, args);
     const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-    traceLog('f trace.' + address + ' = ' + address);
+    let script = 'f trace.' + address + ' = ' + address + '\n';
     var prev = address;
     var prevName = nameFromAddress(prev);
-    traceLog('agn ' + prevName);
+    script += 'agn ' + prevName;
     for (let i in frames) {
       var frame = frames[i];
       var addr = ('' + frame).split(' ')[0];
       var addrName = nameFromAddress(ptr(addr));
-      console.log(' - ' + frame);
-      traceLog('f trace.for.' + address + '.from.' + addr + ' = ' + prev);
+      script += 'f trace.for.' + address + '.from.' + addr + ' = ' + prev + '\n';
       if (!traces[prev + addr]) {
-        traceLog('agn ' + addrName);
-        traceLog('agn ' + prevName);
-        traceLog('age ' + prevName + ' ' + addrName);
+        script += 'agn ' + addrName + '\n';
+        script += 'agn ' + prevName + '\n';
+        script += 'age ' + prevName + ' ' + addrName + '\n';
         traces[prev + addr] = true;
       }
       prevName = addrName;
       prev = addr;
     }
+    const values = tracehook(address, args);
+    const traceMessage = {
+      source: 'dt',
+      address: address,
+      timestamp: new Date(),
+      values: values,
+      script: script,
+    };
+    traceLog(traceMessage);
   });
   const currentModule = Process.findModuleByAddress(ptr(0));
   traceListeners.push({

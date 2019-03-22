@@ -159,5 +159,6 @@ module.exports = {
   get: (k) => config[k],
   getBoolean: (k) => isTrue(config[k]),
   getString: (k) => (config[k]) ? '' + config[k] : '',
-  asR2Script: asR2Script
+  asR2Script: asR2Script,
+  helpFor: helpFor
 };
