@@ -96,7 +96,6 @@ const commandHandlers = {
   'ilq': listModulesQuiet,
   'ilj': listModulesJson,
 
-
   'ia': listAllHelp,
 
   'ias': listAllSymbols, // SLOW
@@ -151,6 +150,7 @@ const commandHandlers = {
   'dmp': changeMemoryProtection,
   'dm.': listMemoryRangesHere,
   'dmm': listMemoryMaps,
+  'dmm.': listMemoryRangesHere, // alias for 'dm.'
   'dmh': listMallocRanges,
   'dmh*': listMallocRangesR2,
   'dmhj': listMallocRangesJson,
@@ -747,12 +747,12 @@ function listAllExportsR2 (args) {
     .join('\n');
 }
 function listAllSymbolsJson (args) {
-  const modules = (args.length > 0)
-    ? Process.enumerateModules().filter(m => m.name.indexOf(args[0]) !== -1).map(m => m.path)
-    : Process.enumerateModules().map(m => m.path);
+  const argName = args[0];
+  const modules = Process.enumerateModules().map(m => m.path);
   const res = [];
   for (let module of modules) {
-    const symbols = Module.enumerateSymbols(module);
+    const symbols = Module.enumerateSymbols(module)
+      .filter((s) => s.name === argName);
     res.push(...symbols);
   }
   return res;
@@ -1901,7 +1901,7 @@ function traceLogDumpR2 () {
 }
 
 function tracelogToString (l) {
-  return [l.source, l.address, JSON.stringify(l.values)].join('\t') + '\n';
+  return [l.source, l.address, JSON.stringify(l.values)].join('\t');
 }
 
 function traceLogDump () {
