@@ -83,6 +83,7 @@ const commandHandlers = {
   'dk': sendSignal,
 
   'ie': listEntrypoint,
+  'ieq': listEntrypointQuiet,
   'ie*': listEntrypointR2,
   'iej': listEntrypointJson,
 
@@ -92,22 +93,15 @@ const commandHandlers = {
   'il': listModules,
   'il.': listModulesHere,
   'il*': listModulesR2,
+  'ilq': listModulesQuiet,
   'ilj': listModulesJson,
 
-  'iE': listExports,
-  'iE.': lookupSymbolHere,
-  'iEj': listExportsJson,
-  'iE*': listExportsR2,
 
   'ia': listAllHelp,
 
-  'ias': listAllSymbols,
+  'ias': listAllSymbols, // SLOW
   'iasj': listAllSymbolsJson,
   'ias*': listAllSymbolsR2,
-
-  'iaE': listAllExports,
-  'iaEj': listAllExportsJson,
-  'iaE*': listAllExportsR2,
 
   'is': listSymbols,
   'is.': lookupSymbolHere,
@@ -118,9 +112,23 @@ const commandHandlers = {
   'isa*': lookupSymbolR2,
   'isaj': lookupSymbolJson,
 
+  'iE': listExports,
+  'iE.': lookupSymbolHere,
+  'iEj': listExportsJson,
+  'iE*': listExportsR2,
+  'iaE': lookupExport,
+  'iaEj': lookupExportJson,
+  'iaE*': lookupExportR2,
+
   'iEa': lookupExport,
   'iEa*': lookupExportR2,
   'iEaj': lookupExportJson,
+/*
+// duplicated and unused, one greps, the other lists. wip
+  'iEa': listAllExports,
+  'iEaj': listAllExportsJson,
+  'iEa*': listAllExportsR2,
+*/
 
   'init': initBasicInfoFromTarget,
 
@@ -678,6 +686,10 @@ function listModules () {
     .join('\n');
 }
 
+function listModulesQuiet () {
+  return Process.enumerateModules().map(m => m.name).join('\n');
+}
+
 function listModulesR2 () {
   return Process.enumerateModules()
     .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
@@ -690,7 +702,6 @@ function listModulesJson () {
 
 function listModulesHere () {
   const here = ptr(offset);
-
   return Process.enumerateModules()
     .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
     .map(m => padPointer(m.base) + ' ' + m.name)
@@ -736,7 +747,9 @@ function listAllExportsR2 (args) {
     .join('\n');
 }
 function listAllSymbolsJson (args) {
-  const modules = Process.enumerateModules().map(m => m.path);
+  const modules = (args.length > 0)
+    ? Process.enumerateModules().filter(m => m.name.indexOf(args[0]) !== -1).map(m => m.path)
+    : Process.enumerateModules().map(m => m.path);
   const res = [];
   for (let module of modules) {
     const symbols = Module.enumerateSymbols(module);
@@ -996,6 +1009,13 @@ function listEntrypointR2 (args) {
   return listEntrypointJson()
     .map((entry) => {
       return 'f entry' + (n++) + ' = ' + entry.address;
+    }).join('\n');
+}
+
+function listEntrypointQuiet (args) {
+  return listEntrypointJson()
+    .map((entry) => {
+      return entry.address;
     }).join('\n');
 }
 
@@ -1880,10 +1900,12 @@ function traceLogDumpR2 () {
   return res;
 }
 
+function tracelogToString (l) {
+  return [l.source, l.address, JSON.stringify(l.values)].join('\t') + '\n';
+}
+
 function traceLogDump () {
-  return logs
-    .map((l) => [l.source, l.address, JSON.stringify(l.values)].join('\t'))
-    .join('\n');
+  return logs.map(tracelogToString).join('\n');
 }
 
 function traceLogClear () {
@@ -1895,7 +1917,7 @@ function traceLogClear () {
 
 function traceLog (msg) {
   if (config.getBoolean('hook.verbose')) {
-    console.error(JSON.stringify(msg));
+    console.error(tracelogToString(msg));
   }
   logs.push(msg);
 }
@@ -2016,10 +2038,16 @@ function traceJson (args) {
       if (arg === undefined) {
         return resolve('');
       }
+      const narg = getPtr(arg);
+      if (narg) {
+        traceReal(arg, narg);
+        pull ();
+      } else {
       numEval(arg).then(function (at) {
         console.error(traceReal(arg, at));
         pull();
       }).catch(reject);
+      }
     })();
   });
 }
