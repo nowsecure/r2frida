@@ -23,7 +23,7 @@ const pointerSize = Process.pointerSize;
 var offset = '0';
 var suspended = false;
 var tracehooks = {};
-var log = '';
+var logs = [];
 var traces = {};
 var breakpoints = {};
 
@@ -175,8 +175,9 @@ const commandHandlers = {
   'dt-*': clearAllTrace,
   'dtr': traceRegs,
   'dtl': traceLogDump,
+  'dtl*': traceLogDumpR2,
+  'dtlj': traceLogDumpJson,
   'dtl-': traceLogClear,
-  'dtl*': traceLog,
   'dts': stalkTraceEverything,
   'dts?': stalkTraceEverythingHelp,
   'dtsj': stalkTraceEverythingJson,
@@ -941,7 +942,7 @@ function lookupSymbolJson (args) {
       }];
     }
     const modules = Process.enumerateModules();
-    let address = 0;
+    let address = ptr(0);
     let moduleName = '';
     for (let m of modules) {
       Module.enumerateSymbols(m.name).filter(function (s) {
@@ -950,7 +951,7 @@ function lookupSymbolJson (args) {
           address = s.address;
         }
       });
-      if (address === 0) {
+      if (address.compare(ptr(0))) {
         return [];
       }
     }
@@ -1173,7 +1174,7 @@ function listJavaClassesJson (args) {
 
 function listClassesJson (args) {
   if (JavaAvailable) {
-    return listJavaClassesJsonSync(args);
+    return listJavaClassesJson(args);
     // return listJavaClassesJson(args);
   }
   if (args.length === 0) {
@@ -1865,36 +1866,49 @@ function traceFormat (args) {
   return true;
 }
 
+function traceLogDumpJson () {
+  return JSON.stringify(logs);
+}
+
+function traceLogDumpR2 () {
+  let res = '';
+  for (let l of logs) {
+    if (l.script) {
+      res += l.script;
+    }
+  }
+  return res;
+}
+
 function traceLogDump () {
-  return log;
+  return logs
+    .map((l) => [l.source, l.address, JSON.stringify(l.values)].join('\t'))
+    .join('\n');
 }
 
 function traceLogClear () {
   const output = log;
-  log = '';
+  logs = [];
   traces = {};
   return output;
 }
 
 function traceLog (msg) {
-  if (typeof msg === 'object') {
-    msg = JSON.stringify(msg);
-  }
   if (config.getBoolean('hook.verbose')) {
-    console.error(msg);
+    console.error(JSON.stringify(msg));
   }
-  if (typeof msg === 'string') {
-    log += msg + '\n';
-    return;
-  }
-  return traceLogClear();
+  logs.push(msg);
 }
 
 function haveTraceAt (address) {
-  for (let trace of traceListeners) {
-    if (trace.at.compare(address) === 0) {
-      return true;
+  try {
+    for (let trace of traceListeners) {
+      if (trace.at.compare(address) === 0) {
+        return true;
+      }
     }
+  } catch (e) {
+    console.error(e);
   }
   return false;
 }
@@ -1927,8 +1941,8 @@ function traceRegs (args) {
           let tail = Memory.readCString(rv);
           if (tail) {
             tail = ' (' + tail + ')';
+            regValue += tail;
           }
-          regValue += tail;
         } catch (e) {
           // do nothing
         }
@@ -2088,10 +2102,11 @@ function tracehook (address, args) {
   return fmtarg;
 }
 
-function traceReal (name, address) {
+function traceReal (name, addressString) {
   if (arguments.length === 0) {
     return traceList();
   }
+  const address = ptr(addressString);
   if (haveTraceAt(address)) {
     return 'There\'s already a trace in here';
   }
@@ -2106,7 +2121,7 @@ function traceReal (name, address) {
     }
     return;
   }
-  const listener = Interceptor.attach(ptr(address), function (args) {
+  const listener = Interceptor.attach(address, function (args) {
     const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     let script = 'f trace.' + address + ' = ' + address + '\n';
     var prev = address;
@@ -2136,7 +2151,7 @@ function traceReal (name, address) {
     };
     traceLog(traceMessage);
   });
-  const currentModule = Process.findModuleByAddress(ptr(0));
+  const currentModule = Process.findModuleByAddress(address);
   traceListeners.push({
     at: address,
     name: name,
@@ -2145,6 +2160,7 @@ function traceReal (name, address) {
     args: '',
     listener: listener
   });
+  return '';
 }
 
 function clearAllTrace (args) {
