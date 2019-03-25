@@ -204,6 +204,7 @@ e anal.autoname=true
 e cmd.fcn.new=aan
 .=!i*
 .=!ie*
+.=!il*
 m / io 0
 s entry0
 .=!ii*
