@@ -8,6 +8,7 @@ const fs = require('./fs');
 const path = require('path');
 const config = require('./config');
 const io = require('./io');
+const isObjC = require('./isobjc');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -126,12 +127,11 @@ const commandHandlers = {
   'iEa': lookupExport,
   'iEa*': lookupExportR2,
   'iEaj': lookupExportJson,
-  /*
-// duplicated and unused, one greps, the other lists. wip
-  'iEa': listAllExports,
-  'iEaj': listAllExportsJson,
-  'iEa*': listAllExportsR2,
-*/
+
+  // maybe dupped
+  'iAE': listAllExports,
+  'iAEj': listAllExportsJson,
+  'iAE*': listAllExportsR2,
 
   'init': initBasicInfoFromTarget,
 
@@ -190,6 +190,7 @@ const commandHandlers = {
   'dtl*': traceLogDumpR2,
   'dtlj': traceLogDumpJson,
   'dtl-': traceLogClear,
+  'dtl-*': traceLogClearAll,
   'dts': stalkTraceEverything,
   'dts?': stalkTraceEverythingHelp,
   'dtsj': stalkTraceEverythingJson,
@@ -1472,9 +1473,9 @@ function listThreads () {
   let canGetThreadName = false;
   try {
     const addr = Module.getExportByName(null, 'pthread_getname_np');
-    var pthread_getname_np = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
+    var pthreadGetnameNp = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
     const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
-    var pthread_from_mach_thread_np = new NativeFunction(addr2, 'pointer', ['uint']);
+    var pthreadFromMachThreadNp = new NativeFunction(addr2, 'pointer', ['uint']);
     canGetThreadName = true;
   } catch (e) {
     // do nothing
@@ -1485,8 +1486,8 @@ function listThreads () {
       return '';
     }
     const buffer = Memory.alloc(4096);
-    let p = pthread_from_mach_thread_np(tid);
-    pthread_getname_np(p, buffer, 4096);
+    let p = pthreadFromMachThreadNp(tid);
+    pthreadGetnameNp(p, buffer, 4096);
     return buffer.readCString();
   }
 
@@ -1745,11 +1746,21 @@ function formatArgs (args, fmt) {
         const sss = _readUntrustedUtf8(Memory.readPointer(arg));
         a.push(JSON.stringify(sss));
         break;
+      case 'o':
       case 'O':
         if (ObjC.available) {
           if (!arg.isNull()) {
-            const o = new ObjC.Object(arg);
-            a.push(`${o.$className}: "${o.toString()}"`);
+            if (isObjC(arg)) {
+              const o = new ObjC.Object(arg);
+              a.push(`${o.$className}: "${o.toString()}"`);
+            } else {
+              const str = Memory.readCString(arg);
+              if (str.length > 2) {
+                a.push(str);
+              } else {
+                a.push('' + arg);
+              }
+            }
           } else {
             a.push('nil');
           }
@@ -1854,18 +1865,8 @@ function traceFormat (args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
-  const at = nameFromAddress(address);
 
   const currentModule = Process.getModuleByAddress(address);
-  const traceListener = {
-    source: 'dtf',
-    hits: 0,
-    at: ptr(address),
-    name: name,
-    moduleName: currentModule ? currentModule.name : '',
-    format: format,
-    listener: listener
-  };
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
@@ -1911,6 +1912,15 @@ function traceFormat (args) {
       }
     }
   });
+  const traceListener = {
+    source: 'dtf',
+    hits: 0,
+    at: ptr(address),
+    name: name,
+    moduleName: currentModule ? currentModule.name : '',
+    format: format,
+    listener: listener
+  };
   traceListeners.push(traceListener);
   return true;
 }
@@ -1929,19 +1939,44 @@ function traceLogDumpR2 () {
   return res;
 }
 
+function objectToString (o) {
+  console.error(JSON.stringify(o));
+  const r = Object.keys(o).map((k) => {
+    try {
+      const p = ptr(o[k]);
+      if (isObjC(p)) {
+        const o = new ObjC.Object(p);
+        return k + ': ' + o.toString();
+      }
+      const str = Memory.readCString(p);
+      if (str.length > 2) {
+        return k + ': "' + str + '"';
+      }
+    } catch (e) {
+    }
+    return k + ': ' + o[k];
+  }).join(' ');
+  return '(' + r + ')';
+}
+
 function tracelogToString (l) {
-  return [l.source, l.name || l.address, JSON.stringify(l.values)].join('\t');
+  return [l.source, l.name || l.address, objectToString(l.values)].join('\t');
 }
 
 function traceLogDump () {
   return logs.map(tracelogToString).join('\n');
 }
 
-function traceLogClear () {
-  const output = log;
+function traceLogClear (args) {
+  // TODO: clear one trace instead of all
+  console.error('ARGS', JSON.stringify(args));
+  return traceLogClearAll();
+}
+
+function traceLogClearAll () {
   logs = [];
   traces = {};
-  return output;
+  return '';
 }
 
 function traceLog (msg) {
@@ -1972,20 +2007,10 @@ function traceRegs (args) {
   if (haveTraceAt(address)) {
     return 'There\'s already a trace in here';
   }
-  const currentModule = Process.getModuleByAddress(address);
-  const traceListener = {
-    source: 'dtr',
-    hits: 0,
-    at: address,
-    moduleName: currentModule ? currentModule.name : 'unknown',
-    name: args[0],
-    listener: listener,
-    args: rest
-  };
   const rest = args.slice(1);
+  const currentModule = Process.getModuleByAddress(address);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
-    // const at = nameFromAddress(address);
     traceListener.hits++;
     const regState = {};
     rest.map((r) => {
@@ -2022,6 +2047,15 @@ function traceRegs (args) {
     }
     traceLog(traceMessage);
   }
+  const traceListener = {
+    source: 'dtr',
+    hits: 0,
+    at: address,
+    moduleName: currentModule ? currentModule.name : 'unknown',
+    name: args[0],
+    listener: listener,
+    args: rest
+  };
   traceListeners.push(traceListener);
   return '';
 }
@@ -2182,15 +2216,6 @@ function traceReal (name, addressString) {
     return;
   }
   const currentModule = Process.getModuleByAddress(address);
-  const traceListener = {
-    source: 'dt',
-    at: address,
-    hits: 0,
-    name: name,
-    moduleName: currentModule ? currentModule.name : 'unknown',
-    args: '',
-    listener: listener
-  };
   const listener = Interceptor.attach(address, function (args) {
     const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     let script = 'f trace.' + address + ' = ' + address + '\n';
@@ -2222,6 +2247,15 @@ function traceReal (name, addressString) {
     traceListener.hits++;
     traceLog(traceMessage);
   });
+  const traceListener = {
+    source: 'dt',
+    at: address,
+    hits: 0,
+    name: name,
+    moduleName: currentModule ? currentModule.name : 'unknown',
+    args: '',
+    listener: listener
+  };
   traceListeners.push(traceListener);
   return '';
 }
