@@ -2043,7 +2043,7 @@ function traceHere () {
 }
 
 function traceR2 (args) {
-  return traceListeners.map(_ => `dt+ ${_.at} ${_.count}`).join('\n');
+  return traceListeners.map(_ => `dt+ ${_.at} ${_.hits}`).join('\n');
 }
 
 function traceJava (klass, method) {
