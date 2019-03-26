@@ -1250,7 +1250,7 @@ function listFileDescriptorsJson (args) {
       return undefined;
     }
     try {
-      // TODO: port this to Linux, Android, iOS
+      // TODO: port this to iOS
       const F_GETPATH = 50; // on macOS
       const buffer = Memory.alloc(PATH_MAX);
       const addr = Module.getExportByName(null, 'fcntl');
@@ -1984,6 +1984,7 @@ function traceLog (msg) {
     console.error(tracelogToString(msg));
   }
   logs.push(msg);
+  global.r2frida.logs = logs;
 }
 
 function haveTraceAt (address) {
@@ -2217,32 +2218,12 @@ function traceReal (name, addressString) {
   }
   const currentModule = Process.getModuleByAddress(address);
   const listener = Interceptor.attach(address, function (args) {
-    const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-    let script = 'f trace.' + address + ' = ' + address + '\n';
-    var prev = address;
-    var prevName = nameFromAddress(prev);
-    script += 'agn ' + prevName;
-    for (let i in frames) {
-      var frame = frames[i];
-      var addr = ('' + frame).split(' ')[0];
-      var addrName = nameFromAddress(ptr(addr));
-      script += 'f trace.for.' + address + '.from.' + addr + ' = ' + prev + '\n';
-      if (!traces[prev + addr]) {
-        script += 'agn ' + addrName + '\n';
-        script += 'agn ' + prevName + '\n';
-        script += 'age ' + prevName + ' ' + addrName + '\n';
-        traces[prev + addr] = true;
-      }
-      prevName = addrName;
-      prev = addr;
-    }
     const values = tracehook(address, args);
     const traceMessage = {
       source: 'dt',
       address: address,
       timestamp: new Date(),
       values: values,
-      script: script,
     };
     traceListener.hits++;
     traceLog(traceMessage);
@@ -3189,6 +3170,9 @@ function hostCmd (cmd) {
     sendCommand(cmd, serial);
   });
 }
+
+global.r2frida.hostCmd = hostCmd;
+global.r2frida.logs = logs;
 
 function sendCommand (cmd, serial) {
   function sendIt () {
