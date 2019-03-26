@@ -125,7 +125,7 @@ const commandHandlers = {
   'iEa': lookupExport,
   'iEa*': lookupExportR2,
   'iEaj': lookupExportJson,
-/*
+  /*
 // duplicated and unused, one greps, the other lists. wip
   'iEa': listAllExports,
   'iEaj': listAllExportsJson,
@@ -950,8 +950,8 @@ function lookupSymbolJson (args) {
   } else {
     let [symbolName] = args;
     var fcns = DebugSymbol.findFunctionsNamed(symbolName);
-    return fcns.map((f) => { return { name: symbolName, address: f }});
-/*
+    return fcns.map((f) => { return { name: symbolName, address: f }; });
+    /*
     var at = DebugSymbol.fromName(symbolName);
     if (at.name) {
       return [{
@@ -1710,9 +1710,13 @@ function dlopen (args) {
 
 function formatArgs (args, fmt) {
   const a = [];
-  let j = 0;
+  let arg; let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
-    const arg = args[j];
+    try {
+      arg = args[j];
+    } catch (err) {
+      console.error('invalid format', i);
+    }
     switch (fmt[i]) {
       case '+':
       case '^':
@@ -1780,10 +1784,13 @@ function cloneArgs (args, fmt) {
 
 function _readUntrustedUtf8 (address, length) {
   try {
-    return Memory.readUtf8String(ptr(address), length);
+    if (typeof length === 'number') {
+      return Memory.readUtf8String(ptr(address), length);
+    }
+    return Memory.readUtf8String(ptr(address));
   } catch (e) {
     if (e.message !== 'invalid UTF-8') {
-      throw e;
+      // ignore error throw e;
     }
     return '(invalid utf8)';
   }
@@ -1840,14 +1847,29 @@ function traceFormat (args) {
     address = offset;
     format = args[0];
   }
+  if (haveTraceAt(address)) {
+    return 'There\'s already a trace in here';
+  }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
   const at = nameFromAddress(address);
 
+  const currentModule = Process.getModuleByAddress(address);
+  const traceListener = {
+    source: 'dtf',
+    hits: 0,
+    at: ptr(address),
+    name: name,
+    moduleName: currentModule ? currentModule.name : '',
+    format: format,
+    listener: listener
+  };
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
+    keepArgs: [],
     onEnter: function (args) {
+      traceListener.hits++;
       if (!traceOnEnter) {
         this.keepArgs = cloneArgs(args, format);
       } else {
@@ -1857,31 +1879,37 @@ function traceFormat (args) {
         this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
       }
       if (traceOnEnter) {
-        console.log(at, this.myArgs);
-        if (traceBacktrace) {
-          console.log(this.myBacktrace.join('\n    '));
+        const traceMessage = {
+          source: 'dtf',
+          name: name,
+          address: address,
+          timestamp: new Date(),
+          values: this.myArgs,
+        };
+        if (config.getBoolean('hook.backtrace')) {
+          traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
+        traceLog(traceMessage);
       }
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
         this.myArgs = formatArgs(this.keepArgs, format);
-        console.log(at, this.myArgs, '=', retval);
-        if (traceBacktrace) {
-          console.log(this.myBacktrace.join('\n    '));
+        const traceMessage = {
+          source: 'dtf',
+          name: name,
+          address: address,
+          timestamp: new Date(),
+          values: this.myArgs,
+        };
+        if (config.getBoolean('hook.backtrace')) {
+          traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
+        traceLog(traceMessage);
       }
     }
   });
-  const currentModule = Process.getModuleByAddress(address);
-  traceListeners.push({
-    source: 'dtf',
-    at: ptr(address),
-    name: name,
-    moduleName: currentModule ? currentModule.name : '',
-    format: format,
-    listener: listener
-  });
+  traceListeners.push(traceListener);
   return true;
 }
 
@@ -2043,12 +2071,12 @@ function traceJson (args) {
       const narg = getPtr(arg);
       if (narg) {
         traceReal(arg, narg);
-        pull ();
-      } else {
-      numEval(arg).then(function (at) {
-        console.error(traceReal(arg, at));
         pull();
-      }).catch(reject);
+      } else {
+        numEval(arg).then(function (at) {
+          console.error(traceReal(arg, at));
+          pull();
+        }).catch(reject);
       }
     })();
   });
@@ -2153,11 +2181,11 @@ function traceReal (name, addressString) {
   }
   const currentModule = Process.getModuleByAddress(address);
   const traceListener = {
+    source: 'dt',
     at: address,
     hits: 0,
     name: name,
     moduleName: currentModule ? currentModule.name : 'unknown',
-    source: 'dt',
     args: '',
     listener: listener
   };
@@ -2197,7 +2225,7 @@ function traceReal (name, addressString) {
 }
 
 function clearAllTrace (args) {
-  traceListeners.splice(0).forEach(lo => lo.listener.detach());
+  traceListeners.splice(0).forEach(lo => lo.listener ? lo.listener.detach() : null);
   return '';
 }
 
