@@ -1792,7 +1792,7 @@ function _readUntrustedUtf8 (address, length) {
 function traceList () {
   let count = 0;
   return traceListeners.map((t) => {
-    return [count++, t.at, t.source, t.moduleName, t.name, t.args].join('\t');
+    return [count++, t.hits, t.at, t.source, t.moduleName, t.name, t.args].join('\t');
   }).join('\n');
 }
 
@@ -1942,10 +1942,21 @@ function traceRegs (args) {
   if (haveTraceAt(address)) {
     return 'There\'s already a trace in here';
   }
+  const currentModule = Process.getModuleByAddress(address);
+  const traceListener = {
+    source: 'dtr',
+    hits: 0,
+    at: address,
+    moduleName: currentModule ? currentModule.name : 'unknown',
+    name: args[0],
+    listener: listener,
+    args: rest
+  };
   const rest = args.slice(1);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
     // const at = nameFromAddress(address);
+    traceListener.hits++;
     const regState = {};
     rest.map((r) => {
       let regName = r;
@@ -1981,15 +1992,7 @@ function traceRegs (args) {
     }
     traceLog(traceMessage);
   }
-  const currentModule = Process.getModuleByAddress(address);
-  traceListeners.push({
-    source: 'dtr',
-    at: address,
-    moduleName: currentModule ? currentModule.name : 'unknown',
-    name: args[0],
-    listener: listener,
-    args: rest
-  });
+  traceListeners.push(traceListener);
   return '';
 }
 
@@ -2011,7 +2014,7 @@ function traceHere () {
 }
 
 function traceR2 (args) {
-  return traceListeners.map(_ => `CC ${_.args} @ ${_.at}`).join('\n');
+  return traceListeners.map(_ => `dt+ ${_.at} ${_.count}`).join('\n');
 }
 
 function traceJava (klass, method) {
@@ -2148,6 +2151,16 @@ function traceReal (name, addressString) {
     }
     return;
   }
+  const currentModule = Process.getModuleByAddress(address);
+  const traceListener = {
+    at: address,
+    hits: 0,
+    name: name,
+    moduleName: currentModule ? currentModule.name : 'unknown',
+    source: 'dt',
+    args: '',
+    listener: listener
+  };
   const listener = Interceptor.attach(address, function (args) {
     const frames = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     let script = 'f trace.' + address + ' = ' + address + '\n';
@@ -2176,17 +2189,10 @@ function traceReal (name, addressString) {
       values: values,
       script: script,
     };
+    traceListener.hits++;
     traceLog(traceMessage);
   });
-  const currentModule = Process.findModuleByAddress(address);
-  traceListeners.push({
-    at: address,
-    name: name,
-    moduleName: currentModule ? currentModule.name : 'unknown',
-    source: 'dt',
-    args: '',
-    listener: listener
-  });
+  traceListeners.push(traceListener);
   return '';
 }
 
