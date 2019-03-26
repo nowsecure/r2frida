@@ -1790,7 +1790,8 @@ function _readUntrustedUtf8 (address, length) {
     return Memory.readUtf8String(ptr(address));
   } catch (e) {
     if (e.message !== 'invalid UTF-8') {
-      // ignore error throw e;
+      // TODO: just use this, doo not mess with utf8 imho
+      return Memory.readCString(ptr(address));
     }
     return '(invalid utf8)';
   }
@@ -1928,7 +1929,7 @@ function traceLogDumpR2 () {
 }
 
 function tracelogToString (l) {
-  return [l.source, l.address, JSON.stringify(l.values)].join('\t');
+  return [l.source, l.name || l.address, JSON.stringify(l.values)].join('\t');
 }
 
 function traceLogDump () {
