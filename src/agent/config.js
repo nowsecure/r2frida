@@ -131,7 +131,7 @@ function isTrue (x) {
   return (x === true || x === 1 || x === 'true');
 }
 function asR2Script () {
-  Object.keys(config)
+  return Object.keys(config)
     .map(k => 'e ' + k + '=' + config[k])
     .join('\n');
 }
