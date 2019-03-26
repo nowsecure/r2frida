@@ -98,15 +98,18 @@ const commandHandlers = {
 
   'ia': listAllHelp,
 
-  'ias': listAllSymbols, // SLOW
-  'iasj': listAllSymbolsJson,
-  'ias*': listAllSymbolsR2,
+  'iAs': listAllSymbols, // SLOW
+  'iAsj': listAllSymbolsJson,
+  'iAs*': listAllSymbolsR2,
 
   'is': listSymbols,
   'is.': lookupSymbolHere,
   'isj': listSymbolsJson,
   'is*': listSymbolsR2,
 
+  'ias': lookupSymbol,
+  'ias*': lookupSymbolR2,
+  'iasj': lookupSymbolJson,
   'isa': lookupSymbol,
   'isa*': lookupSymbolR2,
   'isaj': lookupSymbolJson,
@@ -946,6 +949,9 @@ function lookupSymbolJson (args) {
 */
   } else {
     let [symbolName] = args;
+    var fcns = DebugSymbol.findFunctionsNamed(symbolName);
+    return fcns.map((f) => { return { name: symbolName, address: f }});
+/*
     var at = DebugSymbol.fromName(symbolName);
     if (at.name) {
       return [{
@@ -957,22 +963,15 @@ function lookupSymbolJson (args) {
     const modules = Process.enumerateModules();
     let address = ptr(0);
     let moduleName = '';
+    let res = [];
     for (let m of modules) {
-      Module.enumerateSymbols(m.name).filter(function (s) {
-        if (s.name === symbolName) {
-          moduleName = m.name;
-          address = s.address;
-        }
-      });
-      if (address.compare(ptr(0))) {
-        return [];
+      const s = Module.findExportByName(m.name, symbolName);
+      if (s) {
+        res.push(s);
       }
     }
-    return [{
-      library: moduleName,
-      name: symbolName,
-      address: address
-    }];
+    return res;
+*/
   }
 }
 
