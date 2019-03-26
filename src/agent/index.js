@@ -72,6 +72,7 @@ const commandHandlers = {
   // '.': // this is implemented in C
   'i': dumpInfo,
   'e': evalConfig,
+  'e*': evalConfigR2,
   'e/': evalConfigSearch,
   'i*': dumpInfoR2,
   'ij': dumpInfoJson,
@@ -2802,6 +2803,10 @@ e search.to=${to}
 e anal.in=raw
 e anal.from=${from}
 e anal.to=${to}`;
+}
+
+function evalConfigR2 (args) {
+  return config.asR2Script();
 }
 
 function evalConfig (args) {
