@@ -2607,7 +2607,7 @@ dts[*j] seconds            Trace all threads for given seconds using the stalker
 function perform (params) {
   const { command } = params;
 
-  const tokens = command.split(/ /);
+  const tokens = command.split(/ /).map((c) => c.trim()).filter((x) => x);
   const [name, ...args] = tokens;
   if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
     const prefix = name.substring(0, name.length - 1);
