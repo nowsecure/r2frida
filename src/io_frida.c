@@ -557,7 +557,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 					entry = "main";
 				}
 				frida_device_inject_library_file_sync (rf->device,
-					rf->pid, path, entry, NULL, &error);
+					rf->pid, path, entry, "", &error);
 				free (path);
 			}
 			if (error) {
