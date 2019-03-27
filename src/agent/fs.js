@@ -101,12 +101,14 @@ class FridaFS {
 
     const actualPath = this.transform.toActual(path);
     if (actualPath !== null) {
+      const entryBuf = Memory.alloc(Process.pageSize);
+      const resultPtr = Memory.alloc(Process.pointerSize);
       const dir = this.api.opendir(actualPath);
       if (dir === null) {
         return '';
       }
       let entry;
-      while ((entry = this.api.readdir(dir)) !== null) {
+      while ((entry = this.api.readdir(dir, entryBuf, resultPtr)) !== null) {
         if (!this._excludeSet.has(entry.name)) {
           result.push(`${this._getEntryType(entry.type)} ${entry.name}`);
         }
@@ -349,7 +351,7 @@ class PosixFSApi {
 
   get api () {
     if (this._api === null) {
-      const exports = resolveExports(['opendir', 'readdir', 'closedir', 'fopen', 'fclose', 'fread']);
+      const exports = resolveExports(['opendir', 'readdir_r', 'closedir', 'fopen', 'fclose', 'fread']);
       const available = Object.keys(exports).filter(name => exports[name] === null).length === 0;
       if (!available) {
         throw new Error('ERROR: is this a POSIX system?');
@@ -357,7 +359,7 @@ class PosixFSApi {
 
       this._api = {
         opendir: new NativeFunction(exports.opendir, 'pointer', ['pointer']),
-        readdir: new NativeFunction(exports.readdir, 'pointer', ['pointer']),
+        readdir: new NativeFunction(exports.readdir_r, 'int', ['pointer', 'pointer', 'pointer']),
         closedir: new NativeFunction(exports.closedir, 'int', ['pointer']),
         fopen: new NativeFunction(exports.fopen, 'pointer', ['pointer', 'pointer']),
         fclose: new NativeFunction(exports.fclose, 'int', ['pointer']),
@@ -387,8 +389,9 @@ class PosixFSApi {
     return result;
   }
 
-  readdir (dir) {
-    const result = this.api.readdir(dir);
+  readdir (dir, entryBuf, resultPtr) {
+    const success = this.api.readdir(dir, entryBuf, resultPtr);
+    const result = resultPtr.readPointer();
     if (result.isNull()) {
       return null;
     }
@@ -545,7 +548,6 @@ function encodeBuf (buf, size, encoding) {
 
   const result = [];
 
-  console.error('ENCODE BUF');
   for (let i = 0; i < size; i++) {
     const val = Memory.readU8(buf.add(i));
     const valHex = val.toString(16);
