@@ -942,17 +942,21 @@ function lookupSymbolJson (args) {
       name: symbolName,
       address: address
     }];
-    /*
-    return [{
-      library: moduleName,
-      name: symbolName,
-      address: address
-    }];
-*/
   } else {
     let [symbolName] = args;
+    const res = getPtr(symbolName);
+    if (res) {
+      return [{
+        library: 'objc', // CLASS NAME HERE
+        name: symbolName, // METHOD NAME HERE
+        address: res
+      }];
+    }
     var fcns = DebugSymbol.findFunctionsNamed(symbolName);
-    return fcns.map((f) => { return { name: symbolName, address: f }; });
+    if (fcns) {
+      return fcns.map((f) => { return { name: symbolName, address: f }; });
+    }
+
     /*
     var at = DebugSymbol.fromName(symbolName);
     if (at.name) {
@@ -962,17 +966,6 @@ function lookupSymbolJson (args) {
         address: at.address
       }];
     }
-    const modules = Process.enumerateModules();
-    let address = ptr(0);
-    let moduleName = '';
-    let res = [];
-    for (let m of modules) {
-      const s = Module.findExportByName(m.name, symbolName);
-      if (s) {
-        res.push(s);
-      }
-    }
-    return res;
 */
   }
 }
@@ -1822,6 +1815,34 @@ function traceListJson () {
 
 function getPtr (p) {
   p = p.trim();
+  if (p.indexOf(':objc:') !== -1) {
+    const kv = p.split(':objc:');
+    const klass = ObjC.classes[kv[0]];
+    if (klass === undefined) {
+      throw new Error('Class ' + kv[0] + ' not found');
+    }
+    let found = null;
+    let firstFail = false;
+    let oldMethodName = null;
+    for (let methodName of klass.$ownMethods) {
+      let method = klass[methodName];
+      if (methodName.indexOf(kv[1]) !== -1) {
+        if (found) {
+          if (!firstFail) {
+            console.error(found.implementation, oldMethodName);
+            firstFail = true;
+          }
+          console.error(method.implementation, methodName);
+        }
+        found = method;
+        oldMethodName = methodName;
+      }
+    }
+    if (firstFail) {
+      return ptr(0);
+    }
+    return found ? found.implementation : ptr(0);
+  }
   if (!p || p === '$$') {
     return ptr(offset);
   }
@@ -1856,6 +1877,9 @@ function traceFormat (args) {
   if (args.length === 2) {
     address = '' + getPtr(name);
     format = args[1];
+  } else if (args.length === 1) {
+    address = '' + getPtr(name);
+    format = '';
   } else {
     address = offset;
     format = args[0];
