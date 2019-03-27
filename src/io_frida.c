@@ -548,16 +548,18 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
-			gchar *path = strdup (command + 4);
-			gchar *entry = strchr (path, ' ');
-			if (entry) {
-				*entry++ = 0;
-			} else {
-				entry = "main";
+			gchar *path = strdup (r_str_trim_ro (command + 3));
+			if (path) {
+				gchar *entry = strchr (path, ' ');
+				if (entry) {
+					*entry++ = 0;
+				} else {
+					entry = "main";
+				}
+				frida_device_inject_library_file_sync (rf->device,
+					rf->pid, path, entry, NULL, &error);
+				free (path);
 			}
-			frida_device_inject_library_file_sync (rf->device,
-				rf->pid, path, entry, NULL, &error);
-			free (path);
 			if (error) {
 				io->cb_printf ("frida_device_inject_library_file_sync: %s\n", error->message);
 				g_clear_error (&error);
