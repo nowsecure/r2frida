@@ -1815,18 +1815,27 @@ function traceListJson () {
 
 function getPtr (p) {
   p = p.trim();
-  if (p.indexOf(':objc:') !== -1) {
-    const kv = p.split(':objc:');
-    const klass = ObjC.classes[kv[0]];
+  if (p.startsWith('objc:')) {
+    p = p.substring (5);
+    let dot = p.indexOf('.');
+    if (dot === -1) {
+      dot = p.indexOf(':');
+      if (dot === -1) {
+        throw new Error('r2fridas ObjC class syntax is: objc:CLASSNAME.METHOD');
+      }
+    }
+    const kv0 = p.substring(0, dot);
+    const kv1 = p.substring(dot + 1);
+    const klass = ObjC.classes[kv0];
     if (klass === undefined) {
-      throw new Error('Class ' + kv[0] + ' not found');
+      throw new Error('Class ' + kv0 + ' not found');
     }
     let found = null;
     let firstFail = false;
     let oldMethodName = null;
     for (let methodName of klass.$ownMethods) {
       let method = klass[methodName];
-      if (methodName.indexOf(kv[1]) !== -1) {
+      if (methodName.indexOf(kv1) !== -1) {
         if (found) {
           if (!firstFail) {
             console.error(found.implementation, oldMethodName);
