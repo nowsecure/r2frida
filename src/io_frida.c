@@ -21,6 +21,13 @@ typedef struct {
 } RFPendingCmd;
 
 typedef struct {
+	char *device_id;
+	char *process_specifier;
+	guint pid;
+	bool spawn;
+} R2FridaLaunchOptions;
+
+typedef struct {
 	FridaDevice *device;
 	FridaSession *session;
 	FridaScript *script;
@@ -43,9 +50,9 @@ typedef struct {
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool * spawn);
+static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo);
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device);
-static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid);
+static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo);
 static JsonBuilder *build_request(const char *type);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
@@ -92,6 +99,19 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->suspended = false;
 
 	return rf;
+}
+
+static R2FridaLaunchOptions *r2frida_launchopt_new (const char *pathname) {
+	R2FridaLaunchOptions *lo = R_NEW0(R2FridaLaunchOptions);
+	if (lo) {
+		// lo
+	}
+	return lo;
+}
+
+static void r2frida_launchopt_free(R2FridaLaunchOptions *lo) {
+	g_free (lo->device_id);
+	g_free (lo->process_specifier);
 }
 
 static void r_io_frida_free(RIOFrida *rf) {
@@ -163,10 +183,12 @@ static bool user_wants_v8() {
 
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	RIOFrida *rf;
-	char *device_id = NULL, *process_specifier = NULL;
-	guint pid;
 	GError *error = NULL;
-	bool spawn;
+
+	R2FridaLaunchOptions *lo = r2frida_launchopt_new (pathname);
+	if (!lo) {
+		return NULL;
+	}
 
 	frida_init ();
 
@@ -184,20 +206,22 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (!parse_target (pathname, &device_id, &process_specifier, &spawn)) {
+	if (!parse_target (pathname, lo)) {
+		goto error;
+	}
+	if (!lo->device_id) {
+		goto error;
+	}
+	if (!resolve_device (device_manager, lo->device_id, &rf->device)) {
 		goto error;
 	}
 
-	if (!resolve_device (device_manager, device_id, &rf->device)) {
+	if (!lo->spawn && !resolve_process (rf->device, lo)) {
 		goto error;
 	}
 
-	if (!spawn && !resolve_process (rf->device, process_specifier, &pid)) {
-		goto error;
-	}
-
-	if (spawn) {
-		char **argv = r_str_argv (process_specifier, NULL);
+	if (lo->spawn) {
+		char **argv = r_str_argv (lo->process_specifier, NULL);
 		if (!argv) {
 			eprintf ("Invalid process specifier\n");
 			goto error;
@@ -224,7 +248,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 		rf->suspended = true;
 	} else {
-		rf->pid = pid;
+		rf->pid = lo->pid;
 		rf->suspended = false;
 	}
 
@@ -257,8 +281,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	g_free (device_id);
-	g_free (process_specifier);
+	r2frida_launchopt_free (lo);
 
 	const char *autocompletions[] = {
 		"!!!\\eval",
@@ -327,8 +350,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 error:
 	g_clear_error (&error);
 
-	g_free (device_id);
-	g_free (process_specifier);
+	r2frida_launchopt_free (lo);
 
 	r_io_frida_free (rf);
 
@@ -686,14 +708,87 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	return sys_result;
 }
 
-static bool parse_target(const char *pathname, char **device_id, char **process_specifier, bool *spawn) {
-	const char *first_field, *second_field;
+static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunchOptions *lo) {
+	if (!strcmp (path, "spawn")) {
+		lo->device_id = NULL;
+		lo->spawn = true;
+#if __UNIX__
+		char *abspath = r_file_path (arg);
+		lo->process_specifier = g_strdup (abspath? abspath: arg);
+#else
+		lo->process_specifier = g_strdup (arg);
+#endif
+		return true;
+	}
+	if (!strcmp (path, "attach")) {
+		lo->device_id = NULL;
+		lo->process_specifier = g_strdup (arg);
+		if (arg) {
+			lo->pid = atoi (arg);
+		} else {
+			eprintf ("Cannot attach without arg\n");
+		}
+		return true;
+	}
+	if (!strcmp (path, "usb")) {
+		char *rest = g_strdup (arg);
+		char *slash = strchr (rest, '/');
+		if (slash) {
+			*slash++ = 0;
+			lo->pid = atoi (slash);
+			lo->device_id = rest;
+			lo->process_specifier = g_strdup (slash);
+		} else {
+			// TODO: reimplement in C
+			if (*rest) {
+				system ("frida-ps -U 2> /dev/null");
+			} else {
+				system ("frida-ls-devices");
+			}
+			free (rest);
+		}
+		return true;
+	}
+	// remote device
+	if (!strcmp (path, "connect")) {
+		// host:port
+		lo->device_id = g_strdup (arg);
+		char *slash = strchr (lo->device_id, '/');
+		if (slash) {
+			*slash++ = 0;
+			lo->pid = atoi (slash);
+			lo->process_specifier = g_strdup (slash);
+		} else {
+			eprintf ("Usage: r2 frida://connect/ip:port/pid\n");
+			eprintf ("Note: no hostname resolution supported yet.\n");
+		}
+		return true;
+	}
+	return false;
+}
 
-	first_field = pathname + 8;
-	*spawn = false;
+static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
+	const char *first_field = pathname + 8;
+	if (!strcmp (first_field, "?")) {
+		eprintf ("r2 frida://[action]/[target]\n");
+		eprintf ("* target = process-id | process-name | app-name\n");
+		eprintf ("* program = find-in-path | absolute-path\n");
+		eprintf ("* peer = ip-address:port\n");
+		eprintf ("Examples:\n");
+		eprintf ("* frida://spawn/$(program)\n");
+		eprintf ("* frida://attach/(target)\n");
+		eprintf ("* frida://usb/$(device)/$(target)\n");
+		eprintf ("* frida://remote/$(peer)/$(target)\n");
+		eprintf ("Bonus:\n");
+		eprintf ("* frida://usb/         # list devices\n");
+		eprintf ("* frida://usb/$(peer)  # list process-names\n");
+		return false;
+	}
+	lo->spawn = false;
+	const char *second_field;
 	if (*first_field == '/' || !strncmp (first_field, "./", 2)) {
 		// frida:///path/to/file
-		*spawn = true;
+		lo->spawn = true;
 		second_field = NULL;
 	} else {
 		// frida://device/...
@@ -702,22 +797,28 @@ static bool parse_target(const char *pathname, char **device_id, char **process_
 
 	if (!second_field) {
 		// frida://process or frida:///path/to/file
-		*device_id = NULL;
-		*process_specifier = g_strdup (first_field);
+		lo->device_id = NULL;
+		lo->process_specifier = g_strdup (first_field);
 		return true;
 	}
 	second_field++;
 
-	*device_id = g_strndup (first_field, second_field - first_field - 1);
+	char *first_word = g_strndup (first_field, second_field - first_field - 1);
+
+	if (parse_device_id_as_uriroot (first_word, second_field, lo)) {
+		free (first_word);
+		return true;
+	}
+	lo->device_id = first_word;
 
 	if (*second_field == '/') {
 		// frida://device//com.your.app
-		*spawn = true;
+		lo->spawn = true;
 		second_field++;
 	}
 
 	// frida://device/process or frida://device//com.your.app
-	*process_specifier = g_strdup (second_field);
+	lo->process_specifier = g_strdup (second_field);
 	return true;
 }
 
@@ -743,25 +844,28 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 	return true;
 }
 
-static bool resolve_process(FridaDevice *device, const char *process_specifier, guint *pid) {
-	int number;
-	FridaProcess *process;
+static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo) {
 	GError *error = NULL;
 
-	number = atoi (process_specifier);
-	if (number) {
-		*pid = number;
+	if (lo->process_specifier) {
+		int number = atoi (lo->process_specifier);
+		if (number) {
+			lo->pid = number;
+			return true;
+		}
+	} else if (lo->pid) {
 		return true;
 	}
 
-	process = frida_device_get_process_by_name_sync (device, process_specifier, 0, NULL, &error);
+	FridaProcess *process = frida_device_get_process_by_name_sync (
+		device, lo->process_specifier, 0, NULL, &error);
 	if (error != NULL) {
 		eprintf ("%s\n", error->message);
 		g_error_free (error);
 		return false;
 	}
 
-	*pid = frida_process_get_pid (process);
+	lo->pid = frida_process_get_pid (process);
 	g_object_unref (process);
 
 	return true;

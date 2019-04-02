@@ -227,7 +227,6 @@ mrproper: clean
 
 install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
-	#cp -f io_frida.$(SO_EXT) $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
 uninstall:
