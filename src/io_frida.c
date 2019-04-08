@@ -24,6 +24,7 @@ typedef struct {
 	char *device_id;
 	char *process_specifier;
 	guint pid;
+	bool pid_valid;
 	bool spawn;
 } R2FridaLaunchOptions;
 
@@ -60,6 +61,7 @@ static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
+static int atopid(const char *maybe_pid, bool *valid);
 
 // event handlers
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
@@ -209,10 +211,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	if (!parse_target (pathname, lo)) {
 		goto error;
 	}
-	if (!lo->device_id) {
+	if (!resolve_device (device_manager, lo->device_id, &rf->device)) {
 		goto error;
 	}
-	if (!resolve_device (device_manager, lo->device_id, &rf->device)) {
+	if (!rf->device) {
 		goto error;
 	}
 
@@ -709,9 +711,21 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 }
 
 static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunchOptions *lo) {
+	char *slash = strchr (arg, '/');
+	if (slash && !*slash) {
+		slash = NULL;
+	}
 	if (!strcmp (path, "spawn")) {
 		lo->device_id = NULL;
 		lo->spawn = true;
+
+		if (slash && (!strncmp (arg, "usb", slash - arg) || !strncmp (arg, "connect", slash - arg))) {
+			char * first_word = g_strndup (arg, slash - arg);
+			bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
+			g_free (first_word);
+			return result;
+		}
+
 #if __UNIX__
 		char *abspath = r_file_path (arg);
 		lo->process_specifier = g_strdup (abspath? abspath: arg);
@@ -722,9 +736,17 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 	}
 	if (!strcmp (path, "attach")) {
 		lo->device_id = NULL;
+
+		if (slash && (!strncmp (arg, "usb", slash - arg) || !strncmp (arg, "connect", slash - arg))) {
+			char * first_word = g_strndup (arg, slash - arg);
+			bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
+			g_free (first_word);
+			return result;
+		}
+
 		lo->process_specifier = g_strdup (arg);
 		if (arg) {
-			lo->pid = atoi (arg);
+			lo->pid = atopid (arg, &lo->pid_valid);
 		} else {
 			eprintf ("Cannot attach without arg\n");
 		}
@@ -735,7 +757,7 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 		char *slash = strchr (rest, '/');
 		if (slash) {
 			*slash++ = 0;
-			lo->pid = atoi (slash);
+			lo->pid = atopid (slash, &lo->pid_valid);
 			lo->device_id = rest;
 			lo->process_specifier = g_strdup (slash);
 		} else {
@@ -756,7 +778,7 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 		char *slash = strchr (lo->device_id, '/');
 		if (slash) {
 			*slash++ = 0;
-			lo->pid = atoi (slash);
+			lo->pid = atopid (slash, &lo->pid_valid);
 			lo->process_specifier = g_strdup (slash);
 		} else {
 			eprintf ("Usage: r2 frida://connect/ip:port/pid\n");
@@ -848,13 +870,17 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo) {
 	GError *error = NULL;
 
 	if (lo->process_specifier) {
-		int number = atoi (lo->process_specifier);
-		if (number) {
+		int number = atopid (lo->process_specifier, &lo->pid_valid);
+		if (lo->pid_valid) {
 			lo->pid = number;
 			return true;
 		}
-	} else if (lo->pid) {
+	} else if (lo->pid_valid) {
 		return true;
+	}
+
+	if (!lo->process_specifier) {
+		return false;
 	}
 
 	FridaProcess *process = frida_device_get_process_by_name_sync (
@@ -1087,6 +1113,13 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	}
 
 	json_node_unref (message);
+}
+
+static int atopid(const char *maybe_pid, bool *valid) {
+	char *endptr;
+	int number = strtol (maybe_pid, &endptr, 10);
+	*valid = endptr == NULL || (endptr - maybe_pid) == strlen (maybe_pid);
+	return number;
 }
 
 RIOPlugin r_io_plugin_frida = {
