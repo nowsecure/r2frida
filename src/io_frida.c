@@ -801,6 +801,8 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 		eprintf ("* frida://attach/(target)\n");
 		eprintf ("* frida://usb/$(device)/$(target)\n");
 		eprintf ("* frida://remote/$(peer)/$(target)\n");
+		eprintf ("* frida://spawn/usb/$(device)/$(program)\n");
+		eprintf ("* frida://attach/usb/$(device)/$(target)\n");
 		eprintf ("Bonus:\n");
 		eprintf ("* frida://usb/         # list devices\n");
 		eprintf ("* frida://usb/$(peer)  # list process-names\n");
