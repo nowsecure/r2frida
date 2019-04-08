@@ -797,6 +797,10 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 		eprintf ("* program = find-in-path | absolute-path\n");
 		eprintf ("* peer = ip-address:port\n");
 		eprintf ("Examples:\n");
+		eprintf ("* frida://$(target)\n");
+		eprintf ("* frida://$(device)/$(target)\n");
+		eprintf ("* frida:///$(program)\n");
+		eprintf ("* frida://$(device)//$(program)\n");
 		eprintf ("* frida://spawn/$(program)\n");
 		eprintf ("* frida://attach/(target)\n");
 		eprintf ("* frida://usb/$(device)/$(target)\n");
