@@ -1988,7 +1988,7 @@ function traceLogDumpR2 () {
 }
 
 function objectToString (o) {
-  console.error(JSON.stringify(o));
+  // console.error(JSON.stringify(o));
   const r = Object.keys(o).map((k) => {
     try {
       const p = ptr(o[k]);
@@ -2008,7 +2008,11 @@ function objectToString (o) {
 }
 
 function tracelogToString (l) {
-  return [l.source, l.name || l.address, objectToString(l.values)].join('\t');
+  const line = [l.source, l.name || l.address, objectToString(l.values)].join('\t');
+  const bt = (!l.backtrace)? '': l.backtrace.map((b) => {
+    return ['', b.address, b.moduleName, b.name].join('\t');
+  }).join('\n');
+  return line + bt;
 }
 
 function traceLogDump () {
