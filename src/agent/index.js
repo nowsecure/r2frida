@@ -2047,7 +2047,7 @@ function traceLogClearAll () {
 
 function traceLog (msg) {
   if (config.getBoolean('hook.verbose')) {
-    console.error(tracelogToString(msg));
+    console.error('[TRACE]', tracelogToString(msg));
   }
   logs.push(msg);
   global.r2frida.logs = logs;
