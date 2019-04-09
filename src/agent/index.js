@@ -696,8 +696,11 @@ function listModulesQuiet () {
 }
 
 function listModulesR2 () {
+  function flagify(x) {
+    return x.replace(/-/g, '_').replace(/ /g, '');
+  }
   return Process.enumerateModules()
-    .map(m => 'f lib.' + m.name + ' = ' + padPointer(m.base))
+    .map(m => 'f lib.' + flagify(m.name) + ' = ' + padPointer(m.base))
     .join('\n');
 }
 
@@ -784,7 +787,9 @@ function listAllSymbolsR2 (args) {
 }
 
 function listExportsJson (args) {
-  const currentModule = Process.getModuleByAddress(offset);
+  const currentModule = (args.length > 0)
+    ? Process.getModuleByName(args[0])
+    : Process.getModuleByAddress(offset);
   return Module.enumerateExports(currentModule.name);
 }
 
@@ -805,8 +810,9 @@ function listSymbolsR2 (args) {
 }
 
 function listSymbolsJson (args) {
-  const addr = ptr(offset);
-  const currentModule = Process.getModuleByAddress(addr);
+  const currentModule = (args.length > 0)
+    ? Process.getModuleByName(args[0])
+    : Process.getModuleByAddress(offset);
   return Module.enumerateSymbols(currentModule.name);
 }
 
