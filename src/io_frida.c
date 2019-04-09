@@ -719,11 +719,15 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 		lo->device_id = NULL;
 		lo->spawn = true;
 
-		if (slash && (!strncmp (arg, "usb", slash - arg) || !strncmp (arg, "connect", slash - arg))) {
-			char * first_word = g_strndup (arg, slash - arg);
-			bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
-			g_free (first_word);
-			return result;
+		if (slash) {
+			int first_word_len = slash - arg;
+			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
+				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
+				char * first_word = g_strndup (arg, first_word_len);
+				bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
+				g_free (first_word);
+				return result;
+			}
 		}
 
 #if __UNIX__
@@ -737,11 +741,15 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 	if (!strcmp (path, "attach")) {
 		lo->device_id = NULL;
 
-		if (slash && (!strncmp (arg, "usb", slash - arg) || !strncmp (arg, "connect", slash - arg))) {
-			char * first_word = g_strndup (arg, slash - arg);
-			bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
-			g_free (first_word);
-			return result;
+		if (slash) {
+			int first_word_len = slash - arg;
+			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
+				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
+				char * first_word = g_strndup (arg, first_word_len);
+				bool result = parse_device_id_as_uriroot (first_word, slash + 1, lo);
+				g_free (first_word);
+				return result;
+			}
 		}
 
 		lo->process_specifier = g_strdup (arg);
