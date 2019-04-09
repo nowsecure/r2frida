@@ -1,3 +1,5 @@
+'use strict';
+
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
@@ -22,10 +24,7 @@ function getObjCClassPtr (p) {
   if (classP.and(ISA_MAGIC_MASK).equals(ISA_MAGIC_VALUE)) {
     classP = isa.and(ISA_MASK);
   }
-  if (looksValid(classP)) {
-    return classP;
-  }
-  return NULL;
+  return looksValid(classP)? classP: NULL;
 }
 
 function looksValid (p) {

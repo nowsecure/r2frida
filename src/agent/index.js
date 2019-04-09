@@ -166,7 +166,7 @@ const commandHandlers = {
   'dma-': removeAlloc,
   'dp': getPid,
   'dxc': dxCall,
-  'dpj': getPid,
+  'dpj': getPidJson,
   'dpt': listThreads,
   'dptj': listThreadsJson,
   'dr': dumpRegisters,
@@ -1456,6 +1456,10 @@ function changeMemoryProtection (args) {
   Memory.protect(ptr(address), parseInt(size), protection);
 
   return true;
+}
+
+function getPidJson () {
+  return JSON.stringify({pid: getPid()});
 }
 
 function getPid () {
