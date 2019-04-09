@@ -24,7 +24,7 @@ function getObjCClassPtr (p) {
   if (classP.and(ISA_MAGIC_MASK).equals(ISA_MAGIC_VALUE)) {
     classP = isa.and(ISA_MASK);
   }
-  return looksValid(classP)? classP: NULL;
+  return looksValid(classP) ? classP : NULL;
 }
 
 function looksValid (p) {

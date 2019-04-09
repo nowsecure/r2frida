@@ -696,7 +696,7 @@ function listModulesQuiet () {
 }
 
 function listModulesR2 () {
-  function flagify(x) {
+  function flagify (x) {
     return x.replace(/-/g, '_').replace(/ /g, '');
   }
   return Process.enumerateModules()
@@ -1154,7 +1154,6 @@ function listJavaClassesJsonSync (args) {
     return methods;
   }
   let classes;
-  /* list all classes */
   Java.perform(function () {
     try {
       classes = Java.enumerateLoadedClasses();
@@ -1162,34 +1161,33 @@ function listJavaClassesJsonSync (args) {
       classes = null;
     }
   });
-  // eslint-disable-next-line
-  while (classes === undefined) {
-    /* wait here */
-    setTimeout(null, 0);
-  }
   return classes;
 }
 
 // eslint-disable-next-line
 function listJavaClassesJson (args) {
-  return new Promise(function (resolve, reject) {
-    if (args.length === 1) {
-      /* list methods */
-      Java.perform(function () {
-        var obj = Java.use(args[0]);
-        resolve(JSON.stringify(obj, null, '  '));
-      });
-      return;
-    }
-    /* list all classes */
+  const res = [];
+  if (args.length === 1) {
+    let result = [];
     Java.perform(function () {
-      try {
-        resolve(Java.enumerateLoadedClasses().join('\n'));
-      } catch (e) {
-        reject(e);
-      }
+      var obj = Java.use(args[0]);
+      result = obj['$classWrapper'].dispose();
     });
+    return result;
+  }
+  Java.perform(function () {
+    try {
+      // no need to onComplete, because this method is Sync already
+      Java.enumerateLoadedClasses({
+        onMatch: function (className) {
+          res.push(className);
+        }
+      });
+    } catch (e) {
+      console.error(e);
+    }
   });
+  return res;
 }
 
 function listClassesJson (args) {
@@ -1465,7 +1463,7 @@ function changeMemoryProtection (args) {
 }
 
 function getPidJson () {
-  return JSON.stringify({pid: getPid()});
+  return JSON.stringify({ pid: getPid() });
 }
 
 function getPid () {
