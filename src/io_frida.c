@@ -166,7 +166,6 @@ static void pending_cmd_free(RFPendingCmd * pending_cmd) {
 	R_FREE (pending_cmd);
 }
 
-
 static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
 }
@@ -863,7 +862,9 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 	GError *error = NULL;
 
 	if (device_id != NULL) {
-		if (strchr (device_id, ':')) {
+		if (!*device_id) { // "frida://attach/usb//Safari"
+			*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_USB, 0, NULL, &error);
+		} else if (strchr (device_id, ':')) {
 			*device = frida_device_manager_add_remote_device_sync (manager, device_id, &error);
 		} else {
 			*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, NULL, &error);

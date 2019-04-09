@@ -331,7 +331,7 @@ function dxCall (args) {
 Usage: dxc [funcptr] [arg0 arg1..]
 For example:
  =!dxc write 1 "hello\\n" 6
- =!dxc read 0 `?v rsp` 10
+ =!dxc read 0 \`?v rsp\` 10
 `;
   }
   // push arguments
