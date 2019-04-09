@@ -326,6 +326,14 @@ function _addAlloc (allocPtr) {
 function dxCall (args) {
   const nfArgs = [];
   const nfArgsData = [];
+  if (args.length === 0) {
+    return `
+Usage: dxc [funcptr] [arg0 arg1..]
+For example:
+ =!dxc write 1 "hello\\n" 6
+ =!dxc read 0 `?v rsp` 10
+`;
+  }
   // push arguments
   for (var i = 1; i < args.length; i++) {
     if (args[i].substring(0, 2) === '0x') {
@@ -335,10 +343,9 @@ function dxCall (args) {
       // string.. join args
       nfArgs.push('pointer');
       const str = args[i].substring(1, args[i].length - 1);
-      const buf = Memory.allocUtf8String(str);
+      const buf = Memory.allocUtf8String(str.replace(/\\n/g, '\n'));
       nfArgsData.push(buf);
-      // TODO: fix memory leak ?
-    } else if (+args[i] > 0) {
+    } else if (+args[i] > 0 || args[i] === '0') {
       nfArgs.push('int');
       nfArgsData.push(+args[i]);
     } else {
