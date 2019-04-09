@@ -1824,6 +1824,10 @@ function traceListJson () {
 function getPtr (p) {
   p = p.trim();
   if (p.startsWith('objc:')) {
+    const hatSign = p.indexOf('^') !== -1;
+    if (hatSign !== -1) {
+      p = p.replace('^', '');
+    }
     const endsWith = p.endsWith('$');
     if (endsWith) {
       p = p.substring(0, p.length - 1);
@@ -1848,6 +1852,9 @@ function getPtr (p) {
     for (let methodName of klass.$ownMethods) {
       let method = klass[methodName];
       if (methodName.indexOf(kv1) !== -1) {
+        if (hatSign && !methodName.substring(2).startsWith(kv1)) {
+          continue;
+        }
         if (endsWith && !methodName.endsWith(kv1)) {
           continue;
         }
