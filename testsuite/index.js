@@ -1,13 +1,11 @@
+'use strict';
+
 const r2pipe = require('r2pipe-promise');
 
 async function test(name, uri, check) {
   const r2 = await r2pipe.open('frida://spawn/rax2');
   const res = await check(r2);
-  if (res) {
-    console.error('[OK]', name);
-  } else {
-    console.error('[XX]', name);
-  }
+  console.error(res? '\x1b[32m[OK]\x1b[0m': '\x1b[31m[XX]\x1b[0m', name);
   return r2.quit();
 }
 
@@ -20,9 +18,14 @@ async function r2fridaTestSpawn() {
 }
 
 async function r2fridaTestEntrypoint() {
-  return test('entrypoint', 'frida://spawn/rax2', async function (r2) {
+  await test('entrypoint', 'frida://spawn/rax2', async function (r2) {
     const entry = await r2.cmd('=!ie');
     return entry.startsWith('0x');
+  });
+  await test('entrypoint code', 'frida://spawn/rax2', async function (r2) {
+    await r2.cmd('.=!ie*;s entry0');
+    const entry = await r2.cmd('pd 10~invalid?');
+    return entry.trim() === '0';
   });
 }
 
@@ -33,11 +36,22 @@ async function r2fridaTestLibs() {
   });
 }
 
+async function r2fridaTestFrida() {
+  return test('frida', 'frida://', async function (r2) {
+    // XXX cant read console output
+    // await r2.cmd('\\ console.log(123) > .a');
+    // const n123 = await r2.cmd('cat .a;rm .a');
+    const r = await r2.cmd('\\dxc write 1 "" 4');
+    return r.indexOf('"0x4"') !== -1;
+  });
+}
+
 async function run() {
   console.log('[--] Running the r2frida testsuite...');
   await r2fridaTestSpawn();
   await r2fridaTestEntrypoint();
   await r2fridaTestLibs();
+  await r2fridaTestFrida();
 }
 
 run().then((x) => {
