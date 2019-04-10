@@ -171,6 +171,7 @@ const commandHandlers = {
   'dptj': listThreadsJson,
   'dr': dumpRegisters,
   'dr*': dumpRegistersR2,
+  'drr': dumpRegistersRecursively,
   'drp': dumpRegisterProfile,
   'dr8': dumpRegisterArena,
   'drj': dumpRegistersJson,
@@ -1618,16 +1619,70 @@ function dumpRegisterArena (args) {
   return buf.toString('hex');
 }
 
+function regcursive (regname, regvalue) {
+  const data = [regvalue];
+  try {
+    const str = Memory.readCString(regvalue, 32);
+    if (str && str.length > 3) {
+      const printableString = str.replace(/[^\x20-\x7E]/g, '');
+      data.push('\'' + printableString + '\'');
+    }
+    const ptr = regvalue.readPointer();
+    data.push('=>');
+    data.push(regcursive(regname, ptr));
+  } catch (e) {
+  }
+  if (regvalue == 0) {
+    data.push('NULL');
+  } else if (regvalue == 0xffffffff) {
+    data.push(-1);
+  } else if (regvalue > ' ' && regvalue < 127) {
+    data.push('\'' + String.fromCharCode(regvalue) + '\'');
+  }
+  try {
+    const module = Process.findModuleByAddress(regvalue);
+    if (module) {
+      data.push(module.name);
+    }
+  } catch (e) {
+  }
+  try {
+    const name = nameFromAddress(regvalue);
+    if (name) {
+      data.push(name);
+    }
+  } catch (e) {
+  }
+  return data.join(' ');
+}
+
+function dumpRegistersRecursively (args) {
+  const [tid] = args;
+  Process.enumerateThreads()
+    .filter(thread => !tid || tid == thread.id)
+    .map(thread => {
+      const { id, state, context } = thread;
+      let res = ['# thread ' + id + ' ' + state];
+      for (let reg of Object.keys(context)) {
+        try {
+          const data = regcursive(reg, context[reg]);
+          res.push(reg + ': ' + data);
+        } catch (e) {
+          res.push(reg);
+        }
+      }
+      console.log(res.join('\n'));
+    });
+  return ''; // nothing to see here
+}
+
 function dumpRegistersR2 (args) {
   const threads = Process.enumerateThreads();
-  let [tidx] = args;
-  if (!tidx) {
-    tidx = 0;
-  }
-  if (tidx < 0 || tidx >= threads.length) {
+  let [tid] = args;
+  const context = tid ? threads.filter(th => th.id == tid) : threads[0].context;
+  if (!context) {
     return '';
   }
-  const context = threads[tidx].context;
   const names = Object.keys(JSON.parse(JSON.stringify(context)));
   names.sort(compareRegisterNames);
   const values = names
@@ -1639,8 +1694,11 @@ function dumpRegistersR2 (args) {
   return values.join('');
 }
 
-function dumpRegisters () {
-  return Process.enumerateThreads()
+function dumpRegisters (args) {
+  const threads = Process.enumerateThreads();
+  let [tid] = args;
+  threads
+    .filter(thread => !tid || thread.id == tid)
     .map(thread => {
       const { id, state, context } = thread;
       const heading = `tid ${id} ${state}`;
@@ -2023,7 +2081,7 @@ function objectToString (o) {
 
 function tracelogToString (l) {
   const line = [l.source, l.name || l.address, objectToString(l.values)].join('\t');
-  const bt = (!l.backtrace)? '': l.backtrace.map((b) => {
+  const bt = (!l.backtrace) ? '' : l.backtrace.map((b) => {
     return ['', b.address, b.moduleName, b.name].join('\t');
   }).join('\n');
   return line + bt;
