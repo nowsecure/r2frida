@@ -19,6 +19,7 @@ DESTDIR?=
 
 ifeq ($(shell uname),Darwin)
 SO_EXT=dylib
+STRIP_SYMBOLS=yes
 else
 SO_EXT=so
 endif
@@ -91,8 +92,10 @@ endif
 ifeq ($(STRIP_SYMBOLS),yes)
 LDFLAGS+=-Wl,--version-script,ld.script
 LDFLAGS+=-Wl,--gc-sections
-LDFLAGS+=-Wl,-dead_strip
 endif
+
+LDFLAGS+=-Wl,-dead_strip
+LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
 
 # CYLANG
 CFLAGS+=-DWITH_CYLANG=$(WITH_CYLANG)
