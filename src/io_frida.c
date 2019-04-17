@@ -817,8 +817,12 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 		eprintf ("* frida:///$(program)               # spawn local\n");
 		eprintf ("* frida://$(device)//$(program)     # spawn device\n");
 		eprintf ("Bonus Track:\n");
-		eprintf ("* frida://                          # open frida-helper\n");
+		eprintf ("* frida://                          # list local processes\n");
+		eprintf ("* frida://0                         # attach to frida-helper\n");
+		eprintf ("* frida:///usr/local/bin/rax2       # abspath to spawn\n");
 		eprintf ("* frida://usb/                      # list devices\n");
+		eprintf ("* frida://usb//                     # list remote processes\n");
+		eprintf ("* frida://usb//0                    # attach to remote frida-helper\n");
 		eprintf ("* frida://usb//1234                 # list devices\n");
 		eprintf ("* frida://usb/$(peer)               # list process-names\n");
 		eprintf ("Environment:\n");
@@ -869,12 +873,12 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 	if (device_id != NULL) {
 		if (!*device_id) { // "frida://attach/usb//Safari"
 			*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_USB, 0, NULL, &error);
-		} else if (strchr (device_id, ':')) {
+		} else if (strchr (device_id, ':')) { // host:port
 			*device = frida_device_manager_add_remote_device_sync (manager, device_id, &error);
 		} else {
 			*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, NULL, &error);
 		}
-	} else {
+	} else { // "frida://
 		*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, NULL, &error);
 	}
 
@@ -891,10 +895,14 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo) {
 	GError *error = NULL;
 
 	if (lo->process_specifier) {
-		int number = atopid (lo->process_specifier, &lo->pid_valid);
-		if (lo->pid_valid) {
-			lo->pid = number;
-			return true;
+		if (*lo->process_specifier) {
+			int number = atopid (lo->process_specifier, &lo->pid_valid);
+			if (lo->pid_valid) {
+				lo->pid = number;
+				return true;
+			}
+		} else {
+			system ("frida-ps -U 2> /dev/null");
 		}
 	} else if (lo->pid_valid) {
 		return true;
