@@ -19,7 +19,6 @@ DESTDIR?=
 
 ifeq ($(shell uname),Darwin)
 SO_EXT=dylib
-STRIP_SYMBOLS=yes
 else
 SO_EXT=so
 endif
