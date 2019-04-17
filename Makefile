@@ -66,6 +66,7 @@ endif
 
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
+LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
   ifeq ($(frida_os),macos)
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=-framework Foundation
@@ -92,9 +93,7 @@ ifeq ($(STRIP_SYMBOLS),yes)
 LDFLAGS+=-Wl,--version-script,ld.script
 LDFLAGS+=-Wl,--gc-sections
 endif
-
 LDFLAGS+=-Wl,-dead_strip
-LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
 
 # CYLANG
 CFLAGS+=-DWITH_CYLANG=$(WITH_CYLANG)
