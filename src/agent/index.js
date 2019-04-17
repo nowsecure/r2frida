@@ -72,11 +72,11 @@ const commandHandlers = {
   '?V': fridaVersion,
   // '.': // this is implemented in C
   'i': dumpInfo,
+  'i*': dumpInfoR2,
+  'ij': dumpInfoJson,
   'e': evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
-  'i*': dumpInfoR2,
-  'ij': dumpInfoJson,
   'db': breakpoint,
   'dbj': breakpointJson,
   'db-': breakpointUnset,
@@ -499,9 +499,10 @@ if (Process.platform === 'darwin') {
 const traceListeners = [];
 
 function dumpInfo () {
+  const padding = (x) => ''.padStart(20-x, ' ');
   const properties = dumpInfoJson();
   return Object.keys(properties)
-    .map(k => k + '  ' + properties[k])
+    .map(k => k + padding(k.length) + properties[k])
     .join('\n');
 }
 
@@ -692,6 +693,10 @@ function dumpInfoJson () {
     runtime: Script.runtime,
     java: JavaAvailable,
     cylang: mjolner !== undefined,
+    pageSize: Process.pageSize,
+    pointerSize: Process.pointerSize,
+    codeSigningPolicy: Process.codeSigningPolicy,
+    isDebuggerAttached: Process.isDebuggerAttached(),
   };
 }
 
