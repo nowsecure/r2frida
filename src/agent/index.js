@@ -182,6 +182,7 @@ const commandHandlers = {
   'dth': traceHook,
   'dt': trace,
   'dtj': traceJson,
+  'dtq': traceQuiet,
   'dt*': traceR2,
   'dt.': traceHere,
   'dt-': clearTrace,
@@ -189,6 +190,7 @@ const commandHandlers = {
   'dtr': traceRegs,
   'dtl': traceLogDump,
   'dtl*': traceLogDumpR2,
+  'dtlq': traceLogDumpQuiet,
   'dtlj': traceLogDumpJson,
   'dtl-': traceLogClear,
   'dtl-*': traceLogClearAll,
@@ -2045,6 +2047,27 @@ function traceFormat (args) {
   return true;
 }
 
+function traceListenerFromAddress(address) {
+  const results = traceListeners.filter((tl) => ''+address === ''+tl.at);
+  return (results.length > 0)? results[0]: undefined;
+}
+
+function traceCountFromAddress(address) {
+  const tl = traceListenerFromAddress(address);
+  return tl? tl.hits: 0;
+}
+
+function traceNameFromAddress(address) {
+  const tl = traceListenerFromAddress(address);
+  return tl? tl.moduleName + ':' + tl.name: '';
+}
+
+function traceLogDumpQuiet() {
+  return logs.map(({address, timestamp}) =>
+    [address, timestamp, traceCountFromAddress(address), traceNameFromAddress(address)].join(' '))
+    .join('\n');
+}
+
 function traceLogDumpJson () {
   return JSON.stringify(logs);
 }
@@ -2217,6 +2240,10 @@ function traceJava (klass, method) {
       console.log('BACKTRACE', message);
     };
   });
+}
+
+function traceQuiet(args) {
+  return traceListeners.map(({address, hits, moduleName, name}) => [address,hits, moduleName + ':' + name].join(' ')).join('\n');
 }
 
 function traceJson (args) {
