@@ -3075,8 +3075,7 @@ function _searchPatternJson (pattern) {
         const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
-          const partial = Memory.scan(range.address, range.size, pattern);
-
+          const partial = Memory.scanSync(range.address, range.size, pattern);
           partial.forEach((hit) => {
             if (flags) {
               hit.flag = `${prefix}${kwidx}_${idx + count}`;
@@ -3089,6 +3088,7 @@ function _searchPatternJson (pattern) {
 
           results = results.concat(partial);
         } catch (e) {
+          console.error("Oops", e);
         }
       }
 

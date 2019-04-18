@@ -1163,6 +1163,7 @@ RIOPlugin r_io_plugin_frida = {
 	.write = __write,
 	.resize = __resize,
 	.system = __system,
+//	.isdbg = true // this requires 'dL io' and some fixes in !!!
 };
 
 #ifndef CORELIB
