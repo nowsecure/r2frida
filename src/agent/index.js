@@ -53,6 +53,21 @@ function evalNum (args) {
   });
 }
 
+function javaTraceExample() {
+  Java.perform(function() {
+    const System = Java.use('java.lang.System');
+    System.loadLibrary.implementation = function (library) {
+      try {
+        console.error("[TRACE] System.loadLibrary", library);
+        const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
+        return loaded;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  });
+}
+
 const commandHandlers = {
   'E': evalNum,
   '/': search,
@@ -204,6 +219,7 @@ const commandHandlers = {
   'dtsfj': stalkTraceFunctionJson,
   'dtsf*': stalkTraceFunctionR2,
   'di': interceptHelp,
+  'dis': interceptRetString,
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
@@ -2437,7 +2453,36 @@ function interceptHelp (args) {
   return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
-function interceptRet0 (args) {
+function interceptRetJava(klass, method, value) {
+  Java.perform(function() {
+    const System = Java.use(klass);
+    System[method].implementation = function (library) {
+      console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
+      switch (value) {
+      case 0: return false;
+      case 1: return true;
+      case -1: return -1; // TODO should throw an error?
+      }
+      return value;
+    }
+  });
+}
+
+function interceptRetJavaExpression(target, value) {
+  let klass = target.substring ('java:'.length);
+  const lastDot = klass.lastIndexOf('.');
+  if (lastDot != -1) {
+    const method = klass.substring (lastDot + 1);
+    klass = klass.substring (0, lastDot);
+    return interceptRetJava(klass, method, value);
+  }
+  return 'Error: Wrong java method syntax';
+}
+
+function interceptRet(target, value) {
+  if (target.startsWith('java:')) {
+    return interceptRetJavaExpression(target, value);
+  }
   const p = ptr(args[0]);
   Interceptor.attach(p, {
     onLeave (retval) {
@@ -2446,22 +2491,25 @@ function interceptRet0 (args) {
   });
 }
 
+function interceptRet0 (args) {
+  const target = args[0];
+  return interceptRet(target, 0);
+}
+
+function interceptRetString (args) {
+  const target = args[0];
+console.error("FUNNY", args[1]);
+  return interceptRet(target, args[1]);
+}
+
 function interceptRet1 (args) {
-  const p = ptr(args[0]);
-  Interceptor.attach(p, {
-    onLeave (retval) {
-      retval.replace(ptr('1'));
-    }
-  });
+  const target = args[0];
+  return interceptRet(target, 1);
 }
 
 function interceptRet_1 (args) { // eslint-disable-line
-  const p = ptr(args[0]);
-  Interceptor.attach(p, {
-    onLeave (retval) {
-      retval.replace(ptr('-1'));
-    }
-  });
+  const target = args[0];
+  return interceptRet(target, -1);
 }
 
 function getenv (name) {
