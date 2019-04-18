@@ -141,6 +141,8 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
   'ic': listClasses,
+  'icl': listClassesLoaded,
+  'iclj': listClassesLoadedJson,
   'ic*': listClassesR2,
   'icj': listClassesJson,
   'ip': listProtocols,
@@ -1093,6 +1095,19 @@ function listImportsJson (args) {
     x.targetModuleName = moduleName;
   });
   return result;
+}
+
+function listClassesLoadedJson (args) {
+  return JSON.stringify(ObjC.enumerateLoadedClassesSync());
+}
+
+function listClassesLoaded (args) {
+  const results = ObjC.enumerateLoadedClassesSync();
+  const loadedClasses = [];
+  for (let module of Object.keys(results)) {
+    loadedClasses.push(...results[module]);
+  }
+  return loadedClasses.join('\n');
 }
 
 function listClasses (args) {
