@@ -1098,10 +1098,16 @@ function listImportsJson (args) {
 }
 
 function listClassesLoadedJson (args) {
+  if (JavaAvailable) {
+    return listClasses(args);
+  }
   return JSON.stringify(ObjC.enumerateLoadedClassesSync());
 }
 
 function listClassesLoaded (args) {
+  if (JavaAvailable) {
+    return listClasses(args);
+  }
   const results = ObjC.enumerateLoadedClassesSync();
   const loadedClasses = [];
   for (let module of Object.keys(results)) {
@@ -1186,7 +1192,7 @@ function listJavaClassesJsonSync (args) {
   let classes;
   Java.perform(function () {
     try {
-      classes = Java.enumerateLoadedClasses();
+      classes = Java.enumerateLoadedClassesSync();
     } catch (e) {
       classes = null;
     }
@@ -1196,7 +1202,7 @@ function listJavaClassesJsonSync (args) {
 
 // eslint-disable-next-line
 function listJavaClassesJson (args) {
-  const res = [];
+  let res = [];
   if (args.length === 1) {
     let result = [];
     Java.perform(function () {
@@ -1207,12 +1213,7 @@ function listJavaClassesJson (args) {
   }
   Java.perform(function () {
     try {
-      // no need to onComplete, because this method is Sync already
-      Java.enumerateLoadedClasses({
-        onMatch: function (className) {
-          res.push(className);
-        }
-      });
+      res = Java.enumerateLoadedClassesSync();
     } catch (e) {
       console.error(e);
     }
@@ -1223,7 +1224,6 @@ function listJavaClassesJson (args) {
 function listClassesJson (args) {
   if (JavaAvailable) {
     return listJavaClassesJson(args);
-    // return listJavaClassesJson(args);
   }
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
