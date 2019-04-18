@@ -2,8 +2,8 @@
 
 const r2pipe = require('r2pipe-promise');
 
-async function test(name, uri, check) {
-  const r2 = await r2pipe.open('frida://spawn/rax2');
+async function test (name, uri, check) {
+  const r2 = await r2pipe.open(uri);
   const res = await check(r2);
   console.error(res? '\x1b[32m[OK]\x1b[0m': '\x1b[31m[XX]\x1b[0m', name);
   return r2.quit();
@@ -36,8 +36,28 @@ async function r2fridaTestLibs() {
   });
 }
 
+async function r2fridaTestDlopen() {
+  return test('dlopen', 'frida://0', async function (r2) {
+    // macOS-specific test
+    const mustBeEmpty = await r2.cmd('\\il~r_util');
+    const ra = await r2.cmd('\\dl libr_util.dylib');
+    const mustBeLoaded = await r2.cmd('\\il~r_util');
+    // console.error(mustBeEmpty)
+    // console.error(mustBeLoaded)
+    return mustBeEmpty.trim() === '' && mustBeLoaded.trim() !== '';
+  });
+}
+
+async function r2fridaTestSearch() {
+  return test('finding nemo', 'frida://0', async function (r2) {
+    const r = await r2.cmd('\\/ NEMO');
+    return (r.split('hit0').length > 2);
+  });
+}
+
+
 async function r2fridaTestFrida() {
-  return test('frida', 'frida://', async function (r2) {
+  return test('frida', 'frida://0', async function (r2) {
     // XXX cant read console output
     // await r2.cmd('\\ console.log(123) > .a');
     // const n123 = await r2.cmd('cat .a;rm .a');
@@ -51,7 +71,9 @@ async function run() {
   await r2fridaTestSpawn();
   await r2fridaTestEntrypoint();
   await r2fridaTestLibs();
+  await r2fridaTestDlopen();
   await r2fridaTestFrida();
+  await r2fridaTestSearch();
 }
 
 run().then((x) => {
