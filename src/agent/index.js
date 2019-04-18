@@ -1733,9 +1733,8 @@ function dumpRegistersR2 (args) {
 }
 
 function dumpRegisters (args) {
-  const threads = Process.enumerateThreads();
   let [tid] = args;
-  threads
+  return Process.enumerateThreads()
     .filter(thread => !tid || thread.id == tid)
     .map(thread => {
       const { id, state, context } = thread;
