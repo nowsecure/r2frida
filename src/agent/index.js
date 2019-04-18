@@ -1500,12 +1500,15 @@ function listMemoryRangesJson () {
   });
 }
 
-function changeMemoryProtection (args) {
-  const [address, size, protection] = args;
-
-  Memory.protect(ptr(address), parseInt(size), protection);
-
-  return true;
+async function changeMemoryProtection (args) {
+  const [addr, size, protection] = args;
+  if (args.length !== 3 || protection.length > 3) {
+    return 'Usage: \\dmp [address] [size] [rwx]';
+  }
+  const address = getPtr(addr);
+  const mapsize = await numEval(size);
+  Memory.protect(address, ptr(mapsize).toInt32(), protection);
+  return '';
 }
 
 function getPidJson () {
@@ -1925,6 +1928,9 @@ function traceListJson () {
 
 function getPtr (p) {
   p = p.trim();
+  if (!p || p === '$$') {
+    return ptr(offset);
+  }
   if (p.startsWith('objc:')) {
     const hatSign = p.indexOf('^') !== -1;
     if (hatSign !== -1) {
@@ -1975,9 +1981,6 @@ function getPtr (p) {
       return ptr(0);
     }
     return found ? found.implementation : ptr(0);
-  }
-  if (!p || p === '$$') {
-    return ptr(offset);
   }
   try {
     if (p.substring(0, 2) === '0x') {
