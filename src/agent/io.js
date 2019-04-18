@@ -35,17 +35,22 @@ function read (params) {
   return [{}, []];
 }
 
+function isExecutable(address) {
+  const currentRange = Process.getRangeByAddress(address);
+  return currentRange.protection.indexOf('x') !== -1;
+}
+
 function write (params, data) {
   if (typeof r2frida.hookedWrite === 'function') {
     return r2frida.hookedWrite(params.offset, data);
   }
-  if (config.getBoolean('patch.code')) {
-    if (typeof Memory.patchCode !== 'function') {
-      Memory.writeByteArray(ptr(params.offset), data);
-    } else {
+  if (config.getBoolean('patch.code') && isExecutable(params.offset)) {
+    if (typeof Memory.patchCode === 'function') {
       Memory.patchCode(ptr(params.offset), 1, function (ptr) {
         Memory.writeByteArray(ptr, data);
       });
+    } else {
+      Memory.writeByteArray(ptr(params.offset), data);
     }
   } else {
     Memory.writeByteArray(ptr(params.offset), data);
