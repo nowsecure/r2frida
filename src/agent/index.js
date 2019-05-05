@@ -2841,16 +2841,10 @@ dts[*j] seconds            Trace all threads for given seconds using the stalker
 `;
 }
 
-function perform (params) {
-  const { command } = params;
-
-  const tokens = command.split(/ /).map((c) => c.trim()).filter((x) => x);
-  const [name, ...args] = tokens;
-  if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
-    const prefix = name.substring(0, name.length - 1);
-    const value = Object.keys(commandHandlers).sort()
+function getHelpMessage(prefix) {
+return Object.keys(commandHandlers).sort()
       .filter((k) => {
-        return (k.startsWith(prefix));
+        return !prefix || k.startsWith(prefix);
       })
       .map((k) => {
         const desc = commandHandlers[k].name
@@ -2859,6 +2853,22 @@ function perform (params) {
           }).replace(/^_/, '');
         return ' ' + k + '\t' + desc;
       }).join('\n');
+}
+
+function perform (params) {
+  const { command } = params;
+
+  const tokens = command.split(/ /).map((c) => c.trim()).filter((x) => x);
+  const [name, ...args] = tokens;
+  if (typeof name === 'undefined') {
+    const value = getHelpMessage('');
+    return [{
+      value: normalizeValue(value)
+    }, null];
+  }
+  if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
+    const prefix = name.substring(0, name.length - 1);
+    const value = getHelpMessage(prefix);
     return [{
       value: normalizeValue(value)
     }, null];
