@@ -18,7 +18,7 @@
     "@babel/preset-env": "7.4.4",
     "@babel/runtime-corejs2": "7.4.4",
     "babelify": "10.0.0",
-    "frida-compile": "8.0.1",
+    "frida-compile": "8.0.3",
     "mjolner": "3.0.3"
   },
   "devDependencies": {
