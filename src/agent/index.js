@@ -2485,10 +2485,10 @@ function interceptRet(target, value) {
   if (target.startsWith('java:')) {
     return interceptRetJavaExpression(target, value);
   }
-  const p = ptr(args[0]);
+  const p = ptr(target);
   Interceptor.attach(p, {
     onLeave (retval) {
-      retval.replace(ptr('0'));
+      retval.replace(ptr(value));
     }
   });
 }
