@@ -1,5 +1,5 @@
 #!/bin/sh
-[ -z "${VERSION}" ] && VERSION=3.4.1
+[ -z "${VERSION}" ] && VERSION=3.5.0
 (
 	RV=${VERSION}
 	RA=amd64
