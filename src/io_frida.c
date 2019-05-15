@@ -73,7 +73,7 @@ static int device_manager_count = 0;
 
 #define src__agent__js r_io_frida_agent_code
 
-static const unsigned char r_io_frida_agent_code[] = {
+static const gchar r_io_frida_agent_code[] = {
 #include "_agent.h"
 	, 0x00
 };
@@ -258,16 +258,14 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		eprintf ("Cannot attach: %s\n", error->message);
 		goto error;
 	}
+
+	FridaScriptOptions * options = frida_script_options_new ();
+	frida_script_options_set_name (options, "r2io");
 	if (user_wants_v8 ()) {
-		frida_session_enable_jit_sync (rf->session, &error);
-		if (error) {
-			eprintf ("Cannot enable JIT: %s\n", error->message);
-			goto error;
-		}
+		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 	}
 
-	rf->script = frida_session_create_script_sync (rf->session, "r2io",
-		(const char *)r_io_frida_agent_code, &error);
+	rf->script = frida_session_create_script_sync (rf->session, r_io_frida_agent_code, options, &error);
 	if (error) {
 		eprintf ("Cannot create script: %s\n", error->message);
 		goto error;
