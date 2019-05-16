@@ -34,7 +34,7 @@ const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
-const insaneSet = new Set(['`', '$', '{', '}', '~', '|', ';', '#', '@', '&', '<', '>', ' ', '(', ')']);
+const specialChars = '`${}~|;#@&<> ()';
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -845,17 +845,7 @@ function listSymbolsR2 (args) {
 }
 
 function sanitizeString (str) {
-  const result = [];
-
-  for (const c of str) {
-    if (insaneSet.has(c)) {
-      result.push('_');
-    } else {
-      result.push(c);
-    }
-  }
-
-  return result.join('');
+  return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
 }
 
 function listSymbolsJson (args) {
