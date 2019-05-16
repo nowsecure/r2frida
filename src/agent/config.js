@@ -9,7 +9,7 @@ const config = {
   'stalker.in': 'raw',
   'hook.backtrace': true,
   'hook.verbose': true,
-  'symbols.unredact': true
+  'symbols.unredact': Process.platform === 'darwin'
 };
 
 const configHelp = {
