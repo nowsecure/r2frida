@@ -27,9 +27,9 @@ const configValidator = {
   'stalker.event': configValidateStalkerEvent,
   'stalker.timeout': configValidateStalkerTimeout,
   'stalker.in': configValidateStalkerIn,
-  'hook.backtrace': configValidateHookBacktrace,
-  'hook.verbose': configValidateHookVerbose,
-  'symbols.unredact': configValidateSymbolsUnredact
+  'hook.backtrace': configValidateBoolean,
+  'hook.verbose': configValidateBoolean,
+  'symbols.unredact': configValidateBoolean
 };
 
 function configHelpSearchIn () {
@@ -123,36 +123,28 @@ function configHelpSymbolsUnredact () {
   `;
 }
 
-function configValidateHookVerbose (val) {
-  if (typeof (val) === 'boolean') {
-    return true;
-  }
-  return ['true', 'false'].indexOf(val) !== -1;
-}
-
-function configValidateHookBacktrace (val) {
-  return ['true', 'false'].indexOf(val) !== -1;
-}
-
 function configValidateStalkerIn (val) {
   return ['raw', 'app', 'modules'].indexOf(val) !== -1;
 }
 
-function configValidateSymbolsUnredact (val) {
-  if (typeof (val) === 'boolean') {
-    return true;
-  }
-  return ['true', 'false'].indexOf(val) !== -1;
+function configValidateBoolean (val) {
+  return isTrue(val) || isFalse(val);
 }
 
 function isTrue (x) {
-  return (x === true || x === 1 || x === 'true');
+  return (x === true || x === 1 || x === '1' || (/(true)/i).test(x));
 }
+
+function isFalse (x) {
+  return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
+}
+
 function asR2Script () {
   return Object.keys(config)
     .map(k => 'e ' + k + '=' + config[k])
     .join('\n');
 }
+
 function set (k, v) {
   if (configValidator[k] !== undefined) {
     if (!configValidator[k](v)) {
