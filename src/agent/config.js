@@ -8,7 +8,8 @@ const config = {
   'stalker.timeout': 5 * 60,
   'stalker.in': 'raw',
   'hook.backtrace': true,
-  'hook.verbose': true
+  'hook.verbose': true,
+  'symbols.unredact': true
 };
 
 const configHelp = {
@@ -17,7 +18,8 @@ const configHelp = {
   'stalker.timeout': configHelpStalkerTimeout,
   'stalker.in': configHelpStalkerIn,
   'hook.backtrace': configHelpHookBacktrace,
-  'hook.verbose': configHelpHookVerbose
+  'hook.verbose': configHelpHookVerbose,
+  'symbols.unredact': configHelpSymbolsUnredact
 };
 
 const configValidator = {
@@ -26,7 +28,8 @@ const configValidator = {
   'stalker.timeout': configValidateStalkerTimeout,
   'stalker.in': configValidateStalkerIn,
   'hook.backtrace': configValidateHookBacktrace,
-  'hook.verbose': configValidateHookVerbose
+  'hook.verbose': configValidateHookVerbose,
+  'symbols.unredact': configValidateSymbolsUnredact
 };
 
 function configHelpSearchIn () {
@@ -112,6 +115,14 @@ function configHelpStalkerIn () {
   `;
 }
 
+function configHelpSymbolsUnredact () {
+  return `Try to get symbol names from debug symbols when they're "redacted":
+
+    true            try to unredact (the default)
+    false           do not attempt to unredact
+  `;
+}
+
 function configValidateHookVerbose (val) {
   if (typeof (val) === 'boolean') {
     return true;
@@ -125,6 +136,13 @@ function configValidateHookBacktrace (val) {
 
 function configValidateStalkerIn (val) {
   return ['raw', 'app', 'modules'].indexOf(val) !== -1;
+}
+
+function configValidateSymbolsUnredact (val) {
+  if (typeof (val) === 'boolean') {
+    return true;
+  }
+  return ['true', 'false'].indexOf(val) !== -1;
 }
 
 function isTrue (x) {
