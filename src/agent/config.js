@@ -8,7 +8,8 @@ const config = {
   'stalker.timeout': 5 * 60,
   'stalker.in': 'raw',
   'hook.backtrace': true,
-  'hook.verbose': true
+  'hook.verbose': true,
+  'symbols.unredact': Process.platform === 'darwin'
 };
 
 const configHelp = {
@@ -17,7 +18,8 @@ const configHelp = {
   'stalker.timeout': configHelpStalkerTimeout,
   'stalker.in': configHelpStalkerIn,
   'hook.backtrace': configHelpHookBacktrace,
-  'hook.verbose': configHelpHookVerbose
+  'hook.verbose': configHelpHookVerbose,
+  'symbols.unredact': configHelpSymbolsUnredact
 };
 
 const configValidator = {
@@ -25,8 +27,9 @@ const configValidator = {
   'stalker.event': configValidateStalkerEvent,
   'stalker.timeout': configValidateStalkerTimeout,
   'stalker.in': configValidateStalkerIn,
-  'hook.backtrace': configValidateHookBacktrace,
-  'hook.verbose': configValidateHookVerbose
+  'hook.backtrace': configValidateBoolean,
+  'hook.verbose': configValidateBoolean,
+  'symbols.unredact': configValidateBoolean
 };
 
 function configHelpSearchIn () {
@@ -112,29 +115,36 @@ function configHelpStalkerIn () {
   `;
 }
 
-function configValidateHookVerbose (val) {
-  if (typeof (val) === 'boolean') {
-    return true;
-  }
-  return ['true', 'false'].indexOf(val) !== -1;
-}
+function configHelpSymbolsUnredact () {
+  return `Try to get symbol names from debug symbols when they're "redacted":
 
-function configValidateHookBacktrace (val) {
-  return ['true', 'false'].indexOf(val) !== -1;
+    true            try to unredact (the default)
+    false           do not attempt to unredact
+  `;
 }
 
 function configValidateStalkerIn (val) {
   return ['raw', 'app', 'modules'].indexOf(val) !== -1;
 }
 
-function isTrue (x) {
-  return (x === true || x === 1 || x === 'true');
+function configValidateBoolean (val) {
+  return isTrue(val) || isFalse(val);
 }
+
+function isTrue (x) {
+  return (x === true || x === 1 || x === '1' || (/(true)/i).test(x));
+}
+
+function isFalse (x) {
+  return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
+}
+
 function asR2Script () {
   return Object.keys(config)
     .map(k => 'e ' + k + '=' + config[k])
     .join('\n');
 }
+
 function set (k, v) {
   if (configValidator[k] !== undefined) {
     if (!configValidator[k](v)) {

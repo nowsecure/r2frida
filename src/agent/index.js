@@ -34,6 +34,7 @@ const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
+const specialChars = '`${}~|;#@&<> ()';
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -836,17 +837,31 @@ function listSymbols (args) {
 
 function listSymbolsR2 (args) {
   return listSymbolsJson(args)
+    .filter(({ address }) => !address.isNull())
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
+}
+
+function sanitizeString (str) {
+  return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
 }
 
 function listSymbolsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
     : Process.getModuleByAddress(offset);
-  return Module.enumerateSymbols(currentModule.name);
+  const symbols = Module.enumerateSymbols(currentModule.name);
+  return symbols.map(sym => {
+    if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
+      const dbgSym = DebugSymbol.fromAddress(sym.address);
+      if (dbgSym !== null) {
+        sym.name = dbgSym.name;
+      }
+    }
+    return sym;
+  });
 }
 
 function lookupDebugInfo (args) {
