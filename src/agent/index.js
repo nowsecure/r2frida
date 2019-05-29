@@ -100,6 +100,8 @@ const commandHandlers = {
   'dcu': breakpointContinueUntil,
   'dk': sendSignal,
 
+  'r': radareCommand,
+
   'ie': listEntrypoint,
   'ieq': listEntrypointQuiet,
   'ie*': listEntrypointR2,
@@ -585,6 +587,54 @@ function breakpointUnset (args) {
 function breakpointExist (addr) {
   const bp = breakpoints['' + addr];
   return bp && !bp.continue;
+}
+
+var _r2 = null;
+var _r_core_new = null;
+var _r_core_cmd_str = null;
+var _r_core_free = null;
+var _free = null;
+
+function radareCommandInit() {
+  if (_r2) {
+    return true;
+  }
+  if (!_r_core_new) {
+    _r_core_new = sym('r_core_new', 'pointer', []);
+    if (!_r_core_new) {
+      console.error('ERROR: Cannot find r_core_new. Do \\dl /tmp/libr.dylib');
+      return false;
+    }
+    _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
+    _r_core_free = sym('r_core_free', 'void', ['pointer']);
+    _free = sym('free', 'void', ['pointer']);
+console.error('pre');
+    _r2 = _r_core_new ();
+console.error('pos');
+  }
+  return true;
+}
+
+function radareCommandString(cmd) {
+  if (_r2) {
+    const aCmd = Memory.allocUtf8String(cmd);
+    const ptr = _r_core_cmd_str(_r2, aCmd);
+    const str = Memory.readCString(ptr);
+    _free (ptr);
+    return str;
+  }
+  return '';
+}
+
+function radareCommand(args) {
+  const cmd = args.join(' ');
+  if (cmd.length === 0) {
+    return 'Usage: \\r [cmd]';
+  }
+  if (radareCommandInit()) {
+    return radareCommandString(cmd);
+  }
+  return '\\dl /tmp/libr.dylib';
 }
 
 function sendSignal (args) {
