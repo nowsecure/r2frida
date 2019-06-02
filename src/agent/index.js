@@ -608,9 +608,7 @@ function radareCommandInit() {
     _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
     _r_core_free = sym('r_core_free', 'void', ['pointer']);
     _free = sym('free', 'void', ['pointer']);
-console.error('pre');
     _r2 = _r_core_new ();
-console.error('pos');
   }
   return true;
 }
