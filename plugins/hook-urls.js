@@ -43,6 +43,9 @@ Welcome to the 'hookurl' plugin!
 Add a hook to the NSURL::URLWithString method
 
 \\dtf objc:NSURL.^URLWithString:$ ooo
+\\hookurl urls
+.\\hookurl btgraph
+aggv
 `);
 //console.log('=!ic NSURL~URLWithString');
 //console.log('=!dtf addr~[0] ooo');
@@ -50,17 +53,8 @@ Add a hook to the NSURL::URLWithString method
 function urlsFromLogs () {
   return r2frida.logs
     .filter((log) => log.values.length > 1)
-    .map((log) => log.values[2].split('"')[1]);
-/*
-  const urls = [];
-  for (let log of r2frida.logs) {
-    if (log.values.length > 1) {
-      const url = log.values[2].split('"')[1];
-      urls.push(url);
-    }
-  }
-  return urls;
-*/
+    .map((log) => log.values[2].split('"')[1])
+    .filter(x => x);
 }
 
 function scriptFromBacktraces () {
