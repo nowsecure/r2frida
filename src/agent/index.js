@@ -518,7 +518,9 @@ const _fstat = Module.findExportByName(null, 'fstat')
   : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 const _kill = sym('kill', 'int', ['int', 'int']);
-const _setfilecon = symf('setfilecon','int',['pointer', 'pointer']);
+
+/* This is only available on Android/Linux */
+const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
@@ -1884,6 +1886,8 @@ function dlopen (args) {
 }
 
 function changeSelinuxContext (args) {
+  // TODO This doesnt run yet because permissions
+  // TODO If it runs as root, then file might be checked
   const file = args[0];
 
   const con = Memory.allocUtf8String("u:object_r:frida_file:s0");
