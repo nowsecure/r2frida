@@ -503,7 +503,6 @@ const _getenv = sym('getenv', 'pointer', ['pointer']);
 const _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
 const _getpid = sym('getpid', 'int', []);
 const _getuid = sym('getuid', 'int', []);
-const _dlopen = sym('dlopen', 'pointer', ['pointer', 'int']);
 const _dup2 = sym('dup2', 'int', ['int', 'int']);
 const _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
 const _fstat = Module.findExportByName(null, 'fstat')
@@ -1872,11 +1871,7 @@ function getEnvJson () {
 
 function dlopen (args) {
   const path = args[0];
-  const handle = _dlopen(Memory.allocUtf8String(path), RTLD_GLOBAL | RTLD_LAZY);
-  if (handle.isNull()) {
-    throw new Error('Failed to load: ' + path);
-  }
-  return handle.toString();
+  return Module.load(path);
 }
 
 function formatArgs (args, fmt) {
