@@ -54,18 +54,18 @@ function evalNum (args) {
   });
 }
 
-function javaTraceExample() {
-  Java.perform(function() {
+function javaTraceExample () {
+  Java.perform(function () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
-        console.error("[TRACE] System.loadLibrary", library);
+        console.error('[TRACE] System.loadLibrary', library);
         const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
         return loaded;
       } catch (e) {
         console.error(e);
       }
-    }
+    };
   });
 }
 
@@ -513,13 +513,17 @@ const _kill = sym('kill', 'int', ['int', 'int']);
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
-  dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+  try {
+    dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+  } catch (e) {
+    // ignored
+  }
 }
 
 const traceListeners = [];
 
 function dumpInfo () {
-  const padding = (x) => ''.padStart(20-x, ' ');
+  const padding = (x) => ''.padStart(20 - x, ' ');
   const properties = dumpInfoJson();
   return Object.keys(properties)
     .map(k => k + padding(k.length) + properties[k])
@@ -594,7 +598,7 @@ var _r_core_cmd_str = null;
 var _r_core_free = null;
 var _free = null;
 
-function radareCommandInit() {
+function radareCommandInit () {
   if (_r2) {
     return true;
   }
@@ -607,23 +611,23 @@ function radareCommandInit() {
     _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
     _r_core_free = sym('r_core_free', 'void', ['pointer']);
     _free = sym('free', 'void', ['pointer']);
-    _r2 = _r_core_new ();
+    _r2 = _r_core_new();
   }
   return true;
 }
 
-function radareCommandString(cmd) {
+function radareCommandString (cmd) {
   if (_r2) {
     const aCmd = Memory.allocUtf8String(cmd);
     const ptr = _r_core_cmd_str(_r2, aCmd);
     const str = Memory.readCString(ptr);
-    _free (ptr);
+    _free(ptr);
     return str;
   }
   return '';
 }
 
-function radareCommand(args) {
+function radareCommand (args) {
   const cmd = args.join(' ');
   if (cmd.length === 0) {
     return 'Usage: \\r [cmd]';
@@ -2143,23 +2147,23 @@ function traceFormat (args) {
   return true;
 }
 
-function traceListenerFromAddress(address) {
-  const results = traceListeners.filter((tl) => ''+address === ''+tl.at);
-  return (results.length > 0)? results[0]: undefined;
+function traceListenerFromAddress (address) {
+  const results = traceListeners.filter((tl) => '' + address === '' + tl.at);
+  return (results.length > 0) ? results[0] : undefined;
 }
 
-function traceCountFromAddress(address) {
+function traceCountFromAddress (address) {
   const tl = traceListenerFromAddress(address);
-  return tl? tl.hits: 0;
+  return tl ? tl.hits : 0;
 }
 
-function traceNameFromAddress(address) {
+function traceNameFromAddress (address) {
   const tl = traceListenerFromAddress(address);
-  return tl? tl.moduleName + ':' + tl.name: '';
+  return tl ? tl.moduleName + ':' + tl.name : '';
 }
 
-function traceLogDumpQuiet() {
-  return logs.map(({address, timestamp}) =>
+function traceLogDumpQuiet () {
+  return logs.map(({ address, timestamp }) =>
     [address, timestamp, traceCountFromAddress(address), traceNameFromAddress(address)].join(' '))
     .join('\n');
 }
@@ -2338,8 +2342,8 @@ function traceJava (klass, method) {
   });
 }
 
-function traceQuiet(args) {
-  return traceListeners.map(({address, hits, moduleName, name}) => [address,hits, moduleName + ':' + name].join(' ')).join('\n');
+function traceQuiet (args) {
+  return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n');
 }
 
 function traceJson (args) {
@@ -2513,33 +2517,33 @@ function interceptHelp (args) {
   return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
-function interceptRetJava(klass, method, value) {
-  Java.perform(function() {
+function interceptRetJava (klass, method, value) {
+  Java.perform(function () {
     const System = Java.use(klass);
     System[method].implementation = function (library) {
       console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
       switch (value) {
-      case 0: return false;
-      case 1: return true;
-      case -1: return -1; // TODO should throw an error?
+        case 0: return false;
+        case 1: return true;
+        case -1: return -1; // TODO should throw an error?
       }
       return value;
-    }
+    };
   });
 }
 
-function interceptRetJavaExpression(target, value) {
-  let klass = target.substring ('java:'.length);
+function interceptRetJavaExpression (target, value) {
+  let klass = target.substring('java:'.length);
   const lastDot = klass.lastIndexOf('.');
   if (lastDot != -1) {
-    const method = klass.substring (lastDot + 1);
-    klass = klass.substring (0, lastDot);
+    const method = klass.substring(lastDot + 1);
+    klass = klass.substring(0, lastDot);
     return interceptRetJava(klass, method, value);
   }
   return 'Error: Wrong java method syntax';
 }
 
-function interceptRet(target, value) {
+function interceptRet (target, value) {
   if (target.startsWith('java:')) {
     return interceptRetJavaExpression(target, value);
   }
@@ -2558,7 +2562,7 @@ function interceptRet0 (args) {
 
 function interceptRetString (args) {
   const target = args[0];
-console.error("FUNNY", args[1]);
+  console.error('FUNNY', args[1]);
   return interceptRet(target, args[1]);
 }
 
@@ -2899,18 +2903,18 @@ dts[*j] seconds            Trace all threads for given seconds using the stalker
 `;
 }
 
-function getHelpMessage(prefix) {
-return Object.keys(commandHandlers).sort()
-      .filter((k) => {
-        return !prefix || k.startsWith(prefix);
-      })
-      .map((k) => {
-        const desc = commandHandlers[k].name
-          .replace(/(?:^|\.?)([A-Z])/g, function (x, y) {
-            return ' ' + y.toLowerCase();
-          }).replace(/^_/, '');
-        return ' ' + k + '\t' + desc;
-      }).join('\n');
+function getHelpMessage (prefix) {
+  return Object.keys(commandHandlers).sort()
+    .filter((k) => {
+      return !prefix || k.startsWith(prefix);
+    })
+    .map((k) => {
+      const desc = commandHandlers[k].name
+        .replace(/(?:^|\.?)([A-Z])/g, function (x, y) {
+          return ' ' + y.toLowerCase();
+        }).replace(/^_/, '');
+      return ' ' + k + '\t' + desc;
+    }).join('\n');
 }
 
 function perform (params) {
@@ -3221,7 +3225,7 @@ function _searchPatternJson (pattern) {
 
           results = results.concat(partial);
         } catch (e) {
-          console.error("Oops", e);
+          console.error('Oops', e);
         }
       }
 

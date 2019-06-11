@@ -35,7 +35,7 @@ function read (params) {
   return [{}, []];
 }
 
-function isExecutable(address) {
+function isExecutable (address) {
   const currentRange = Process.getRangeByAddress(address);
   return currentRange.protection.indexOf('x') !== -1;
 }
