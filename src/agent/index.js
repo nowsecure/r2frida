@@ -753,7 +753,7 @@ function setBreakpoint (name, address) {
 }
 
 function dumpInfoJson () {
-  return {
+  const res = {
     arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
     os: Process.platform,
@@ -768,6 +768,10 @@ function dumpInfoJson () {
     codeSigningPolicy: Process.codeSigningPolicy,
     isDebuggerAttached: Process.isDebuggerAttached(),
   };
+  if (JavaAvailable) {
+    res.cacheDir = Java.classFactory.cacheDir;
+  }
+  return res;
 }
 
 function listModules () {
