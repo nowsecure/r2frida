@@ -503,7 +503,7 @@ function symf (name, ret, arg) {
   try {
     return new SystemFunction(Module.getExportByName(null, name), ret, arg);
   } catch (e) {
-    console.error(name, ':', e);
+    // console.error('Warning', name, ':', e);
   }
 }
 
@@ -782,6 +782,9 @@ function dumpInfoJson () {
   };
   if (JavaAvailable) {
     res.cacheDir = Java.classFactory.cacheDir;
+    Java.perform(function () {
+      res.jniEnv = ptr(Java.vm.getEnv()).toString();
+    });
   }
   return res;
 }
@@ -1957,6 +1960,9 @@ function dlopen (args) {
 }
 
 function changeSelinuxContext (args) {
+  if (_setfilecon === null) {
+    return 'Error: cannot find setfilecon symbol';
+  }
   // TODO This doesnt run yet because permissions
   // TODO If it runs as root, then file might be checked
   const file = args[0];
@@ -1965,8 +1971,7 @@ function changeSelinuxContext (args) {
   const path = Memory.allocUtf8String(file);
 
   var rv =  _setfilecon(path, con);
-  console.log(`ret: ${rv.value}`);
-  console.log(`errno: ${rv.errno}`);
+  return JSON.stringify({ ret:rv.value, errno:rv.errno });
 }
 
 function formatArgs (args, fmt) {
