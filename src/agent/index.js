@@ -1291,8 +1291,22 @@ function listJavaClassesJson (args) {
   let res = [];
   if (args.length === 1) {
     Java.perform(function () {
+      const initialLoader = Java.classFactory.loader;
       try {
-        const klass = Java.use(args[0]).class
+        let klass = null;
+        for (let kl of Java.enumerateClassLoadersSync()) {
+          try {
+            Java.classFactory.loader = kl;
+            klass = Java.use(args[0]).class;
+            console.log('Using ClassLoader:' + kl.toString());
+            break;
+          } catch (e) {
+            // do nothing
+          }
+        }
+        if (klass === null) {
+          throw new Error('Cannot find a classloader for this class');
+        }
         klass.getMethods().map(_ => res.push(_.toString()));
         klass.getFields().map(_ => res.push(_.toString()));
         try {
@@ -1301,8 +1315,9 @@ function listJavaClassesJson (args) {
           // do nothing
         }
       } catch (e) {
-        console.error(''+e);
+        console.error('' + e);
       }
+      Java.classFactory.loader = initLoader;
     });
   } else {
     Java.perform(function () {
@@ -1752,9 +1767,9 @@ function regcursive (regname, regvalue) {
     data.push(regcursive(regname, ptr));
   } catch (e) {
   }
-  if (regvalue == 0) {
+  if (regvalue === 0) {
     data.push('NULL');
-  } else if (regvalue == 0xffffffff) {
+  } else if (regvalue === 0xffffffff) {
     data.push(-1);
   } else if (regvalue > ' ' && regvalue < 127) {
     data.push('\'' + String.fromCharCode(regvalue) + '\'');
@@ -2548,7 +2563,7 @@ function interceptRetJava (klass, method, value) {
 function interceptRetJavaExpression (target, value) {
   let klass = target.substring('java:'.length);
   const lastDot = klass.lastIndexOf('.');
-  if (lastDot != -1) {
+  if (lastDot !== -1) {
     const method = klass.substring(lastDot + 1);
     klass = klass.substring(0, lastDot);
     return interceptRetJava(klass, method, value);
@@ -2575,7 +2590,6 @@ function interceptRet0 (args) {
 
 function interceptRetString (args) {
   const target = args[0];
-  console.error('FUNNY', args[1]);
   return interceptRet(target, args[1]);
 }
 
