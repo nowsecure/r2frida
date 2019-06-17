@@ -10,6 +10,7 @@ const config = require('./config');
 const io = require('./io');
 const isObjC = require('./isobjc');
 
+
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const JavaAvailable = Java && Java.available;
@@ -28,8 +29,6 @@ var logs = [];
 var traces = {};
 var breakpoints = {};
 
-const RTLD_GLOBAL = 0x8;
-const RTLD_LAZY = 0x1;
 const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
@@ -234,6 +233,7 @@ const commandHandlers = {
   'px': printHexdump,
   'x': printHexdump,
   'eval': evalCode,
+  'chcon': changeSelinuxContext,
 };
 
 async function initBasicInfoFromTarget (args) {
@@ -499,6 +499,14 @@ function sym (name, ret, arg) {
   }
 }
 
+function symf (name, ret, arg) {
+  try {
+    return new SystemFunction(Module.getExportByName(null, name), ret, arg);
+  } catch (e) {
+    console.error(name, ':', e);
+  }
+}
+
 /* This is not available on Windows */
 const _getenv = sym('getenv', 'pointer', ['pointer']);
 const _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
@@ -511,6 +519,9 @@ const _fstat = Module.findExportByName(null, 'fstat')
   : sym('__fxstat', 'int', ['int', 'pointer']);
 const _close = sym('close', 'int', ['int']);
 const _kill = sym('kill', 'int', ['int', 'int']);
+
+/* This is only available on Android/Linux */
+const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
@@ -1943,6 +1954,19 @@ function getEnvJson () {
 function dlopen (args) {
   const path = args[0];
   return Module.load(path);
+}
+
+function changeSelinuxContext (args) {
+  // TODO This doesnt run yet because permissions
+  // TODO If it runs as root, then file might be checked
+  const file = args[0];
+
+  const con = Memory.allocUtf8String("u:object_r:frida_file:s0");
+  const path = Memory.allocUtf8String(file);
+
+  var rv =  _setfilecon(path, con);
+  console.log(`ret: ${rv.value}`);
+  console.log(`errno: ${rv.errno}`);
 }
 
 function formatArgs (args, fmt) {
