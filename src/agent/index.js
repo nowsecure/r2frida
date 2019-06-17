@@ -1286,20 +1286,29 @@ function listJavaClassesJsonSync (args) {
 function listJavaClassesJson (args) {
   let res = [];
   if (args.length === 1) {
-    let result = [];
     Java.perform(function () {
-      var obj = Java.use(args[0]);
-      result = obj['$classWrapper'].dispose();
+      try {
+        const klass = Java.use(args[0]).class
+        klass.getMethods().map(_ => res.push(_.toString()));
+        klass.getFields().map(_ => res.push(_.toString()));
+        try {
+          klass.getConstructors().map(_ => res.push(_.toString()));
+        } catch (e) {
+          // do nothing
+        }
+      } catch (e) {
+        console.error(''+e);
+      }
     });
-    return result;
+  } else {
+    Java.perform(function () {
+      try {
+        res = Java.enumerateLoadedClassesSync();
+      } catch (e) {
+        console.error(e);
+      }
+    });
   }
-  Java.perform(function () {
-    try {
-      res = Java.enumerateLoadedClassesSync();
-    } catch (e) {
-      console.error(e);
-    }
-  });
   return res;
 }
 
