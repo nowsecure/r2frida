@@ -53,18 +53,18 @@ function evalNum (args) {
   });
 }
 
-function javaTraceExample() {
-  Java.perform(function() {
+function javaTraceExample () {
+  Java.perform(function () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
-        console.error("[TRACE] System.loadLibrary", library);
+        console.error('[TRACE] System.loadLibrary', library);
         const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
         return loaded;
       } catch (e) {
         console.error(e);
       }
-    }
+    };
   });
 }
 
@@ -158,6 +158,7 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
   'ic': listClasses,
+  'icL': listClassesLoaders,
   'icl': listClassesLoaded,
   'iclj': listClassesLoadedJson,
   'ic*': listClassesR2,
@@ -524,13 +525,17 @@ const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
 if (Process.platform === 'darwin') {
   // required for mjolner.register() to work on early instrumentation
-  dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+  try {
+    dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+  } catch (e) {
+    // ignored
+  }
 }
 
 const traceListeners = [];
 
 function dumpInfo () {
-  const padding = (x) => ''.padStart(20-x, ' ');
+  const padding = (x) => ''.padStart(20 - x, ' ');
   const properties = dumpInfoJson();
   return Object.keys(properties)
     .map(k => k + padding(k.length) + properties[k])
@@ -605,7 +610,7 @@ var _r_core_cmd_str = null;
 var _r_core_free = null;
 var _free = null;
 
-function radareCommandInit() {
+function radareCommandInit () {
   if (_r2) {
     return true;
   }
@@ -618,23 +623,23 @@ function radareCommandInit() {
     _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
     _r_core_free = sym('r_core_free', 'void', ['pointer']);
     _free = sym('free', 'void', ['pointer']);
-    _r2 = _r_core_new ();
+    _r2 = _r_core_new();
   }
   return true;
 }
 
-function radareCommandString(cmd) {
+function radareCommandString (cmd) {
   if (_r2) {
     const aCmd = Memory.allocUtf8String(cmd);
     const ptr = _r_core_cmd_str(_r2, aCmd);
     const str = Memory.readCString(ptr);
-    _free (ptr);
+    _free(ptr);
     return str;
   }
   return '';
 }
 
-function radareCommand(args) {
+function radareCommand (args) {
   const cmd = args.join(' ');
   if (cmd.length === 0) {
     return 'Usage: \\r [cmd]';
@@ -760,7 +765,7 @@ function setBreakpoint (name, address) {
 }
 
 function dumpInfoJson () {
-  return {
+  const res = {
     arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
     os: Process.platform,
@@ -775,6 +780,10 @@ function dumpInfoJson () {
     codeSigningPolicy: Process.codeSigningPolicy,
     isDebuggerAttached: Process.isDebuggerAttached(),
   };
+  if (JavaAvailable) {
+    res.cacheDir = Java.classFactory.cacheDir;
+  }
+  return res;
 }
 
 function listModules () {
@@ -1193,6 +1202,44 @@ function listClassesLoadedJson (args) {
   return JSON.stringify(ObjC.enumerateLoadedClassesSync());
 }
 
+function listClassesLoaders (args) {
+  if (!JavaAvailable) {
+    return 'Error: icL is only available on Android targets.';
+  }
+  var res = '';
+  Java.perform(function() {
+    function s2o(s) {
+      var indent = 0;
+      var res = '';
+      for (var ch of s.toString()) {
+        switch (ch) {
+        case '[':
+          indent++;
+          res += '[\n' + Array(indent+1).join(' ');
+          break;
+        case ']':
+          indent--;
+          res += ']\n' + Array(indent+1).join(' ');
+          break;
+        case ',':
+          res += ',\n' + Array(indent+1).join(' ');
+          break;
+        default:
+          res += ch;
+          break;
+        }
+      }
+      return res;
+    }
+    var c = Java.enumerateClassLoadersSync();
+    for (var cl in c) {
+      const cs = s2o(c[cl].toString())
+      res += cs;
+    }
+  });
+  return res;
+}
+
 function listClassesLoaded (args) {
   if (JavaAvailable) {
     return listClasses(args);
@@ -1293,20 +1340,44 @@ function listJavaClassesJsonSync (args) {
 function listJavaClassesJson (args) {
   let res = [];
   if (args.length === 1) {
-    let result = [];
     Java.perform(function () {
-      var obj = Java.use(args[0]);
-      result = obj['$classWrapper'].dispose();
+      const initialLoader = Java.classFactory.loader;
+      try {
+        let klass = null;
+        for (let kl of Java.enumerateClassLoadersSync()) {
+          try {
+            Java.classFactory.loader = kl;
+            klass = Java.use(args[0]).class;
+            console.log('Using ClassLoader:' + kl.toString());
+            break;
+          } catch (e) {
+            // do nothing
+          }
+        }
+        if (klass === null) {
+          throw new Error('Cannot find a classloader for this class');
+        }
+        klass.getMethods().map(_ => res.push(_.toString()));
+        klass.getFields().map(_ => res.push(_.toString()));
+        try {
+          klass.getConstructors().map(_ => res.push(_.toString()));
+        } catch (e) {
+          // do nothing
+        }
+      } catch (e) {
+        console.error('' + e);
+      }
+      Java.classFactory.loader = initLoader;
     });
-    return result;
+  } else {
+    Java.perform(function () {
+      try {
+        res = Java.enumerateLoadedClassesSync();
+      } catch (e) {
+        console.error(e);
+      }
+    });
   }
-  Java.perform(function () {
-    try {
-      res = Java.enumerateLoadedClassesSync();
-    } catch (e) {
-      console.error(e);
-    }
-  });
   return res;
 }
 
@@ -1746,9 +1817,9 @@ function regcursive (regname, regvalue) {
     data.push(regcursive(regname, ptr));
   } catch (e) {
   }
-  if (regvalue == 0) {
+  if (regvalue === 0) {
     data.push('NULL');
-  } else if (regvalue == 0xffffffff) {
+  } else if (regvalue === 0xffffffff) {
     data.push(-1);
   } else if (regvalue > ' ' && regvalue < 127) {
     data.push('\'' + String.fromCharCode(regvalue) + '\'');
@@ -2167,23 +2238,23 @@ function traceFormat (args) {
   return true;
 }
 
-function traceListenerFromAddress(address) {
-  const results = traceListeners.filter((tl) => ''+address === ''+tl.at);
-  return (results.length > 0)? results[0]: undefined;
+function traceListenerFromAddress (address) {
+  const results = traceListeners.filter((tl) => '' + address === '' + tl.at);
+  return (results.length > 0) ? results[0] : undefined;
 }
 
-function traceCountFromAddress(address) {
+function traceCountFromAddress (address) {
   const tl = traceListenerFromAddress(address);
-  return tl? tl.hits: 0;
+  return tl ? tl.hits : 0;
 }
 
-function traceNameFromAddress(address) {
+function traceNameFromAddress (address) {
   const tl = traceListenerFromAddress(address);
-  return tl? tl.moduleName + ':' + tl.name: '';
+  return tl ? tl.moduleName + ':' + tl.name : '';
 }
 
-function traceLogDumpQuiet() {
-  return logs.map(({address, timestamp}) =>
+function traceLogDumpQuiet () {
+  return logs.map(({ address, timestamp }) =>
     [address, timestamp, traceCountFromAddress(address), traceNameFromAddress(address)].join(' '))
     .join('\n');
 }
@@ -2362,8 +2433,8 @@ function traceJava (klass, method) {
   });
 }
 
-function traceQuiet(args) {
-  return traceListeners.map(({address, hits, moduleName, name}) => [address,hits, moduleName + ':' + name].join(' ')).join('\n');
+function traceQuiet (args) {
+  return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n');
 }
 
 function traceJson (args) {
@@ -2537,33 +2608,33 @@ function interceptHelp (args) {
   return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
 }
 
-function interceptRetJava(klass, method, value) {
-  Java.perform(function() {
+function interceptRetJava (klass, method, value) {
+  Java.perform(function () {
     const System = Java.use(klass);
     System[method].implementation = function (library) {
       console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
       switch (value) {
-      case 0: return false;
-      case 1: return true;
-      case -1: return -1; // TODO should throw an error?
+        case 0: return false;
+        case 1: return true;
+        case -1: return -1; // TODO should throw an error?
       }
       return value;
-    }
+    };
   });
 }
 
-function interceptRetJavaExpression(target, value) {
-  let klass = target.substring ('java:'.length);
+function interceptRetJavaExpression (target, value) {
+  let klass = target.substring('java:'.length);
   const lastDot = klass.lastIndexOf('.');
-  if (lastDot != -1) {
-    const method = klass.substring (lastDot + 1);
-    klass = klass.substring (0, lastDot);
+  if (lastDot !== -1) {
+    const method = klass.substring(lastDot + 1);
+    klass = klass.substring(0, lastDot);
     return interceptRetJava(klass, method, value);
   }
   return 'Error: Wrong java method syntax';
 }
 
-function interceptRet(target, value) {
+function interceptRet (target, value) {
   if (target.startsWith('java:')) {
     return interceptRetJavaExpression(target, value);
   }
@@ -2582,7 +2653,6 @@ function interceptRet0 (args) {
 
 function interceptRetString (args) {
   const target = args[0];
-console.error("FUNNY", args[1]);
   return interceptRet(target, args[1]);
 }
 
@@ -2923,18 +2993,18 @@ dts[*j] seconds            Trace all threads for given seconds using the stalker
 `;
 }
 
-function getHelpMessage(prefix) {
-return Object.keys(commandHandlers).sort()
-      .filter((k) => {
-        return !prefix || k.startsWith(prefix);
-      })
-      .map((k) => {
-        const desc = commandHandlers[k].name
-          .replace(/(?:^|\.?)([A-Z])/g, function (x, y) {
-            return ' ' + y.toLowerCase();
-          }).replace(/^_/, '');
-        return ' ' + k + '\t' + desc;
-      }).join('\n');
+function getHelpMessage (prefix) {
+  return Object.keys(commandHandlers).sort()
+    .filter((k) => {
+      return !prefix || k.startsWith(prefix);
+    })
+    .map((k) => {
+      const desc = commandHandlers[k].name
+        .replace(/(?:^|\.?)([A-Z])/g, function (x, y) {
+          return ' ' + y.toLowerCase();
+        }).replace(/^_/, '');
+      return ' ' + k + '\t' + desc;
+    }).join('\n');
 }
 
 function perform (params) {
@@ -3245,7 +3315,7 @@ function _searchPatternJson (pattern) {
 
           results = results.concat(partial);
         } catch (e) {
-          console.error("Oops", e);
+          console.error('Oops', e);
         }
       }
 
