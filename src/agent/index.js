@@ -159,6 +159,7 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
   'ic': listClasses,
+  'icL': listClassesLoaders,
   'icl': listClassesLoaded,
   'iclj': listClassesLoadedJson,
   'ic*': listClassesR2,
@@ -1188,6 +1189,44 @@ function listClassesLoadedJson (args) {
     return listClasses(args);
   }
   return JSON.stringify(ObjC.enumerateLoadedClassesSync());
+}
+
+function listClassesLoaders (args) {
+  if (!JavaAvailable) {
+    return 'Error: icL is only available on Android targets.';
+  }
+  var res = '';
+  Java.perform(function() {
+    function s2o(s) {
+      var indent = 0;
+      var res = '';
+      for (var ch of s.toString()) {
+        switch (ch) {
+        case '[':
+          indent++;
+          res += '[\n' + Array(indent+1).join(' ');
+          break;
+        case ']':
+          indent--;
+          res += ']\n' + Array(indent+1).join(' ');
+          break;
+        case ',':
+          res += ',\n' + Array(indent+1).join(' ');
+          break;
+        default:
+          res += ch;
+          break;
+        }
+      }
+      return res;
+    }
+    var c = Java.enumerateClassLoadersSync();
+    for (var cl in c) {
+      const cs = s2o(c[cl].toString())
+      res += cs;
+    }
+  });
+  return res;
 }
 
 function listClassesLoaded (args) {
