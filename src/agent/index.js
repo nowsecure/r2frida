@@ -818,6 +818,13 @@ async function dumpInfoJson () {
       const ActivityThread = Java.use('android.app.ActivityThread');
 
       res.dataDir = ActivityThread.currentApplication().getApplicationContext().getDataDir().getAbsolutePath();
+      res.codeCacheDir = ActivityThread.currentApplication().getApplicationContext().getCodeCacheDir().getAbsolutePath();
+      res.extCacheDir = ActivityThread.currentApplication().getApplicationContext().getExternalCacheDir().getAbsolutePath();
+      res.obbDir = ActivityThread.currentApplication().getApplicationContext().getObbDir().getAbsolutePath();
+      res.filesDir = ActivityThread.currentApplication().getApplicationContext().getFilesDir().getAbsolutePath();
+      res.noBackupDir = ActivityThread.currentApplication().getApplicationContext().getNoBackupFilesDir().getAbsolutePath();
+      res.codePath = ActivityThread.currentApplication().getApplicationContext().getPackageCodePath();
+      res.packageName = ActivityThread.currentApplication().getApplicationContext().getPackageName();
       res.cacheDir = Java.classFactory.cacheDir;
 
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
