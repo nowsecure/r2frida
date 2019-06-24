@@ -68,7 +68,6 @@ function ls (path) {
   if (fs === null) {
     fs = new FridaFS();
   }
-
   return fs.ls(normalize(path));
 }
 
@@ -110,7 +109,8 @@ class FridaFS {
       let entry;
       while ((entry = this.api.readdir(dir, entryBuf, resultPtr)) !== null) {
         if (!this._excludeSet.has(entry.name)) {
-          result.push(`${this._getEntryType(entry.type)} ${entry.name}`);
+          // result.push(`${this._getEntryType(entry.type)} ${entry.name}`);
+          result.push([this._getEntryType(entry.type), entry.name].join(' '));
         }
       }
       this.api.closedir(dir);

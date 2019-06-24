@@ -10,6 +10,8 @@ const config = require('./config');
 const io = require('./io');
 const isObjC = require('./isobjc');
 
+let Gcwd = '/';
+
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -226,6 +228,12 @@ const commandHandlers = {
   'di0': interceptRet0,
   'di1': interceptRet1,
   'di-1': interceptRet_1,
+  // unix compat
+  'pwd': getCwd,
+  'cd': chDir,
+  'cat': fsCat,
+  'ls': fsList,
+   // required for m-io
   'md': fsList,
   'mg': fsCat,
   'm': fsOpen,
@@ -244,7 +252,7 @@ e cmd.fcn.new=aan
 .=!i*
 .=!ie*
 .=!il*
-m /root io 0
+m /r2f io 0
 s entry0
 .=!ii*
 .=!iE*
@@ -764,6 +772,29 @@ function setBreakpoint (name, address) {
   breakpoints[addrString] = bp;
 }
 
+function getCwd() {
+  const _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
+  if (_getcwd) {
+    const PATH_MAX = 4096;
+    const buf = Memory.alloc(PATH_MAX);
+    const ptr = _getcwd(buf, PATH_MAX);
+    const str = Memory.readCString(ptr);
+    Gcwd = str;
+    return str;
+  }
+  return '';
+}
+
+function chDir (args) {
+  const _chdir = sym('chdir', 'int', ['pointer']);
+  if (_chdir && args) {
+    const arg = Memory.allocUtf8String(args[0]);
+    _chdir (arg);
+    getCwd(); // update Gcwd
+  }
+  return '';
+}
+
 function dumpInfoJson () {
   const res = {
     arch: getR2Arch(Process.arch),
@@ -779,12 +810,23 @@ function dumpInfoJson () {
     pointerSize: Process.pointerSize,
     codeSigningPolicy: Process.codeSigningPolicy,
     isDebuggerAttached: Process.isDebuggerAttached(),
+    cwd: getCwd()
   };
   if (JavaAvailable) {
     res.cacheDir = Java.classFactory.cacheDir;
     Java.perform(function () {
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
     });
+/*
+    Java.perform(function () {
+      try {
+        const curApp = Java.use('android.app.ActivityThread').currentApplication();
+        res.datadir = curApp.getApplicationContext(); // .getDataDir();
+      } catch (e) {
+        console.error(e);
+      }
+    });
+*/
   }
   return res;
 }
@@ -1427,7 +1469,6 @@ function listFileDescriptors (args) {
 
 function listFileDescriptorsJson (args) {
   function getFdName (fd) {
-    const PATH_MAX = 4096;
     if (_readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
       const buffer = Memory.alloc(PATH_MAX);
@@ -3482,15 +3523,15 @@ function _isHex (raw) {
 }
 
 function fsList (args) {
-  return fs.ls(args[0]);
+  return fs.ls(args[0] || Gcwd);
 }
 
 function fsCat (args) {
-  return fs.cat(args[0]);
+  return fs.cat(args[0] || '');
 }
 
 function fsOpen (args) {
-  return fs.open(args[0]);
+  return fs.open(args[0] || Gcwd);
 }
 
 function onStanza (stanza, data) {
