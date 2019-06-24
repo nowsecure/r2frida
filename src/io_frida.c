@@ -1220,7 +1220,7 @@ static void dumpDevices(void) {
 			frida_device_get_name (device));
 	}
 
-	eprintf ("%s\n", dump->str);
+	r_cons_printf ("%s\n", dump->str);
 
 	g_type_class_unref (type_enum);
 	frida_unref (list);
@@ -1290,7 +1290,7 @@ static void dumpProcesses(FridaDevice *device) {
 			frida_process_get_name (process));
 	}
 
-	eprintf ("%s\n", dump->str);
+	r_cons_printf ("%s\n", dump->str);
 
 beach:
 	g_clear_error (&error);
