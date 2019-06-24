@@ -47,6 +47,24 @@ function numEval (expr) {
   });
 }
 
+function javaUse (name) {
+  const initialLoader = Java.classFactory.loader;
+  let res = null;
+  Java.perform(function () {
+    for (let kl of Java.enumerateClassLoadersSync()) {
+      try {
+        Java.classFactory.loader = kl;
+        res = Java.use(name);
+        break;
+      } catch (e) {
+        // do nothing
+      }
+    }
+  });
+  Java.classFactory.loader = initialLoader;
+  return res;
+}
+
 function evalNum (args) {
   return new Promise((resolve, reject) => {
     numEval(args.join(' ')).then(res => {
@@ -1362,7 +1380,7 @@ function listJavaClassesJsonSync (args) {
     let methods;
     /* list methods */
     Java.perform(function () {
-      const obj = Java.use(args[0]);
+      const obj = javaUse(args[0]);
       methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
       // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
     });
@@ -1389,19 +1407,8 @@ function listJavaClassesJson (args) {
   let res = [];
   if (args.length === 1) {
     Java.perform(function () {
-      const initialLoader = Java.classFactory.loader;
       try {
-        let klass = null;
-        for (let kl of Java.enumerateClassLoadersSync()) {
-          try {
-            Java.classFactory.loader = kl;
-            klass = Java.use(args[0]).class;
-            console.log('Using ClassLoader:' + kl.toString());
-            break;
-          } catch (e) {
-            // do nothing
-          }
-        }
+        const klass = javaUse(args[0]);
         if (klass === null) {
           throw new Error('Cannot find a classloader for this class');
         }
@@ -1413,9 +1420,8 @@ function listJavaClassesJson (args) {
           // do nothing
         }
       } catch (e) {
-        console.error('' + e);
+        console.error(e.message);
       }
-      Java.classFactory.loader = initLoader;
     });
   } else {
     Java.perform(function () {
@@ -2471,11 +2477,16 @@ function traceR2 (args) {
 
 function traceJava (klass, method) {
   Java.perform(function () {
+    const k = javaUse(klass);
+    k[method].implementation = function() {
+      this[method]();
+/*
     var Throwable = Java.use('java.lang.Throwable');
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
       console.log('[*] onResume() got called!');
       this.onResume();
+*/
       const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n');
       console.log('BACKTRACE', message);
     };
@@ -2659,7 +2670,7 @@ function interceptHelp (args) {
 
 function interceptRetJava (klass, method, value) {
   Java.perform(function () {
-    const System = Java.use(klass);
+    const System = javaUse(klass);
     System[method].implementation = function (library) {
       console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
       switch (value) {
