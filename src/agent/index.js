@@ -542,16 +542,16 @@ if (Process.platform === 'darwin') {
 
 const traceListeners = [];
 
-function dumpInfo () {
+async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');
-  const properties = dumpInfoJson();
+  const properties = await dumpInfoJson();
   return Object.keys(properties)
     .map(k => k + padding(k.length) + properties[k])
     .join('\n');
 }
 
-function dumpInfoR2 () {
-  const properties = dumpInfoJson();
+async function dumpInfoR2 () {
+  const properties = await dumpInfoJson();
   return [
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
@@ -795,7 +795,7 @@ function chDir (args) {
   return '';
 }
 
-function dumpInfoJson () {
+async function dumpInfoJson () {
   const res = {
     arch: getR2Arch(Process.arch),
     bits: pointerSize * 8,
@@ -812,22 +812,18 @@ function dumpInfoJson () {
     isDebuggerAttached: Process.isDebuggerAttached(),
     cwd: getCwd()
   };
+
   if (JavaAvailable) {
-    res.cacheDir = Java.classFactory.cacheDir;
-    Java.perform(function () {
+    await performOnJavaVM(() => {
+      const ActivityThread = Java.use('android.app.ActivityThread');
+
+      res.dataDir = ActivityThread.currentApplication().getApplicationContext().getDataDir().getAbsolutePath();
+      res.cacheDir = Java.classFactory.cacheDir;
+
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
     });
-/*
-    Java.perform(function () {
-      try {
-        const curApp = Java.use('android.app.ActivityThread').currentApplication();
-        res.datadir = curApp.getApplicationContext(); // .getDataDir();
-      } catch (e) {
-        console.error(e);
-      }
-    });
-*/
   }
+
   return res;
 }
 
@@ -3532,6 +3528,19 @@ function fsCat (args) {
 
 function fsOpen (args) {
   return fs.open(args[0] || Gcwd);
+}
+
+function performOnJavaVM (fn) {
+  return new Promise((resolve, reject) => {
+    Java.perform(() => {
+      try {
+        const result = fn();
+        resolve(result);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
 }
 
 function onStanza (stanza, data) {
