@@ -785,7 +785,7 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 			} else {
 				dumpDevices ();
 			}
-			free (rest);
+			g_free (rest);
 		}
 		return true;
 	}
@@ -862,7 +862,7 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 	char *first_word = g_strndup (first_field, second_field - first_field - 1);
 
 	if (parse_device_id_as_uriroot (first_word, second_field, lo)) {
-		free (first_word);
+		g_free (first_word);
 		return true;
 	}
 	lo->device_id = first_word;
