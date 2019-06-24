@@ -1,6 +1,6 @@
 {
   "name": "r2frida-agent",
-  "version": "3.5.1",
+  "version": "3.6.0",
   "description": "Agent for frida:// io plugin",
   "private": true,
   "main": "src/agent/index.js",
