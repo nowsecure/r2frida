@@ -244,7 +244,7 @@ e cmd.fcn.new=aan
 .=!i*
 .=!ie*
 .=!il*
-m / io 0
+m /root io 0
 s entry0
 .=!ii*
 .=!iE*
@@ -2745,7 +2745,7 @@ function _stalkTraceSomething (getEvents, args) {
 
   function disasmOne (address, previousSymbolName, target) {
     let pd = disasm(address, 1, previousSymbolName);
-    if (pd.charAt(pd.length - 1) === '\n') {
+    if (pd.endsWith('\n')) {
       pd = pd.slice(0, -1);
     }
     if (target) {
