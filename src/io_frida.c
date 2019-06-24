@@ -696,12 +696,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	value = json_object_get_string_member (result, "value");
 	char *sys_result = NULL;
 	if (value && strcmp (value, "undefined")) {
-		bool is_fs_io = command[0] == 'm';
-		if (is_fs_io) {
-			sys_result = r_str_newf ("%s", value);
-		} else {
-			io->cb_printf ("%s\n", value);
-		}
+		sys_result = strdup (value);
+		io->cb_printf ("%s", value);
 	}
 	json_object_unref (result);
 
