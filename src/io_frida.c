@@ -67,6 +67,13 @@ static int atopid(const char *maybe_pid, bool *valid);
 static void on_message(FridaScript *script, const char *message, GBytes *data, gpointer user_data);
 static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data);
 
+static void dumpDevices(void);
+static void dumpProcesses(FridaDevice *device);
+static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
+static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
+static gint computeDeviceScore(FridaDevice *device);
+static gint computeProcessScore(FridaProcess *process);
+
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
 static int device_manager_count = 0;
@@ -767,11 +774,20 @@ static bool parse_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunc
 			lo->device_id = rest;
 			lo->process_specifier = g_strdup (slash);
 		} else {
-			// TODO: reimplement in C
 			if (*rest) {
-				system ("frida-ps -U 2> /dev/null");
+				FridaDevice *device;
+				GError *error = NULL;
+
+				device = frida_device_manager_get_device_by_id_sync (device_manager, rest, 0, NULL, &error);
+				if (device != NULL) {
+					dumpProcesses (device);
+					frida_unref (device);
+				} else {
+					eprintf ("%s: %s\n", rest, error->message);
+					g_error_free (error);
+				}
 			} else {
-				system ("frida-ls-devices");
+				dumpDevices ();
 			}
 			free (rest);
 		}
@@ -901,7 +917,7 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo) {
 				return true;
 			}
 		} else {
-			system ("frida-ps -U 2> /dev/null");
+			dumpProcesses (device);
 		}
 	} else if (lo->pid_valid) {
 		return true;
@@ -1141,6 +1157,198 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	}
 
 	json_node_unref (message);
+}
+
+static void dumpDevices(void) {
+	GString *dump;
+	FridaDeviceList *list;
+	GArray *devices;
+	gint num_devices, i;
+	guint id_column_width, type_column_width, name_column_width;
+	GEnumClass *type_enum;
+
+	dump = g_string_sized_new (256);
+
+	list = frida_device_manager_enumerate_devices_sync (device_manager, NULL);
+	num_devices = frida_device_list_size (list);
+
+	devices = g_array_sized_new (FALSE, FALSE, sizeof (FridaDevice *), num_devices);
+	for (i = 0; i != num_devices; i++) {
+		FridaDevice *device = frida_device_list_get (list, i);
+		g_array_append_val (devices, device);
+		g_object_unref (device); /* borrow it */
+	}
+	g_array_sort (devices, compareDevices);
+
+	id_column_width = 0;
+	type_column_width = 6;
+	name_column_width = 0;
+	for (i = 0; i != num_devices; i++) {
+		FridaDevice *device = g_array_index (devices, FridaDevice *, i);
+
+		id_column_width = MAX (strlen (frida_device_get_id (device)), id_column_width);
+		name_column_width = MAX (strlen (frida_device_get_name (device)), name_column_width);
+	}
+
+	g_string_append_printf (dump, "%-*s  %-*s  %s\n",
+		id_column_width, "Id",
+		type_column_width, "Type",
+		"Name");
+
+	for (i = 0; i != id_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
+	g_string_append (dump, "  ");
+	for (i = 0; i != type_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
+	g_string_append (dump, "  ");
+	for (i = 0; i != name_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
+	g_string_append_c (dump, '\n');
+
+	type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
+
+	for (i = 0; i != num_devices; i++) {
+		FridaDevice *device;
+		GEnumValue *type;
+
+		device = g_array_index (devices, FridaDevice *, i);
+
+		type = g_enum_get_value (type_enum, frida_device_get_dtype (device));
+
+		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
+			id_column_width, frida_device_get_id (device),
+			type_column_width, type->value_nick,
+			frida_device_get_name (device));
+	}
+
+	eprintf ("%s\n", dump->str);
+
+	g_type_class_unref (type_enum);
+	frida_unref (list);
+
+	g_string_free (dump, TRUE);
+}
+
+static void dumpProcesses(FridaDevice *device) {
+	GString *dump;
+	FridaProcessList *list;
+	GArray *processes;
+	gint num_processes, i;
+	GError *error;
+	guint pid_column_width, name_column_width;
+
+	dump = g_string_sized_new (8192);
+
+	error = NULL;
+	list = frida_device_enumerate_processes_sync (device, &error);
+	if (error != NULL) {
+		eprintf ("%s\n", error->message);
+		goto beach;
+	}
+	num_processes = frida_process_list_size (list);
+
+	processes = g_array_sized_new (FALSE, FALSE, sizeof (FridaProcess *), num_processes);
+	for (i = 0; i != num_processes; i++) {
+		FridaProcess *process = frida_process_list_get (list, i);
+		g_array_append_val (processes, process);
+		g_object_unref (process); /* borrow it */
+	}
+	g_array_sort (processes, compareProcesses);
+
+	pid_column_width = 0;
+	name_column_width = 0;
+	for (i = 0; i != num_processes; i++) {
+		FridaProcess *process;
+		gchar *pid_str;
+
+		process = g_array_index (processes, FridaProcess *, i);
+
+		pid_str = g_strdup_printf ("%u", frida_process_get_pid (process));
+		pid_column_width = MAX (strlen (pid_str), pid_column_width);
+		g_free (pid_str);
+
+		name_column_width = MAX (strlen (frida_process_get_name (process)), name_column_width);
+	}
+
+	g_string_append_printf (dump, "%-*s  %s\n",
+		pid_column_width, "PID",
+		"Name");
+
+	for (i = 0; i != pid_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
+	g_string_append (dump, "  ");
+	for (i = 0; i != name_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
+	g_string_append_c (dump, '\n');
+
+	for (i = 0; i != num_processes; i++) {
+		FridaProcess *process = g_array_index (processes, FridaProcess *, i);
+
+		g_string_append_printf (dump, "%*u  %s\n",
+			pid_column_width, frida_process_get_pid (process),
+			frida_process_get_name (process));
+	}
+
+	eprintf ("%s\n", dump->str);
+
+beach:
+	g_clear_error (&error);
+	g_clear_object (&list);
+
+	g_string_free (dump, TRUE);
+}
+
+static gint compareDevices(gconstpointer element_a, gconstpointer element_b) {
+	FridaDevice *a = *(FridaDevice **) element_a;
+	FridaDevice *b = *(FridaDevice **) element_b;
+	gint score_a, score_b;
+
+	score_a = computeDeviceScore (a);
+	score_b = computeDeviceScore (b);
+	if (score_a != score_b) {
+		return score_b - score_a;
+	}
+
+	return strcmp (frida_device_get_name (a), frida_device_get_name (b));
+}
+
+static gint compareProcesses(gconstpointer element_a, gconstpointer element_b) {
+	FridaProcess *a = *(FridaProcess **) element_a;
+	FridaProcess *b = *(FridaProcess **) element_b;
+	gint score_a, score_b, name_equality;
+
+	score_a = computeProcessScore (a);
+	score_b = computeProcessScore (b);
+	if (score_a != score_b) {
+		return score_b - score_a;
+	}
+
+	name_equality = strcmp (frida_process_get_name (a), frida_process_get_name (b));
+	if (name_equality != 0) {
+		return name_equality;
+	}
+
+	return (gint) frida_process_get_pid (a) - (gint) frida_process_get_pid (b);
+}
+
+static gint computeDeviceScore(FridaDevice *device) {
+	switch (frida_device_get_dtype (device)) {
+	case FRIDA_DEVICE_TYPE_LOCAL:
+		return 3;
+	case FRIDA_DEVICE_TYPE_USB:
+		return 2;
+	case FRIDA_DEVICE_TYPE_REMOTE:
+		return 1;
+	}
+}
+
+static gint computeProcessScore(FridaProcess *process) {
+	return (frida_process_get_small_icon (process) != NULL) ? 1 : 0;
 }
 
 static int atopid(const char *maybe_pid, bool *valid) {
