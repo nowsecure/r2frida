@@ -40,6 +40,19 @@ But you can always follow the standard way in here:
 	$ make
 	$ sudo make install
 
+On Windows:
+
+* Make sure you have these installed:
+	* Visual Studio 15 or later
+	* npm
+	* Cygwin or MSYS2
+* Open a Command Prompt in the r2frida folder and run:
+
+```
+[Visual Studio Path]\VC\Auxiliary\Build\vcvarsall.bat [Your arch]
+.\build.bat install
+```
+
 Usage:
 ------
 
