@@ -1369,8 +1369,8 @@ RIOPlugin r_io_plugin_frida = {
 //	.isdbg = true // this requires 'dL io' and some fixes in !!!
 };
 
-#ifndef CORELIB
-RLibStruct radare_plugin = {
+#ifndef R2_PLUGIN_INCORE
+R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
 	.version = R2_VERSION
