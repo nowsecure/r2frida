@@ -12,7 +12,6 @@ const isObjC = require('./isobjc');
 
 let Gcwd = '/';
 
-
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const JavaAvailable = Java && Java.available;
@@ -251,7 +250,7 @@ const commandHandlers = {
   'cd': chDir,
   'cat': fsCat,
   'ls': fsList,
-   // required for m-io
+  // required for m-io
   'md': fsList,
   'mg': fsCat,
   'm': fsOpen,
@@ -605,7 +604,7 @@ function breakpointUnset (args) {
     for (let k of Object.keys(breakpoints)) {
       const bp = breakpoints[k];
       // eslint-disable-next-line
-      if (args[0] === '*' || bp.address == addr) {
+      if (args[0] === '*' || bp.address === addr) {
         found = true;
         console.log('Breakpoint reverted');
         Interceptor.revert(ptr(bp.address));
@@ -790,7 +789,7 @@ function setBreakpoint (name, address) {
   breakpoints[addrString] = bp;
 }
 
-function getCwd() {
+function getCwd () {
   const _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
   if (_getcwd) {
     const PATH_MAX = 4096;
@@ -807,7 +806,7 @@ function chDir (args) {
   const _chdir = sym('chdir', 'int', ['pointer']);
   if (_chdir && args) {
     const arg = Memory.allocUtf8String(args[0]);
-    _chdir (arg);
+    _chdir(arg);
     getCwd(); // update Gcwd
   }
   return '';
@@ -835,14 +834,18 @@ async function dumpInfoJson () {
     await performOnJavaVM(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
 
-      res.dataDir = ActivityThread.currentApplication().getApplicationContext().getDataDir().getAbsolutePath();
-      res.codeCacheDir = ActivityThread.currentApplication().getApplicationContext().getCodeCacheDir().getAbsolutePath();
-      res.extCacheDir = ActivityThread.currentApplication().getApplicationContext().getExternalCacheDir().getAbsolutePath();
-      res.obbDir = ActivityThread.currentApplication().getApplicationContext().getObbDir().getAbsolutePath();
-      res.filesDir = ActivityThread.currentApplication().getApplicationContext().getFilesDir().getAbsolutePath();
-      res.noBackupDir = ActivityThread.currentApplication().getApplicationContext().getNoBackupFilesDir().getAbsolutePath();
-      res.codePath = ActivityThread.currentApplication().getApplicationContext().getPackageCodePath();
-      res.packageName = ActivityThread.currentApplication().getApplicationContext().getPackageName();
+      try {
+        res.dataDir = ActivityThread.currentApplication().getApplicationContext().getDataDir().getAbsolutePath();
+        res.codeCacheDir = ActivityThread.currentApplication().getApplicationContext().getCodeCacheDir().getAbsolutePath();
+        res.extCacheDir = ActivityThread.currentApplication().getApplicationContext().getExternalCacheDir().getAbsolutePath();
+        res.obbDir = ActivityThread.currentApplication().getApplicationContext().getObbDir().getAbsolutePath();
+        res.filesDir = ActivityThread.currentApplication().getApplicationContext().getFilesDir().getAbsolutePath();
+        res.noBackupDir = ActivityThread.currentApplication().getApplicationContext().getNoBackupFilesDir().getAbsolutePath();
+        res.codePath = ActivityThread.currentApplication().getApplicationContext().getPackageCodePath();
+        res.packageName = ActivityThread.currentApplication().getApplicationContext().getPackageName();
+      } catch (e) {
+        // ignore
+      }
       res.cacheDir = Java.classFactory.cacheDir;
 
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
@@ -1273,33 +1276,33 @@ function listClassesLoaders (args) {
     return 'Error: icL is only available on Android targets.';
   }
   var res = '';
-  Java.perform(function() {
-    function s2o(s) {
+  Java.perform(function () {
+    function s2o (s) {
       var indent = 0;
       var res = '';
       for (var ch of s.toString()) {
         switch (ch) {
-        case '[':
-          indent++;
-          res += '[\n' + Array(indent+1).join(' ');
-          break;
-        case ']':
-          indent--;
-          res += ']\n' + Array(indent+1).join(' ');
-          break;
-        case ',':
-          res += ',\n' + Array(indent+1).join(' ');
-          break;
-        default:
-          res += ch;
-          break;
+          case '[':
+            indent++;
+            res += '[\n' + Array(indent + 1).join(' ');
+            break;
+          case ']':
+            indent--;
+            res += ']\n' + Array(indent + 1).join(' ');
+            break;
+          case ',':
+            res += ',\n' + Array(indent + 1).join(' ');
+            break;
+          default:
+            res += ch;
+            break;
         }
       }
       return res;
     }
     var c = Java.enumerateClassLoadersSync();
     for (var cl in c) {
-      const cs = s2o(c[cl].toString())
+      const cs = s2o(c[cl].toString());
       res += cs;
     }
   });
@@ -1899,7 +1902,7 @@ function regcursive (regname, regvalue) {
 function dumpRegistersRecursively (args) {
   const [tid] = args;
   Process.enumerateThreads()
-    .filter(thread => !tid || tid == thread.id)
+    .filter(thread => !tid || tid === thread.id)
     .map(thread => {
       const { id, state, context } = thread;
       let res = ['# thread ' + id + ' ' + state];
@@ -1919,7 +1922,7 @@ function dumpRegistersRecursively (args) {
 function dumpRegistersR2 (args) {
   const threads = Process.enumerateThreads();
   let [tid] = args;
-  const context = tid ? threads.filter(th => th.id == tid) : threads[0].context;
+  const context = tid ? threads.filter(th => th.id === tid) : threads[0].context;
   if (!context) {
     return '';
   }
@@ -1937,7 +1940,7 @@ function dumpRegistersR2 (args) {
 function dumpRegisters (args) {
   let [tid] = args;
   return Process.enumerateThreads()
-    .filter(thread => !tid || thread.id == tid)
+    .filter(thread => !tid || thread.id === tid)
     .map(thread => {
       const { id, state, context } = thread;
       const heading = `tid ${id} ${state}`;
@@ -2019,11 +2022,11 @@ function changeSelinuxContext (args) {
   // TODO If it runs as root, then file might be checked
   const file = args[0];
 
-  const con = Memory.allocUtf8String("u:object_r:frida_file:s0");
+  const con = Memory.allocUtf8String('u:object_r:frida_file:s0');
   const path = Memory.allocUtf8String(file);
 
-  var rv =  _setfilecon(path, con);
-  return JSON.stringify({ ret:rv.value, errno:rv.errno });
+  var rv = _setfilecon(path, con);
+  return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
 
 function formatArgs (args, fmt) {
@@ -2480,9 +2483,9 @@ function traceR2 (args) {
 function traceJava (klass, method) {
   Java.perform(function () {
     const k = javaUse(klass);
-    k[method].implementation = function() {
+    k[method].implementation = function () {
       this[method]();
-/*
+      /*
     var Throwable = Java.use('java.lang.Throwable');
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
