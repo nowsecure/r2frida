@@ -1412,12 +1412,13 @@ function listJavaClassesJson (args) {
         if (klass === null) {
           throw new Error('Cannot find a classloader for this class');
         }
-        klass.getMethods().map(_ => res.push(_.toString()));
-        klass.getFields().map(_ => res.push(_.toString()));
         try {
+          klass.getMethods().map(_ => res.push(_.toString()));
+          klass.getFields().map(_ => res.push(_.toString()));
           klass.getConstructors().map(_ => res.push(_.toString()));
         } catch (e) {
-          // do nothing
+          console.log(e.message);
+          console.log(Object.keys(klass), JSON.stringify(klass), klass);
         }
       } catch (e) {
         console.error(e.message);
@@ -1477,6 +1478,7 @@ function listFileDescriptors (args) {
 }
 
 function listFileDescriptorsJson (args) {
+  const PATH_MAX = 4096;
   function getFdName (fd) {
     if (_readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
