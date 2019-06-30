@@ -467,6 +467,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		// TODO: move this into the .js
 		io->cb_printf ("r2frida commands available via =! or \\ prefix\n"
 		". script                   Run script\n"
+		"  frida-expression         Run given expresssion inside the agent\n"
+		"j java-expression          Run given expresssion inside a Java.perform(function(){}) block\n"
 		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
 		"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
 		"/w[j] string               Search wide string\n"
@@ -615,6 +617,12 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	char *slurpedData = NULL;
 	if (command[0] == '.') {
 		switch (command[1]) {
+		case '?':
+			eprintf ("Usage: .[-] [filename]  # load and run the given script into the agent\n");
+			eprintf (".              list loaded plugins via r2frida.pluginRegister()\n");
+			eprintf (".-foo          unload r2frida plugin via r2frida.pluginUnregister()\n");
+			eprintf (". file.js      run this script in the agent side\n");
+			break;
 		case ' ':
 			slurpedData = r_file_slurp (command + 2, NULL);
 			if (!slurpedData) {
@@ -644,7 +652,17 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		}
 	}
 	if (!slurpedData) {
-		if (command[0] == ' ') {
+		if (command[0] == 'j') { // "j"
+			// Example: "\j var a=Java.use('java.lang.String');var b=a.$new('findus');console.log('sinderel'+b.toString())"
+			// Output: sinderelfindus
+			GError *error = NULL;
+			char *js;
+			builder = build_request ("evaluate");
+			json_builder_set_member_name (builder, "code");
+			char *code = r_str_newf ("Java.perform(function(){%s;})", command + 1);
+			json_builder_add_string_value (builder, code);
+			free (code);
+		} else if (command[0] == ' ') {
 			GError *error = NULL;
 			char *js;
 #if WITH_CYLANG
