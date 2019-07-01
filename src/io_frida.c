@@ -255,7 +255,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			eprintf ("Cannot spawn: %s\n", error->message);
 			goto error;
 		}
-
 		rf->suspended = true;
 	} else {
 		rf->pid = lo->pid;

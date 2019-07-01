@@ -833,21 +833,21 @@ async function dumpInfoJson () {
   if (JavaAvailable) {
     await performOnJavaVM(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
-
-      try {
-        res.dataDir = ActivityThread.currentApplication().getApplicationContext().getDataDir().getAbsolutePath();
-        res.codeCacheDir = ActivityThread.currentApplication().getApplicationContext().getCodeCacheDir().getAbsolutePath();
-        res.extCacheDir = ActivityThread.currentApplication().getApplicationContext().getExternalCacheDir().getAbsolutePath();
-        res.obbDir = ActivityThread.currentApplication().getApplicationContext().getObbDir().getAbsolutePath();
-        res.filesDir = ActivityThread.currentApplication().getApplicationContext().getFilesDir().getAbsolutePath();
-        res.noBackupDir = ActivityThread.currentApplication().getApplicationContext().getNoBackupFilesDir().getAbsolutePath();
-        res.codePath = ActivityThread.currentApplication().getApplicationContext().getPackageCodePath();
-        res.packageName = ActivityThread.currentApplication().getApplicationContext().getPackageName();
-      } catch (e) {
-        // ignore
+      const app = ActivityThread.currentApplication();
+      if (app !== null) {
+        const ctx = app.getApplicationContext()
+        if (ctx !== null) {
+          res.dataDir = ctx.getDataDir().getAbsolutePath();
+          res.codeCacheDir = ctx.getCodeCacheDir().getAbsolutePath();
+          res.extCacheDir = ctx.getExternalCacheDir().getAbsolutePath();
+          res.obbDir = ctx.getObbDir().getAbsolutePath();
+          res.filesDir = ctx.getFilesDir().getAbsolutePath();
+          res.noBackupDir = ctx.getNoBackupFilesDir().getAbsolutePath();
+          res.codePath = ctx.getPackageCodePath();
+          res.packageName = ctx.getPackageName();
+        }
       }
       res.cacheDir = Java.classFactory.cacheDir;
-
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
     });
   }
@@ -3559,7 +3559,7 @@ function fsOpen (args) {
 
 function performOnJavaVM (fn) {
   return new Promise((resolve, reject) => {
-    Java.perform(() => {
+    Java.perform(function () {
       try {
         const result = fn();
         resolve(result);
