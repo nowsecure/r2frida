@@ -9,6 +9,7 @@ const path = require('path');
 const config = require('./config');
 const io = require('./io');
 const isObjC = require('./isobjc');
+const strings = require('./strings');
 
 let Gcwd = '/';
 
@@ -184,6 +185,8 @@ const commandHandlers = {
   'icj': listClassesJson,
   'ip': listProtocols,
   'ipj': listProtocolsJson,
+  'iz': listStrings,
+  'izj': listStringsJson,
   'dd': listFileDescriptors,
   'ddj': listFileDescriptorsJson,
   'dd-': closeFileDescriptors,
@@ -835,7 +838,7 @@ async function dumpInfoJson () {
       const ActivityThread = Java.use('android.app.ActivityThread');
       const app = ActivityThread.currentApplication();
       if (app !== null) {
-        const ctx = app.getApplicationContext()
+        const ctx = app.getApplicationContext();
         if (ctx !== null) {
           res.dataDir = ctx.getDataDir().getAbsolutePath();
           res.codeCacheDir = ctx.getCodeCacheDir().getAbsolutePath();
@@ -1523,6 +1526,45 @@ function listFileDescriptorsJson (args) {
   }
 }
 
+function listStringsJson (args) {
+  if (!args || args.length !== 1) {
+    args = [ offset ];
+  }
+  const base = ptr(args[0]);
+  const currentRange = Process.findRangeByAddress(base);
+  if (currentRange) {
+    const options = { base: base }; // filter for urls?
+    const length = Math.min(currentRange.size, 1024*1024*128);
+    const block = 1024*1024; // 512KB
+    if (length !== currentRange.size) {
+      const curSize = currentRange.size / (1024 * 1024);
+      console.error('Warning: this range is too big ('+curSize+'MB), truncated to ' + length / (1024*1024) + 'MB');
+    }
+    try {
+      let res = [];
+      console.log('Reading ' + (length/(1024*1024)) + 'MB ...');
+      for (let i = 0; i < length; i += block) {
+        const addr = currentRange.base.add(i);
+        const bytes = addr.readCString(block);
+        const blockResults = strings(bytes.split('').map(_ => _.charCodeAt(0)), options);
+        res.push(...blockResults);
+      }
+      return res;
+    } catch (e) {
+      console.log(e.message);
+    }
+  }
+  throw new Error('Memory not mapped here');
+}
+
+function listStrings (args) {
+  if (!args || args.length !== 1) {
+    args = [ ptr(offset) ];
+  }
+  const base = ptr(args[0]);
+  return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
+}
+
 function listProtocolsJson (args) {
   if (args.length === 0) {
     return Object.keys(ObjC.protocols);
@@ -1581,9 +1623,9 @@ function listMemoryRangesHere (args) {
   if (args.length !== 1) {
     args = [ ptr(offset) ];
   }
-  const addr = +args[0];
+  const addr = ptr(args[0]);
   return listMemoryRangesJson()
-    .filter(({ base, size }) => (addr >= +base && addr < (+base + size)))
+    .filter(({ base, size }) => (addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0))
     .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
@@ -1992,8 +2034,8 @@ function getEnv () {
   const result = [];
   let envp = Memory.readPointer(Module.findExportByName(null, 'environ'));
   let env;
-  while (!envp.isNull() && !(env = Memory.readPointer(envp)).isNull()) {
-    result.push(Memory.readCString(env));
+  while (!envp.isNull() && !(env = envp.readPointer()).isNull()) {
+    result.push(env.readCString());
     envp = envp.add(Process.pointerSize);
   }
   return result;
