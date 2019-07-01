@@ -274,11 +274,27 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 	}
 
-	rf->script = frida_session_create_script_sync (rf->session, r_io_frida_agent_code, options, &error);
-	if (error) {
-		eprintf ("Cannot create script: %s\n", error->message);
-		goto error;
+	char *r2f_as = r_sys_getenv ("R2FRIDA_AGENT_SCRIPT");
+	if (r2f_as && r2f_as) {
+		char *agent_code = r_file_slurp (r2f_as, NULL);
+		if (agent_code) {
+			rf->script = frida_session_create_script_sync (rf->session, agent_code, options, &error);
+			if (error) {
+				eprintf ("Cannot create script: %s\n", error->message);
+				goto error;
+			}
+			free (agent_code);
+		} else {
+			eprintf ("Cannot slurp R2FRIDA_AGENT_SCRIPT\n");
+		}
+	} else {
+		rf->script = frida_session_create_script_sync (rf->session, r_io_frida_agent_code, options, &error);
+		if (error) {
+			eprintf ("Cannot create script: %s\n", error->message);
+			goto error;
+		}
 	}
+	free (r2f_as);
 
 	g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
 	g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
@@ -859,6 +875,7 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 		eprintf ("* frida://usb/$(peer)               # list process-names\n");
 		eprintf ("Environment:\n");
 		eprintf ("R2FRIDA_DISABLE_V8                  # if set, use duktape instead of v8\n");
+		eprintf ("R2FRIDA_AGENT_SCRIPT                # path to file of the r2frida agent\n");
 		return false;
 	}
 	lo->spawn = false;

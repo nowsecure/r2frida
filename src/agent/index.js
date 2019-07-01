@@ -827,7 +827,7 @@ async function dumpInfoJson () {
     pointerSize: Process.pointerSize,
     codeSigningPolicy: Process.codeSigningPolicy,
     isDebuggerAttached: Process.isDebuggerAttached(),
-    cwd: getCwd()
+    cwd: getCwd(),
   };
 
   if (JavaAvailable) {
