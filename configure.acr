@@ -1,5 +1,5 @@
 PKGNAME r2frida
-VERSION 3.6.0
+VERSION 3.7.0-git
 CONTACT pancake ; pancake@nowsecure.com
 
 LANG_C!
