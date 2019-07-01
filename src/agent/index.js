@@ -1414,10 +1414,11 @@ function listJavaClassesJson (args) {
   if (args.length === 1) {
     Java.perform(function () {
       try {
-        const klass = javaUse(args[0]);
-        if (klass === null) {
+        const handle = javaUse(args[0]);
+        if (handle === null || !handle.class) {
           throw new Error('Cannot find a classloader for this class');
         }
+        const klass = handle.class;
         try {
           klass.getMethods().map(_ => res.push(_.toString()));
           klass.getFields().map(_ => res.push(_.toString()));
