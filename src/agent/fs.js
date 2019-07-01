@@ -123,26 +123,35 @@ class FridaFS {
     return result.join('\n');
   }
 
-  cat (path) {
+  cat (path, mode) {
     const actualPath = this.transform.toActual(path);
     if (actualPath !== null) {
-      const size = this.api.getFileSize(actualPath);
+      let size = this.api.getFileSize(actualPath);
       if (size < 0) {
         console.log(`ERROR: cannot stat ${actualPath}`);
         return '';
       }
+      let weak = false;
+      if (size === 0) {
+        console.log('weak');
+        weak = true;
+        size = 1024 * 32;
+      }
 
       const buf = Memory.alloc(size);
       const f = this.api.fopen(actualPath, 'rb');
-      if (this.api.fread(buf, 1, size, f) !== size) {
+      const res = this.api.fread(buf, 1, size, f);
+      if (!weak && res !== size) {
         console.log(`ERROR: reading ${actualPath}`);
         this.api.fclose(f);
         return '';
       }
 
       this.api.fclose(f);
-
-      return encodeBuf(buf, size, 'hex');
+      if (mode === '*') {
+        return encodeBuf(buf, size, 'hex');
+      }
+      return encodeBuf(buf, size, 'utf8');
     }
     console.log('ERROR: no path ' + path);
     return '';
@@ -543,7 +552,7 @@ function isiOS () {
 
 function encodeBuf (buf, size, encoding) {
   if (encoding !== 'hex') {
-    return '';
+    return Memory.readCString(buf);
   }
 
   const result = [];

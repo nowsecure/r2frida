@@ -252,7 +252,7 @@ const commandHandlers = {
   'ls': fsList,
   // required for m-io
   'md': fsList,
-  'mg': fsCat,
+  'mg': fsGet,
   'm': fsOpen,
   'pd': disasmCode,
   'px': printHexdump,
@@ -3543,6 +3543,10 @@ function _isHex (raw) {
 
 function fsList (args) {
   return fs.ls(args[0] || Gcwd);
+}
+
+function fsGet (args) {
+  return fs.cat(args[0] || '', '*');
 }
 
 function fsCat (args) {
