@@ -356,7 +356,7 @@ function listAllocs (args) {
       const printables = _filterPrintable(bytes);
       return `${x}\t"${printables}"`;
     })
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function _delAlloc (addr) {
@@ -1601,7 +1601,7 @@ function listMallocMaps (args) {
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
     )
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function listMallocRangesJson (args) {
@@ -1617,7 +1617,7 @@ function listMallocRangesR2 (args) {
 
 function listMallocRanges (args) {
   return squashRanges(listMallocRangesJson(args))
-    .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n');
+    .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
 }
 
 function listMemoryRangesHere (args) {
@@ -1626,7 +1626,7 @@ function listMemoryRangesHere (args) {
   }
   const addr = ptr(args[0]);
   return listMemoryRangesJson()
-    .filter(({ base, size }) => (addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0))
+    .filter(({base, size}) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
     .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
@@ -1637,7 +1637,7 @@ function listMemoryRangesHere (args) {
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
     )
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function rwxstr (x) {
@@ -1704,7 +1704,7 @@ function listMemoryMaps () {
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
     )
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function listMemoryRangesR2 () {
@@ -1720,7 +1720,7 @@ function listMemoryRangesR2 () {
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
     )
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function listMemoryRanges () {
@@ -1735,7 +1735,7 @@ function listMemoryRanges () {
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
     )
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function listMemoryRangesJson () {
@@ -1789,7 +1789,7 @@ function listThreads () {
   return Process.enumerateThreads().map((thread) => {
     const threadName = getThreadName(thread.id);
     return [thread.id, threadName].join(' ');
-  }).join('\n');
+  }).join('\n') + '\n';
 }
 
 function listThreadsJson () {
@@ -1994,7 +1994,7 @@ function dumpRegisters (args) {
         .map(indent);
       return heading + '\n' + values.join('');
     })
-    .join('\n\n');
+    .join('\n\n') + '\n';
 }
 
 function dumpRegistersJson () {
@@ -2003,7 +2003,7 @@ function dumpRegistersJson () {
 
 function getOrSetEnv (args) {
   if (args.length === 0) {
-    return getEnv().join('\n');
+    return getEnv().join('\n') + '\n;
   }
   const { key, value } = getOrSetEnvJson(args);
   return key + '=' + value;
@@ -2175,11 +2175,11 @@ function traceList () {
   let count = 0;
   return traceListeners.map((t) => {
     return [count++, t.hits, t.at, t.source, t.moduleName, t.name, t.args].join('\t');
-  }).join('\n');
+  }).join('\n') + '\n';
 }
 
 function traceListJson () {
-  return traceListeners.map(_ => JSON.stringify(_)).join('\n');
+  return traceListeners.map(_ => JSON.stringify(_)).join('\n') + '\n';
 }
 
 function getPtr (p) {
@@ -2359,7 +2359,7 @@ function traceNameFromAddress (address) {
 function traceLogDumpQuiet () {
   return logs.map(({ address, timestamp }) =>
     [address, timestamp, traceCountFromAddress(address), traceNameFromAddress(address)].join(' '))
-    .join('\n');
+    .join('\n') + '\n';
 }
 
 function traceLogDumpJson () {
@@ -2400,12 +2400,12 @@ function tracelogToString (l) {
   const line = [l.source, l.name || l.address, objectToString(l.values)].join('\t');
   const bt = (!l.backtrace) ? '' : l.backtrace.map((b) => {
     return ['', b.address, b.moduleName, b.name].join('\t');
-  }).join('\n');
+  }).join('\n') + '\n';
   return line + bt;
 }
 
 function traceLogDump () {
-  return logs.map(tracelogToString).join('\n');
+  return logs.map(tracelogToString).join('\n') + '\n';
 }
 
 function traceLogClear (args) {
@@ -2520,7 +2520,7 @@ function traceHere () {
 }
 
 function traceR2 (args) {
-  return traceListeners.map(_ => `dt+ ${_.at} ${_.hits}`).join('\n');
+  return traceListeners.map(_ => `dt+ ${_.at} ${_.hits}`).join('\n') + '\n';
 }
 
 function traceJava (klass, method) {
@@ -2535,14 +2535,14 @@ function traceJava (klass, method) {
       console.log('[*] onResume() got called!');
       this.onResume();
 */
-      const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n');
+      const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n') + '\n';
       console.log('BACKTRACE', message);
     };
   });
 }
 
 function traceQuiet (args) {
-  return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n');
+  return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n') + '\n';
 }
 
 function traceJson (args) {
@@ -2842,8 +2842,7 @@ function _stalkTraceSomething (getEvents, args) {
         }));
       }
     }
-
-    return result.join('\n');
+    return result.join('\n') + '\n';
   });
 
   function disasmOne (address, previousSymbolName, target) {
@@ -2879,13 +2878,12 @@ function _stalkTraceSomethingR2 (getEvents, args) {
           if (target) {
             commands.push(`CC ${target} ${getSymbolName(target)} @ ${location}`);
           }
-
-          return commands.join('\n');
+          return commands.join('\n') + '\n';
         }));
       }
     }
 
-    return result.join('\n');
+    return result.join('\n') + '\n';
   });
 }
 
@@ -3112,7 +3110,7 @@ function getHelpMessage (prefix) {
           return ' ' + y.toLowerCase();
         }).replace(/^_/, '');
       return ' ' + k + '\t' + desc;
-    }).join('\n');
+    }).join('\n') + '\n';
 }
 
 function perform (params) {
@@ -3383,7 +3381,7 @@ function _readableHits (hits) {
     }
     return `${hit.address} ${hit.content}`;
   });
-  return output.join('\n');
+  return output.join('\n') + '\n';
 }
 
 function _searchPatternJson (pattern) {
