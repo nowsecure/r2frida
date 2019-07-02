@@ -2003,7 +2003,7 @@ function dumpRegistersJson () {
 
 function getOrSetEnv (args) {
   if (args.length === 0) {
-    return getEnv().join('\n') + '\n;
+    return getEnv().join('\n') + '\n';
   }
   const { key, value } = getOrSetEnvJson(args);
   return key + '=' + value;
