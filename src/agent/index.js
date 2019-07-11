@@ -50,7 +50,7 @@ function numEval (expr) {
 function javaUse (name) {
   const initialLoader = Java.classFactory.loader;
   let res = null;
-  Java.perform(function () {
+  javaPerform(function () {
     for (let kl of Java.enumerateClassLoadersSync()) {
       try {
         Java.classFactory.loader = kl;
@@ -74,7 +74,7 @@ function evalNum (args) {
 }
 
 function javaTraceExample () {
-  Java.perform(function () {
+  javaPerform(function () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
@@ -815,6 +815,15 @@ function chDir (args) {
   return '';
 }
 
+function waitForJava() {
+  javaPerform(function() {
+    const ActivityThread = Java.use('android.app.ActivityThread');
+    const app = ActivityThread.currentApplication();
+    const ctx = app.getApplicationContext();
+    console.log('Done: ' + ctx);
+  });
+}
+
 async function dumpInfoJson () {
   const res = {
     arch: getR2Arch(Process.arch),
@@ -1279,7 +1288,7 @@ function listClassesLoaders (args) {
     return 'Error: icL is only available on Android targets.';
   }
   var res = '';
-  Java.perform(function () {
+  javaPerform(function () {
     function s2o (s) {
       var indent = 0;
       var res = '';
@@ -1385,7 +1394,7 @@ function listJavaClassesJsonSync (args) {
   if (args.length === 1) {
     let methods;
     /* list methods */
-    Java.perform(function () {
+    javaPerform(function () {
       const obj = javaUse(args[0]);
       methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
       // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
@@ -1398,7 +1407,7 @@ function listJavaClassesJsonSync (args) {
     return methods;
   }
   let classes;
-  Java.perform(function () {
+  javaPerform(function () {
     try {
       classes = Java.enumerateLoadedClassesSync();
     } catch (e) {
@@ -1412,7 +1421,7 @@ function listJavaClassesJsonSync (args) {
 function listJavaClassesJson (args) {
   let res = [];
   if (args.length === 1) {
-    Java.perform(function () {
+    javaPerform(function () {
       try {
         const handle = javaUse(args[0]);
         if (handle === null || !handle.class) {
@@ -1432,7 +1441,7 @@ function listJavaClassesJson (args) {
       }
     });
   } else {
-    Java.perform(function () {
+    javaPerform(function () {
       try {
         res = Java.enumerateLoadedClassesSync();
       } catch (e) {
@@ -2524,7 +2533,7 @@ function traceR2 (args) {
 }
 
 function traceJava (klass, method) {
-  Java.perform(function () {
+  javaPerform(function () {
     const k = javaUse(klass);
     k[method].implementation = function () {
       this[method]();
@@ -2717,7 +2726,7 @@ function interceptHelp (args) {
 }
 
 function interceptRetJava (klass, method, value) {
-  Java.perform(function () {
+  javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
       console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
@@ -3598,9 +3607,16 @@ function fsOpen (args) {
   return fs.open(args[0] || Gcwd);
 }
 
+function javaPerform(fn) {
+  if (config.getBoolean('java.wait')) {
+    return Java.perform(fn);
+  }
+  return Java.performNow(fn);
+}
+
 function performOnJavaVM (fn) {
   return new Promise((resolve, reject) => {
-    Java.perform(function () {
+    javaPerform(function () {
       try {
         const result = fn();
         resolve(result);

@@ -1,6 +1,7 @@
 'use strict';
 
 const config = {
+  'java.wait': false,
   'patch.code': true,
   'search.in': 'perm:r--',
   'search.quiet': false,
@@ -13,6 +14,7 @@ const config = {
 };
 
 const configHelp = {
+  'java.wait': configHelpJavaWait,
   'search.in': configHelpSearchIn,
   'stalker.event': configHelpStalkerEvent,
   'stalker.timeout': configHelpStalkerTimeout,
@@ -23,6 +25,7 @@ const configHelp = {
 };
 
 const configValidator = {
+  'java.wait': configValidateBoolean,
   'search.in': configValidateSearchIn,
   'stalker.event': configValidateStalkerEvent,
   'stalker.timeout': configValidateStalkerTimeout,
@@ -31,6 +34,10 @@ const configValidator = {
   'hook.verbose': configValidateBoolean,
   'symbols.unredact': configValidateBoolean
 };
+
+function configHelpJavaWait () {
+  return `Wait for Java classloader to be ready (boolean)`;
+}
 
 function configHelpSearchIn () {
   return `Specify which memory ranges to search in, possible values:
