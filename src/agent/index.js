@@ -269,6 +269,9 @@ async function initBasicInfoFromTarget (args) {
 e dbg.backend =io
 e anal.autoname=true
 e cmd.fcn.new=aan
+e asm.arch=` + getR2Arch(Process.arch) + `
+e asm.bits=` + (pointerSize * 8) + `
+e asm.os=` + Process.platform + `
 .=!i*
 .=!ie*
 .=!il*
