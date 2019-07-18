@@ -936,14 +936,25 @@ function listAllExportsR2 (args) {
     })
     .join('\n');
 }
+
 function listAllSymbolsJson (args) {
   const argName = args[0];
   const modules = Process.enumerateModules().map(m => m.path);
-  const res = [];
+  let res = [];
   for (let module of modules) {
     const symbols = Module.enumerateSymbols(module)
-      .filter((s) => s.name === argName);
-    res.push(...symbols);
+      .filter ((r) => r.address.compare(ptr('0')) > 0 && r.name);
+    if (argName) {
+      res.push(...symbols.filter((s) => s.name.indexOf(argName) !== -1));
+    } else {
+      res.push(...symbols);
+    }
+    if (res.length > 100000) {
+      res.forEach((r) => {
+        console.error([r.address, r.moduleName, r.name].join(' '));
+      });
+      res = [];
+    }
   }
   return res;
 }
