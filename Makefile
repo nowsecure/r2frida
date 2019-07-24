@@ -151,10 +151,22 @@ io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
+src/agent/r2swida.js: src/swift-frida/node_modules
+	cd src/swift-frida/examples/r2swida && \
+	../../node_modules/.bin/frida-compile \
+		-o ../../../agent/r2swida.js \
+		index.js
+
+src/swift-frida/node_modules: src/swift-frida
+	cd src/swift-frida && npm i
+
+src/swift-frida:
+	cd src && git clone https://github.com/trufae/swift-frida
+
 src/_agent.h: src/_agent.js
 	xxd -i < $< > $@
 
-src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
+src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules src/agent/r2swida.js
 	npm run build
 
 node_modules: package.json
