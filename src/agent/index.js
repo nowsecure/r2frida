@@ -578,7 +578,8 @@ async function dumpInfoR2 () {
   return [
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
-    'e asm.os=' + properties.os
+    'e asm.os=' + properties.os,
+    'f jnienv=' + properties.jniEnv || 0
   ].join('\n');
 }
 
