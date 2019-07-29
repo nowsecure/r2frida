@@ -2614,13 +2614,44 @@ function traceR2 (args) {
   return traceListeners.map(_ => `dt+ ${_.at} ${_.hits}`).join('\n') + '\n';
 }
 
+function dumpJavaArguments (args) {
+  let res = '';
+  try {
+    for (let a of args) {
+      try {
+        res += a.toString() + ' ';
+      } catch (ee) {
+      }
+    }
+  } catch (e) {
+  }
+  return res;
+}
+
+function traceJavaConstructors (className) {
+  javaPerform(function () {
+    var foo = Java.use(className).$init.overloads;
+    foo.forEach((over) => {
+      over.implementation = function () {
+        console.log('dt', className, '(', dumpJavaArguments(arguments), ')');
+        if (config.getBoolean('hook.backtrace')) {
+          const Throwable = Java.use('java.lang.Throwable');
+          const bt = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n- ') + '\n';
+          console.log('-', bt);
+        }
+        return over.apply(this, arguments);
+      };
+    });
+  });
+}
+
 function traceJava (klass, method) {
   javaPerform(function () {
+    const Throwable = Java.use('java.lang.Throwable');
     const k = javaUse(klass);
     k[method].implementation = function (args) {
       const res = this[method]();
       console.error(args);
-      var Throwable = Java.use('java.lang.Throwable');
       /*
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
@@ -2750,13 +2781,19 @@ function traceReal (name, addressString) {
     return 'There\'s already a trace in here';
   }
   if (name.startsWith('java:')) {
-    const dot = name.lastIndexOf('.');
-    if (dot !== -1) {
-      const klass = name.substring(5, dot);
-      const methd = name.substring(dot + 1);
-      traceJava(klass, methd);
+    const javaName = name.substring(5);
+    if (javaUse(javaName)) {
+      console.error('Tracing class constructors');
+      traceJavaConstructors(javaName);
     } else {
-      console.log('Invalid java method name. Use \\dt java:package.class.method');
+      const dot = javaName.lastIndexOf('.');
+      if (dot !== -1) {
+        const klass = javaName.substring(5, dot);
+        const methd = javaName.substring(dot + 1);
+        traceJava(klass, methd);
+      } else {
+        console.log('Invalid java method name. Use \\dt java:package.class.method');
+      }
     }
     return;
   }
