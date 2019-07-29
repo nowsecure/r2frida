@@ -2611,16 +2611,18 @@ function traceJava (klass, method) {
   javaPerform(function () {
     const k = javaUse(klass);
     k[method].implementation = function () {
-      this[method]();
+      const res = this[method]();
+      var Throwable = Java.use('java.lang.Throwable');
       /*
-    var Throwable = Java.use('java.lang.Throwable');
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
       console.log('[*] onResume() got called!');
       this.onResume();
 */
       const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n') + '\n';
-      console.log('BACKTRACE', message);
+      console.error('dt', klass);
+      console.error(message);
+      return res;
     };
   });
 }
@@ -2742,8 +2744,8 @@ function traceReal (name, addressString) {
   if (name.startsWith('java:')) {
     const dot = name.lastIndexOf('.');
     if (dot !== -1) {
-      const klass = address.substring(5, dot);
-      const methd = address.substring(dot + 1);
+      const klass = name.substring(5, dot);
+      const methd = name.substring(dot + 1);
       traceJava(klass, methd);
     } else {
       console.log('Invalid java method name. Use \\dt java:package.class.method');
