@@ -143,6 +143,7 @@ const commandHandlers = {
   'iAs': listAllSymbols, // SLOW
   'iAsj': listAllSymbolsJson,
   'iAs*': listAllSymbolsR2,
+  'iAn': listAllClassesNatives,
 
   'is': listSymbols,
   'is.': lookupSymbolHere,
@@ -181,6 +182,7 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   'fdj': lookupAddressJson,
   'ic': listClasses,
+  'icn': listClassesNatives,
   'icL': listClassesLoaders,
   'icl': listClassesLoaded,
   'iclj': listClassesLoadedJson,
@@ -1346,6 +1348,54 @@ function listClassesLoaded (args) {
     loadedClasses.push(...results[module]);
   }
   return loadedClasses.join('\n');
+}
+
+// only for java
+function listAllClassesNatives (args) {
+  return listClassesNatives(['.']);
+}
+
+function listClassesNatives (args) {
+  const natives = [];
+  const vkn = args[0] || 'com';
+  javaPerform(function () {
+    const klasses = listClassesJson([]);
+    for (let kn of klasses) {
+      kn = kn.toString();
+      if (kn.indexOf('android') !== -1) {
+        continue;
+      }
+      if (kn.indexOf(vkn) === -1) {
+        continue;
+      }
+      try {
+        const handle = javaUse(kn);
+        const klass = handle.class;
+        const klassNatives = klass.getMethods().map(_ => _.toString()).filter(_ => _.indexOf('static native') !== -1);
+        if (klassNatives.length > 0) {
+          const kns = klassNatives.map((n) => {
+            const p = n.indexOf('(');
+            let sn = '';
+            if (p !== -1) {
+              const s = n.substring(0, p);
+              const w = s.split(' ');
+              sn = w[w.length - 1];
+              return sn;
+            }
+            return n; // { name: sn, fullname: n };
+          });
+          console.error(kns.join('\n'));
+          for (let tkn of kns) {
+            if (natives.indexOf(tkn) === -1) {
+              natives.push(tkn);
+            }
+          }
+        }
+      } catch (ignoreError) {
+      }
+    }
+  });
+  return natives;
 }
 
 function listClasses (args) {
