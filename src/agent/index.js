@@ -819,8 +819,8 @@ function chDir (args) {
   return '';
 }
 
-function waitForJava() {
-  javaPerform(function() {
+function waitForJava () {
+  javaPerform(function () {
     const ActivityThread = Java.use('android.app.ActivityThread');
     const app = ActivityThread.currentApplication();
     const ctx = app.getApplicationContext();
@@ -947,7 +947,7 @@ function listAllSymbolsJson (args) {
   let res = [];
   for (let module of modules) {
     const symbols = Module.enumerateSymbols(module)
-      .filter ((r) => r.address.compare(ptr('0')) > 0 && r.name);
+      .filter((r) => r.address.compare(ptr('0')) > 0 && r.name);
     if (argName) {
       res.push(...symbols.filter((s) => s.name.indexOf(argName) !== -1));
     } else {
@@ -1446,10 +1446,13 @@ function listJavaClassesJson (args) {
         try {
           klass.getMethods().map(_ => res.push(_.toString()));
           klass.getFields().map(_ => res.push(_.toString()));
-          klass.getConstructors().map(_ => res.push(_.toString()));
+          try {
+            klass.getConstructors().map(_ => res.push(_.toString()));
+          } catch (ignore) {
+          }
         } catch (e) {
-          console.log(e.message);
-          console.log(Object.keys(klass), JSON.stringify(klass), klass);
+          console.error(e.message);
+          console.error(Object.keys(klass), JSON.stringify(klass), klass);
         }
       } catch (e) {
         console.error(e.message);
@@ -1559,15 +1562,15 @@ function listStringsJson (args) {
   const currentRange = Process.findRangeByAddress(base);
   if (currentRange) {
     const options = { base: base }; // filter for urls?
-    const length = Math.min(currentRange.size, 1024*1024*128);
-    const block = 1024*1024; // 512KB
+    const length = Math.min(currentRange.size, 1024 * 1024 * 128);
+    const block = 1024 * 1024; // 512KB
     if (length !== currentRange.size) {
       const curSize = currentRange.size / (1024 * 1024);
-      console.error('Warning: this range is too big ('+curSize+'MB), truncated to ' + length / (1024*1024) + 'MB');
+      console.error('Warning: this range is too big (' + curSize + 'MB), truncated to ' + length / (1024 * 1024) + 'MB');
     }
     try {
       let res = [];
-      console.log('Reading ' + (length/(1024*1024)) + 'MB ...');
+      console.log('Reading ' + (length / (1024 * 1024)) + 'MB ...');
       for (let i = 0; i < length; i += block) {
         const addr = currentRange.base.add(i);
         const bytes = addr.readCString(block);
@@ -1650,7 +1653,7 @@ function listMemoryRangesHere (args) {
   }
   const addr = ptr(args[0]);
   return listMemoryRangesJson()
-    .filter(({base, size}) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
+    .filter(({ base, size }) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
     .map(({ base, size, protection, file }) =>
       [
         padPointer(base),
@@ -3647,7 +3650,7 @@ function fsOpen (args) {
   return fs.open(args[0] || Gcwd);
 }
 
-function javaPerform(fn) {
+function javaPerform (fn) {
   if (config.getBoolean('java.wait')) {
     return Java.perform(fn);
   }
