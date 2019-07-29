@@ -864,6 +864,15 @@ async function dumpInfoJson () {
           res.codePath = ctx.getPackageCodePath();
           res.packageName = ctx.getPackageName();
         }
+
+        try {
+          function getContext () {
+            return Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getContentResolver();
+          }
+
+          res.androidId = Java.use('android.provider.Settings$Secure').getString(getContext(), 'android_id');
+        } catch (ignoredError) {
+        }
       }
       res.cacheDir = Java.classFactory.cacheDir;
       res.jniEnv = ptr(Java.vm.getEnv()).toString();
@@ -1362,9 +1371,7 @@ function listClassesNatives (args) {
     const klasses = listClassesJson([]);
     for (let kn of klasses) {
       kn = kn.toString();
-      if (kn.indexOf('android') !== -1) {
-        continue;
-      }
+      // if (kn.indexOf('android') !== -1) { continue; }
       if (kn.indexOf(vkn) === -1) {
         continue;
       }
@@ -2610,8 +2617,9 @@ function traceR2 (args) {
 function traceJava (klass, method) {
   javaPerform(function () {
     const k = javaUse(klass);
-    k[method].implementation = function () {
+    k[method].implementation = function (args) {
       const res = this[method]();
+      console.error(args);
       var Throwable = Java.use('java.lang.Throwable');
       /*
     var Activity = Java.use('android.app.Activity');
