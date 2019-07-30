@@ -14,12 +14,7 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "@babel/core": "7.5.5",
-    "@babel/plugin-transform-runtime": "7.5.5",
-    "@babel/preset-env": "7.5.5",
-    "@babel/runtime-corejs2": "7.5.5",
-    "babelify": "10.0.0",
-    "frida-compile": "8.0.4",
+    "frida-compile": "9.0.2",
     "mjolner": "3.0.3"
   },
   "devDependencies": {
