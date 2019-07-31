@@ -109,7 +109,7 @@ CYLANG_LIBS=
 CYLANG_OBJ=
 endif
 
-all: ext/frida
+all: .git/modules/ext ext/frida
 	$(MAKE) io_frida.$(SO_EXT)
 
 IOS_ARCH=arm64
@@ -137,6 +137,11 @@ r2-sdk-ios/$(r2_version):
 
 .PHONY: ext/frida
 
+.git/modules/ext: .gitmodules
+	git submodule init
+	git submodule update
+	@touch $@
+
 ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
 		(cd ext && rm -f frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
@@ -151,22 +156,13 @@ io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
-src/agent/r2swida.js: src/swift-frida/node_modules
-	cd src/swift-frida/examples/r2swida && \
-	../../node_modules/.bin/frida-compile \
-		-o ../../../agent/r2swida.js \
-		index.js
-
-src/swift-frida/node_modules: src/swift-frida
-	cd src/swift-frida && npm i
-
-src/swift-frida:
-	cd src && git clone https://github.com/trufae/swift-frida
+ext/swift-frida/node_modules: ext/swift-frida
+	cd ext/swift-frida && npm i
 
 src/_agent.h: src/_agent.js
 	xxd -i < $< > $@
 
-src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules src/agent/r2swida.js
+src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
 
 node_modules: package.json

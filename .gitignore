@@ -1,5 +1,7 @@
 *.o
-/ext/frida/
+/config.mk
+/ext/frida
+/ext/frida-*
 /io_frida.dylib
 /node_modules/
 /src/_agent.h

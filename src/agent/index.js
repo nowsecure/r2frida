@@ -12,7 +12,7 @@ const isObjC = require('./isobjc');
 const strings = require('./strings');
 
 // registered as a plugin
-require('../swift-frida/examples/r2swida/index.js');
+require('../../ext/swift-frida/examples/r2swida/index.js');
 
 let Gcwd = '/';
 
