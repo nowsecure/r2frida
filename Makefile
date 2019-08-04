@@ -137,10 +137,8 @@ r2-sdk-ios/$(r2_version):
 
 .PHONY: ext/frida
 
-.git/modules/ext: .gitmodules
-	git submodule init
-	git submodule update
-	@touch $@
+ext/swift-frida/index.js: .gitmodules
+	git submodule update --init
 
 ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
@@ -156,7 +154,7 @@ io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
-ext/swift-frida/node_modules: ext/swift-frida
+ext/swift-frida/node_modules: ext/swift-frida/index.js
 	cd ext/swift-frida && npm i
 
 src/_agent.h: src/_agent.js
