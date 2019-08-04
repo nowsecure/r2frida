@@ -21,13 +21,15 @@ function hookFileMap (args) {
   if (args.length === 0) {
     return 'Usage: fmap [path-to-file]';
   }
-  const fileName = Memory.allocUtf8String(args[0]);
-  const fd = open(fileName, 0);
+  const pathName = args[0];
+  const heapName = Memory.allocUtf8String(args[0]);
+  const slash = pathName.lastIndexOf('/');
+  const fileName = pathName.substring (slash + 1);
+  const fd = open(heapName, 0);
   const fileSize = lseek(fd, 0, 2);
   const PROT_READ = 1;
   const MAP_FILE = 0;
   const MAP_PRIVATE = 2;
   const res = mmap(ptr(0), fileSize, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0);
-  return ['wtf', args[0], fileSize, '@', res].join(' ');
-  // return 'Address: ' + res + '\n' + 'Size: ' + filesize + '\n';
+  return ['wtf', fileName, fileSize, '@', res].join(' ');
 }
