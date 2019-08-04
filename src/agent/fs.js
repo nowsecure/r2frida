@@ -71,12 +71,12 @@ function ls (path) {
   return fs.ls(normalize(path));
 }
 
-function cat (path) {
+function cat (path, mode) {
   if (fs === null) {
     fs = new FridaFS();
   }
 
-  return fs.cat(normalize(path));
+  return fs.cat(normalize(path), mode);
 }
 
 function open (path) {
