@@ -3501,7 +3501,7 @@ function _filterPrintable (arr) {
   const printable = [];
   for (let i = 0; i !== u8arr.length; i += 1) {
     const c = u8arr[i];
-    if (c == 0) {
+    if (c === 0) {
       break;
     }
     if (c >= minPrintable && c <= maxPrintable) {

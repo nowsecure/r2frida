@@ -137,21 +137,22 @@ class FridaFS {
         weak = true;
         size = 1024 * 32;
       }
-
+      if (size > 1024 * 512) {
+        console.log('ERROR: file is too big, use scp for now. (' + size + '');
+        return '';
+      }
       const buf = Memory.alloc(size);
       const f = this.api.fopen(actualPath, 'rb');
       const res = this.api.fread(buf, 1, size, f);
       if (!weak && res !== size) {
-        console.log(`ERROR: reading ${actualPath}`);
+        console.log(`ERROR: reading ${actualPath} ${res} vs ${size}`);
         this.api.fclose(f);
         return '';
       }
 
       this.api.fclose(f);
-      if (mode === '*') {
-        return encodeBuf(buf, size, 'hex');
-      }
-      return encodeBuf(buf, size, 'utf8');
+      const format = (mode === '*') ? 'hex' : 'utf8';
+      return encodeBuf(buf, size, format);
     }
     console.log('ERROR: no path ' + path);
     return '';
