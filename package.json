@@ -14,7 +14,7 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "9.0.4",
+    "frida-compile": "9.0.5",
     "mjolner": "3.0.3"
   },
   "devDependencies": {
