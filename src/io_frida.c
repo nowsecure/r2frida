@@ -536,7 +536,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"chcon file                 Change SELinux context (dl might require this)\n"
 		"i                          Show target information\n"
 		"iE[*] <lib>                Same as is, but only for the export global ones\n"
-		"ic <class>                 List Objective-C classes or methods of <class>\n"
+		"ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
 		"ii[*]                      List imports\n"
 		"il                         List libraries\n"
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
