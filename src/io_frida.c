@@ -502,7 +502,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dk ([pid]) [sig]           Send signal to pid (kill -<sig> <pid>)\n"
 		"dk [signal] [pid]          Send specific signal to specific pid in the remote system\n"
 		"dkr                        Print the crash report (if the app has crashed)\n"
-		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library (Android see chcon)\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
 		"dm[.|j|*]                  Show memory regions\n"
