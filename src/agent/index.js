@@ -2278,6 +2278,9 @@ function getPtr (p) {
   if (!p || p === '$$') {
     return ptr(offset);
   }
+  if (p.startsWith('java:')) {
+    return p;
+  }
   if (p.startsWith('objc:')) {
     const hatSign = p.indexOf('^') !== -1;
     if (hatSign !== -1) {
@@ -2674,6 +2677,10 @@ function traceJson (args) {
   if (args.length === 0) {
     return traceListJson();
   }
+  if (args[0].startsWith('java:')) {
+    traceReal(args[0]);
+    return;
+  }
   return new Promise(function (resolve, reject) {
     (function pull () {
       var arg = args.pop();
@@ -2776,10 +2783,6 @@ function traceReal (name, addressString) {
   if (arguments.length === 0) {
     return traceList();
   }
-  const address = ptr(addressString);
-  if (haveTraceAt(address)) {
-    return 'There\'s already a trace in here';
-  }
   if (name.startsWith('java:')) {
     const javaName = name.substring(5);
     if (javaUse(javaName)) {
@@ -2788,7 +2791,7 @@ function traceReal (name, addressString) {
     } else {
       const dot = javaName.lastIndexOf('.');
       if (dot !== -1) {
-        const klass = javaName.substring(5, dot);
+        const klass = javaName.substring(0, dot);
         const methd = javaName.substring(dot + 1);
         traceJava(klass, methd);
       } else {
@@ -2796,6 +2799,10 @@ function traceReal (name, addressString) {
       }
     }
     return;
+  }
+  const address = ptr(addressString);
+  if (haveTraceAt(address)) {
+    return 'There\'s already a trace in here';
   }
   const currentModule = Process.getModuleByAddress(address);
   const listener = Interceptor.attach(address, function (args) {
