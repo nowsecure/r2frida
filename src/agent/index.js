@@ -2884,7 +2884,7 @@ function interceptRet (target, value) {
   if (target.startsWith('java:')) {
     return interceptRetJavaExpression(target, value);
   }
-  const p = ptr(target);
+  const p = getPtr(target);
   Interceptor.attach(p, {
     onLeave (retval) {
       retval.replace(ptr(value));
