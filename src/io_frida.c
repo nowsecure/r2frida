@@ -547,11 +547,27 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	rf = fd->data;
-	// update the seek in the agent side for every command
-	if (strncmp (command, "s ", 2)) {
-		r_core_cmdf (rf->r2core, "=!s 0x%08"PFMT64x, rf->r2core->offset);
+
+	/* update state (seek and suspended) in agent */
+	{
+		char offstr[127] = {0};
+		JsonBuilder *builder = build_request ("state");
+		json_builder_set_member_name (builder, "offset");
+		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
+		json_builder_add_string_value (builder, offstr);
+		json_builder_set_member_name (builder, "suspended");
+		json_builder_add_boolean_value (builder, rf->suspended);
+		JsonObject *result = perform_request (rf, builder, NULL, NULL);
+		if (!result) {
+			return NULL;
+		}
+		json_object_unref (result);
 	}
-	if (!strncmp (command, "o/", 2)) {
+
+	if (!strcmp (command, "")) {
+		r_core_cmd0 (rf->r2core, ".=!i*");
+		return NULL;
+	} else if (!strncmp (command, "o/", 2)) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
 	} else if (!strncmp (command, "d.", 2)) {
@@ -715,21 +731,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 	free (slurpedData);
 
-	/* update state (seek and suspended) in agent */
-	{
-		char offstr[127] = {0};
-		JsonBuilder *builder = build_request ("state");
-		json_builder_set_member_name (builder, "offset");
-		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
-		json_builder_add_string_value (builder, offstr);
-		json_builder_set_member_name (builder, "suspended");
-		json_builder_add_boolean_value (builder, rf->suspended);
-		JsonObject *result = perform_request (rf, builder, NULL, NULL);
-		if (!result) {
-			return NULL;
-		}
-		json_object_unref (result);
-	}
 
 	result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
