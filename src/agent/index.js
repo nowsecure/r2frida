@@ -577,12 +577,12 @@ async function dumpInfo () {
 
 async function dumpInfoR2 () {
   const properties = await dumpInfoJson();
+  const jnienv = properties.jniEnv !== undefined? properties.jniEnv: '';
   return [
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
     'e asm.os=' + properties.os,
-    'f jnienv=' + properties.jniEnv || 0
-  ].join('\n');
+  ].join('\n') + jnienv;
 }
 
 function getR2Arch (arch) {
@@ -875,7 +875,10 @@ async function dumpInfoJson () {
         }
       }
       res.cacheDir = Java.classFactory.cacheDir;
-      res.jniEnv = ptr(Java.vm.getEnv()).toString();
+      const jniEnv = ptr(Java.vm.getEnv())
+      if (jniEnv) {
+        res.jniEnv = jniEnv.toString();
+      }
     });
   }
 
@@ -1145,6 +1148,9 @@ function lookupSymbolR2 (args) {
 }
 
 function lookupSymbolJson (args) {
+  if (args.length === 0) {
+    return [];
+  }
   if (args.length === 2) {
     let [moduleName, symbolName] = args;
     try {
