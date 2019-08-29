@@ -274,15 +274,10 @@ async function initBasicInfoFromTarget (args) {
 e dbg.backend =io
 e anal.autoname=true
 e cmd.fcn.new=aan
-.=!i*
 .=!ie*
 .=!il*
 m /r2f io 0
 s entry0
-.=!ii*
-.=!iE*
-.=!dr*
-.=!is*
  `;
   return str;
 }
