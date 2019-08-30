@@ -2852,7 +2852,7 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
+  return 'Usage: di0, di1 or di-1 passing as argument the address to intercept';
 }
 
 function interceptRetJava (klass, method, value) {
