@@ -274,15 +274,10 @@ async function initBasicInfoFromTarget (args) {
 e dbg.backend =io
 e anal.autoname=true
 e cmd.fcn.new=aan
-.=!i*
 .=!ie*
 .=!il*
 m /r2f io 0
 s entry0
-.=!ii*
-.=!iE*
-.=!dr*
-.=!is*
  `;
   return str;
 }
@@ -2860,7 +2855,7 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
+  return 'Usage: di0, di1 or di-1 passing as argument the address to intercept';
 }
 
 function interceptRetJava (klass, method, value) {

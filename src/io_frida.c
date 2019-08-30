@@ -307,8 +307,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	r2frida_launchopt_free (lo);
 
 	const char *autocompletions[] = {
+		"!!!\\chcon",
 		"!!!\\eval",
 		"!!!\\e",
+		"!!!\\e/",
 		"!!!\\env",
 		"!!!\\j",
 		"!!!\\i",
@@ -320,8 +322,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\iEa $flag",
 		"!!!\\ic",
 		"!!!\\ip",
+		"!!!\\init",
 		"!!!\\fd $flag",
 		"!!!\\dd",
+		"!!!\\ddj",
 		"!!!\\?",
 		"!!!\\?V",
 		"!!!\\/",
@@ -335,12 +339,17 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\/v8 $flag",
 		"!!!\\dt $flag",
 		"!!!\\dt- $flag",
+		"!!!\\dt-*",
 		"!!!\\dth",
+		"!!!\\dtq",
 		"!!!\\dtr",
 		"!!!\\dtS",
 		"!!!\\dtSf $flag",
 		"!!!\\dc",
 		"!!!\\di",
+		"!!!\\di0",
+		"!!!\\di1",
+		"!!!\\di-1",
 		"!!!\\dl",
 		"!!!\\dl2",
 		"!!!\\dx",
@@ -356,6 +365,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\dmp $flag",
 		"!!!\\db",
 		"!!!\\dp",
+		"!!!\\dpj",
 		"!!!\\dpt",
 		"!!!\\dr",
 		"!!!\\drj",
@@ -499,8 +509,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
-		"dk ([pid]) [sig]           Send signal to pid (kill -<sig> <pid>)\n"
-		"dk [signal] [pid]          Send specific signal to specific pid in the remote system\n"
+		"dk ([pid]) [sig]           Send specific signal to specific pid in the remote system\n"
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library (Android see chcon)\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
@@ -520,7 +529,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dpt                        Show threads\n"
 		"dr                         Show thread registers (see dpt)\n"
 		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
-		"dt-                        Clear all tracing\n"
+		"dt- (<addr>|<sym>)         Clear trace\n"
+		"dt-*                       Clear all tracing\n"
 		"dt.                        Trace at current offset\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
 		"dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
