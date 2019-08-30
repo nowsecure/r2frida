@@ -496,13 +496,13 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("r2frida commands available via =! or \\ prefix\n"
 		". script                   Run script\n"
 		"  frida-expression         Run given expression inside the agent\n"
-		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
 		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
 		"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
 		"/w[j] string               Search wide string\n"
 		"<space> code..             Evaluate Cycript code\n"
 		"?                          Show this help\n"
 		"?V                         Show target Frida version\n"
+		"chcon file                 Change SELinux context (dl might require this)\n"
 		"d.                         Start the chrome tools debugger\n"
 		"db (<addr>|<sym>)          List or place breakpoint\n"
 		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
@@ -543,7 +543,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"env [k[=v]]                Get/set environment variable\n"
 		"eval code..                Evaluate Javascript code in agent side\n"
 		"fd[*j] <address>           Inverse symbol resolution\n"
-		"chcon file                 Change SELinux context (dl might require this)\n"
 		"i                          Show target information\n"
 		"iE[*] <lib>                Same as is, but only for the export global ones\n"
 		"ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
@@ -552,6 +551,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 		"is[*] <lib>                List symbols of lib (local and global ones)\n"
 		"isa[*] (<lib>) <sym>       Show address of symbol\n"
+		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
+		"r [r2cmd]                  Run r2 command using r_core_cmd_str API call (use 'dl libr2.so)\n"
 		);
 		return NULL;
 	}
