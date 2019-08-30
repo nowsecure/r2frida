@@ -1925,6 +1925,7 @@ function regProfileAliasFor (arch) {
 =CF	cf
 =SN	r7
 `;
+    case 'ia64':
     case 'x64':
       return `=PC	rip
 =SP	rsp
@@ -1937,6 +1938,7 @@ function regProfileAliasFor (arch) {
 =A5	r9
 =SN	rax
 `;
+    case 'ia32':
     case 'x86':
       return `=PC	eip
 =SP	esp
@@ -1950,6 +1952,7 @@ function regProfileAliasFor (arch) {
 =SN	eax
 `;
   }
+  return '';
 }
 
 function dumpRegisterProfile (args) {
