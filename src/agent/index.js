@@ -274,15 +274,10 @@ async function initBasicInfoFromTarget (args) {
 e dbg.backend =io
 e anal.autoname=true
 e cmd.fcn.new=aan
-.=!i*
 .=!ie*
 .=!il*
 m /r2f io 0
 s entry0
-.=!ii*
-.=!iE*
-.=!dr*
-.=!is*
  `;
   return str;
 }
@@ -577,12 +572,12 @@ async function dumpInfo () {
 
 async function dumpInfoR2 () {
   const properties = await dumpInfoJson();
+  const jnienv = properties.jniEnv !== undefined? properties.jniEnv: '';
   return [
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
     'e asm.os=' + properties.os,
-    'f jnienv=' + properties.jniEnv || 0
-  ].join('\n');
+  ].join('\n') + jnienv;
 }
 
 function getR2Arch (arch) {
@@ -875,7 +870,10 @@ async function dumpInfoJson () {
         }
       }
       res.cacheDir = Java.classFactory.cacheDir;
-      res.jniEnv = ptr(Java.vm.getEnv()).toString();
+      const jniEnv = ptr(Java.vm.getEnv())
+      if (jniEnv) {
+        res.jniEnv = jniEnv.toString();
+      }
     });
   }
 
@@ -1145,6 +1143,9 @@ function lookupSymbolR2 (args) {
 }
 
 function lookupSymbolJson (args) {
+  if (args.length === 0) {
+    return [];
+  }
   if (args.length === 2) {
     let [moduleName, symbolName] = args;
     try {
@@ -1919,6 +1920,7 @@ function regProfileAliasFor (arch) {
 =CF	cf
 =SN	r7
 `;
+    case 'ia64':
     case 'x64':
       return `=PC	rip
 =SP	rsp
@@ -1931,6 +1933,7 @@ function regProfileAliasFor (arch) {
 =A5	r9
 =SN	rax
 `;
+    case 'ia32':
     case 'x86':
       return `=PC	eip
 =SP	esp
@@ -1944,6 +1947,7 @@ function regProfileAliasFor (arch) {
 =SN	eax
 `;
   }
+  return '';
 }
 
 function dumpRegisterProfile (args) {
@@ -2851,7 +2855,7 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di0, di1 or do-1 passing as argument the address to intercept';
+  return 'Usage: di0, di1 or di-1 passing as argument the address to intercept';
 }
 
 function interceptRetJava (klass, method, value) {

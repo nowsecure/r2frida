@@ -307,8 +307,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	r2frida_launchopt_free (lo);
 
 	const char *autocompletions[] = {
+		"!!!\\chcon",
 		"!!!\\eval",
 		"!!!\\e",
+		"!!!\\e/",
 		"!!!\\env",
 		"!!!\\j",
 		"!!!\\i",
@@ -320,8 +322,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\iEa $flag",
 		"!!!\\ic",
 		"!!!\\ip",
+		"!!!\\init",
 		"!!!\\fd $flag",
 		"!!!\\dd",
+		"!!!\\ddj",
 		"!!!\\?",
 		"!!!\\?V",
 		"!!!\\/",
@@ -335,12 +339,17 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\/v8 $flag",
 		"!!!\\dt $flag",
 		"!!!\\dt- $flag",
+		"!!!\\dt-*",
 		"!!!\\dth",
+		"!!!\\dtq",
 		"!!!\\dtr",
 		"!!!\\dtS",
 		"!!!\\dtSf $flag",
 		"!!!\\dc",
 		"!!!\\di",
+		"!!!\\di0",
+		"!!!\\di1",
+		"!!!\\di-1",
 		"!!!\\dl",
 		"!!!\\dl2",
 		"!!!\\dx",
@@ -356,6 +365,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\dmp $flag",
 		"!!!\\db",
 		"!!!\\dp",
+		"!!!\\dpj",
 		"!!!\\dpt",
 		"!!!\\dr",
 		"!!!\\drj",
@@ -486,21 +496,20 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("r2frida commands available via =! or \\ prefix\n"
 		". script                   Run script\n"
 		"  frida-expression         Run given expression inside the agent\n"
-		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
 		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
 		"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
 		"/w[j] string               Search wide string\n"
 		"<space> code..             Evaluate Cycript code\n"
 		"?                          Show this help\n"
 		"?V                         Show target Frida version\n"
+		"chcon file                 Change SELinux context (dl might require this)\n"
 		"d.                         Start the chrome tools debugger\n"
 		"db (<addr>|<sym>)          List or place breakpoint\n"
 		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
-		"dk ([pid]) [sig]           Send signal to pid (kill -<sig> <pid>)\n"
-		"dk [signal] [pid]          Send specific signal to specific pid in the remote system\n"
+		"dk ([pid]) [sig]           Send specific signal to specific pid in the remote system\n"
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library (Android see chcon)\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
@@ -520,7 +529,8 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"dpt                        Show threads\n"
 		"dr                         Show thread registers (see dpt)\n"
 		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
-		"dt-                        Clear all tracing\n"
+		"dt- (<addr>|<sym>)         Clear trace\n"
+		"dt-*                       Clear all tracing\n"
 		"dt.                        Trace at current offset\n"
 		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
 		"dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
@@ -533,7 +543,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"env [k[=v]]                Get/set environment variable\n"
 		"eval code..                Evaluate Javascript code in agent side\n"
 		"fd[*j] <address>           Inverse symbol resolution\n"
-		"chcon file                 Change SELinux context (dl might require this)\n"
 		"i                          Show target information\n"
 		"iE[*] <lib>                Same as is, but only for the export global ones\n"
 		"ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
@@ -542,16 +551,34 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
 		"is[*] <lib>                List symbols of lib (local and global ones)\n"
 		"isa[*] (<lib>) <sym>       Show address of symbol\n"
+		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
+		"r [r2cmd]                  Run r2 command using r_core_cmd_str API call (use 'dl libr2.so)\n"
 		);
 		return NULL;
 	}
 
 	rf = fd->data;
-	// update the seek in the agent side for every command
-	if (strncmp (command, "s ", 2)) {
-		r_core_cmdf (rf->r2core, "=!s 0x%08"PFMT64x, rf->r2core->offset);
+
+	/* update state (seek and suspended) in agent */
+	{
+		char offstr[127] = {0};
+		JsonBuilder *builder = build_request ("state");
+		json_builder_set_member_name (builder, "offset");
+		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
+		json_builder_add_string_value (builder, offstr);
+		json_builder_set_member_name (builder, "suspended");
+		json_builder_add_boolean_value (builder, rf->suspended);
+		JsonObject *result = perform_request (rf, builder, NULL, NULL);
+		if (!result) {
+			return NULL;
+		}
+		json_object_unref (result);
 	}
-	if (!strncmp (command, "o/", 2)) {
+
+	if (!strcmp (command, "")) {
+		r_core_cmd0 (rf->r2core, ".=!i*");
+		return NULL;
+	} else if (!strncmp (command, "o/", 2)) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
 	} else if (!strncmp (command, "d.", 2)) {
@@ -715,21 +742,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	}
 	free (slurpedData);
 
-	/* update state (seek and suspended) in agent */
-	{
-		char offstr[127] = {0};
-		JsonBuilder *builder = build_request ("state");
-		json_builder_set_member_name (builder, "offset");
-		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
-		json_builder_add_string_value (builder, offstr);
-		json_builder_set_member_name (builder, "suspended");
-		json_builder_add_boolean_value (builder, rf->suspended);
-		JsonObject *result = perform_request (rf, builder, NULL, NULL);
-		if (!result) {
-			return NULL;
-		}
-		json_object_unref (result);
-	}
 
 	result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
