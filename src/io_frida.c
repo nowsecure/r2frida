@@ -569,10 +569,16 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		json_builder_set_member_name (builder, "suspended");
 		json_builder_add_boolean_value (builder, rf->suspended);
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
-		if (!result) {
+		if (result) {
+			json_object_unref (result);
+		}
+		else if (!strncmp (command, "dkr", 3)) {
+			//pass
+		}
+		else {
 			return NULL;
 		}
-		json_object_unref (result);
+
 	}
 
 	if (!strcmp (command, "")) {
