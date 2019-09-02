@@ -574,8 +574,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		}
 		else if (!strncmp (command, "dkr", 3)) {
 			//pass
-		}
-		else {
+		} else {
 			return NULL;
 		}
 
