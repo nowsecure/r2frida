@@ -879,7 +879,7 @@ static bool parse_target(const char *pathname, R2FridaLaunchOptions *lo) {
 		eprintf ("* frida://spawn/$(program)          # start a new process\n");
 		eprintf ("* frida://attach/(target)           # attach to current\n");
 		eprintf ("* frida://usb/$(device)/$(target)   # connect to USB device\n");
-		eprintf ("* frida://remote/$(peer)/$(target)  # connect to remote frida-server\n");
+		eprintf ("* frida://connect/$(peer)/$(target)  # connect to remote frida-server\n");
 		eprintf ("* frida://spawn/usb/$(device)/$(program)\n");
 		eprintf ("* frida://attach/usb/$(device)/$(target)\n");
 		eprintf ("Short URIs: (old)\n");
