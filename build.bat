@@ -27,7 +27,7 @@ cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 mkdir frida > nul 2>&1
 cd frida
 
-set frida_version=12.6.22
+set frida_version=12.6.23
 set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/%frida_version%/frida-core-devkit-%frida_version%-windows-%frida_os_arch%.exe"
 
 if not exist ".\frida-core-sdk-%frida_version%-%frida_os_arch%.exe" (
