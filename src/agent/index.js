@@ -1174,10 +1174,11 @@ function lookupSymbolJson (args) {
   } else {
     let [symbolName] = args;
     const res = getPtr(symbolName);
+    const moduleName = getModuleAt(res);
     if (res) {
       return [{
-        library: 'objc', // CLASS NAME HERE
-        name: symbolName, // METHOD NAME HERE
+        library: mod? mod.name: 'unknown',
+        name: symbolName,
         address: res
       }];
     }
@@ -2299,7 +2300,7 @@ function getPtr (p) {
     if (dot === -1) {
       dot = p.indexOf(':');
       if (dot === -1) {
-        throw new Error('r2fridas ObjC class syntax is: objc:CLASSNAME.METHOD');
+        throw new Error('r2frida\'s ObjC class syntax is: objc:CLASSNAME.METHOD');
       }
     }
     const kv0 = p.substring(0, dot);
@@ -3776,6 +3777,16 @@ function performOnJavaVM (fn) {
       }
     });
   });
+}
+
+function getModuleAt (addr) {
+  const modules = Process.enumerateModules()
+    .filter((m) => {
+      const a = m.base;
+      const b = m.base.add(m.size);
+      return addr.compare(a) >= 0 && addr.compare(b) < 0;
+    });
+  return modules.length > 0?  modules[0]: null;
 }
 
 function onStanza (stanza, data) {
