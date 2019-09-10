@@ -1174,7 +1174,7 @@ function lookupSymbolJson (args) {
   } else {
     let [symbolName] = args;
     const res = getPtr(symbolName);
-    const moduleName = getModuleAt(res);
+    const mod = getModuleAt(res);
     if (res) {
       return [{
         library: mod? mod.name: 'unknown',
