@@ -18,7 +18,7 @@
     "mjolner": "4.0.2"
   },
   "devDependencies": {
-    "semistandard": "14.1.0"
+    "semistandard": "14.2.0"
   },
   "semistandard": {
     "globals": [
