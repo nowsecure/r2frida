@@ -702,7 +702,11 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 				return NULL;
 			}
 			builder = build_request ("evaluate");
-			json_builder_set_member_name (builder, "code");
+			if (r_str_endswith (command + 2, ".c")) {
+				json_builder_set_member_name (builder, "ccode");
+			} else {
+				json_builder_set_member_name (builder, "code");
+			}
 			json_builder_add_string_value (builder, slurpedData);
 			break;
 		case '-':

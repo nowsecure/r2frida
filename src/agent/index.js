@@ -3311,7 +3311,7 @@ function normalizeValue (value) {
 
 function evaluate (params) {
   return new Promise(resolve => {
-    const { code } = params;
+    let { code, ccode } = params;
 
     if (ObjCAvailable && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
@@ -3322,12 +3322,19 @@ function evaluate (params) {
     function performEval () {
       let result;
       try {
+        if (ccode) {
+          code = `
+var m = new CModule(` + '`'+ ccode + '`' + `);
+const main = new NativeFunction(m.main, 'int', []);
+main();
+`;
+        }
         const rawResult = (1, eval)(code); // eslint-disable-line
         global._ = rawResult;
         if (rawResult !== undefined && mjolner !== undefined) {
           result = mjolner.toCYON(rawResult);
         } else {
-          result = 'undefined';
+          result = rawResult; // 'undefined';
         }
       } catch (e) {
         result = 'throw new ' + e.name + '("' + e.message + '")';
