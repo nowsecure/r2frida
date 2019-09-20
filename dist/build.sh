@@ -1,5 +1,5 @@
 #!/bin/sh
-[ -z "${VERSION}" ] && VERSION=3.7.0
+[ -z "${VERSION}" ] && VERSION=3.9.0
 (
 	RV=${VERSION}
 	RA=amd64
@@ -16,7 +16,7 @@
 
 # install NodeJS LTS
 (
-	NV=v10.15.1
+	NV=v10.16.3
 	NA=linux-x64
 	echo "[*] Downloading NodeJS"
 	wget -c https://nodejs.org/dist/${NV}/node-${NV}-${NA}.tar.xz
