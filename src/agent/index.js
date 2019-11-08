@@ -535,18 +535,40 @@ function symf (name, ret, arg) {
   }
 }
 
-/* This is not available on Windows */
-const _getenv = sym('getenv', 'pointer', ['pointer']);
-const _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
-const _getpid = sym('getpid', 'int', []);
-const _getuid = sym('getuid', 'int', []);
-const _dup2 = sym('dup2', 'int', ['int', 'int']);
-const _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
-const _fstat = Module.findExportByName(null, 'fstat')
-  ? sym('fstat', 'int', ['int', 'pointer'])
-  : sym('__fxstat', 'int', ['int', 'pointer']);
-const _close = sym('close', 'int', ['int']);
-const _kill = sym('kill', 'int', ['int', 'int']);
+var _getenv = 0;
+var _setenv = 0;
+var _getpid = 0;
+var _getuid = 0;
+var _dup2 = 0;
+var _readlink = 0;
+var _fstat = 0;
+var _close = 0;
+var _kill = 0;
+
+if (Process.platform === 'windows') {
+  _getenv = sym('getenv', 'pointer', ['pointer']);
+  _setenv = sym('SetEnvironmentVariableA', 'int', ['pointer', 'pointer']);
+  _getpid = sym('_getpid', 'int', []);
+  _getuid = getWindowsUserNameA;
+  _dup2 = sym('_dup2', 'int', ['int', 'int']);
+  _fstat =  sym('_fstat', 'int', ['int', 'pointer']);
+  _close = sym('_close', 'int', ['int']);
+  _kill = sym('TerminateProcess', 'int', ['int', 'int']);
+}
+
+else {
+  _getenv = sym('getenv', 'pointer', ['pointer']);
+  _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
+  _getpid = sym('getpid', 'int', []);
+  _getuid = sym('getuid', 'int', []);
+  _dup2 = sym('dup2', 'int', ['int', 'int']);
+  _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
+  _fstat = Module.findExportByName(null, 'fstat')
+    ? sym('fstat', 'int', ['int', 'pointer'])
+    : sym('__fxstat', 'int', ['int', 'pointer']);
+  _close = sym('close', 'int', ['int']);
+  _kill = sym('kill', 'int', ['int', 'int']);
+}
 
 /* This is only available on Android/Linux */
 const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
@@ -794,7 +816,13 @@ function setBreakpoint (name, address) {
 }
 
 function getCwd () {
-  const _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
+  var _getcwd = 0;
+  if (Process.platform === 'windows') {
+    _getcwd = sym('_getcwd', 'pointer', ['pointer', 'int']);
+  } else {
+    _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
+  }
+  
   if (_getcwd) {
     const PATH_MAX = 4096;
     const buf = Memory.alloc(PATH_MAX);
@@ -2923,6 +2951,16 @@ function getenv (name) {
 
 function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+}
+
+function getWindowsUserNameA() {
+  const _GetUserNameA = sym('GetUserNameA', 'int', ['pointer', 'pointer']);
+  const PATH_MAX = 4096;
+  const buf = Memory.allocUtf8String("A".repeat(PATH_MAX));
+  const char_out = Memory.allocUtf8String("A".repeat(PATH_MAX));
+  const res = _GetUserNameA(buf, char_out);
+  const user = Memory.readCString(buf);
+  return user;
 }
 
 function stalkTraceFunction (args) {
