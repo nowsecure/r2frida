@@ -35,7 +35,7 @@ The recommended way to install r2frida is via r2pm:
 
 But you can always follow the standard way in here:
 
-	$ git clone https://github.com/nowsecure/r2frida.git
+	$ git clone --recursive https://github.com/nowsecure/r2frida.git
 	$ cd r2frida
 	$ make
 	$ sudo make install
