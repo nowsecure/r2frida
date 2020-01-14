@@ -616,6 +616,7 @@ function getR2Arch (arch) {
 
 function breakpointUnset (args) {
   if (args.length === 1) {
+    /*
     if (args[0] === '*') {
       for (let k of Object.keys(breakpoints)) {
         const bp = breakpoints[k];
@@ -624,17 +625,22 @@ function breakpointUnset (args) {
       breakpoints = {};
       return 'All breakpoints removed';
     }
+*/
     const symbol = Module.findExportByName(null, args[0]);
-    const addr = (symbol !== null) ? symbol : ptr(args[0]);
+    const arg0 = args[0];
+    const addr = arg0 == '*' ? ptr(0) : (symbol !== null) ? symbol : ptr(arg0);
     const newbps = [];
     let found = false;
-    for (let k of Object.keys(breakpoints)) {
+    for (const k of Object.keys(breakpoints)) {
       const bp = breakpoints[k];
-      // eslint-disable-next-line
-      if (args[0] === '*' || bp.address === addr) {
+      console.log(bp.address, addr, JSON.stringify(bp));
+      if (arg0 === '*' || '' + bp.address === '' + addr) {
         found = true;
-        console.log('Breakpoint reverted');
-        Interceptor.revert(ptr(bp.address));
+        console.log('Breakpoint reverted', JSON.stringify(bp));
+        breakpoints[k].continue = true;
+        // continue execution
+        // send continue action here
+        bp.handler.detach();
       } else {
         newbps.push(bp);
       }
@@ -642,10 +648,15 @@ function breakpointUnset (args) {
     if (!found) {
       console.error('Cannot found any breakpoint matching');
     }
+    // // NOPE
+    // if (arg0 === '*') {
+    //   Interceptor.detachAll();
+    // }
     breakpoints = {};
-    for (let bp of newbps) {
+    for (const bp of newbps) {
       breakpoints[bp.address] = bp;
     }
+    Interceptor.flush();
     return '';
   }
   return 'Usage: db- [addr|*]';
@@ -808,9 +819,30 @@ function setBreakpoint (name, address) {
           console.log(bt.join('\n\t'));
         }
       }
+      /*
       while (breakpointExist(addr)) {
         Thread.sleep(1);
       }
+      */
+
+      const tid = this.threadId;
+      send({ type: 'breakpoint-hit', name: addrString, tid: tid });
+      let state = 'stopped';
+      do {
+        const op = recv((stanza, data) => {
+          if (stanza.payload.command === 'dc') {
+            state = 'hit';
+            for (const bp in breakpoints) {
+              breakpoints[bp].continue = true;
+            }
+          } else {
+            onceStanza = true;
+            onStanza(stanza, data);
+          }
+        });
+        op.wait();
+      } while (state === 'stopped');
+
       if (breakpoints[addrString]) {
         breakpoints[addrString].stopped = false;
         breakpoints[addrString].continue = false;
@@ -3836,9 +3868,10 @@ function getModuleAt (addr) {
       const b = m.base.add(m.size);
       return addr.compare(a) >= 0 && addr.compare(b) < 0;
     });
-  return modules.length > 0?  modules[0]: null;
+  return modules.length > 0 ? modules[0] : null;
 }
 
+let onceStanza = false;
 function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
@@ -3864,12 +3897,16 @@ function onStanza (stanza, data) {
         error: e.message
       }));
     }
+  } else if (stanza.type === 'bp') {
+    console.error('Breakpoint handler');
   } else if (stanza.type === 'cmd') {
     onCmdResp(stanza.payload);
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
-  recv(onStanza);
+  if (!onceStanza) {
+    recv(onStanza);
+  }
 }
 
 let cmdSerial = 0;
