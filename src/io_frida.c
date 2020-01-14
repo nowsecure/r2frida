@@ -1566,6 +1566,7 @@ RIOPlugin r_io_plugin_frida = {
 R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
-	.version = R2_VERSION
+	.version = R2_VERSION,
+	.pkgname = "r2frida"
 };
 #endif
