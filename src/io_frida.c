@@ -633,11 +633,21 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.event   = compile\n");
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
+#if 0
 	} else if (!strcmp (command, "s")) {
 		io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
 		return NULL;
 	} else if (!strncmp (command, "s ", 2)) {
 		r_core_cmd0 (rf->r2core, command);
+		return NULL;
+#endif
+	// fails to aim at seek workarounding hostCmd
+	} else if (!strncmp (command, "s  ", 3)) {
+		if (rf && rf->r2core) {
+			r_core_cmdf (rf->r2core, "s %s", command + 2);
+		} else {
+			eprintf ("Invalid rf\n");
+		}
 		return NULL;
 	} else if (!strncmp (command, "dkr", 3)) {
 		io->cb_printf ("DetachReason: %s\n", detachReasonAsString (rf));

@@ -699,7 +699,16 @@ function radareCommandString (cmd) {
     _free(ptr);
     return str;
   }
+  console.error('Warning: not calling back r2');
   return '';
+}
+
+function radareSeek (args) {
+  const addr = getPtr('' + args);
+  const cmdstr = 's  ' + (addr || '' + args);
+  return cmdstr;
+  // XXX hangs
+  // return hostCmd(cmdstr);
 }
 
 function radareCommand (args) {
