@@ -18,7 +18,7 @@ function pluginUnregister (name) {
 }
 
 function commandHandler (name) {
-  for (let key of Object.keys(commandHandlers)) {
+  for (const key of Object.keys(commandHandlers)) {
     const ch = commandHandlers[key];
     if (typeof ch === 'function') {
       const handler = ch(name);

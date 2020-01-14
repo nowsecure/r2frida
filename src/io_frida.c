@@ -592,7 +592,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			return NULL;
 		}
-
 	}
 
 	if (!strcmp (command, "")) {

@@ -25,7 +25,7 @@ function R2PipeFrida () {
       throw new Error('Cannot find libr_core symbols');
     }
   }
-  let r2 = _r_core_new();
+  const r2 = _r_core_new();
   return {
     cmd: function (cmd) {
       return _r_core_cmd_str(r2, Memory.allocUtf8String(cmd)).toString();

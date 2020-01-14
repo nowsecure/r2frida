@@ -11,7 +11,7 @@ function parseOptions (options) {
     base: 0
   };
   if (typeof options === 'object') {
-    for (let key of Object.keys(options)) {
+    for (const key of Object.keys(options)) {
       opts[key] = options[key];
     }
   }
@@ -58,7 +58,7 @@ function isValidString (s) {
     return false;
   }
   const invalidChars = '<\\)?@)>{~}^()=/!-"*:]%\';` $';
-  for (let ic of invalidChars) {
+  for (const ic of invalidChars) {
     if (s.indexOf(ic) !== -1) {
       return false;
     }
@@ -71,7 +71,7 @@ function isValidURL (s) {
     return false;
   }
   const invalidChars = '<\\)?)>{~}^()=!-"*]\'` $';
-  for (let ic of invalidChars) {
+  for (const ic of invalidChars) {
     if (s.indexOf(ic) !== -1) {
       return false;
     }

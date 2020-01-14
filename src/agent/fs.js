@@ -13,23 +13,23 @@ let fs = null;
 
 const direntSpecs = {
   'linux-32': {
-    'd_name': [11, 'Utf8String'],
-    'd_type': [10, 'U8']
+    d_name: [11, 'Utf8String'],
+    d_type: [10, 'U8']
   },
   'linux-64': {
-    'd_name': [19, 'Utf8String'],
-    'd_type': [18, 'U8']
+    d_name: [19, 'Utf8String'],
+    d_type: [18, 'U8']
   },
   'darwin-32': {
-    'd_name': [21, 'Utf8String'],
-    'd_type': [20, 'U8']
+    d_name: [21, 'Utf8String'],
+    d_type: [20, 'U8']
   },
   'darwin-64': {
-    'd_name': [
+    d_name: [
       [8, 'Utf8String'],
       [21, 'Utf8String']
     ],
-    'd_type': [
+    d_type: [
       [6, 'U8'],
       [20, 'U8']
     ]
@@ -38,22 +38,22 @@ const direntSpecs = {
 
 const statSpecs = {
   'linux-32': {
-    'size': [ 44, 'S32' ]
+    size: [44, 'S32']
   },
   'linux-64': {
-    'size': [ 48, 'S64' ]
+    size: [48, 'S64']
   },
   'darwin-32': {
-    'size': [ 60, 'S64' ]
+    size: [60, 'S64']
   },
   'darwin-64': {
-    'size': [ 96, 'S64' ]
+    size: [96, 'S64']
   }
 };
 
 const statxSpecs = {
   'linux-64': {
-    'size': [ 40, 'S64' ]
+    size: [40, 'S64']
   }
 };
 
@@ -470,7 +470,7 @@ function readDirentField (entry, name) {
 }
 
 function readStatField (entry, name) {
-  let field = statSpec[name];
+  const field = statSpec[name];
   if (field === undefined) {
     return undefined;
   }
@@ -486,7 +486,7 @@ function readStatField (entry, name) {
 }
 
 function readStatxField (entry, name) {
-  let field = statxSpec[name];
+  const field = statxSpec[name];
   if (field === undefined) {
     return undefined;
   }
