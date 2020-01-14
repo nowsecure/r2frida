@@ -54,7 +54,7 @@ function javaUse (name) {
   const initialLoader = Java.classFactory.loader;
   let res = null;
   javaPerform(function () {
-    for (let kl of Java.enumerateClassLoadersSync()) {
+    for (const kl of Java.enumerateClassLoadersSync()) {
       try {
         Java.classFactory.loader = kl;
         res = Java.use(name);
@@ -92,7 +92,7 @@ function javaTraceExample () {
 }
 
 const commandHandlers = {
-  'E': evalNum,
+  E: evalNum,
   '/': search,
   '/j': searchJson,
   '/x': searchHex,
@@ -109,164 +109,165 @@ const commandHandlers = {
   '/v8j': searchValueImplJson(8),
   '?V': fridaVersion,
   // '.': // this is implemented in C
-  'i': dumpInfo,
+  i: dumpInfo,
   'i*': dumpInfoR2,
-  'ij': dumpInfoJson,
-  'e': evalConfig,
+  ij: dumpInfoJson,
+  e: evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
-  'db': breakpoint,
-  'dbj': breakpointJson,
+  db: breakpoint,
+  dbj: breakpointJson,
   'db-': breakpointUnset,
-  'dc': breakpointContinue,
-  'dcu': breakpointContinueUntil,
-  'dk': sendSignal,
+  dc: breakpointContinue,
+  dcu: breakpointContinueUntil,
+  dk: sendSignal,
 
-  'r': radareCommand,
+  s: radareSeek,
+  r: radareCommand,
 
-  'ie': listEntrypoint,
-  'ieq': listEntrypointQuiet,
+  ie: listEntrypoint,
+  ieq: listEntrypointQuiet,
   'ie*': listEntrypointR2,
-  'iej': listEntrypointJson,
+  iej: listEntrypointJson,
 
-  'ii': listImports,
+  ii: listImports,
   'ii*': listImportsR2,
-  'iij': listImportsJson,
-  'il': listModules,
+  iij: listImportsJson,
+  il: listModules,
   'il.': listModulesHere,
   'il*': listModulesR2,
-  'ilq': listModulesQuiet,
-  'ilj': listModulesJson,
+  ilq: listModulesQuiet,
+  ilj: listModulesJson,
 
-  'ia': listAllHelp,
+  ia: listAllHelp,
 
-  'iAs': listAllSymbols, // SLOW
-  'iAsj': listAllSymbolsJson,
+  iAs: listAllSymbols, // SLOW
+  iAsj: listAllSymbolsJson,
   'iAs*': listAllSymbolsR2,
-  'iAn': listAllClassesNatives,
+  iAn: listAllClassesNatives,
 
-  'is': listSymbols,
+  is: listSymbols,
   'is.': lookupSymbolHere,
-  'isj': listSymbolsJson,
+  isj: listSymbolsJson,
   'is*': listSymbolsR2,
 
-  'ias': lookupSymbol,
+  ias: lookupSymbol,
   'ias*': lookupSymbolR2,
-  'iasj': lookupSymbolJson,
-  'isa': lookupSymbol,
+  iasj: lookupSymbolJson,
+  isa: lookupSymbol,
   'isa*': lookupSymbolR2,
-  'isaj': lookupSymbolJson,
+  isaj: lookupSymbolJson,
 
-  'iE': listExports,
+  iE: listExports,
   'iE.': lookupSymbolHere,
-  'iEj': listExportsJson,
+  iEj: listExportsJson,
   'iE*': listExportsR2,
-  'iaE': lookupExport,
-  'iaEj': lookupExportJson,
+  iaE: lookupExport,
+  iaEj: lookupExportJson,
   'iaE*': lookupExportR2,
 
-  'iEa': lookupExport,
+  iEa: lookupExport,
   'iEa*': lookupExportR2,
-  'iEaj': lookupExportJson,
+  iEaj: lookupExportJson,
 
   // maybe dupped
-  'iAE': listAllExports,
-  'iAEj': listAllExportsJson,
+  iAE: listAllExports,
+  iAEj: listAllExportsJson,
   'iAE*': listAllExportsR2,
 
-  'init': initBasicInfoFromTarget,
+  init: initBasicInfoFromTarget,
 
-  'fD': lookupDebugInfo,
-  'fd': lookupAddress,
+  fD: lookupDebugInfo,
+  fd: lookupAddress,
   'fd.': lookupAddress,
   'fd*': lookupAddressR2,
-  'fdj': lookupAddressJson,
-  'ic': listClasses,
-  'icn': listClassesNatives,
-  'icL': listClassesLoaders,
-  'icl': listClassesLoaded,
-  'iclj': listClassesLoadedJson,
+  fdj: lookupAddressJson,
+  ic: listClasses,
+  icn: listClassesNatives,
+  icL: listClassesLoaders,
+  icl: listClassesLoaded,
+  iclj: listClassesLoadedJson,
   'ic*': listClassesR2,
-  'icj': listClassesJson,
-  'ip': listProtocols,
-  'ipj': listProtocolsJson,
-  'iz': listStrings,
-  'izj': listStringsJson,
-  'dd': listFileDescriptors,
-  'ddj': listFileDescriptorsJson,
+  icj: listClassesJson,
+  ip: listProtocols,
+  ipj: listProtocolsJson,
+  iz: listStrings,
+  izj: listStringsJson,
+  dd: listFileDescriptors,
+  ddj: listFileDescriptorsJson,
   'dd-': closeFileDescriptors,
-  'dm': listMemoryRanges,
+  dm: listMemoryRanges,
   'dm*': listMemoryRangesR2,
-  'dmj': listMemoryRangesJson,
-  'dmp': changeMemoryProtection,
+  dmj: listMemoryRangesJson,
+  dmp: changeMemoryProtection,
   'dm.': listMemoryRangesHere,
-  'dmm': listMemoryMaps,
+  dmm: listMemoryMaps,
   'dmm.': listMemoryRangesHere, // alias for 'dm.'
-  'dmh': listMallocRanges,
+  dmh: listMallocRanges,
   'dmh*': listMallocRangesR2,
-  'dmhj': listMallocRangesJson,
-  'dmhm': listMallocMaps,
-  'dma': allocSize,
-  'dmas': allocString,
-  'dmad': allocDup,
-  'dmal': listAllocs,
+  dmhj: listMallocRangesJson,
+  dmhm: listMallocMaps,
+  dma: allocSize,
+  dmas: allocString,
+  dmad: allocDup,
+  dmal: listAllocs,
   'dma-': removeAlloc,
-  'dp': getPid,
-  'dxc': dxCall,
-  'dpj': getPidJson,
-  'dpt': listThreads,
-  'dptj': listThreadsJson,
-  'dr': dumpRegisters,
+  dp: getPid,
+  dxc: dxCall,
+  dpj: getPidJson,
+  dpt: listThreads,
+  dptj: listThreadsJson,
+  dr: dumpRegisters,
   'dr*': dumpRegistersR2,
-  'drr': dumpRegistersRecursively,
-  'drp': dumpRegisterProfile,
-  'dr8': dumpRegisterArena,
-  'drj': dumpRegistersJson,
-  'env': getOrSetEnv,
-  'envj': getOrSetEnvJson,
-  'dl': dlopen,
-  'dtf': traceFormat,
-  'dth': traceHook,
-  'dt': trace,
-  'dtj': traceJson,
-  'dtq': traceQuiet,
+  drr: dumpRegistersRecursively,
+  drp: dumpRegisterProfile,
+  dr8: dumpRegisterArena,
+  drj: dumpRegistersJson,
+  env: getOrSetEnv,
+  envj: getOrSetEnvJson,
+  dl: dlopen,
+  dtf: traceFormat,
+  dth: traceHook,
+  dt: trace,
+  dtj: traceJson,
+  dtq: traceQuiet,
   'dt*': traceR2,
   'dt.': traceHere,
   'dt-': clearTrace,
   'dt-*': clearAllTrace,
-  'dtr': traceRegs,
-  'dtl': traceLogDump,
+  dtr: traceRegs,
+  dtl: traceLogDump,
   'dtl*': traceLogDumpR2,
-  'dtlq': traceLogDumpQuiet,
-  'dtlj': traceLogDumpJson,
+  dtlq: traceLogDumpQuiet,
+  dtlj: traceLogDumpJson,
   'dtl-': traceLogClear,
   'dtl-*': traceLogClearAll,
-  'dts': stalkTraceEverything,
+  dts: stalkTraceEverything,
   'dts?': stalkTraceEverythingHelp,
-  'dtsj': stalkTraceEverythingJson,
+  dtsj: stalkTraceEverythingJson,
   'dts*': stalkTraceEverythingR2,
-  'dtsf': stalkTraceFunction,
-  'dtsfj': stalkTraceFunctionJson,
+  dtsf: stalkTraceFunction,
+  dtsfj: stalkTraceFunctionJson,
   'dtsf*': stalkTraceFunctionR2,
-  'di': interceptHelp,
-  'dis': interceptRetString,
-  'di0': interceptRet0,
-  'di1': interceptRet1,
+  di: interceptHelp,
+  dis: interceptRetString,
+  di0: interceptRet0,
+  di1: interceptRet1,
   'di-1': interceptRet_1,
   // unix compat
-  'pwd': getCwd,
-  'cd': chDir,
-  'cat': fsCat,
-  'ls': fsList,
+  pwd: getCwd,
+  cd: chDir,
+  cat: fsCat,
+  ls: fsList,
   // required for m-io
-  'md': fsList,
-  'mg': fsGet,
-  'm': fsOpen,
-  'pd': disasmCode,
-  'px': printHexdump,
-  'x': printHexdump,
-  'eval': evalCode,
-  'chcon': changeSelinuxContext,
+  md: fsList,
+  mg: fsGet,
+  m: fsOpen,
+  pd: disasmCode,
+  px: printHexdump,
+  x: printHexdump,
+  eval: evalCode,
+  chcon: changeSelinuxContext,
 };
 
 async function initBasicInfoFromTarget (args) {
@@ -292,13 +293,13 @@ function nameFromAddress (address) {
     return null;
   }
   const imports = Module.enumerateImports(module.name);
-  for (let imp of imports) {
+  for (const imp of imports) {
     if (imp.address.equals(address)) {
       return imp.name;
     }
   }
   const exports = Module.enumerateExports(module.name);
-  for (let exp of exports) {
+  for (const exp of exports) {
     if (exp.address.equals(address)) {
       return exp.name;
     }
@@ -341,7 +342,7 @@ function removeAlloc (args) {
   if (args.length === 0) {
     _clearAllocs();
   } else {
-    for (let addr of args) {
+    for (const addr of args) {
       _delAlloc(addr);
     }
   }
@@ -407,7 +408,7 @@ For example:
       nfArgsData.push(address);
     }
   }
-  let address = (args[0].substring(0, 2) === '0x')
+  const address = (args[0].substring(0, 2) === '0x')
     ? ptr(args[0])
     : Module.getExportByName(null, args[0]);
   const fun = new NativeFunction(address, 'pointer', nfArgs);
@@ -594,7 +595,7 @@ async function dumpInfo () {
 
 async function dumpInfoR2 () {
   const properties = await dumpInfoJson();
-  const jnienv = properties.jniEnv !== undefined? properties.jniEnv: '';
+  const jnienv = properties.jniEnv !== undefined ? properties.jniEnv : '';
   return [
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
@@ -736,12 +737,16 @@ function breakpointContinue (args) {
     return hostCmd('=!dc');
   }
   let count = 0;
-  for (let k of Object.keys(breakpoints)) {
+  for (const k of Object.keys(breakpoints)) {
     const bp = breakpoints[k];
     if (bp && bp.stopped) {
       count++;
       bp.continue = true;
     }
+  }
+  for (const thread of Process.enumerateThreads()) {
+    console.error('send ', thread.id);
+    send(wrapStanza('action-' + thread.id, { action: 'continue' }));
   }
   return 'Continue ' + count + ' thread(s).';
 }
@@ -898,7 +903,7 @@ async function dumpInfoJson () {
         }
       }
       res.cacheDir = Java.classFactory.cacheDir;
-      const jniEnv = ptr(Java.vm.getEnv())
+      const jniEnv = ptr(Java.vm.getEnv());
       if (jniEnv) {
         res.jniEnv = jniEnv.toString();
       }
@@ -982,7 +987,7 @@ function listAllSymbolsJson (args) {
   const argName = args[0];
   const modules = Process.enumerateModules().map(m => m.path);
   let res = [];
-  for (let module of modules) {
+  for (const module of modules) {
     const symbols = Module.enumerateSymbols(module)
       .filter((r) => r.address.compare(ptr('0')) > 0 && r.name);
     if (argName) {
@@ -1200,12 +1205,12 @@ function lookupSymbolJson (args) {
       address: address
     }];
   } else {
-    let [symbolName] = args;
+    const [symbolName] = args;
     const res = getPtr(symbolName);
     const mod = getModuleAt(res);
     if (res) {
       return [{
-        library: mod? mod.name: 'unknown',
+        library: mod ? mod.name : 'unknown',
         name: symbolName,
         address: res
       }];
@@ -1272,7 +1277,7 @@ function listEntrypointQuiet (args) {
 }
 
 function listEntrypoint (args) {
-  let n = 0;
+  const n = 0;
   return listEntrypointJson()
     .map((entry) => {
       return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
@@ -1383,7 +1388,7 @@ function listClassesLoaded (args) {
   }
   const results = ObjC.enumerateLoadedClassesSync();
   const loadedClasses = [];
-  for (let module of Object.keys(results)) {
+  for (const module of Object.keys(results)) {
     loadedClasses.push(...results[module]);
   }
   return loadedClasses.join('\n');
@@ -1422,7 +1427,7 @@ function listClassesNatives (args) {
             return n; // { name: sn, fullname: n };
           });
           console.error(kns.join('\n'));
-          for (let tkn of kns) {
+          for (const tkn of kns) {
             if (natives.indexOf(tkn) === -1) {
               natives.push(tkn);
             }
@@ -1460,7 +1465,7 @@ function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
-    for (let cn of Object.keys(ObjC.classes)) {
+    for (const cn of Object.keys(ObjC.classes)) {
       if (classGlob(cn, args[0])) {
         methods += listClassesR2([cn]);
       }
@@ -1643,7 +1648,7 @@ function listFileDescriptorsJson (args) {
 
 function listStringsJson (args) {
   if (!args || args.length !== 1) {
-    args = [ offset ];
+    args = [offset];
   }
   const base = ptr(args[0]);
   const currentRange = Process.findRangeByAddress(base);
@@ -1656,7 +1661,7 @@ function listStringsJson (args) {
       console.error('Warning: this range is too big (' + curSize + 'MB), truncated to ' + length / (1024 * 1024) + 'MB');
     }
     try {
-      let res = [];
+      const res = [];
       console.log('Reading ' + (length / (1024 * 1024)) + 'MB ...');
       for (let i = 0; i < length; i += block) {
         const addr = currentRange.base.add(i);
@@ -1674,7 +1679,7 @@ function listStringsJson (args) {
 
 function listStrings (args) {
   if (!args || args.length !== 1) {
-    args = [ ptr(offset) ];
+    args = [ptr(offset)];
   }
   const base = ptr(args[0]);
   return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
@@ -1695,7 +1700,7 @@ function listProtocolsJson (args) {
 function listMallocMaps (args) {
   const heaps = squashRanges(listMallocRangesJson(args));
   function inRange (x) {
-    for (let heap of heaps) {
+    for (const heap of heaps) {
       if (x.base.compare(heap.base) >= 0 &&
       x.base.add(x.size).compare(heap.base.add(heap.size))) {
         return true;
@@ -1736,7 +1741,7 @@ function listMallocRanges (args) {
 
 function listMemoryRangesHere (args) {
   if (args.length !== 1) {
-    args = [ ptr(offset) ];
+    args = [ptr(offset)];
   }
   const addr = ptr(args[0]);
   return listMemoryRangesJson()
@@ -1763,18 +1768,18 @@ function rwxstr (x) {
 }
 
 function rwxint (x) {
-  const ops = [ '---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx' ];
+  const ops = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
   return ops.indexOf([x]);
 }
 
 function squashRanges (ranges) {
 // console.log("SquashRanges");
-  let res = [];
+  const res = [];
   let begin = ptr(0);
   let end = ptr(0);
   let lastPerm = 0;
   let lastFile = '';
-  for (let r of ranges) {
+  for (const r of ranges) {
     lastPerm |= rwxint(r.protection);
     if (r.file) {
       lastFile = r.file;
@@ -1902,7 +1907,7 @@ function listThreads () {
       return '';
     }
     const buffer = Memory.alloc(4096);
-    let p = pthreadFromMachThreadNp(tid);
+    const p = pthreadFromMachThreadNp(tid);
     pthreadGetnameNp(p, buffer, 4096);
     return buffer.readCString();
   }
@@ -1988,7 +1993,7 @@ function dumpRegisterProfile (args) {
   let off = 0;
   const inc = Process.pointerSize;
   let profile = regProfileAliasFor(Process.arch);
-  for (let reg of names) {
+  for (const reg of names) {
     profile += `gpr\t${reg}\t${inc}\t${off}\t0\n`;
     off += inc;
   }
@@ -2010,10 +2015,10 @@ function dumpRegisterArena (args) {
   names.sort(compareRegisterNames);
   let off = 0;
   const inc = Process.pointerSize;
-  let buf = Buffer.alloc(inc * names.length);
-  for (let reg of names) {
+  const buf = Buffer.alloc(inc * names.length);
+  for (const reg of names) {
     const r = context[reg];
-    let b = [r.and(0xff),
+    const b = [r.and(0xff),
       r.shr(8).and(0xff),
       r.shr(16).and(0xff),
       r.shr(24).and(0xff),
@@ -2072,8 +2077,8 @@ function dumpRegistersRecursively (args) {
     .filter(thread => !tid || tid === thread.id)
     .map(thread => {
       const { id, state, context } = thread;
-      let res = ['# thread ' + id + ' ' + state];
-      for (let reg of Object.keys(context)) {
+      const res = ['# thread ' + id + ' ' + state];
+      for (const reg of Object.keys(context)) {
         try {
           const data = regcursive(reg, context[reg]);
           res.push(reg + ': ' + data);
@@ -2088,7 +2093,7 @@ function dumpRegistersRecursively (args) {
 
 function dumpRegistersR2 (args) {
   const threads = Process.enumerateThreads();
-  let [tid] = args;
+  const [tid] = args;
   const context = tid ? threads.filter(th => th.id === tid) : threads[0].context;
   if (!context) {
     return '';
@@ -2105,7 +2110,7 @@ function dumpRegistersR2 (args) {
 }
 
 function dumpRegisters (args) {
-  let [tid] = args;
+  const [tid] = args;
   return Process.enumerateThreads()
     .filter(thread => !tid || thread.id === tid)
     .map(thread => {
@@ -2340,8 +2345,8 @@ function getPtr (p) {
     let found = null;
     let firstFail = false;
     let oldMethodName = null;
-    for (let methodName of klass.$ownMethods) {
-      let method = klass[methodName];
+    for (const methodName of klass.$ownMethods) {
+      const method = klass[methodName];
       if (methodName.indexOf(kv1) !== -1) {
         if (hatSign && !methodName.substring(2).startsWith(kv1)) {
           continue;
@@ -2495,7 +2500,7 @@ function traceLogDumpJson () {
 
 function traceLogDumpR2 () {
   let res = '';
-  for (let l of logs) {
+  for (const l of logs) {
     if (l.script) {
       res += l.script;
     }
@@ -2557,7 +2562,7 @@ function traceLog (msg) {
 
 function haveTraceAt (address) {
   try {
-    for (let trace of traceListeners) {
+    for (const trace of traceListeners) {
       if (trace.at.compare(address) === 0) {
         return true;
       }
@@ -2630,7 +2635,7 @@ function traceRegs (args) {
 }
 
 function traceHere () {
-  const args = [ offset ];
+  const args = [offset];
   args.forEach(address => {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
@@ -2653,7 +2658,7 @@ function traceR2 (args) {
 function dumpJavaArguments (args) {
   let res = '';
   try {
-    for (let a of args) {
+    for (const a of args) {
       try {
         res += a.toString() + ' ';
       } catch (ee) {
@@ -2776,7 +2781,7 @@ function tracehook (address, args) {
   const th = tracehooks[at];
   var fmtarg = [];
   if (th && th.format) {
-    for (let fmt of th.format.split(' ')) {
+    for (const fmt of th.format.split(' ')) {
       var [k, v] = fmt.split(':');
       switch (k) {
         case 'i':
@@ -3362,7 +3367,7 @@ function evaluate (params) {
       try {
         if (ccode) {
           code = `
-var m = new CModule(` + '`'+ ccode + '`' + `);
+var m = new CModule(` + '`' + ccode + '`' + `);
 const main = new NativeFunction(m.main, 'int', []);
 main();
 `;
@@ -3395,7 +3400,7 @@ Script.setGlobalAccessHandler({
   },
   get (property) {
     if (mjolner !== undefined) {
-      let result = mjolner.lookup(property);
+      const result = mjolner.lookup(property);
       if (result !== null) {
         return result;
       }
@@ -3601,7 +3606,7 @@ function _searchPatternJson (pattern) {
       let results = [];
       const commands = [];
       let idx = 0;
-      for (let range of ranges) {
+      for (const range of ranges) {
         if (range.size === 0) {
           continue;
         }
@@ -3782,7 +3787,7 @@ function _toPairs (hex) {
 function _isHex (raw) {
   const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
   const inSet = new Set(Array.from(raw));
-  for (let h of hexSet) {
+  for (const h of hexSet) {
     inSet.delete(h);
   }
   return inSet.size === 0;
@@ -3894,7 +3899,7 @@ function hostCmdj (cmd) {
 function hostCmd (cmd) {
   return new Promise((resolve) => {
     const serial = cmdSerial;
-    cmdSerial += 1;
+    cmdSerial++;
     pendingCmds[serial] = resolve;
     sendCommand(cmd, serial);
   });
@@ -3907,8 +3912,8 @@ function sendCommand (cmd, serial) {
   function sendIt () {
     sendingCommand = true;
     send(wrapStanza('cmd', {
-      'cmd': cmd,
-      'serial': serial
+      cmd: cmd,
+      serial: serial
     }));
   }
 

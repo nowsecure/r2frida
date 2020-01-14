@@ -11,7 +11,7 @@ module.exports = {
 
 function stalkFunction (config, address) {
   return new Promise((resolve, reject) => {
-    let recursiveCountByThread = {};
+    const recursiveCountByThread = {};
     const threads = new Set();
     const completedThreads = new Set();
 
