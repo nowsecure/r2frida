@@ -2353,7 +2353,9 @@ function traceListJson () {
 }
 
 function getPtr (p) {
-  p = p.trim();
+  if (typeof p === 'string') {
+    p = p.trim();
+  }
   if (!p || p === '$$') {
     return ptr(offset);
   }
