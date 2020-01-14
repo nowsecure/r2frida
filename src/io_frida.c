@@ -1229,23 +1229,27 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		if (type == JSON_NODE_OBJECT) {
 			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-			const char *name = json_object_get_string_member (payload, "name");
-			if (name && !strcmp (name, "reply")) {
-				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-				if (stanza_node) {
-					JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
-					if (stanza_type == JSON_NODE_OBJECT) {
-						on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+			if (!payload) {
+				eprintf ("Unexpected payload\n");
+			} else {
+				const char *name = json_object_get_string_member (payload, "name");
+				if (name && !strcmp (name, "reply")) {
+					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+					if (stanza_node) {
+						JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
+						if (stanza_type == JSON_NODE_OBJECT) {
+							on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+						} else {
+							eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
+						}
 					} else {
-						eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
+						eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 					}
-				} else {
-					eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
+				} else if (name && !strcmp (name, "cmd")) {
+					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 				}
-			} else if (!strcmp (name, "cmd")) {
-				on_cmd (rf, json_object_get_object_member (payload, "stanza"));
+				json_object_unref (payload);
 			}
-			json_object_unref (payload);
 		} else {
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
