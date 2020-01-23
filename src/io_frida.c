@@ -1596,6 +1596,8 @@ R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
 	.version = R2_VERSION,
+#if R2_VERSION_MAJOR >= 4 && R2_VERSION_MINOR >= 2
 	.pkgname = "r2frida"
+#endif
 };
 #endif
