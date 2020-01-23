@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2019 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2020 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
@@ -452,6 +452,30 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	return n;
 }
 
+static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
+	char *agent_code = r_file_slurp (fileName, NULL);
+	if (!agent_code) {
+		eprintf ("Cannot load '%s'\n", fileName);
+		return false;
+	}
+	GError *error;
+	FridaScriptOptions * options = frida_script_options_new ();
+	frida_script_options_set_name (options, "eternalized-script");
+	if (user_wants_v8 ()) {
+		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	}
+	FridaScript *script = frida_session_create_script_sync (rf->session,
+		agent_code, options, rf->cancellable, &error);
+	if (!script) {
+		eprintf ("%s\n", error->message);
+		return false;
+	}
+	frida_script_load_sync (script, NULL, NULL);
+	frida_script_eternalize_sync (script, NULL, NULL);
+	g_clear_object (&script);
+	return true;
+}
+
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 	switch (whence) {
 	case SEEK_SET:
@@ -701,8 +725,13 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		case '?':
 			eprintf ("Usage: .[-] [filename]  # load and run the given script into the agent\n");
 			eprintf (".              list loaded plugins via r2frida.pluginRegister()\n");
+			eprintf ("..foo.js       load and eternalize given script in the agent size\n");
 			eprintf (".-foo          unload r2frida plugin via r2frida.pluginUnregister()\n");
 			eprintf (". file.js      run this script in the agent side\n");
+			break;
+		case '.':
+			(void)__eternalizeScript (rf, command + 2);
+			return strdup ("");
 			break;
 		case ' ':
 			slurpedData = r_file_slurp (command + 2, NULL);
