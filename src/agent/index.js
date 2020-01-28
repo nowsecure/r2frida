@@ -765,7 +765,7 @@ function breakpointContinue (args) {
     }
   }
   for (const thread of Process.enumerateThreads()) {
-    console.error('send ', thread.id);
+    // console.error('send ', thread.id);
     send(wrapStanza('action-' + thread.id, { action: 'continue' }));
   }
   return 'Continue ' + count + ' thread(s).';
