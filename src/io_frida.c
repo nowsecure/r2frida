@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2019 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2020 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
@@ -452,6 +452,30 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	return n;
 }
 
+static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
+	char *agent_code = r_file_slurp (fileName, NULL);
+	if (!agent_code) {
+		eprintf ("Cannot load '%s'\n", fileName);
+		return false;
+	}
+	GError *error;
+	FridaScriptOptions * options = frida_script_options_new ();
+	frida_script_options_set_name (options, "eternalized-script");
+	if (user_wants_v8 ()) {
+		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	}
+	FridaScript *script = frida_session_create_script_sync (rf->session,
+		agent_code, options, rf->cancellable, &error);
+	if (!script) {
+		eprintf ("%s\n", error->message);
+		return false;
+	}
+	frida_script_load_sync (script, NULL, NULL);
+	frida_script_eternalize_sync (script, NULL, NULL);
+	g_clear_object (&script);
+	return true;
+}
+
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 	switch (whence) {
 	case SEEK_SET:
@@ -592,7 +616,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		} else {
 			return NULL;
 		}
-
 	}
 
 	if (!strcmp (command, "")) {
@@ -634,11 +657,21 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.event   = compile\n");
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
+#if 0
 	} else if (!strcmp (command, "s")) {
 		io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
 		return NULL;
 	} else if (!strncmp (command, "s ", 2)) {
 		r_core_cmd0 (rf->r2core, command);
+		return NULL;
+#endif
+	// fails to aim at seek workarounding hostCmd
+	} else if (!strncmp (command, "s  ", 3)) {
+		if (rf && rf->r2core) {
+			r_core_cmdf (rf->r2core, "s %s", command + 2);
+		} else {
+			eprintf ("Invalid rf\n");
+		}
 		return NULL;
 	} else if (!strncmp (command, "dkr", 3)) {
 		io->cb_printf ("DetachReason: %s\n", detachReasonAsString (rf));
@@ -692,8 +725,13 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		case '?':
 			eprintf ("Usage: .[-] [filename]  # load and run the given script into the agent\n");
 			eprintf (".              list loaded plugins via r2frida.pluginRegister()\n");
+			eprintf ("..foo.js       load and eternalize given script in the agent size\n");
 			eprintf (".-foo          unload r2frida plugin via r2frida.pluginUnregister()\n");
 			eprintf (". file.js      run this script in the agent side\n");
+			break;
+		case '.':
+			(void)__eternalizeScript (rf, command + 2);
+			return strdup ("");
 			break;
 		case ' ':
 			slurpedData = r_file_slurp (command + 2, NULL);
@@ -1220,23 +1258,27 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		if (type == JSON_NODE_OBJECT) {
 			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-			const char *name = json_object_get_string_member (payload, "name");
-			if (name && !strcmp (name, "reply")) {
-				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-				if (stanza_node) {
-					JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
-					if (stanza_type == JSON_NODE_OBJECT) {
-						on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+			if (!payload) {
+				eprintf ("Unexpected payload\n");
+			} else {
+				const char *name = json_object_get_string_member (payload, "name");
+				if (name && !strcmp (name, "reply")) {
+					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+					if (stanza_node) {
+						JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
+						if (stanza_type == JSON_NODE_OBJECT) {
+							on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+						} else {
+							eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
+						}
 					} else {
-						eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
+						eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 					}
-				} else {
-					eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
+				} else if (name && !strcmp (name, "cmd")) {
+					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 				}
-			} else if (!strcmp (name, "cmd")) {
-				on_cmd (rf, json_object_get_object_member (payload, "stanza"));
+				json_object_unref (payload);
 			}
-			json_object_unref (payload);
 		} else {
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
@@ -1553,6 +1595,9 @@ RIOPlugin r_io_plugin_frida = {
 R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
-	.version = R2_VERSION
+	.version = R2_VERSION,
+#if R2_VERSION_MAJOR >= 4 && R2_VERSION_MINOR >= 2
+	.pkgname = "r2frida"
+#endif
 };
 #endif
