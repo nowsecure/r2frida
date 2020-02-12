@@ -1,7 +1,7 @@
 include config.mk
 
 r2_version=$(VERSION)
-frida_version=12.8.8
+frida_version=12.8.10
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -197,7 +197,7 @@ radare2-android-arm64-libs:
 	cd $(R2A_ROOT) ; 7z x -y ../radare2_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	ln -fs $(R2A_ROOT)/data/data/com.termux/files/
-	
+
 R2A_DIR=$(R2A_ROOT)/data/data/com.termux/files/usr
 
 android-arm64: radare2-android-arm64-libs
