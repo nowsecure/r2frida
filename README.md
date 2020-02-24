@@ -3,7 +3,12 @@ r2frida
 
 Radare2 and Frida better together.
 
-[![Build Status](https://travis-ci.com/nowsecure/r2frida.svg?branch=master)](https://travis-ci.com/nowsecure/r2frida)
+
+[![gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/nowsecure/r2frida?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![NPM version](https://img.shields.io/npm/v/r2frida.svg?style=flat-square)](https://www.npmjs.com/package/r2frida)
+[![Build](https://travis-ci.org/nowsecure/r2frida.svg?branch=master)](https://travis-ci.org/nowsecure/r2frida)
+[![codecov.io](https://codecov.io/github/nowsecure/r2frida/coverage.svg?branch=master)](https://codecov.io/github/nowsecure/r2frida?branch=master)
+[![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com/)
 
 ![logo](r2frida.png)
 
