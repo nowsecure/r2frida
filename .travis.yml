@@ -24,5 +24,5 @@ after_success:
   - git clean -xdf
   - make deb
   - wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
-  - compgen -G "*.deb" > /dev/null && bash upload.sh *.deb
+  - compgen -G "dist/debian/*.deb" > /dev/null && bash upload.sh dist/debian/*.deb
 #  - compgen -G "/tmp/*.pkg" > /dev/null && bash upload.sh /tmp/*.pkg
