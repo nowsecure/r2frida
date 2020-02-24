@@ -9,8 +9,8 @@
     "indent": "semistandard --fix src/agent/*.js",
     "prepare": "npm run build",
     "build-nobabel": "frida-compile src/agent -o src/_agent.js -x",
-    "build": "frida-compile src/agent -o src/_agent.js",
-    "watch": "frida-compile src/agent -o src/_agent.js -w"
+    "build": "frida-compile -L -c src/agent -o src/_agent.js",
+    "watch": "frida-compile -L -c src/agent -o src/_agent.js -w"
   },
   "license": "LGPL-3.0",
   "dependencies": {
