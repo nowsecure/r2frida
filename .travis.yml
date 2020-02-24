@@ -11,9 +11,18 @@ oservices:
 
 before_script:
   - git clone --depth=1 https://github.com/radare/radare2
-  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
+  - cd radare2 && sys/install.sh /usr
+#  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
 
 script:
-  - ./configure
+  - ./configure --prefix=/usr
   - make
   - sudo make install
+  - r2 -qcq frida://0
+
+after_success:
+  - git clean -xdf
+  - make deb
+  - wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
+  - compgen -G "*.deb" > /dev/null && bash upload.sh *.deb
+#  - compgen -G "/tmp/*.pkg" > /dev/null && bash upload.sh /tmp/*.pkg
