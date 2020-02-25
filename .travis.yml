@@ -18,6 +18,9 @@ matrix:
 oservices:
   - docker
 
+git:
+  quiet: true
+
 before_script:
   - git clone -q --depth=1 https://github.com/radare/radare2
   - ( cd radare2 && sys/install.sh /usr ) > /dev/null
