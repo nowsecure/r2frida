@@ -20,7 +20,7 @@ oservices:
 
 before_script:
   - git clone -q --depth=1 https://github.com/radare/radare2
-  - cd radare2 && sys/install.sh /usr > /dev/null
+  - ( cd radare2 && sys/install.sh /usr ) > /dev/null
 #  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
 
 script:
@@ -34,6 +34,7 @@ script:
       # r2 -qcq frida://0
       ;;
     Debian)
+      pwd
       ./configure --prefix=/usr > /dev/null
       make -C dist/debian
       wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
