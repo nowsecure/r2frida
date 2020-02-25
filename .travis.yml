@@ -30,7 +30,7 @@ script:
       ./configure --prefix=/usr
       make
       sudo make install
-      r2 -qcq frida://0
+      # r2 -qcq frida://0
       ;;
     Debian)
       make deb
