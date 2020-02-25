@@ -22,7 +22,7 @@ git:
   quiet: true
 
 before_script:
-  - apt -qq update && apt install -y pkg-config
+  - sudo apt -qq update && sudo apt install -y pkg-config
   - git clone -q --depth=1 https://github.com/radare/radare2
   - ( cd radare2 && sys/install.sh /usr ) > /dev/null
 #  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
