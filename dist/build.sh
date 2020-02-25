@@ -1,4 +1,7 @@
 #!/bin/sh
+if [ -f ../config.mk ]; then
+	. ../config.mk
+fi
 [ -z "${VERSION}" ] && VERSION=3.9.0
 (
 	RV=${VERSION}
