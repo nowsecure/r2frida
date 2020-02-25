@@ -1,5 +1,6 @@
 include ./CONFIG
 
+UNAME=$(shell uname)
 DEPENDS=
 CROSSARCH=x64
 PWD=$(shell pwd)
@@ -17,8 +18,12 @@ all: root
 	$(MAKE) deb
 
 root:
+ifeq ($(UNAME),Darwin)
 	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr ; npm i ; \
 	$(DOCKCROSS) --image dockcross/linux-$(CROSSARCH) bash -c 'sh dist/build.sh'
+else
+	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr ; make
+endif
 	mkdir -p root/$(R2PLUGDIR)
 	cp -f ../../io_frida.so root/$(R2PLUGDIR)
 
