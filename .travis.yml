@@ -19,12 +19,13 @@ oservices:
   - docker
 
 before_script:
-  - git clone --depth=1 https://github.com/radare/radare2 > /dev/null
+  - git clone -q --depth=1 https://github.com/radare/radare2
   - cd radare2 && sys/install.sh /usr > /dev/null
 #  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
 
 script:
   - |
+    set -e
     case "$TRAVIS_JOB_NAME" in
     Build)
       ./configure --prefix=/usr
