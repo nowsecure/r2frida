@@ -112,6 +112,9 @@ endif
 all: .git/modules/ext ext/frida
 	$(MAKE) io_frida.$(SO_EXT)
 
+deb:
+	$(MAKE) -C dist/debian
+
 IOS_ARCH=arm64
 #armv7
 IOS_ARCH_CFLAGS=$(addprefix -arch ,$(IOS_ARCH))
