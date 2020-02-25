@@ -34,6 +34,7 @@ script:
       # r2 -qcq frida://0
       ;;
     Debian)
+      ./configure --prefix=/usr > /dev/null
       make -C dist/debian
       wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
       compgen -G "dist/debian/*.deb" > /dev/null && bash upload.sh dist/debian/*.deb
