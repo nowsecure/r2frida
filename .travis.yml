@@ -40,10 +40,8 @@ script:
       pwd
       ./configure --prefix=/usr > /dev/null
       make -C dist/debian
-      wget -c https://github.com/probonopd/uploadtool/raw/master/upload.sh
+      wget -q https://github.com/probonopd/uploadtool/raw/master/upload.sh
       compgen -G "dist/debian/*.deb" > /dev/null && bash upload.sh dist/debian/*.deb
-      #  - compgen -G "/tmp/*.pkg" > /dev/null && bash upload.sh /tmp/*.pkg
+      # compgen -G "/tmp/*.pkg" > /dev/null && bash upload.sh /tmp/*.pkg
       ;;
     esac
-
-after_success:
