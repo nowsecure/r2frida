@@ -3,6 +3,7 @@ if [ -f ../config.mk ]; then
 	. ../config.mk
 fi
 [ -z "${VERSION}" ] && VERSION=3.9.0
+if [ "${GRAB_R2}" = 1 ]; then
 (
 	RV=${VERSION}
 	RA=amd64
@@ -16,10 +17,11 @@ fi
 	sudo dpkg -i radare2_${RV}_${RA}.deb
 	sudo dpkg -i radare2-dev_${RV}_${RA}.deb
 )
+fi
 
 # install NodeJS LTS
 (
-	NV=v10.16.3
+	NV=v12.16.1
 	NA=linux-x64
 	echo "[*] Downloading NodeJS"
 	wget -c https://nodejs.org/dist/${NV}/node-${NV}-${NA}.tar.xz

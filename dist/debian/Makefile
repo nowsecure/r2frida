@@ -10,11 +10,11 @@ R2PLUGDIR=/usr/lib/radare2/$(VERSION)
 
 all: root
 	sudo rm -rf control data
-	${MAKE} clean
+	$(MAKE) clean
 	mkdir -p data
 	cp -rf root/* data
-	${MAKE} control
-	${MAKE} deb
+	$(MAKE) control
+	$(MAKE) deb
 
 root:
 	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr ; npm i ; \
