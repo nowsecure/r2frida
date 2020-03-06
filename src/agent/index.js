@@ -924,7 +924,11 @@ async function dumpInfoJson () {
       if (app !== null) {
         const ctx = app.getApplicationContext();
         if (ctx !== null) {
-          res.dataDir = ctx.getDataDir().getAbsolutePath();
+          try {
+            res.dataDir = ctx.getDataDir().getAbsolutePath();
+          } catch(e) {
+            // not available below API 24 (<Android7)
+          }
           res.codeCacheDir = ctx.getCodeCacheDir().getAbsolutePath();
           res.extCacheDir = ctx.getExternalCacheDir().getAbsolutePath();
           res.obbDir = ctx.getObbDir().getAbsolutePath();
