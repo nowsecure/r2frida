@@ -682,7 +682,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
-			gchar *path = strdup (r_str_trim_ro (command + 3));
+			gchar *path = strdup (r_str_trim_head_ro (command + 3));
 			if (path) {
 				gchar *entry = strchr (path, ' ');
 				if (entry) {
