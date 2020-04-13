@@ -1252,8 +1252,11 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	g_assert (message != NULL);
 	JsonObject *root = json_node_get_object (message);
 	const char *type = json_object_get_string_member (root, "type");
+	if (!type) {
+		return;
+	}
 
-	if (type && !strcmp (type, "send")) {
+	if (!strcmp (type, "send")) {
 		JsonNode *payload_node = json_object_get_member (root, "payload");
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		if (type == JSON_NODE_OBJECT) {
