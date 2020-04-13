@@ -103,7 +103,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->crash = NULL;
 	rf->crash_report = NULL;
 	rf->received_reply = false;
-	rf->r2core = io->user;
+	rf->r2core = io->corebind.core;
 	if (!rf->r2core) {
 		eprintf ("ERROR: r2frida cannot find the RCore instance from IO->user.\n");
 		free (rf);
