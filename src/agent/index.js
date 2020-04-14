@@ -3414,8 +3414,7 @@ function normalizeValue (value) {
 function evaluate (params) {
   return new Promise(resolve => {
     let { code, ccode } = params;
-    // this is black magic but seems to work on iOS and macOS
-    const isObjcMainloopRunning = ObjCAvailable && ObjC.mainQueue.add(48).readPointer().isNull();
+    const isObjcMainloopRunning = ObjCAvailable && hasMainLoop();
 
     if (ObjCAvailable && isObjcMainloopRunning && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
@@ -3449,6 +3448,35 @@ main();
       }, null]);
     }
   });
+}
+
+function hasMainLoop () {
+  const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
+  if (getMain === null) {
+    return false;
+  }
+
+  const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
+  if (copyCurrentModePtr === null) {
+    return false;
+  }
+
+  const getMain = new NativeFunction(getMainPtr, 'pointer', []);
+  const copyCurrentMode = new NativeFunction(copyCurrentModePtr, 'pointer', ['pointer']);
+
+  const main = getMain();
+  if (main.isNull()) {
+    return false;
+  }
+
+  const mode = copyCurrentMode(main);
+  const hasLoop = !mode.isNull();
+
+  if (hasLoop) {
+    new ObjC.Object(mode).release();
+  }
+
+  return hasLoop;
 }
 
 if (ObjCAvailable) {
