@@ -2614,7 +2614,9 @@ function traceLog (msg) {
       message: msg
     }));
   }
-  logs.push(msg);
+  if (config.getBoolean('hook.logs')) {
+    logs.push(msg);
+  }
   global.r2frida.logs = logs;
 }
 

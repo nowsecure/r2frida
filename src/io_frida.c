@@ -1261,9 +1261,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		if (type == JSON_NODE_OBJECT) {
 			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-			if (!payload) {
-				eprintf ("Unexpected payload\n");
-			} else {
+			if (payload) {
 				const char *name = json_object_get_string_member (payload, "name");
 				if (name && !strcmp (name, "reply")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
@@ -1279,17 +1277,24 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					}
 				} else if (name && !strcmp (name, "cmd")) {
 					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
-				} else if (!strcmp (type, "log")) {
+				} else if (name && !strcmp (name, "log")) {
 					eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 				} else if (name && !strcmp (name, "log-file")) {
-					const char *filename = json_object_get_string_member (payload, "filename");
-					const char *message = json_object_get_string_member (payload, "message");
-					r_file_dump (filename, message, -1, true);
-					json_object_unref (payload);
+					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+					if (stanza_node) {
+						const char *filename = json_object_get_string_member (stanza_node, "filename");
+						const char *message = json_object_get_string_member (stanza_node, "message");
+						if (filename && message) {
+							r_file_dump (filename, (const ut8*)message, -1, true);
+						}
+						json_object_unref (stanza_node);
+					}
 				} else {
 					eprintf ("Unknown packet named '%s'\n", name);
 				}
 				json_object_unref (payload);
+			} else {
+				eprintf ("Unexpected payload\n");
 			}
 		} else {
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);

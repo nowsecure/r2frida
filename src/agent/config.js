@@ -10,6 +10,7 @@ const config = {
   'stalker.in': 'raw',
   'hook.backtrace': true,
   'hook.verbose': true,
+  'hook.logs': true,
   'file.log': '',
   'symbols.unredact': Process.platform === 'darwin'
 };
@@ -22,6 +23,7 @@ const configHelp = {
   'stalker.in': configHelpStalkerIn,
   'hook.backtrace': configHelpHookBacktrace,
   'hook.verbose': configHelpHookVerbose,
+  'hook.logs': configHelpHookLogs,
   'file.log': configHelpFileLog,
   'symbols.unredact': configHelpSymbolsUnredact
 };
@@ -34,6 +36,7 @@ const configValidator = {
   'stalker.in': configValidateStalkerIn,
   'hook.backtrace': configValidateBoolean,
   'hook.verbose': configValidateBoolean,
+  'hook.logs': configValidateBoolean,
   'file.log': configValidateString,
   'symbols.unredact': configValidateBoolean
 };
@@ -113,6 +116,13 @@ function configHelpHookVerbose () {
   return `Show trace messages to the console. They are also logged in \\dtl
 
     true | false    to enable or disable the option
+  `;
+}
+
+function configHelpHookLogs () {
+  return `Save hook trace logs internally in the agent. Use \\dtl to list them
+
+    true | false    to enable or disable the option (enabled by default)
   `;
 }
 
