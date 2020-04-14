@@ -47,6 +47,7 @@ typedef struct {
 	RCore *r2core;
 	RFPendingCmd * pending_cmd;
 	char *crash_report;
+	RIO *io;
 } RIOFrida;
 
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
@@ -101,6 +102,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->detached = false;
 	rf->detach_reason = 0;
 	rf->crash = NULL;
+	rf->io = io;
 	rf->crash_report = NULL;
 	rf->received_reply = false;
 	rf->r2core = io->corebind.core;
@@ -391,7 +393,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	};
 	int i;
 	for (i = 0; autocompletions[i]; i++) {
-		r_core_cmd0 (rf->r2core, autocompletions[i]);
+		io->corebind.cmd (rf->r2core, autocompletions[i]);
 	}
 
 	return r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
@@ -1161,8 +1163,7 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 	if (!rf->pending_cmd) {
 		return;
 	}
-	// TODO: use io->cb_core_cmdstr instead to avoid depending on RCore directly
-	char * output = r_core_cmd_str (rf->r2core, rf->pending_cmd->cmd_string);
+	char *output = rf->io->corebind.cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
 
 	ut64 serial = rf->pending_cmd->serial;
 	pending_cmd_free (rf->pending_cmd);
@@ -1170,14 +1171,15 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 
 	if (output) {
 		JsonBuilder * builder = build_request ("cmd");
-		json_builder_set_member_name (builder, "output");
-		json_builder_add_string_value (builder, output);
-		json_builder_set_member_name (builder, "serial");
-		json_builder_add_int_value (builder, serial);
+		if (builder) {
+			json_builder_set_member_name (builder, "output");
+			json_builder_add_string_value (builder, output);
+			json_builder_set_member_name (builder, "serial");
+			json_builder_add_int_value (builder, serial);
 
+			perform_request_unlocked (rf, builder, NULL, NULL);
+		}
 		R_FREE (output);
-
-		perform_request_unlocked (rf, builder, NULL, NULL);
 	}
 }
 
@@ -1262,10 +1264,11 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		if (type == JSON_NODE_OBJECT) {
 			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
 			if (payload) {
+				JsonObject *stanza = json_object_get_object_member (payload, "stanza");
 				const char *name = json_object_get_string_member (payload, "name");
 				if (name && !strcmp (name, "reply")) {
-					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza_node) {
+					if (stanza) {
+						JsonNode *stanza_node = json_object_get_member (payload, "stanza");
 						JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
 						if (stanza_type == JSON_NODE_OBJECT) {
 							on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
@@ -1278,16 +1281,27 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 				} else if (name && !strcmp (name, "cmd")) {
 					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 				} else if (name && !strcmp (name, "log")) {
-					eprintf ("%s\n", json_object_get_string_member (root, "payload"));
+					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+					if (stanza) {
+						JsonNode *message_node = json_object_get_member (stanza, "message");
+						char *message = json_to_string (message_node, FALSE);
+						if (message) {
+							eprintf ("%s\n", message);
+							free (message);
+						}
+					}
 				} else if (name && !strcmp (name, "log-file")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza_node) {
-						const char *filename = json_object_get_string_member (stanza_node, "filename");
-						const char *message = json_object_get_string_member (stanza_node, "message");
+					if (stanza) {
+						const char *filename = json_object_get_string_member (stanza, "filename");
+						JsonNode *message_node = json_object_get_member (stanza, "message");
+						char *message = json_to_string (message_node, FALSE);
+						message = r_str_append (message, "\n");
 						if (filename && message) {
-							r_file_dump (filename, (const ut8*)message, -1, true);
+							(void) r_file_dump (filename, (const ut8*)message, -1, true);
 						}
-						json_object_unref (stanza_node);
+						free (message);
+						// json_node_unref (stanza_node);
 					}
 				} else {
 					eprintf ("Unknown packet named '%s'\n", name);
@@ -1300,8 +1314,11 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
 	} else if (!strcmp (type, "log")) {
-		// XXX unused
-		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
+		// XXX should never be called
+		JsonNode *payload_node = json_object_get_member (root, "payload");
+		char *message = json_to_string (payload_node, FALSE);
+		eprintf ("%s\n", message);
+		free (message);
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
 	}

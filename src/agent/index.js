@@ -2608,11 +2608,10 @@ function traceLog (msg) {
     }));
   } else {
     if (config.getBoolean('hook.verbose')) {
-      console.error('[TRACE]', tracelogToString(msg));
+      send(wrapStanza('log', {
+        message: msg
+      }));
     }
-    send(wrapStanza('log', {
-      message: msg
-    }));
   }
   if (config.getBoolean('hook.logs')) {
     logs.push(msg);
@@ -3972,6 +3971,7 @@ function hostCmd (cmd) {
 
 global.r2frida.hostCmd = hostCmd;
 global.r2frida.logs = logs;
+global.r2frida.log = traceLog;
 
 function sendCommand (cmd, serial) {
   function sendIt () {
