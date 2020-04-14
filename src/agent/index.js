@@ -2750,7 +2750,7 @@ function traceJava (klass, method) {
     k[method].implementation = function (args) {
       const res = this[method]();
       const bt = config.getBoolean('hook.backtrace')
-         ? Throwable.$new().getStackTrace(): [];
+         ? Throwable.$new().getStackTrace().map(_ => _.toString()): [];
       const traceMessage = {
         source: 'dt',
         klass: klass,
