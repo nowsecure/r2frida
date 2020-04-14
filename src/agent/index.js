@@ -2751,16 +2751,23 @@ function traceJava (klass, method) {
     const k = javaUse(klass);
     k[method].implementation = function (args) {
       const res = this[method]();
-      console.error(args);
-      /*
+/*
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
       console.log('[*] onResume() got called!');
       this.onResume();
 */
       const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n') + '\n';
-      console.error('dt', klass);
-      console.error(message);
+      const traceMessage = {
+        source: 'dt',
+        klass: klass,
+        method: method,
+        timestamp: new Date(),
+        result: res,
+        values: args,
+        message: message
+      };
+      traceLog(traceMessage);
       return res;
     };
   });
