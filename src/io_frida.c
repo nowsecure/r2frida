@@ -1308,7 +1308,9 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 						// json_node_unref (stanza_node);
 					}
 				} else {
-					eprintf ("Unknown packet named '%s'\n", name);
+					if (!r_str_startswith (name, "action-")) {
+						eprintf ("Unknown packet named '%s'\n", name);
+					}
 				}
 				json_object_unref (payload);
 			} else {
