@@ -2749,21 +2749,16 @@ function traceJava (klass, method) {
     const k = javaUse(klass);
     k[method].implementation = function (args) {
       const res = this[method]();
-      /*
-    var Activity = Java.use('android.app.Activity');
-    Activity.onResume.implementation = function () {
-      console.log('[*] onResume() got called!');
-      this.onResume();
-*/
-      const message = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n') + '\n';
+      const bt = config.getBoolean('hook.backtrace')
+         ? Throwable.$new().getStackTrace(): [];
       const traceMessage = {
         source: 'dt',
         klass: klass,
         method: method,
+        backtrace: bt,
         timestamp: new Date(),
         result: res,
-        values: args,
-        message: message
+        values: args
       };
       traceLog(traceMessage);
       return res;
