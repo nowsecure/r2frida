@@ -907,6 +907,7 @@ async function dumpInfoJson () {
     objc: ObjCAvailable,
     runtime: Script.runtime,
     java: JavaAvailable,
+    mainLoop: hasMainLoop(),
     cylang: mjolner !== undefined,
     pageSize: Process.pageSize,
     pointerSize: Process.pointerSize,
@@ -2750,7 +2751,7 @@ function traceJava (klass, method) {
     k[method].implementation = function (args) {
       const res = this[method]();
       const bt = config.getBoolean('hook.backtrace')
-         ? Throwable.$new().getStackTrace().map(_ => _.toString()): [];
+        ? Throwable.$new().getStackTrace().map(_ => _.toString()) : [];
       const traceMessage = {
         source: 'dt',
         klass: klass,
@@ -3414,9 +3415,9 @@ function normalizeValue (value) {
 function evaluate (params) {
   return new Promise(resolve => {
     let { code, ccode } = params;
-    const isObjcMainloopRunning = ObjCAvailable && hasMainLoop();
+    const isObjcMainLoopRunning = ObjCAvailable && hasMainLoop();
 
-    if (ObjCAvailable && isObjcMainloopRunning && !suspended) {
+    if (ObjCAvailable && isObjcMainLoopRunning && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
