@@ -3414,8 +3414,10 @@ function normalizeValue (value) {
 function evaluate (params) {
   return new Promise(resolve => {
     let { code, ccode } = params;
+    // this is black magic but seems to work on iOS and macOS
+    const isObjcMainloopRunning = ObjCAvailable && ObjC.mainQueue.add(48).readPointer().isNull();
 
-    if (ObjCAvailable && !suspended) {
+    if (ObjCAvailable && isObjcMainloopRunning && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
