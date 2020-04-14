@@ -1279,6 +1279,15 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					}
 				} else if (name && !strcmp (name, "cmd")) {
 					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
+				} else if (!strcmp (type, "log")) {
+					eprintf ("%s\n", json_object_get_string_member (root, "payload"));
+				} else if (name && !strcmp (name, "log-file")) {
+					const char *filename = json_object_get_string_member (payload, "filename");
+					const char *message = json_object_get_string_member (payload, "message");
+					r_file_dump (filename, message, -1, true);
+					json_object_unref (payload);
+				} else {
+					eprintf ("Unknown packet named '%s'\n", name);
 				}
 				json_object_unref (payload);
 			}
@@ -1286,6 +1295,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
 	} else if (!strcmp (type, "log")) {
+		// XXX unused
 		eprintf ("%s\n", json_object_get_string_member (root, "payload"));
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);

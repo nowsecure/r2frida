@@ -81,7 +81,7 @@ function javaTraceExample () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
-        console.error('[TRACE] System.loadLibrary', library);
+        traceLog('System.loadLibrary ' + library);
         const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
         return loaded;
       } catch (e) {
@@ -2600,8 +2600,19 @@ function traceLogClearAll () {
 }
 
 function traceLog (msg) {
-  if (config.getBoolean('hook.verbose')) {
-    console.error('[TRACE]', tracelogToString(msg));
+  const fileLog = config.getString('file.log');
+  if (fileLog.length > 0) {
+    send(wrapStanza('log-file', {
+      filename: fileLog,
+      message: msg
+    }));
+  } else {
+    if (config.getBoolean('hook.verbose')) {
+      console.error('[TRACE]', tracelogToString(msg));
+    }
+    send(wrapStanza('log', {
+      message: msg
+    }));
   }
   logs.push(msg);
   global.r2frida.logs = logs;
@@ -2943,7 +2954,7 @@ function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
-      console.error('[TRACE]', 'Intercept return for', klass, method, 'with', value);
+      traceLog('Intercept return for ' + klass + ' ' + method + ' with ' + value);
       switch (value) {
         case 0: return false;
         case 1: return true;
