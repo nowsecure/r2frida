@@ -1078,16 +1078,14 @@ static JsonBuilder *build_request(const char *type) {
 }
 
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
-	JsonNode *root;
-	char *message;
 	GError *error = NULL;
 	JsonObject *reply_stanza = NULL;
 	GBytes *reply_bytes = NULL;
 
 	json_builder_end_object (builder);
 	json_builder_end_object (builder);
-	root = json_builder_get_root (builder);
-	message = json_to_string (root, FALSE);
+	JsonNode *root = json_builder_get_root (builder);
+	char *message = json_to_string (root, FALSE);
 	json_node_unref (root);
 	g_object_unref (builder);
 
@@ -1284,7 +1282,10 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
 					if (stanza) {
 						JsonNode *message_node = json_object_get_member (stanza, "message");
-						char *message = json_to_string (message_node, FALSE);
+						JsonNodeType type = json_node_get_node_type (message_node);
+						char *message = (type == JSON_NODE_OBJECT)
+							? json_to_string (message_node, FALSE)
+							: strdup (json_object_get_string_member (stanza, "message"));
 						if (message) {
 							eprintf ("%s\n", message);
 							free (message);
@@ -1295,7 +1296,10 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					if (stanza) {
 						const char *filename = json_object_get_string_member (stanza, "filename");
 						JsonNode *message_node = json_object_get_member (stanza, "message");
-						char *message = json_to_string (message_node, FALSE);
+						JsonNodeType type = json_node_get_node_type (message_node);
+						char *message = (type == JSON_NODE_OBJECT)
+							? json_to_string (message_node, FALSE)
+							: strdup (json_object_get_string_member (stanza, "message"));
 						message = r_str_append (message, "\n");
 						if (filename && message) {
 							(void) r_file_dump (filename, (const ut8*)message, -1, true);
