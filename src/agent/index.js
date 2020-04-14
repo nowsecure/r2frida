@@ -552,12 +552,10 @@ if (Process.platform === 'windows') {
   _getpid = sym('_getpid', 'int', []);
   _getuid = getWindowsUserNameA;
   _dup2 = sym('_dup2', 'int', ['int', 'int']);
-  _fstat =  sym('_fstat', 'int', ['int', 'pointer']);
+  _fstat = sym('_fstat', 'int', ['int', 'pointer']);
   _close = sym('_close', 'int', ['int']);
   _kill = sym('TerminateProcess', 'int', ['int', 'int']);
-}
-
-else {
+} else {
   _getenv = sym('getenv', 'pointer', ['pointer']);
   _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
   _getpid = sym('getpid', 'int', []);
@@ -868,7 +866,7 @@ function getCwd () {
   } else {
     _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
   }
-  
+
   if (_getcwd) {
     const PATH_MAX = 4096;
     const buf = Memory.alloc(PATH_MAX);
@@ -926,7 +924,7 @@ async function dumpInfoJson () {
         if (ctx !== null) {
           try {
             res.dataDir = ctx.getDataDir().getAbsolutePath();
-          } catch(e) {
+          } catch (e) {
             // not available below API 24 (<Android7)
           }
           res.codeCacheDir = ctx.getCodeCacheDir().getAbsolutePath();
@@ -2751,7 +2749,7 @@ function traceJava (klass, method) {
     const k = javaUse(klass);
     k[method].implementation = function (args) {
       const res = this[method]();
-/*
+      /*
     var Activity = Java.use('android.app.Activity');
     Activity.onResume.implementation = function () {
       console.log('[*] onResume() got called!');
@@ -3024,11 +3022,11 @@ function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
-function getWindowsUserNameA() {
+function getWindowsUserNameA () {
   const _GetUserNameA = sym('GetUserNameA', 'int', ['pointer', 'pointer']);
   const PATH_MAX = 4096;
-  const buf = Memory.allocUtf8String("A".repeat(PATH_MAX));
-  const char_out = Memory.allocUtf8String("A".repeat(PATH_MAX));
+  const buf = Memory.allocUtf8String('A'.repeat(PATH_MAX));
+  const char_out = Memory.allocUtf8String('A'.repeat(PATH_MAX));
   const res = _GetUserNameA(buf, char_out);
   const user = Memory.readCString(buf);
   return user;

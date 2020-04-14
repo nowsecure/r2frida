@@ -155,7 +155,7 @@ function configValidateStalkerIn (val) {
 }
 
 function configValidateString (val) {
-  return typeof(val) === 'string'
+  return typeof (val) === 'string';
 }
 
 function configValidateBoolean (val) {
