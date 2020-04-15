@@ -3453,7 +3453,7 @@ main();
 
 function hasMainLoop () {
   const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
-  if (getMain === null) {
+  if (getMainPtr === null) {
     return false;
   }
 
