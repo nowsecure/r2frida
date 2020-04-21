@@ -157,6 +157,10 @@ const commandHandlers = {
   isa: lookupSymbol,
   'isa*': lookupSymbolR2,
   isaj: lookupSymbolJson,
+  // many symbols
+  isam: lookupSymbolMany,
+  isamj: lookupSymbolManyJson,
+  'isam*': lookupSymbolManyR2,
 
   iE: listExports,
   'iE.': lookupSymbolHere,
@@ -1214,6 +1218,25 @@ function lookupSymbol (args) {
 
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
+    .map(({ name, address }) =>
+      ['f', 'sym.' + name, '=', address].join(' '))
+    .join('\n');
+}
+
+function lookupSymbolManyJson (args) {
+  let res = [];
+  for (let arg of args) {
+    res.push({name:arg, address: lookupSymbol ([arg])});
+  }
+  return res;
+}
+
+function lookupSymbolMany (args) {
+  return lookupSymbolManyJson (args).map(({address}) => address).join('\n');
+}
+
+function lookupSymbolManyR2 (args) {
+  return lookupSymbolManyJson (args)
     .map(({ name, address }) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
