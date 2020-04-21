@@ -735,9 +735,25 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		case '?':
 			eprintf ("Usage: .[-] [filename]  # load and run the given script into the agent\n");
 			eprintf (".              list loaded plugins via r2frida.pluginRegister()\n");
+			eprintf (".:[file.js]    run cfg.editor and run the script in the agent\n");
 			eprintf ("..foo.js       load and eternalize given script in the agent size\n");
 			eprintf (".-foo          unload r2frida plugin via r2frida.pluginUnregister()\n");
 			eprintf (". file.js      run this script in the agent side\n");
+			break;
+		case ':':
+			{
+				const char *arg = r_str_trim_head_ro (command + 2);
+				// eprintf ("%s\n", arg);
+				slurpedData = r_core_editor (rf->r2core, *arg? arg: NULL, NULL);
+				if (slurpedData) {
+					// eprintf ("%s\n", slurpedData);
+					builder = build_request ("evaluate");
+					json_builder_set_member_name (builder, "code");
+					json_builder_add_string_value (builder, slurpedData);
+				} else {
+					return NULL;
+				}
+			}
 			break;
 		case '.':
 			(void)__eternalizeScript (rf, command + 2);
@@ -760,8 +776,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		case '-':
 			builder = build_request ("evaluate");
 			json_builder_set_member_name (builder, "code");
-			slurpedData = malloc (128);
-			snprintf (slurpedData, 128, "r2frida.pluginUnregister('%s')", command + 2);
+			slurpedData = r_str_newf ("r2frida.pluginUnregister('%s')", command + 2);
 			json_builder_add_string_value (builder, slurpedData);
 			break;
 		case 0:
