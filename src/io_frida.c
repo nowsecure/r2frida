@@ -440,11 +440,10 @@ static int __close(RIODesc *fd) {
 		return -1;
 	}
 
-	resume (rf);
 
 	rf = fd->data;
 	rf->detached = true;
-
+	resume (rf);
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
 
