@@ -90,6 +90,9 @@ static const gchar r_io_frida_agent_code[] = {
 };
 
 static void resume(RIOFrida *rf) {
+	if (!rf) {
+		return;
+	}
 	GError *error = NULL;
 	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
