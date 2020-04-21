@@ -1263,6 +1263,7 @@ function lookupSymbolJson (args) {
     if (fcns) {
       return fcns.map((f) => { return { name: symbolName, address: f }; });
     }
+    return [];
 
     /*
     var at = DebugSymbol.fromName(symbolName);
@@ -3920,6 +3921,9 @@ function performOnJavaVM (fn) {
 }
 
 function getModuleAt (addr) {
+  if (addr === null) {
+    return null;
+  }
   const modules = Process.enumerateModules()
     .filter((m) => {
       const a = m.base;
