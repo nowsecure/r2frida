@@ -26,6 +26,7 @@ typedef struct {
 	guint pid;
 	bool pid_valid;
 	bool spawn;
+	bool run;
 } R2FridaLaunchOptions;
 
 typedef struct {
@@ -87,6 +88,20 @@ static const gchar r_io_frida_agent_code[] = {
 #include "_agent.h"
 	, 0x00
 };
+
+static void resume(RIOFrida *rf) {
+	GError *error = NULL;
+	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
+	if (error) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			rf->io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
+		}
+		g_clear_error (&error);
+	} else {
+		rf->suspended = false;
+		eprintf ("resumed spawned process.\n");
+	}
+}
 
 static RIOFrida *r_io_frida_new(RIO *io) {
 	if (!io) {
@@ -264,7 +279,11 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			}
 			goto error;
 		}
-		rf->suspended = true;
+		if (lo->run) {
+			rf->suspended = false;
+		} else {
+			rf->suspended = true;
+		}
 	} else {
 		rf->pid = lo->pid;
 		rf->suspended = false;
@@ -395,8 +414,11 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	for (i = 0; autocompletions[i]; i++) {
 		io->corebind.cmd (rf->r2core, autocompletions[i]);
 	}
-
-	return r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
+	RIODesc *fd = r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
+	if (lo->run) {
+		resume (rf);
+	}
+	return fd;
 
 error:
 	g_clear_error (&error);
@@ -415,7 +437,7 @@ static int __close(RIODesc *fd) {
 		return -1;
 	}
 
-	free (__system (fd->io, fd, "dc"));
+	resume (rf);
 
 	rf = fd->data;
 	rf->detached = true;
@@ -607,9 +629,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
 		if (result) {
 			json_object_unref (result);
-		}
-		else if (!strncmp (command, "dkr", 3)) {
-			//pass
+		} else if (!strncmp (command, "dkr", 3)) {
+			// let it pass
 		} else {
 			return NULL;
 		}
@@ -702,17 +723,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		}
 		return NULL;
 	} else if (!strcmp (command, "dc") && rf->suspended) {
-		GError *error = NULL;
-		frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
-		if (error) {
-			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
-			}
-			g_clear_error (&error);
-		} else {
-			rf->suspended = false;
-			eprintf ("resumed spawned process.\n");
-		}
+		resume (rf);
 		return NULL;
 	}
 
@@ -871,6 +882,30 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 	if (slash && !*slash) {
 		slash = NULL;
 	}
+	if (!strcmp (path, "launch")) {
+		lo->device_id = NULL;
+		lo->spawn = true;
+		lo->run = true;
+
+		if (slash) {
+			int first_word_len = slash - arg;
+			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
+				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
+				char * first_word = g_strndup (arg, first_word_len);
+				bool result = resolve_device_id_as_uriroot (first_word, slash + 1, lo, cancellable);
+				g_free (first_word);
+				return result;
+			}
+		}
+
+#if __UNIX__
+		char *abspath = r_file_path (arg);
+		lo->process_specifier = g_strdup (abspath? abspath: arg);
+#else
+		lo->process_specifier = g_strdup (arg);
+#endif
+		return true;
+	}
 	if (!strcmp (path, "spawn")) {
 		lo->device_id = NULL;
 		lo->spawn = true;
@@ -969,16 +1004,17 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	if (!strcmp (first_field, "?")) {
 		eprintf ("r2 frida://[action]/[target]\n");
 		eprintf ("* target = process-id | process-name | app-name\n");
-		eprintf ("* program = find-in-path | absolute-path\n");
-		eprintf ("* device = device-id | ''\n");
-		eprintf ("* peer = ip-address:port            # no hostname resolution\n");
+		eprintf ("* program = find-in-path | absolute-path  # path or name (in PATH) to program\n");
+		eprintf ("* device = device-id | ''                 # as listed in frida-ls-devices\n");
+		eprintf ("* peer = ip-address:port                  # no hostname resolution\n");
 		eprintf ("Long URIs: (new)\n");
-		eprintf ("* frida://spawn/$(program)          # start a new process\n");
-		eprintf ("* frida://attach/(target)           # attach to current\n");
-		eprintf ("* frida://usb/$(device)/$(target)   # connect to USB device\n");
-		eprintf ("* frida://connect/$(peer)/$(target)  # connect to remote frida-server\n");
-		eprintf ("* frida://spawn/usb/$(device)/$(program)\n");
-		eprintf ("* frida://attach/usb/$(device)/$(target)\n");
+		eprintf ("* frida://spawn/$(program)                # start a new process\n");
+		eprintf ("* frida://attach/(target)                 # attach to current\n");
+		eprintf ("* frida://usb/$(device)/$(target)         # connect to USB device\n");
+		eprintf ("* frida://connect/$(peer)/$(target)       # connect to remote frida-server\n");
+		eprintf ("* frida://spawn/usb/$(device)/$(program)  # spawn application on USB device\n");
+		eprintf ("* frida://launch/usb/$(device)/$(program) # spawn+launch target app\n");
+		eprintf ("* frida://attach/usb/$(device)/$(target)  # attach to target on given USB device\n");
 		eprintf ("Short URIs: (old)\n");
 		eprintf ("* frida://$(target)                 # local process attach\n");
 		eprintf ("* frida://$(device)/$(target)       # attach device\n");
@@ -998,6 +1034,7 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 		eprintf ("R2FRIDA_AGENT_SCRIPT                # path to file of the r2frida agent\n");
 		return false;
 	}
+	lo->run = false;
 	lo->spawn = false;
 	const char *second_field;
 	if (*first_field == '/' || !strncmp (first_field, "./", 2)) {
@@ -1065,6 +1102,9 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	GError *error = NULL;
 
+	if (lo->pid_valid) {
+		return true;
+	}
 	if (lo->process_specifier) {
 		if (*lo->process_specifier) {
 			int number = atopid (lo->process_specifier, &lo->pid_valid);
@@ -1075,8 +1115,6 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 		} else {
 			dumpProcesses (device, cancellable);
 		}
-	} else if (lo->pid_valid) {
-		return true;
 	}
 
 	if (!lo->process_specifier) {
