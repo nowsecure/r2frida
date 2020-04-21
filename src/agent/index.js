@@ -218,6 +218,7 @@ const commandHandlers = {
   'dma-': removeAlloc,
   dp: getPid,
   dxc: dxCall,
+  dxs: dxSyscall,
   dpj: getPidJson,
   dpt: listThreads,
   dptj: listThreadsJson,
@@ -276,7 +277,7 @@ const commandHandlers = {
 
 async function initBasicInfoFromTarget (args) {
   const str = `
-e dbg.backend =io
+e dbg.backend = io
 e anal.autoname=true
 e cmd.fcn.new=aan
 .=!ie*
@@ -379,6 +380,27 @@ function _addAlloc (allocPtr) {
     allocPool[key] = allocPtr;
   }
   return key;
+}
+
+function resolveSyscallNumber(name) {
+  const ios = Process.arch === 'arm64'? true: false;
+  switch (name) {
+  case 'read':
+    return ios?3:0x2000003;
+  case 'write':
+    return ios?4:0x2000004;
+  case 'exit':
+    return ios?1:0x2000001;
+  }
+  return '' + name;
+}
+
+function dxSyscall (args) {
+  if (args.length === 0) {
+    return 'Usage dxs [syscallname] [args ...]';
+  }
+  const syscallNumber = ''+resolveSyscallNumber(args[0]);
+  return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
 }
 
 function dxCall (args) {
