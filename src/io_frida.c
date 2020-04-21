@@ -161,7 +161,10 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (device_manager) {
 		device_manager_count--;
 		if (device_manager_count == 0) {
-			frida_device_manager_close_sync (device_manager, NULL, NULL);
+			// if the process gets killed this call takes forever
+			if (!rf->detached) {
+				frida_device_manager_close_sync (device_manager, NULL, NULL);
+			}
 			g_object_unref (device_manager);
 			device_manager = NULL;
 		}
@@ -439,7 +442,6 @@ static int __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return -1;
 	}
-
 
 	rf = fd->data;
 	rf->detached = true;
