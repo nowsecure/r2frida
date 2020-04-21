@@ -522,15 +522,10 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
-static char *__system(RIO *io, RIODesc *fd, const char *command) {
-	RIOFrida *rf;
+static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
 	const char *value;
-
-	if (!fd || !fd->data) {
-		return NULL;
-	}
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		// TODO: move this into the .js
@@ -598,7 +593,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 		return NULL;
 	}
 
-	rf = fd->data;
+	RIOFrida *rf = fd->data;
 
 	/* update state (seek and suspended) in agent */
 	{
@@ -832,6 +827,43 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	json_object_unref (result);
 
 	return sys_result;
+}
+
+static bool scripts_loaded = false;
+
+static char *__system(RIO *io, RIODesc *fd, const char *command) {
+	RIOFrida *rf;
+	JsonBuilder *builder;
+	JsonObject *result;
+	const char *value;
+
+	if (!fd || !fd->data) {
+		return NULL;
+	}
+	rf = fd->data;
+	/* load scripts */
+	if (!scripts_loaded) {
+		RCore *core = rf->r2core;
+		const char *path = R2_DATDIR"/r2frida/scripts";
+		RList *files = r_sys_dir (path);
+		RListIter *iter;
+		const char *file;
+		r_list_foreach (files, iter, file) {
+			if (r_str_endswith (file, ".js")) {
+				char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
+				eprintf ("Loading %s\n", file);
+				char * s = __system_continuation (io, fd, cmd);
+				free (cmd);
+				if (s) {
+					eprintf ("%s\n", s);
+					free (s);
+				}
+
+			}
+		}
+		scripts_loaded = true;
+	}
+	return __system_continuation (io, fd, command);
 }
 
 static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
