@@ -520,22 +520,19 @@ static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 }
 
 static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
-	RIOFrida *rf;
-	JsonBuilder *builder;
 	int i;
-	JsonObject *result;
 
 	if (!fd || !fd->data) {
 		return -1;
 	}
 
-	rf = fd->data;
+	RIOFrida *rf = fd->data;
 
-	builder = build_request ("write");
+	JsonBuilder *builder = build_request ("write");
 	json_builder_set_member_name (builder, "offset");
 	json_builder_add_int_value (builder, io->off);
 
-	result = perform_request (rf, builder, g_bytes_new (buf, count), NULL);
+	JsonObject *result = perform_request (rf, builder, g_bytes_new (buf, count), NULL);
 	if (!result) {
 		return -1;
 	}
@@ -974,17 +971,30 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 		char *rest = g_strdup (arg);
 		char *slash = strchr (rest, '/');
 		if (slash) {
-			*slash++ = 0;
-			lo->pid = atopid (slash, &lo->pid_valid);
-			lo->device_id = rest;
-			lo->process_specifier = g_strdup (slash);
-		} else {
-			if (*rest) {
-				FridaDevice *device;
+			if (slash[1]) {
+				// frida://usb//123
+				*slash++ = 0;
+				lo->pid = atopid (slash, &lo->pid_valid);
+				lo->device_id = rest;
+				lo->process_specifier = g_strdup (slash);
+			} else {
+				// frida://usb//
 				GError *error = NULL;
-
-				device = frida_device_manager_get_device_by_id_sync (device_manager, rest, 0, cancellable, &error);
-				if (device != NULL) {
+				FridaDevice *device; //  = frida_device_manager_get_device_by_id_sync (device_manager, NULL, 0, cancellable, &error);
+				device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, &error);
+				if (device) {
+					dumpProcesses (device, cancellable);
+				} else {
+					eprintf ("Cannot find an USB device\n");
+				}
+			}
+			return true;
+		} else {
+			// frida://usb/
+			if (*rest) {
+				GError *error = NULL;
+				FridaDevice *device = frida_device_manager_get_device_by_id_sync (device_manager, rest, 0, cancellable, &error);
+				if (device) {
 					dumpProcesses (device, cancellable);
 					frida_unref (device);
 				} else {
