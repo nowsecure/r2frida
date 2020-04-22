@@ -1350,7 +1350,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		if (type == JSON_NODE_OBJECT) {
 			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-			if (payload) {
+			if (payload && json_object_has_member (payload, "stanza")) {
 				JsonObject *stanza = json_object_get_object_member (payload, "stanza");
 				const char *name = json_object_get_string_member (payload, "name");
 				if (name && !strcmp (name, "reply")) {
@@ -1409,11 +1409,13 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 		}
 	} else if (!strcmp (type, "log")) {
-		// XXX should never be called
+		// This is reached from the agent when calling console.log
 		JsonNode *payload_node = json_object_get_member (root, "payload");
-		char *message = json_to_string (payload_node, FALSE);
-		eprintf ("%s\n", message);
-		free (message);
+		JsonNodeType type = json_node_get_node_type (payload_node);
+		const char *message = json_node_get_string (payload_node);
+		if (message) {
+			eprintf ("%s\n", message);
+		}
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
 	}

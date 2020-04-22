@@ -93,6 +93,7 @@ function javaTraceExample () {
 
 const commandHandlers = {
   E: evalNum,
+  '?e': echo,
   '/': search,
   '/j': searchJson,
   '/x': searchHex,
@@ -3381,7 +3382,7 @@ function state (params, data) {
 }
 
 function isPromise (value) {
-  return typeof value === 'object' && typeof value.then === 'function';
+  return value !== null && typeof value === 'object' && typeof value.then === 'function';
 }
 
 function stalkTraceEverythingHelp () {
@@ -3443,12 +3444,17 @@ function perform (params) {
       }).catch(reject);
     });
   }
-  return [{
-    value: normalizeValue(value)
-  }, null];
+  const nv = normalizeValue(value);
+  if (nv === '' || nv === 'null' || nv === undefined || nv === null) {
+    return [{}, null];
+  }
+  return [{ value: nv }, null];
 }
 
 function normalizeValue (value) {
+  if (typeof value === null || typeof value === undefined) {
+    return null;
+  }
   if (typeof value === 'undefined') {
     return 'undefined';
   }
@@ -3552,6 +3558,11 @@ function search (args) {
   return searchJson(args).then(hits => {
     return _readableHits(hits);
   });
+}
+
+function echo (args) {
+  console.log(args.join(' '));
+  return null;
 }
 
 function searchJson (args) {
