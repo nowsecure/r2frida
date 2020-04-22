@@ -194,6 +194,8 @@ const commandHandlers = {
   iclj: listClassesLoadedJson,
   'ic*': listClassesR2,
   icj: listClassesJson,
+  icm: listClassMethods,
+  icmj: listClassMethodsJson,
   ip: listProtocols,
   ipj: listProtocolsJson,
   iz: listStrings,
@@ -1535,14 +1537,13 @@ function listClasses (args) {
   const result = listClassesJson(args);
   if (result instanceof Array) {
     return result.join('\n');
-  } else {
-    return Object.keys(result)
-      .map(methodName => {
-        const address = result[methodName];
-        return [padPointer(address), methodName].join(' ');
-      })
-      .join('\n');
   }
+  return Object.keys(result)
+    .map(methodName => {
+      const address = result[methodName];
+      return [padPointer(address), methodName].join(' ');
+    })
+    .join('\n');
 }
 
 function classGlob (k, v) {
@@ -1616,18 +1617,23 @@ function listJavaClassesJsonSync (args) {
 }
 
 // eslint-disable-next-line
-function listJavaClassesJson (args) {
+function listJavaClassesJson (args, classMethodsOnly) {
   let res = [];
   if (args.length === 1) {
     javaPerform(function () {
       try {
-        const handle = javaUse(args[0]);
+        const arg = args[0];
+        const handle = javaUse(arg);
         if (handle === null || !handle.class) {
           throw new Error('Cannot find a classloader for this class');
         }
         const klass = handle.class;
         try {
-          klass.getMethods().map(_ => res.push(_.toString()));
+          if (classMethodsOnly) {
+            klass.getMethods().filter(x => x.toString().indexOf(arg) !== -1).map(_ => res.push(_.toString()));
+          } else {
+            klass.getMethods().map(_ => res.push(_.toString()));
+          }
           klass.getFields().map(_ => res.push(_.toString()));
           try {
             klass.getConstructors().map(_ => res.push(_.toString()));
@@ -1653,9 +1659,17 @@ function listJavaClassesJson (args) {
   return res;
 }
 
-function listClassesJson (args) {
+function listClassMethods (args) {
+  return listClassesJson(args, true).join('\n');
+}
+
+function listClassMethodsJson (args) {
+  return listClassesJson(args, true);
+}
+
+function listClassesJson (args, classMethods) {
   if (JavaAvailable) {
-    return listJavaClassesJson(args);
+    return listJavaClassesJson(args, classMethods === true);
   }
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
