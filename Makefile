@@ -239,6 +239,10 @@ install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
+symstall:
+	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
+	ln -fs $(shell pwd)/io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
+
 uninstall:
 	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
@@ -315,4 +319,4 @@ src/cylang.o:
 	touch src/cylang.o
 endif
 
-.PHONY: all clean install uninstall release
+.PHONY: all clean install uninstall release symstall
