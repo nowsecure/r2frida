@@ -13,6 +13,7 @@
 #include "cylang.h"
 #endif
 #include "frida-core.h"
+#include "../config.h"
 
 typedef struct {
 	const char * cmd_string;
@@ -858,6 +859,25 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 
 static bool scripts_loaded = false;
 
+static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
+	RList *files = r_sys_dir (path);
+	RListIter *iter;
+	const char *file;
+	r_list_foreach (files, iter, file) {
+		if (r_str_endswith (file, ".js")) {
+			char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
+			eprintf ("Loading %s\n", file);
+			char * s = __system_continuation (core->io, fd, cmd);
+			free (cmd);
+			if (s) {
+				eprintf ("%s\n", s);
+				free (s);
+			}
+
+		}
+	}
+}
+
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	RIOFrida *rf;
 	JsonBuilder *builder;
@@ -871,23 +891,13 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	/* load scripts */
 	if (!scripts_loaded) {
 		RCore *core = rf->r2core;
-		const char *path = R2_DATDIR"/r2frida/scripts";
-		RList *files = r_sys_dir (path);
-		RListIter *iter;
-		const char *file;
-		r_list_foreach (files, iter, file) {
-			if (r_str_endswith (file, ".js")) {
-				char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
-				eprintf ("Loading %s\n", file);
-				char * s = __system_continuation (io, fd, cmd);
-				free (cmd);
-				if (s) {
-					eprintf ("%s\n", s);
-					free (s);
-				}
+		const char *path = DATADIR R_SYS_DIR "r2frida" R_SYS_DIR "scripts";
+		load_scripts (core, fd, path);
 
-			}
-		}
+		char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
+		load_scripts (core, fd, homepath);
+		free (homepath);
+
 		scripts_loaded = true;
 	}
 	return __system_continuation (io, fd, command);

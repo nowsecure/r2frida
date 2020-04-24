@@ -22,4 +22,4 @@ IFAND WANT_CYLANG HAVE_LANG_CXX {
 
 REPORT WITH_CYLANG ;
 
-SUBDIRS ./config.mk ;
+SUBDIRS ./config.mk ./config.h ;
