@@ -27,7 +27,6 @@ if (ObjCAvailable) {
 /* globals */
 const pointerSize = Process.pointerSize;
 
-var offset = '0';
 var suspended = false;
 var tracehooks = {};
 var logs = [];
@@ -456,7 +455,7 @@ function evalCode (args) {
 function printHexdump (lenstr) {
   const len = +lenstr || 32;
   try {
-    return hexdump(ptr(offset), len) || '';
+    return hexdump(ptr(r2frida.offset), len) || '';
   } catch (e) {
     return 'Cannot read memory.';
   }
@@ -476,7 +475,7 @@ function disasm (addr, len, initialOldName) {
         throw new Error();
       }
     } catch (e) {
-      addr = ptr(offset);
+      addr = ptr(r2frida.offset);
     }
   }
   let oldName = initialOldName !== undefined ? initialOldName : null;
@@ -1010,7 +1009,7 @@ function listModulesJson () {
 }
 
 function listModulesHere () {
-  const here = ptr(offset);
+  const here = ptr(r2frida.offset);
   return Process.enumerateModules()
     .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
     .map(m => padPointer(m.base) + ' ' + m.name)
@@ -1101,7 +1100,7 @@ function listAllSymbolsR2 (args) {
 function listExportsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
-    : Process.getModuleByAddress(offset);
+    : Process.getModuleByAddress(r2frida.offset);
   return Module.enumerateExports(currentModule.name);
 }
 
@@ -1129,7 +1128,7 @@ function sanitizeString (str) {
 function listSymbolsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
-    : Process.getModuleByAddress(offset);
+    : Process.getModuleByAddress(r2frida.offset);
   const symbols = Module.enumerateSymbols(currentModule.name);
   return symbols.map(sym => {
     if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
@@ -1149,7 +1148,7 @@ function lookupDebugInfo (args) {
 
 function lookupAddress (args) {
   if (args.length === 0) {
-    args = [ptr(offset)];
+    args = [ptr(r2frida.offset)];
   }
   return lookupAddressJson(args)
     .map(({ type, name, address }) => [type, name, address].join(' '))
@@ -1183,7 +1182,7 @@ function lookupAddressJson (args) {
 }
 
 function lookupSymbolHere (args) {
-  return lookupAddress([ptr(offset)]);
+  return lookupAddress([ptr(r2frida.offset)]);
 }
 
 function lookupExport (args) {
@@ -1416,7 +1415,7 @@ function listImportsJson (args) {
     moduleName = args[0];
     result = Module.enumerateImports(moduleName) || [];
   } else {
-    const currentModule = Process.getModuleByAddress(offset);
+    const currentModule = Process.getModuleByAddress(r2frida.offset);
     if (currentModule) {
       result = Module.enumerateImports(currentModule.name) || [];
     }
@@ -1753,7 +1752,7 @@ function listFileDescriptorsJson (args) {
 
 function listStringsJson (args) {
   if (!args || args.length !== 1) {
-    args = [offset];
+    args = [r2frida.offset];
   }
   const base = ptr(args[0]);
   const currentRange = Process.findRangeByAddress(base);
@@ -1784,7 +1783,7 @@ function listStringsJson (args) {
 
 function listStrings (args) {
   if (!args || args.length !== 1) {
-    args = [ptr(offset)];
+    args = [ptr(r2frida.offset)];
   }
   const base = ptr(args[0]);
   return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
@@ -1846,7 +1845,7 @@ function listMallocRanges (args) {
 
 function listMemoryRangesHere (args) {
   if (args.length !== 1) {
-    args = [ptr(offset)];
+    args = [ptr(r2frida.offset)];
   }
   const addr = ptr(args[0]);
   return listMemoryRangesJson()
@@ -2421,7 +2420,7 @@ function getPtr (p) {
     p = p.trim();
   }
   if (!p || p === '$$') {
-    return ptr(offset);
+    return ptr(r2frida.offset);
   }
   if (p.startsWith('java:')) {
     return p;
@@ -2512,7 +2511,7 @@ function traceFormat (args) {
     address = '' + getPtr(name);
     format = '';
   } else {
-    address = offset;
+    address = r2frida.offset;
     format = args[0];
   }
   if (haveTraceAt(address)) {
@@ -2754,7 +2753,7 @@ function traceRegs (args) {
 }
 
 function traceHere () {
-  const args = [offset];
+  const args = [r2frida.offset];
   args.forEach(address => {
     const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
     const listener = Interceptor.attach(ptr(address), function () {
@@ -3390,7 +3389,7 @@ const requestHandlers = {
 };
 
 function state (params, data) {
-  offset = params.offset;
+  r2frida.offset = params.offset;
   suspended = params.suspended;
   return [{}, null];
 }
@@ -3585,7 +3584,7 @@ function searchJson (args) {
     hits.forEach(hit => {
       try {
         const bytes = io.read({
-          offset: hit.address,
+          r2frida.offset: hit.address,
           count: 60
         })[1];
         hit.content = _filterPrintable(bytes);
@@ -3655,7 +3654,7 @@ function searchValueJson (args, width) {
 }
 
 function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(offset);
+  const currentRange = Process.getRangeByAddress(r2frida.offset);
   const from = currentRange.base;
   const to = from.add(currentRange.size);
   return `e search.in=raw
@@ -3860,7 +3859,7 @@ function _getRanges (fromNum, toNum) {
   const ranges = _getMemoryRanges(searchIn.perm).filter(range => {
     const start = range.base;
     const end = start.add(range.size);
-    const offPtr = ptr(offset);
+    const offPtr = ptr(r2frida.offset);
     if (searchIn.current) {
       return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
     }
