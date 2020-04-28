@@ -3584,7 +3584,7 @@ function searchJson (args) {
     hits.forEach(hit => {
       try {
         const bytes = io.read({
-          r2frida.offset: hit.address,
+          offset: hit.address,
           count: 60
         })[1];
         hit.content = _filterPrintable(bytes);
