@@ -135,6 +135,19 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	return rf;
 }
 
+static bool __request_safe_io(RIOFrida *rf) {
+	JsonBuilder *builder = build_request ("safeio");
+
+	JsonObject *result = perform_request (rf, builder, NULL, NULL);
+	if (!result) {
+		return false;
+	}
+
+	json_object_unref (result);
+
+	return true;
+}
+
 static R2FridaLaunchOptions *r2frida_launchopt_new (const char *pathname) {
 	R2FridaLaunchOptions *lo = R_NEW0(R2FridaLaunchOptions);
 	if (lo) {
@@ -207,7 +220,19 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
 }
 
-static bool user_wants_v8() {
+static bool user_wants_safe_io(void) {
+	bool do_want = false;
+	char *env = r_sys_getenv ("R2FRIDA_SAFE_IO");
+	if (env) {
+		if (*env) {
+			do_want = true;
+		}
+		free (env);
+	}
+	return do_want;
+}
+
+static bool user_wants_v8(void) {
 	bool do_want = true;
 	char *env = r_sys_getenv ("R2FRIDA_DISABLE_V8");
 	if (env) {
@@ -348,6 +373,9 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	r2frida_launchopt_free (lo);
+	if (user_wants_safe_io ()) {
+		__request_safe_io (rf);
+	}
 
 	const char *autocompletions[] = {
 		"!!!\\chcon",
@@ -1069,6 +1097,7 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 		eprintf ("* frida://usb//1234                 # list devices\n");
 		eprintf ("* frida://usb/$(peer)               # list process-names\n");
 		eprintf ("Environment:\n");
+		eprintf ("R2FRIDA_SAFE_IO                     # cache memory ranges before anything. fix crash on android/thumb");
 		eprintf ("R2FRIDA_DISABLE_V8                  # if set, use duktape instead of v8\n");
 		eprintf ("R2FRIDA_AGENT_SCRIPT                # path to file of the r2frida agent\n");
 		return false;

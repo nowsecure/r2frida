@@ -3,10 +3,27 @@
 const r2frida = require('./plugin'); // eslint-disable-line
 const config = require('./config');
 
+let cachedMaps = [];
+
 function read (params) {
   const { offset, count, fast } = params;
   if (r2frida.hookedRead !== null) {
     return r2frida.hookedRead(offset, count);
+  }
+  if (r2frida.safeio) {
+    if (cachedMaps.length == 0) {
+      cachedMaps = Process.enumerateRanges('').map(
+        (map) => [ map.base, ptr(map.base).add(map.size) ]);
+    } else {
+      const o = ptr(offset);
+      for (let map of cachedMaps) {
+        if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
+          const bytes = Memory.readByteArray(o, count);
+          return [{}, (bytes !== null) ? bytes : []];
+        }
+      }
+      return [{}, []];
+    }
   }
   if (offset < 0) {
     return [{}, []];

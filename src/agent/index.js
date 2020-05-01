@@ -3381,6 +3381,7 @@ function padPointer (value) {
 }
 
 const requestHandlers = {
+  safeio: () => { safeIO = true },
   read: io.read,
   write: io.write,
   state: state,
@@ -4076,6 +4077,7 @@ function hostCmd (cmd) {
 global.r2frida.hostCmd = hostCmd;
 global.r2frida.logs = logs;
 global.r2frida.log = traceLog;
+global.r2frida.safeio = false;
 
 function sendCommand (cmd, serial) {
   function sendIt () {
