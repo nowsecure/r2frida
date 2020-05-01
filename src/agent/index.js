@@ -2420,7 +2420,7 @@ function getPtr (p) {
     p = p.trim();
   }
   if (!p || p === '$$') {
-    return ptr(r2frida.offset);
+    return ptr(global.r2frida.offset);
   }
   if (p.startsWith('java:')) {
     return p;
@@ -2511,7 +2511,7 @@ function traceFormat (args) {
     address = '' + getPtr(name);
     format = '';
   } else {
-    address = r2frida.offset;
+    address = global.r2frida.offset;
     format = args[0];
   }
   if (haveTraceAt(address)) {
@@ -3381,7 +3381,7 @@ function padPointer (value) {
 }
 
 const requestHandlers = {
-  safeio: () => { safeIO = true },
+  safeio: () => { r2frida.safeio = true },
   read: io.read,
   write: io.write,
   state: state,
