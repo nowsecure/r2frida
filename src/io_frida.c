@@ -1280,7 +1280,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	}
 
 	if (json_object_has_member (reply_stanza, "error")) {
-		eprintf ("%s\n", json_object_get_string_member (reply_stanza, "error"));
+		eprintf ("error: %s\n", json_object_get_string_member (reply_stanza, "error"));
 		json_object_unref (reply_stanza);
 		g_bytes_unref (reply_bytes);
 		return NULL;
@@ -1425,7 +1425,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 							? json_to_string (message_node, FALSE)
 							: strdup (json_object_get_string_member (stanza, "message"));
 						if (message) {
-							eprintf ("%s\n", message);
+							eprintf ("log %s\n", message);
 							free (message);
 						}
 					}
@@ -1463,7 +1463,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		const char *message = json_node_get_string (payload_node);
 		if (message) {
-			eprintf ("%s\n", message);
+			eprintf ("console.log: %s\n", message);
 		}
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
@@ -1485,9 +1485,9 @@ static void dumpDevices(GCancellable *cancellable) {
 
 	error = NULL;
 	list = frida_device_manager_enumerate_devices_sync (device_manager, cancellable, &error);
-	if (error != NULL) {
+	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("%s\n", error->message);
+			eprintf ("error: %s\n", error->message);
 		}
 		goto beach;
 	}
@@ -1570,7 +1570,7 @@ static void dumpApplications(FridaDevice *device, GCancellable *cancellable) {
         list = frida_device_enumerate_applications_sync (device, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("%s\n", error->message);
+			eprintf ("error: %s\n", error->message);
 		}
 		goto beach;
 	}
@@ -1641,9 +1641,9 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 
 	error = NULL;
 	list = frida_device_enumerate_processes_sync (device, cancellable, &error);
-	if (error != NULL) {
+	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("%s\n", error->message);
+			eprintf ("error: %s\n", error->message);
 		}
 		goto beach;
 	}
