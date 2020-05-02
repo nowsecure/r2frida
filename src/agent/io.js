@@ -3,7 +3,8 @@
 const r2frida = require('./plugin'); // eslint-disable-line
 const config = require('./config');
 
-let cachedMaps = [];
+let cachedRanges = [];
+
 
 function read (params) {
   const { offset, count, fast } = params;
@@ -11,19 +12,20 @@ function read (params) {
     return r2frida.hookedRead(offset, count);
   }
   if (r2frida.safeio) {
-    if (cachedMaps.length == 0) {
-      cachedMaps = Process.enumerateRanges('').map(
+    if (cachedRanges.length == 0) {
+      cachedRanges = Process.enumerateRanges('').map(
         (map) => [ map.base, ptr(map.base).add(map.size) ]);
-    } else {
-      const o = ptr(offset);
-      for (let map of cachedMaps) {
-        if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
-          const bytes = Memory.readByteArray(o, count);
-          return [{}, (bytes !== null) ? bytes : []];
-        }
-      }
-      return [{}, []];
     }
+    // TODO: invalidate ranges at some point to refresh
+    // process.nextTick(() => { cachedRanges = null; }
+    const o = ptr(offset);
+    for (let map of cachedRanges) {
+      if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
+        const bytes = Memory.readByteArray(o, count);
+        return [{}, (bytes !== null) ? bytes : []];
+      }
+    }
+    return [{}, []];
   }
   if (offset < 0) {
     return [{}, []];
