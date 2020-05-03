@@ -21,7 +21,12 @@ function read (params) {
     const o = ptr(offset);
     for (let map of cachedRanges) {
       if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
-        const bytes = Memory.readByteArray(o, count);
+        let left = count;
+        if (o.add(count).compare(map[1]) > 0) {
+          const rest = o.add(count).sub(map[1]);
+          left = left.sub(rest);
+        }
+        const bytes = Memory.readByteArray(o, left);
         return [{}, (bytes !== null) ? bytes : []];
       }
     }
