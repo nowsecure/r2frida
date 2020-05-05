@@ -1463,7 +1463,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		const char *message = json_node_get_string (payload_node);
 		if (message) {
-			eprintf ("console.log: %s\n", message);
+			eprintf ("%s\n", message);
 		}
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
