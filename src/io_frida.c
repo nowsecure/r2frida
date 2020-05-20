@@ -120,8 +120,8 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 
 	rf->detached = false;
 	rf->detach_reason = 0;
-	rf->crash = NULL;
 	rf->io = io;
+	rf->crash = NULL;
 	rf->crash_report = NULL;
 	rf->received_reply = false;
 	rf->r2core = io->corebind.core;
