@@ -81,7 +81,7 @@ static gint computeProcessScore(FridaProcess *process);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
-static int device_manager_count = 0;
+static size_t device_manager_count = 0;
 
 #define src__agent__js r_io_frida_agent_code
 
@@ -245,7 +245,6 @@ static bool user_wants_v8(void) {
 }
 
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
-	RIOFrida *rf;
 	GError *error = NULL;
 
 	R2FridaLaunchOptions *lo = r2frida_launchopt_new (pathname);
@@ -255,7 +254,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	frida_init ();
 
-	rf = r_io_frida_new (io);
+	RIOFrida *rf = r_io_frida_new (io);
 	if (!rf) {
 		goto error;
 	}
