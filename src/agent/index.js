@@ -17,7 +17,7 @@ require('../../ext/swift-frida/examples/r2swida/index.js');
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const ObjCAvailable = ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const JavaAvailable = Java && Java.available;
 
 if (ObjCAvailable) {
