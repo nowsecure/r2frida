@@ -2658,7 +2658,7 @@ function traceLogClearAll () {
   return '';
 }
 
-function traceLog (msg) {
+function traceEmit (msg) {
   const fileLog = config.getString('file.log');
   if (fileLog.length > 0) {
     send(wrapStanza('log-file', {
@@ -2676,6 +2676,14 @@ function traceLog (msg) {
     logs.push(msg);
   }
   global.r2frida.logs = logs;
+}
+
+function traceLog (msg) {
+  if (config.getBoolean('hook.verbose')) {
+    send(wrapStanza('log', {
+      message: msg
+    }));
+  }
 }
 
 function haveTraceAt (address) {
@@ -4078,6 +4086,7 @@ global.r2frida.hostCmd = hostCmd;
 global.r2frida.hostCmdj = hostCmdj;
 global.r2frida.logs = logs;
 global.r2frida.log = traceLog;
+global.r2frida.emit = traceEmit;
 global.r2frida.safeio = false;
 
 function sendCommand (cmd, serial) {
