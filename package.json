@@ -14,11 +14,11 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "^9.3.0",
-    "mjolner": "^4.0.2"
+    "frida-compile": "9.3.0",
+    "mjolner": "4.0.2"
   },
   "devDependencies": {
-    "semistandard": "^14.2.0"
+    "semistandard": "14.2.0"
   },
   "semistandard": {
     "globals": [
