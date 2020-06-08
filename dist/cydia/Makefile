@@ -1,9 +1,10 @@
 include ./CONFIG
 DEPENDS=
+SUDO?=sudo
 PACKAGE_DIR?=${PWD}
 
 all: root
-	sudo rm -rf control data
+	$(SUDO) rm -rf control data
 	${MAKE} clean
 	mkdir -p data
 	cp -rf root/* data

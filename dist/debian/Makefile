@@ -1,6 +1,7 @@
 include ./CONFIG
 
 UNAME=$(shell uname)
+SUDO?=sudo
 DEPENDS=
 CROSSARCH=x64
 PWD=$(shell pwd)
@@ -10,7 +11,7 @@ DOCKCROSS=$(PWD)/../dockcross
 R2PLUGDIR=/usr/lib/radare2/$(VERSION)
 
 all: root
-	sudo rm -rf control data
+	$(SUDO) rm -rf control data
 	$(MAKE) clean
 	mkdir -p data
 	cp -rf root/* data
