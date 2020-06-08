@@ -115,10 +115,6 @@ all: .git/modules/ext ext/frida
 deb:
 	$(MAKE) -C dist/debian
 
-.git/modules/ext:
-	git submodule init
-	git submodule update
-
 IOS_ARCH=arm64
 #armv7
 IOS_ARCH_CFLAGS=$(addprefix -arch ,$(IOS_ARCH))
@@ -161,7 +157,10 @@ io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
 
-ext/swift-frida/node_modules: ext/swift-frida/index.js
+.git/modules/ext:
+	git submodule update --init
+
+ext/swift-frida/node_modules: ext/swift-frida/index.js ext/swift-frida/index.js
 	cd ext/swift-frida && npm i
 
 src/_agent.h: src/_agent.js
@@ -171,7 +170,8 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
 
 node_modules: package.json
-	((test packages.json -nt packages-lock.json) || (test -d node_modules && false || true)) && npm i || true
+	mkdir -p node_modules
+	test packages.json -nt packages-lock.json && npm i || true
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
 
