@@ -115,6 +115,10 @@ all: .git/modules/ext ext/frida
 deb:
 	$(MAKE) -C dist/debian
 
+.git/modules/ext:
+	git submodule init
+	git submodule update
+
 IOS_ARCH=arm64
 #armv7
 IOS_ARCH_CFLAGS=$(addprefix -arch ,$(IOS_ARCH))
