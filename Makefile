@@ -1,7 +1,7 @@
 include config.mk
 
 r2_version=$(VERSION)
-frida_version=12.9.6
+frida_version=12.9.7
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -140,7 +140,7 @@ r2-sdk-ios/$(r2_version):
 
 .PHONY: ext/frida
 
-ext/swift-frida/index.js: .gitmodules
+ext/swift-frida/index.js: .gitmodules node_modules
 	git submodule update --init
 
 ext/frida: $(FRIDA_SDK)
@@ -254,7 +254,7 @@ release:
 	$(MAKE) android STRIP_SYMBOLS=yes
 	$(MAKE) -C dist/debian
 
-indent fix:
+indent fix: node_modules
 	node_modules/.bin/semistandard --fix src/agent/*.js
 
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
