@@ -171,7 +171,7 @@ src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 
 node_modules: package.json
 	mkdir -p node_modules
-	test packages.json -nt packages-lock.json && npm i || true
+	npm i
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
 
