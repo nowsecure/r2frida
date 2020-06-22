@@ -1424,7 +1424,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 							? json_to_string (message_node, FALSE)
 							: strdup (json_object_get_string_member (stanza, "message"));
 						if (message) {
-							eprintf ("log %s\n", message);
+							eprintf ("%s\n", message);
 							free (message);
 						}
 					}
