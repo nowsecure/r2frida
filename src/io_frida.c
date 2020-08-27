@@ -1096,7 +1096,7 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 		eprintf ("* frida://usb//1234                 # list devices\n");
 		eprintf ("* frida://usb/$(peer)               # list process-names\n");
 		eprintf ("Environment:\n");
-		eprintf ("R2FRIDA_SAFE_IO                     # cache memory ranges before anything. fix crash on android/thumb");
+		eprintf ("R2FRIDA_SAFE_IO                     # cache memory ranges before anything. fix crash on android/thumb\n");
 		eprintf ("R2FRIDA_DISABLE_V8                  # if set, use duktape instead of v8\n");
 		eprintf ("R2FRIDA_AGENT_SCRIPT                # path to file of the r2frida agent\n");
 		return false;
