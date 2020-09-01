@@ -1,5 +1,5 @@
 langauge: generic
-dist: trusty
+dist: buster
 sudo: required
 
 branches:
@@ -11,7 +11,7 @@ matrix:
   include:
     - os: linux
       name: Debian
-      dist: trusty
+      dist: buster
     - os: linux
       name: Build
 
