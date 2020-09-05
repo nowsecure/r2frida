@@ -80,7 +80,7 @@ function javaTraceExample () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
-        traceLog('System.loadLibrary ' + library);
+        traceEmit('System.loadLibrary ' + library);
         const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
         return loaded;
       } catch (e) {
@@ -2546,7 +2546,7 @@ function traceFormat (args) {
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        traceLog(traceMessage);
+        traceEmit(traceMessage);
       }
     },
     onLeave: function (retval) {
@@ -2562,7 +2562,7 @@ function traceFormat (args) {
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        traceLog(traceMessage);
+        traceEmit(traceMessage);
       }
     }
   });
@@ -2666,11 +2666,7 @@ function traceEmit (msg) {
       message: msg
     }));
   } else {
-    if (config.getBoolean('hook.verbose')) {
-      send(wrapStanza('log', {
-        message: msg
-      }));
-    }
+    traceLog(msg);
   }
   if (config.getBoolean('hook.logs')) {
     logs.push(msg);
@@ -2745,7 +2741,7 @@ function traceRegs (args) {
     if (config.getBoolean('hook.backtrace')) {
       traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
-    traceLog(traceMessage);
+    traceEmit(traceMessage);
   }
   const traceListener = {
     source: 'dtr',
@@ -2829,7 +2825,7 @@ function traceJava (klass, method) {
         result: res,
         values: args
       };
-      traceLog(traceMessage);
+      traceEmit(traceMessage);
       return res;
     };
   });
@@ -2837,6 +2833,10 @@ function traceJava (klass, method) {
 
 function traceQuiet (args) {
   return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n') + '\n';
+}
+
+function traceEvents() {
+  return {}
 }
 
 function traceJson (args) {
@@ -2980,7 +2980,7 @@ function traceReal (name, addressString) {
       values: values,
     };
     traceListener.hits++;
-    traceLog(traceMessage);
+    traceEmit(traceMessage);
   });
   const traceListener = {
     source: 'dt',
@@ -3024,7 +3024,7 @@ function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
-      traceLog('Intercept return for ' + klass + ' ' + method + ' with ' + value);
+      traceEmit('Intercept return for ' + klass + ' ' + method + ' with ' + value);
       switch (value) {
         case 0: return false;
         case 1: return true;
