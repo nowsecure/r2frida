@@ -2835,10 +2835,6 @@ function traceQuiet (args) {
   return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n') + '\n';
 }
 
-function traceEvents() {
-  return {}
-}
-
 function traceJson (args) {
   if (args.length === 0) {
     return traceListJson();
