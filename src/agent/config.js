@@ -11,6 +11,7 @@ const config = {
   'hook.backtrace': true,
   'hook.verbose': true,
   'hook.logs': true,
+  'hook.output': 'simple',
   'file.log': '',
   'symbols.unredact': Process.platform === 'darwin'
 };
@@ -24,6 +25,7 @@ const configHelp = {
   'hook.backtrace': configHelpHookBacktrace,
   'hook.verbose': configHelpHookVerbose,
   'hook.logs': configHelpHookLogs,
+  'hook.output': configHelpHookOutput,
   'file.log': configHelpFileLog,
   'symbols.unredact': configHelpSymbolsUnredact
 };
@@ -37,6 +39,7 @@ const configValidator = {
   'hook.backtrace': configValidateBoolean,
   'hook.verbose': configValidateBoolean,
   'hook.logs': configValidateBoolean,
+  'hook.output': configValidateString,
   'file.log': configValidateString,
   'symbols.unredact': configValidateBoolean
 };
@@ -123,6 +126,13 @@ function configHelpHookLogs () {
   return `Save hook trace logs internally in the agent. Use \\dtl to list them
 
     true | false    to enable or disable the option (enabled by default)
+  `;
+}
+
+function configHelpHookOutput () {
+  return `Choose output format.
+
+    simple | json   (simple by default)
   `;
 }
 
