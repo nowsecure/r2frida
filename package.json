@@ -17,6 +17,9 @@
     "frida-compile": "9.5.2",
     "mjolner": "4.0.2"
   },
+  "engines": {
+    "node": ">=10"
+  },
   "devDependencies": {
     "semistandard": "14.2.3"
   },
