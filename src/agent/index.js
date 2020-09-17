@@ -80,7 +80,7 @@ function javaTraceExample () {
     const System = Java.use('java.lang.System');
     System.loadLibrary.implementation = function (library) {
       try {
-        traceLog('System.loadLibrary ' + library);
+        traceEmit('System.loadLibrary ' + library);
         const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
         return loaded;
       } catch (e) {
@@ -2546,7 +2546,15 @@ function traceFormat (args) {
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        traceLog(traceMessage);
+        if (config.getString('hook.output') === 'json') {
+          traceEmit(traceMessage);
+        } else {
+          let msg = `[dtf onEnter][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}`;
+          if (config.getBoolean('hook.backtrace')) {
+            msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+          }
+          traceEmit(msg);
+        }
       }
     },
     onLeave: function (retval) {
@@ -2558,11 +2566,20 @@ function traceFormat (args) {
           address: address,
           timestamp: new Date(),
           values: this.myArgs,
+          retval
         };
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        traceLog(traceMessage);
+        if (config.getString('hook.output') === 'json') {
+          traceEmit(traceMessage);
+        } else {
+          let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${retval.toString()}`;
+          if (config.getBoolean('hook.backtrace')) {
+            msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+          }
+          traceEmit(msg);
+        }
       }
     }
   });
@@ -2666,11 +2683,7 @@ function traceEmit (msg) {
       message: msg
     }));
   } else {
-    if (config.getBoolean('hook.verbose')) {
-      send(wrapStanza('log', {
-        message: msg
-      }));
-    }
+    traceLog(msg);
   }
   if (config.getBoolean('hook.logs')) {
     logs.push(msg);
@@ -2745,7 +2758,15 @@ function traceRegs (args) {
     if (config.getBoolean('hook.backtrace')) {
       traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
-    traceLog(traceMessage);
+    if (config.getString('hook.output') === 'json') {
+      traceEmit(traceMessage);
+    } else {
+      let msg = `[dtr][${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
+      if (config.getBoolean('hook.backtrace')) {
+        msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+      }
+      traceEmit(msg);
+    }
   }
   const traceListener = {
     source: 'dtr',
@@ -2829,7 +2850,15 @@ function traceJava (klass, method) {
         result: res,
         values: args
       };
-      traceLog(traceMessage);
+      if (config.getString('hook.output') === 'json') {
+        traceEmit(traceMessage);
+      } else {
+        let msg = `[java trace][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
+        if (config.getBoolean('hook.backtrace')) {
+          msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+        }
+        traceEmit(msg);
+      }
       return res;
     };
   });
@@ -2980,7 +3009,11 @@ function traceReal (name, addressString) {
       values: values,
     };
     traceListener.hits++;
-    traceLog(traceMessage);
+    if (config.getString('hook.output') === 'json') {
+      traceEmit(traceMessage);
+    } else {
+      traceEmit(`[dt][${traceMessage.timestamp}] ${address} - args: ${JSON.stringify(values)}`);
+    }
   });
   const traceListener = {
     source: 'dt',
@@ -3024,7 +3057,17 @@ function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
-      traceLog('Intercept return for ' + klass + ' ' + method + ' with ' + value);
+      if (config.getString('hook.output') === 'json') {
+        traceEmit({
+          source: 'java',
+          class: klass,
+          method: method,
+          returnValue: value,
+          timestamp: new Date()
+        });
+      } else {
+        traceEmit(`[java trace][${traceMessage.timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+      }
       switch (value) {
         case 0: return false;
         case 1: return true;
@@ -3691,8 +3734,12 @@ function evalConfig (args) {
       if (v === '?') {
         return config.helpFor(kv[0]);
       }
-      // set
-      config.set(kv[0], kv[1]);
+      // set (and flatten case for variables except file.log)
+      if (kv[0] !== 'file.log' && typeof kv[1] === 'string') {
+        config.set(kv[0], kv[1].toLowerCase());
+      } else {
+        config.set(kv[0], kv[1]);
+      }
     } else {
       console.error('unknown variable');
     }
