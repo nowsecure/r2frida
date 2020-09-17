@@ -3735,10 +3735,10 @@ function evalConfig (args) {
         return config.helpFor(kv[0]);
       }
       // set (and flatten case for variables except file.log)
-      if (kv[0] === 'file.log') {
-        config.set(kv[0], kv[1]);
-      } else {
+      if (kv[0] !== 'file.log' && typeof kv[1] === 'string') {
         config.set(kv[0], kv[1].toLowerCase());
+      } else {
+        config.set(kv[0], kv[1]);
       }
     } else {
       console.error('unknown variable');
