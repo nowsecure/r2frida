@@ -2546,7 +2546,7 @@ function traceFormat (args) {
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        if (config.getString('hook.output').toLowerCase() === 'json') {
+        if (config.getString('hook.output') === 'json') {
           traceEmit(traceMessage);
         } else {
           let msg = `[dtf onEnter][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}`;
@@ -2571,7 +2571,7 @@ function traceFormat (args) {
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
-        if (config.getString('hook.output').toLowerCase() === 'json') {
+        if (config.getString('hook.output') === 'json') {
           traceEmit(traceMessage);
         } else {
           let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${retval.toString()}`;
@@ -2758,7 +2758,7 @@ function traceRegs (args) {
     if (config.getBoolean('hook.backtrace')) {
       traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
-    if (config.getString('hook.output').toLowerCase() === 'json') {
+    if (config.getString('hook.output') === 'json') {
       traceEmit(traceMessage);
     } else {
       let msg = `[dtr][${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
@@ -2850,7 +2850,7 @@ function traceJava (klass, method) {
         result: res,
         values: args
       };
-      if (config.getString('hook.output').toLowerCase() === 'json') {
+      if (config.getString('hook.output') === 'json') {
         traceEmit(traceMessage);
       } else {
         let msg = `[java trace][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
@@ -3009,7 +3009,7 @@ function traceReal (name, addressString) {
       values: values,
     };
     traceListener.hits++;
-    if (config.getString('hook.output').toLowerCase() === 'json') {
+    if (config.getString('hook.output') === 'json') {
       traceEmit(traceMessage);
     } else {
       traceEmit(`[dt][${traceMessage.timestamp}] ${address} - args: ${JSON.stringify(values)}`);
@@ -3057,7 +3057,7 @@ function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
-      if (config.getString('hook.output').toLowerCase() === 'json') {
+      if (config.getString('hook.output') === 'json') {
         traceEmit({
           source: 'java',
           class: klass,
@@ -3734,8 +3734,12 @@ function evalConfig (args) {
       if (v === '?') {
         return config.helpFor(kv[0]);
       }
-      // set
-      config.set(kv[0], kv[1]);
+      // set (and flatten case for variables except file.log)
+      if (kv[0] === 'file.log') {
+        config.set(kv[0], kv[1]);
+      } else {
+        config.set(kv[0], kv[1].toLowerCase());
+      }
     } else {
       console.error('unknown variable');
     }
