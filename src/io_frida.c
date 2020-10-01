@@ -887,6 +887,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 static bool scripts_loaded = false;
 
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
+	if (!core || !fd || !path) {
+		return;
+	}
 	RList *files = r_sys_dir (path);
 	RListIter *iter;
 	const char *file;
