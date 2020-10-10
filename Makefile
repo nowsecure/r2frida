@@ -164,7 +164,7 @@ ext/swift-frida/node_modules: ext/swift-frida/index.js ext/swift-frida/index.js
 	cd ext/swift-frida && npm i
 
 src/_agent.h: src/_agent.js
-	xxd -i < $< > $@
+	r2 -nfqcpc $< | grep 0x > $@
 
 src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
