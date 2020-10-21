@@ -24,16 +24,16 @@ fi
 	NV=v12.16.1
 	NA=linux-x64
 	echo "[*] Downloading NodeJS"
-	wget -c https://nodejs.org/dist/${NV}/node-${NV}-${NA}.tar.xz
 	cd /work
+	wget -c https://nodejs.org/dist/${NV}/node-${NV}-${NA}.tar.xz
 	echo "[*] Installing NodeJS"
 	tar xJf node-${NV}-${NA}.tar.xz -C /tmp
-	export PATH=/tmp/node-${NV}-${NA}/bin:$PATH
+	export PATH="/tmp/node-${NV}-${NA}/bin:$PATH"
 	ls /tmp
 	node --version || exit 1
 	npm --version || exit 1
 )
-export PATH=/tmp/node-${NV}-${NA}/bin:$PATH
+export PATH="/tmp/node-${NV}-${NA}/bin:$PATH"
 [ -z "${DESTDIR}" ] && DESTDIR=/
 [ -z "${R2_LIBR_PLUGINS}" ] && R2_LIBR_PLUGINS=/usr/lib/radare2/last
 make R2_PLUGDIR=${R2_LIBR_PLUGINS} DESTDIR=${DESTDIR}
