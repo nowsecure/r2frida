@@ -20,10 +20,6 @@ let Gcwd = '/';
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const JavaAvailable = Java && Java.available;
 
-if (ObjCAvailable) {
-  var mjolner = require('mjolner');
-}
-
 /* globals */
 const pointerSize = Process.pointerSize;
 
@@ -601,7 +597,7 @@ if (Process.platform === 'windows') {
 const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
 if (Process.platform === 'darwin') {
-  // required for mjolner.register() to work on early instrumentation
+  // required for early instrumentation
   try {
     dlopen(['/System/Library/Frameworks/Foundation.framework/Foundation']);
   } catch (e) {
@@ -936,7 +932,6 @@ async function dumpInfoJson () {
     runtime: Script.runtime,
     java: JavaAvailable,
     mainLoop: hasMainLoop(),
-    cylang: mjolner !== undefined,
     pageSize: Process.pageSize,
     pointerSize: Process.pointerSize,
     codeSigningPolicy: Process.codeSigningPolicy,
@@ -3552,11 +3547,7 @@ main();
         }
         const rawResult = (1, eval)(code); // eslint-disable-line
         global._ = rawResult;
-        if (rawResult !== undefined && mjolner !== undefined) {
-          result = mjolner.toCYON(rawResult);
-        } else {
-          result = rawResult; // 'undefined';
-        }
+        result = rawResult; // 'undefined';
       } catch (e) {
         result = 'throw new ' + e.name + '("' + e.message + '")';
       }
@@ -3597,21 +3588,12 @@ function hasMainLoop () {
   return hasLoop;
 }
 
-if (ObjCAvailable) {
-  mjolner.register();
-}
-
 Script.setGlobalAccessHandler({
   enumerate () {
     return [];
   },
   get (property) {
-    if (mjolner !== undefined) {
-      const result = mjolner.lookup(property);
-      if (result !== null) {
-        return result;
-      }
-    }
+    return undefined;
   }
 });
 

@@ -1,7 +1,7 @@
 include config.mk
 
 r2_version=$(VERSION)
-frida_version=14.0.0
+frida_version=14.0.1
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -95,20 +95,6 @@ LDFLAGS+=-Wl,--gc-sections
 endif
 LDFLAGS+=-Wl,-dead_strip
 
-# CYLANG
-CFLAGS+=-DWITH_CYLANG=$(WITH_CYLANG)
-ifeq ($(WITH_CYLANG),1)
-CYLANG_CPPFLAGS+=-Iext/cycript/src
-CYLANG_ARCHIVE=ext/cycript/src/.libs/libcycript.a
-CYLANG_LIBS+=$(CYLANG_ARCHIVE)
-CYLANG_OBJ=src/cylang.o
-else
-CYLANG_CPPFLAGS=
-CYLANG_ARCHIVE=
-CYLANG_LIBS=
-CYLANG_OBJ=
-endif
-
 all: .git/modules/ext ext/frida
 	$(MAKE) io_frida.$(SO_EXT)
 
@@ -150,9 +136,9 @@ ext/frida: $(FRIDA_SDK)
 config.mk:
 	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o $(CYLANG_OBJ)
+io_frida.$(SO_EXT): src/io_frida.o
 	pkg-config --cflags r_core
-	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS) $(CYLANG_LIBS)
+	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
@@ -229,12 +215,8 @@ clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
 	$(RM) -rf $(R2A_DIR)
 
-cycript-clean clean2:
-	-$(MAKE) -C ext/cycript clean
-
 mrproper: clean
 	$(RM) $(FRIDA_SDK)
-	$(RM) -r ext/cycript
 	$(RM) -r ext/frida-$(frida_version)
 	$(RM) ext/frida
 	$(RM) -r ext/node
@@ -279,48 +261,7 @@ endif
 	#mv ext/frida ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-update: ext/cycript/ext/node/lib
-	-cd ext/cycript && git submodule update && $(RM) ext/frida/libfrida-core.a
-
-ifeq ($(WITH_CYLANG),1)
-ext/cycript/ext/node/lib:
-	mkdir -p ext/cycript ext/node/lib
-	cd ext/cycript && git submodule init && git submodule update
-	-cd ext/cycript && yes n | patch -p1 < ../../cycript.patch
-
-ext/cycript/configure: ext/cycript/ext/node/lib
-	cd ext/cycript && $(SHELL) ./autogen.sh
-
-ifeq ($(shell uname),Darwin)
-CLANG=-rpath /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/libclang.dylib
-else
-CLANG=no
-endif
-
-ext/cycript/Makefile: ext/cycript/configure
-	CFLAGS="$(CFLAGS)" \
-	CXXFLAGS="$(CXXFLAGS)" \
-	LDFLAGS="$(LDFLAGS)" \
-	cd ext/cycript && \
-		$(SHELL) ./configure \
-			--disable-console \
-			--disable-engine \
-			--disable-shared \
-			--enable-static \
-			--with-libclang="$(CLANG)" \
-			--with-python=/usr/bin/python-config
-
-ext/cycript/src/.libs/libcycript.a: ext/cycript/Makefile
-	$(MAKE) -C ext/cycript CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" V=1 -j4
-
-src/cylang.o: src/cylang.cpp $(CYLANG_ARCHIVE)
-	$(CXX) -c -std=c++11 $(CFLAGS) $(CXXFLAGS) $(FRIDA_CPPFLAGS) $(CYLANG_CPPFLAGS) $< -o $@
-else
-ext/cycript/ext/node/lib:
-	@echo do nothing
-
-src/cylang.o:
-	touch src/cylang.o
-endif
+update:
+	git submodule update && $(RM) ext/frida/libfrida-core.a
 
 .PHONY: all clean install uninstall release symstall

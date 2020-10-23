@@ -42,7 +42,7 @@ if not exist ".\frida-core-sdk-%frida_version%-%frida_os_arch%.exe" (
 cd ..
 
 echo Compiling...
-cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DWITH_CYLANG=0 io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
+cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
 
 if not "%INSTALL%"=="" (
 	echo Installing...
