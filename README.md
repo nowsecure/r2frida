@@ -81,23 +81,6 @@ you can spawn an app on the device too, with an extra `/` and the package name (
 
 	$ r2 frida://device-id//com.atebits.Tweetie2
 
-V8/JIT
-------
-
-In r2frida, the V8 runtime is enabled by default, set this variable to use duktape instead of v8:
-
-	$ export R2FRIDA_DISABLE_V8=1
-
-**Pros**: it's faster, supports ES6 and you can use the chrome tools to debug and run javascript in the agent side.
-**Cons**: requires JIT permissions, so it's not working on all the iOS versions. Only on newest.
-
-In case the target operating system doesnt supports RWX pages, frida-agent will fallback to duktape, so it's recommended to
-check the `Script.runtime` variable that is also available in the `\i` r2frida command.
-
-Once the agent is running you can run the `d.` command to start the chrometools debugger, after this load this URL in your Google Chrome:
-
-	chrome://inspect
-
 Termux
 ------
 If you are willing to install and use r2frida natively on Android via Termux, there are some caveats with the library dependencies because of some symbol resolutions. The way to make this work is by extending the `LD_LIBRARY_PATH` environment to point to the system directory *before* the termux libdir.
