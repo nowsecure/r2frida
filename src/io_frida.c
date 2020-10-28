@@ -77,6 +77,8 @@ extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
 static size_t device_manager_count = 0;
 
+#define QUICKJS_BYTECODE_MAGIC 0x02
+
 #define src__agent__js r_io_frida_agent_code
 
 static const gchar r_io_frida_agent_code[] = {
@@ -226,18 +228,6 @@ static bool user_wants_safe_io(void) {
 	return do_want;
 }
 
-static bool user_wants_v8(void) {
-	bool do_want = true;
-	char *env = r_sys_getenv ("R2FRIDA_DISABLE_V8");
-	if (env) {
-		if (*env) {
-			do_want = false;
-		}
-		free (env);
-	}
-	return do_want;
-}
-
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	GError *error = NULL;
 
@@ -324,35 +314,45 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "r2io");
-	if (user_wants_v8 ()) {
-		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
-	}
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+
+	const char *code_buf = NULL;
+	char *code_malloc_data = NULL;
+	size_t code_size = 0;
 
 	char *r2f_as = r_sys_getenv ("R2FRIDA_AGENT_SCRIPT");
-	if (r2f_as && r2f_as) {
-		char *agent_code = r_file_slurp (r2f_as, NULL);
-		if (agent_code) {
-			rf->script = frida_session_create_script_sync (rf->session, agent_code, options, rf->cancellable, &error);
-			if (error) {
-				if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-					eprintf ("Cannot create script: %s\n", error->message);
-				}
-				goto error;
-			}
-			free (agent_code);
-		} else {
+	if (r2f_as) {
+		code_malloc_data = r_file_slurp (r2f_as, &code_size);
+		code_buf = code_malloc_data;
+		if (!code_buf) {
 			eprintf ("Cannot slurp R2FRIDA_AGENT_SCRIPT\n");
 		}
-	} else {
-		rf->script = frida_session_create_script_sync (rf->session, r_io_frida_agent_code, options, rf->cancellable, &error);
-		if (error) {
-			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				eprintf ("Cannot create script: %s\n", error->message);
-			}
-			goto error;
-		}
+		free (r2f_as);
 	}
-	free (r2f_as);
+
+	if (code_buf == NULL) {
+		code_buf = r_io_frida_agent_code;
+		code_size = sizeof (r_io_frida_agent_code) - 1;
+	}
+
+	if (code_size > 0 && code_buf[0] == QUICKJS_BYTECODE_MAGIC) {
+		GBytes *bytecode = (code_malloc_data == NULL)
+			? g_bytes_new_static (code_buf, code_size)
+			: g_bytes_new_with_free_func (code_buf, code_size, free, g_steal_pointer (&code_malloc_data));
+		rf->script = frida_session_create_script_from_bytes_sync (rf->session, bytecode, options, rf->cancellable, &error);
+		g_bytes_unref (bytecode);
+	} else {
+		rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
+	}
+
+	free (code_malloc_data);
+
+	if (error) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("Cannot create script: %s\n", error->message);
+		}
+		goto error;
+	}
 
 	g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
 	g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
@@ -511,9 +511,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	GError *error;
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "eternalized-script");
-	if (user_wants_v8 ()) {
-		frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
-	}
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
@@ -1075,7 +1073,6 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 		eprintf ("* frida://usb/$(peer)               # list process-names\n");
 		eprintf ("Environment:\n");
 		eprintf ("R2FRIDA_SAFE_IO                     # cache memory ranges before anything. fix crash on android/thumb\n");
-		eprintf ("R2FRIDA_DISABLE_V8                  # if set, use duktape instead of v8\n");
 		eprintf ("R2FRIDA_AGENT_SCRIPT                # path to file of the r2frida agent\n");
 		return false;
 	}
