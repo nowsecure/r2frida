@@ -7,8 +7,10 @@ CROSSARCH=x64
 PWD=$(shell pwd)
 PACKAGE_DIR?=${PWD}
 
+R2_VERSION=$(shell r2 -qv)
+
 DOCKCROSS=$(PWD)/../dockcross
-R2PLUGDIR=/usr/lib/radare2/$(VERSION)
+R2PLUGDIR=/usr/lib/radare2/$(R2_VERSION)
 
 all: root
 	$(SUDO) rm -rf control data
