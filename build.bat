@@ -1,6 +1,11 @@
 @echo off
 setlocal EnableDelayedExpansion
 set R2_BASE=""
+for /f tokens^=1-4^ delims^=^" %%a in (package.json) do (
+	if %%b == frida (
+		set frida_version=%%d
+	)
+)
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
 for /f %%i in ('where radare2') do set R2_BASE=%%i\..\..
@@ -27,17 +32,16 @@ cat .\_agent.qjs | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 mkdir frida > nul 2>&1
 cd frida
 
-set frida_version=14.0.6
-set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/%frida_version%/frida-core-devkit-%frida_version%-windows-%frida_os_arch%.exe"
+set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/!frida_version!/frida-core-devkit-!frida_version!-windows-!frida_os_arch!.exe"
 
-if not exist ".\frida-core-sdk-%frida_version%-%frida_os_arch%.exe" (
+if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
 	echo Downloading Frida Core Sdk
-	
-	powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, ""frida-core-sdk.exe-%frida_version%-%frida_os_arch%"")" ^
-	|| wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-%frida_version%-%frida_os_arch%.exe
-	
+
+	powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, ""frida-core-sdk.exe-!frida_version!-!frida_os_arch!"")" ^
+	|| wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe
+
 	echo Extracting...
-	.\frida-core-sdk-%frida_version%-%frida_os_arch%.exe || (echo Failed to extract & exit /b 1)
+	.\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
 )
 cd ..
 
