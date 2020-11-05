@@ -1,7 +1,7 @@
 include config.mk
 
 r2_version=$(VERSION)
-frida_version=14.0.6
+frida_version := $(shell grep '"frida":' package.json | cut -f4 -d'"')
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
