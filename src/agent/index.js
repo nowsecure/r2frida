@@ -18,6 +18,7 @@ let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const NeedsSafeIo = (Process.platform === 'linux' && Process.arch == 'arm' && Process.pointerSize == 4);
 const JavaAvailable = Java && Java.available;
 
 /* globals */
@@ -4116,7 +4117,8 @@ global.r2frida.hostCmdj = hostCmdj;
 global.r2frida.logs = logs;
 global.r2frida.log = traceLog;
 global.r2frida.emit = traceEmit;
-global.r2frida.safeio = false;
+global.r2frida.safeio = NeedsSafeIo;
+
 
 function sendCommand (cmd, serial) {
   function sendIt () {
