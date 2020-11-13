@@ -981,6 +981,7 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 		return true;
 	}
 	if (!strcmp (path, "usb")) {
+		bool rc = true;
 		char *rest = g_strdup (arg);
 		char *slash = strchr (rest, '/');
 		if (slash) {
@@ -990,18 +991,22 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 				lo->pid = atopid (slash, &lo->pid_valid);
 				lo->device_id = rest;
 				lo->process_specifier = g_strdup (slash);
+				if (!*rest) {
+					rc = false;
+				}
 			} else {
 				// frida://usb//
+
 				GError *error = NULL;
-				FridaDevice *device; //  = frida_device_manager_get_device_by_id_sync (device_manager, NULL, 0, cancellable, &error);
+				FridaDevice *device;
 				device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, &error);
 				if (device) {
 					dumpProcesses (device, cancellable);
 				} else {
 					eprintf ("Cannot find an USB device\n");
+					rc = false;
 				}
 			}
-			return true;
 		} else {
 			// frida://usb/
 			if (*rest) {
@@ -1015,13 +1020,14 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 						eprintf ("%s: %s\n", rest, error->message);
 					}
 					g_error_free (error);
+					rc = false;
 				}
 			} else {
 				dumpDevices (cancellable);
 			}
 			g_free (rest);
 		}
-		return true;
+		return rc;
 	}
 	// remote device
 	if (!strcmp (path, "connect")) {
