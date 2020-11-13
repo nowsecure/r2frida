@@ -895,10 +895,12 @@ function getCwd () {
   if (_getcwd) {
     const PATH_MAX = 4096;
     const buf = Memory.alloc(PATH_MAX);
-    const ptr = _getcwd(buf, PATH_MAX);
-    const str = Memory.readCString(ptr);
-    Gcwd = str;
-    return str;
+    if (!buf.isNull()) {
+      const ptr = _getcwd(buf, PATH_MAX);
+      const str = Memory.readCString(ptr);
+      Gcwd = str;
+      return str;
+    }
   }
   return '';
 }
