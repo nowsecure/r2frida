@@ -906,6 +906,19 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	return __system_continuation (io, fd, command);
 }
 
+static bool is_process_action(const char *rest) {
+	if (!strcmp (rest, "attach")) {
+		return true;
+	}
+	if (!strcmp (rest, "spawn")) {
+		return true;
+	}
+	if (!strcmp (rest, "launch")) {
+		return true;
+	}
+	return false;
+}
+
 static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	char *slash = strchr (arg, '/');
 	if (slash && !*slash) {
@@ -985,18 +998,25 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 		char *rest = g_strdup (arg);
 		char *slash = strchr (rest, '/');
 		if (slash) {
-			if (slash[1]) {
+			*slash++ = 0;
+			char *third = strchr (slash, '/');
+			if (third) {
+				*third++ = 0;
+			}
+			if (is_process_action (rest)) {
+				lo->device_id = g_strdup (slash);
+				lo->process_specifier = g_strdup (third? third: "");
+				lo->pid = atopid (lo->process_specifier, &lo->pid_valid);
+			} else if (slash[0]) {
 				// frida://usb//123
-				*slash++ = 0;
 				lo->pid = atopid (slash, &lo->pid_valid);
 				lo->device_id = rest;
-				lo->process_specifier = g_strdup (slash);
+				lo->process_specifier = g_strdup (slash + 1);
 				if (!*rest) {
 					rc = false;
 				}
 			} else {
 				// frida://usb//
-
 				GError *error = NULL;
 				FridaDevice *device;
 				device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, &error);
@@ -1052,36 +1072,36 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	if (!strcmp (first_field, "?")) {
 		eprintf ("r2 frida://[action]/[target]\n");
 		eprintf ("* target = process-id | process-name | app-name\n");
-		eprintf ("* program = find-in-path | absolute-path  # path or name (in PATH) to program\n");
-		eprintf ("* device = device-id | ''                 # as listed in frida-ls-devices\n");
-		eprintf ("* peer = ip-address:port                  # no hostname resolution\n");
-		eprintf ("* action = attach | launch | spawn        # actions to be done on connect\n");
+		eprintf ("* program = find-in-path | abspath # path or name (in PATH) to program\n");
+		eprintf ("* device = device-id | ''          # as listed in frida-ls-devices\n");
+		eprintf ("* peer = ip-address:port           # no hostname resolution\n");
+		eprintf ("* action = attach | launch | spawn # actions to be done on connect\n");
 		eprintf ("Localhost:\n");
-		eprintf ("* frida://                                # list local processes\n");
-		eprintf ("* frida://0                               # attach to frida-helper (no spawn needed)\n");
-		eprintf ("* frida:///usr/local/bin/rax2             # abspath to spawn\n");
-		eprintf ("* frida://spawn/$(program)                # spawn a new process in the current system\n");
-		eprintf ("* frida://attach/(target)                 # attach to target PID in current host\n");
+		eprintf ("* frida://                         # list local processes\n");
+		eprintf ("* frida://0                        # attach to frida-helper (no spawn needed)\n");
+		eprintf ("* frida:///usr/local/bin/rax2      # abspath to spawn\n");
+		eprintf ("* frida://spawn/$(program)         # spawn a new process in the current system\n");
+		eprintf ("* frida://attach/(target)          # attach to target PID in current host\n");
 		eprintf ("Network:\n");
-		eprintf ("* frida://connect/$(peer)/$(target)       # connect to remote frida-server\n");
+		eprintf ("* frida://connect/$(peer)/$(target)           # connect to remote frida-server\n");
 		eprintf ("* frida://$(action)/connect/$(peer)/$(target) # connect to remote frida-server\n");
 		eprintf ("USB:\n");
-		eprintf ("* frida://usb/                            # list USB devices\n");
-		eprintf ("* frida://usb//                           # list processes\n");
-		eprintf ("* frida://usb//0                          # attach to frida-server via USB\n");
-		eprintf ("* frida://usb//1234                       # attach to given PID in the first USB device\n");
-		eprintf ("* frida://usb/$(peer)                     # list process-names\n");
-		eprintf ("* frida://spawn/usb/$(device)/$(program)  # spawn application on USB device\n");
-		eprintf ("* frida://launch/usb/$(device)/$(program) # spawn+launch (or resume) target app\n");
-		eprintf ("* frida://attach/usb/$(device)/$(target)  # attach to target on given USB device\n");
+		eprintf ("* frida://usb/                     # list USB devices\n");
+		eprintf ("* frida://usb//                    # list processes\n");
+		eprintf ("* frida://usb//0                   # attach to frida-server via USB\n");
+		eprintf ("* frida://usb//1234                # attach to given PID in the first USB device\n");
+		eprintf ("* frida://usb/$(peer)              # list process-names\n");
+		eprintf ("* frida://usb/$(device)/$(program) # same as attach/usb/$device/$program\n");
+		eprintf ("* frida://$(action)/usb/$(device)/$(target)   # USB attach to target process\n");
+		eprintf ("* frida://usb/$(action)/$(device)/$(program)  # same as above\n");
 		eprintf ("Short URIs: (old)\n");
-		eprintf ("* frida://$(target)                       # local process attach\n");
-		eprintf ("* frida://$(device)/$(target)             # attach device\n");
-		eprintf ("* frida:///$(program)                     # spawn local\n");
-		eprintf ("* frida://$(device)//$(program)           # spawn device\n");
+		eprintf ("* frida://$(target)                # local process attach\n");
+		eprintf ("* frida://$(device)/$(target)      # attach device\n");
+		eprintf ("* frida:///$(program)              # spawn local\n");
+		eprintf ("* frida://$(device)//$(program)    # spawn device\n");
 		eprintf ("Environment:\n");
-		eprintf ("  R2FRIDA_SAFE_IO                         # cache memory ranges to fix crash on android/thumb\n");
-		eprintf ("  R2FRIDA_AGENT_SCRIPT                    # path to file of the r2frida agent\n");
+		eprintf ("  R2FRIDA_SAFE_IO                  # Workaround a Frida bug on Android/thumb\n");
+		eprintf ("  R2FRIDA_AGENT_SCRIPT             # path to file of the r2frida agent\n");
 		return false;
 	}
 	lo->run = false;
