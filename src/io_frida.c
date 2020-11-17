@@ -1011,7 +1011,7 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 				// frida://usb//123
 				lo->pid = atopid (slash, &lo->pid_valid);
 				lo->device_id = rest;
-				lo->process_specifier = g_strdup (slash + 1);
+				lo->process_specifier = g_strdup (slash);
 				if (!*rest) {
 					rc = false;
 				}
