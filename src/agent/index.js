@@ -3691,7 +3691,7 @@ function searchValueJson (args, width) {
 }
 
 function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(r2frida.offset);
+  const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
   const from = currentRange.base;
   const to = from.add(currentRange.size);
   return `e search.in=raw
