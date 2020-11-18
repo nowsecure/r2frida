@@ -68,7 +68,7 @@ function write (params, data) {
   if (typeof r2frida.hookedWrite === 'function') {
     return r2frida.hookedWrite(params.offset, data);
   }
-  if (config.getBoolean('patch.code') && isExecutable(params.offset)) {
+  if (config.getBoolean('patch.code') && isExecutable(ptr(params.offset))) {
     if (typeof Memory.patchCode === 'function') {
       Memory.patchCode(ptr(params.offset), 1, function (ptr) {
         Memory.writeByteArray(ptr, data);
