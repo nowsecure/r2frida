@@ -2,11 +2,78 @@
 
 const r2pipe = require('r2pipe-promise');
 
+async function testres (res, name) {
+  console.error(res? '\x1b[32m[OK]\x1b[0m': '\x1b[31m[XX]\x1b[0m', name);
+}
+
 async function test (name, uri, check) {
   const r2 = await r2pipe.open(uri);
   const res = await check(r2);
-  console.error(res? '\x1b[32m[OK]\x1b[0m': '\x1b[31m[XX]\x1b[0m', name);
+  testres(res, name);
   return r2.quit();
+}
+
+async function r2fridaTestArgs() {
+  // the behaviour shuold be the same as frida://attach/123 but it's not.. because the pid is not processed yet so cant be valid
+  await testuri('frida://123', `device: (null)
+pname: 123
+pid: 0
+spawn: false
+run: false
+pid_valid: false
+`);
+  await testuri('frida://ls', `device: (null)
+pname: ls
+pid: 0
+spawn: false
+run: false
+pid_valid: false
+`);
+  // list processes in current system.. probably not useful to test
+  await testuri('frida://', `device: (null)
+pname: 
+pid: 0
+spawn: false
+run: false
+pid_valid: false
+`);
+  await testuri('frida://spawn/ls', `device: (null)
+pname: /bin/ls
+pid: 0
+spawn: true
+run: false
+pid_valid: false
+`);
+  await testuri('frida://usb/', `dump-devices
+device: (null)
+pname: (null)
+pid: 0
+spawn: false
+run: false
+pid_valid: false
+`);
+  await testuri('frida://usb//', `dump-procs
+device: (null)
+pname: (null)
+pid: 0
+spawn: false
+run: false
+pid_valid: false
+`);
+}
+
+function testuri(uri, expect) {
+  process.env.R2FRIDA_DEBUG = '1';
+  return new Promise((resolve, reject) => {
+    r2pipe.syscmd('r2 ' + uri, (out, err, res) => {
+      delete process.env.R2FRIDA_DEBUG;
+      testres(err === expect, uri);
+      if (err !== expect) {
+        return reject(err);
+      }
+      return resolve('args');
+    });
+  });
 }
 
 async function r2fridaTestSpawn() {
@@ -68,6 +135,7 @@ async function r2fridaTestFrida() {
 
 async function run() {
   console.log('[--] Running the r2frida testsuite...');
+  await r2fridaTestArgs();
   await r2fridaTestSpawn();
   await r2fridaTestEntrypoint();
   await r2fridaTestLibs();

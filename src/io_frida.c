@@ -252,7 +252,19 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (!resolve_target (pathname, lo, rf->cancellable)) {
+	bool rc = resolve_target (pathname, lo, rf->cancellable);
+	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
+	if (r2f_debug) {
+		printf ("device: %s\n", r_str_get (lo->device_id));
+		printf ("pname: %s\n", r_str_get (lo->process_specifier));
+		printf ("pid: %u\n", lo->pid);
+		printf ("spawn: %s\n", r_str_bool (lo->spawn));
+		printf ("run: %s\n", r_str_bool (lo->run));
+		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
+		free (r2f_debug);
+		goto error;
+	}
+	if (!rc) {
 		goto error;
 	}
 	if (!resolve_device (device_manager, lo->device_id, &rf->device, rf->cancellable)) {
@@ -1101,6 +1113,7 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 		eprintf ("* frida://$(device)//$(program)    # spawn device\n");
 		eprintf ("Environment:\n");
 		eprintf ("  R2FRIDA_SAFE_IO                  # Workaround a Frida bug on Android/thumb\n");
+		eprintf ("  R2FRIDA_DEBUG                    # Used to debug argument parsing behaviour\n");
 		eprintf ("  R2FRIDA_AGENT_SCRIPT             # path to file of the r2frida agent\n");
 		return false;
 	}
@@ -1475,6 +1488,12 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 }
 
 static void dumpDevices(GCancellable *cancellable) {
+	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
+	if (r2f_debug) {
+		printf ("dump-devices\n");
+		free (r2f_debug);
+		return;
+	}
 	GString *dump;
 	FridaDeviceList *list;
 	GArray *devices;
@@ -1632,6 +1651,12 @@ beach:
 }
 
 static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
+	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
+	if (r2f_debug) {
+		printf ("dump-procs\n");
+		free (r2f_debug);
+		return;
+	}
 	GString *dump;
 	FridaProcessList *list;
 	GArray *processes;
