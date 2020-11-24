@@ -9,6 +9,8 @@
 #include "frida-core.h"
 #include "../config.h"
 
+#define D(x) if (debug) { printf ("%s\n", x); }
+
 typedef struct {
 	const char * cmd_string;
 	ut64 serial;
@@ -49,6 +51,7 @@ typedef struct {
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
+static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error);
 static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable);
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device, GCancellable *cancellable);
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable);
@@ -67,7 +70,7 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 
 static void dumpDevices(GCancellable *cancellable);
 static void dumpProcesses(FridaDevice *device, GCancellable *cancellable);
-static void dumpApplications(FridaDevice *device, GCancellable *cancellable);
+static int dumpApplications(FridaDevice *device, GCancellable *cancellable);
 static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
 static gint computeDeviceScore(FridaDevice *device);
@@ -85,6 +88,16 @@ static const gchar r_io_frida_agent_code[] = {
 #include "_agent.h"
 	, 0x00
 };
+
+static bool r2f_debug() {
+	char *a = r_sys_getenv ("R2FRIDA_DEBUG");
+	int rc = 0;
+	if (a) {
+		rc = atoi (a);
+		free (a);
+	}
+	return rc;
+}
 
 static void resume(RIOFrida *rf) {
 	if (!rf) {
@@ -253,28 +266,38 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	bool rc = resolve_target (pathname, lo, rf->cancellable);
-	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
-	if (r2f_debug) {
+	if (!rc) {
+		goto error;
+	}
+	if (R_STR_ISEMPTY (lo->device_id)) {
+		lo->device_id = strdup ("local");
+	}
+	rc = resolve_device (device_manager, lo->device_id, &rf->device, rf->cancellable);
+	if (rc && rf->device) {
+		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
+			goto error;
+		}
+	}
+	if (R_STR_ISEMPTY (lo->process_specifier)) {
+		if (dumpApplications (rf->device, rf->cancellable) == 0) {
+			dumpProcesses (rf->device, rf->cancellable);
+		}
+	}
+	if (r2f_debug ()) {
 		printf ("device: %s\n", r_str_get (lo->device_id));
 		printf ("pname: %s\n", r_str_get (lo->process_specifier));
 		printf ("pid: %u\n", lo->pid);
 		printf ("spawn: %s\n", r_str_bool (lo->spawn));
 		printf ("run: %s\n", r_str_bool (lo->run));
 		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
-		free (r2f_debug);
 		goto error;
 	}
 	if (!rc) {
 		goto error;
 	}
-	if (!resolve_device (device_manager, lo->device_id, &rf->device, rf->cancellable)) {
-		goto error;
-	}
 	if (!rf->device) {
-		goto error;
-	}
-
-	if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
+		eprintf ("This should never happen.\n");
+		// rf->device = get_device_manager (device_manager, "local", rf->cancellable, &error);
 		goto error;
 	}
 
@@ -286,7 +309,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		}
 		if (!*argv) {
 			eprintf ("Invalid arguments for spawning\n");
-			dumpApplications (rf->device, rf->cancellable);
 			r_str_argv_free (argv);
 			goto error;
 		}
@@ -315,7 +337,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		rf->pid = lo->pid;
 		rf->suspended = false;
 	}
-
+	if (!rf->device) {
+		error = NULL;
+		goto error;
+	}
 	rf->session = frida_device_attach_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
@@ -893,6 +918,31 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	}
 }
 
+static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error) {
+	const bool debug = r2f_debug ();
+	FridaDevice *device = NULL;
+	if (R_STR_ISEMPTY (type)) {
+		type = "local";
+	}
+	if (!strncmp (type, "usb", 3)) {
+		D ("get-usb-device");
+		device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, error);
+	} else if (!strcmp (type, "local")) {
+		D ("local-device");
+		device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, error);
+	} else if (strchr (type, ':')) { // host:port
+		D ("get-usb-device");
+		device = frida_device_manager_add_remote_device_sync (manager, type, cancellable, error);
+	} else {
+		if (debug) printf ("device(%s)", type);
+		device = frida_device_manager_get_device_by_id_sync (manager, type, 0, cancellable, error);
+	}
+	if (debug) {
+		return NULL;
+	}
+	return device;
+}
+
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	RIOFrida *rf;
 	JsonBuilder *builder;
@@ -1030,8 +1080,7 @@ static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLau
 			} else {
 				// frida://usb//
 				GError *error = NULL;
-				FridaDevice *device;
-				device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, &error);
+				FridaDevice *device = get_device_manager (device_manager, "usb", cancellable, &error);
 				if (device) {
 					dumpProcesses (device, cancellable);
 				} else {
@@ -1130,9 +1179,13 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	}
 
 	if (!second_field) {
-		// frida://process or frida:///path/to/file
+		// handle short syntax for
+		// spawn: `frida://ls` and attach: `frida://123`
 		lo->device_id = NULL;
-		lo->process_specifier = g_strdup (first_field);
+		lo->pid = atoi (first_field);
+		lo->spawn = (lo->pid == 0 && *first_field != '0');
+		char *abspath = r_file_path (first_field);
+		lo->process_specifier = abspath? abspath: g_strdup (first_field);
 		return true;
 	}
 	second_field++;
@@ -1158,19 +1211,8 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device, GCancellable *cancellable) {
 	GError *error = NULL;
-
-	if (device_id != NULL) {
-		if (!*device_id) { // "frida://attach/usb//Safari"
-			*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, &error);
-		} else if (strchr (device_id, ':')) { // host:port
-			*device = frida_device_manager_add_remote_device_sync (manager, device_id, cancellable, &error);
-		} else {
-			*device = frida_device_manager_get_device_by_id_sync (manager, device_id, 0, cancellable, &error);
-		}
-	} else { // "frida://
-		*device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, &error);
-	}
-
+	
+	*device = get_device_manager (manager, device_id, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("%s\n", error->message);
@@ -1183,6 +1225,7 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 }
 
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	r_return_val_if_fail (device && lo, false);
 	GError *error = NULL;
 
 	if (lo->pid_valid) {
@@ -1198,6 +1241,9 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 		} else {
 			dumpProcesses (device, cancellable);
 		}
+	}
+	if (r2f_debug ()) {
+		return true;
 	}
 
 	if (!lo->process_specifier) {
@@ -1488,10 +1534,8 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 }
 
 static void dumpDevices(GCancellable *cancellable) {
-	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
-	if (r2f_debug) {
+	if (r2f_debug ()) {
 		printf ("dump-devices\n");
-		free (r2f_debug);
 		return;
 	}
 	GString *dump;
@@ -1577,13 +1621,19 @@ beach:
 	g_string_free (dump, TRUE);
 }
 
-static void dumpApplications(FridaDevice *device, GCancellable *cancellable) {
+static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	GString *dump;
+	int count = 0;
 	FridaApplicationList *list;
 	GArray *applications;
 	gint num_applications, i;
 	GError *error;
 	guint pid_column_width, name_column_width;
+
+	if (r2f_debug ()) {
+		printf ("dump-apps\n");
+		return 0;
+	}
 
 	dump = g_string_sized_new (8192);
 
@@ -1640,6 +1690,7 @@ static void dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 			pid_column_width, frida_application_get_pid (application),
 			frida_application_get_name (application));
 	}
+	count = num_applications;
 
 	r_cons_printf ("%s\n", dump->str);
 
@@ -1648,13 +1699,12 @@ beach:
 	g_clear_object (&list);
 
 	g_string_free (dump, TRUE);
+	return count;
 }
 
 static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
-	char *r2f_debug = r_sys_getenv ("R2FRIDA_DEBUG");
-	if (r2f_debug) {
+	if (r2f_debug ()) {
 		printf ("dump-procs\n");
-		free (r2f_debug);
 		return;
 	}
 	GString *dump;

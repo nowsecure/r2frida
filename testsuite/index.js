@@ -15,29 +15,35 @@ async function test (name, uri, check) {
 
 async function r2fridaTestArgs() {
   // the behaviour shuold be the same as frida://attach/123 but it's not.. because the pid is not processed yet so cant be valid
-  await testuri('frida://123', `device: (null)
-pname: 123
-pid: 0
+  await testuri('frida://923999', `local-device
+device: local
+pname: 923999
+pid: 923999
 spawn: false
 run: false
 pid_valid: false
 `);
-  await testuri('frida://ls', `device: (null)
-pname: ls
+  await testuri('frida://ls', `local-device
+device: local
+pname: /bin/ls
 pid: 0
-spawn: false
+spawn: true
 run: false
 pid_valid: false
 `);
   // list processes in current system.. probably not useful to test
-  await testuri('frida://', `device: (null)
+  await testuri('frida://', `local-device
+dump-apps
+dump-procs
+device: local
 pname: 
 pid: 0
-spawn: false
+spawn: true
 run: false
 pid_valid: false
 `);
-  await testuri('frida://spawn/ls', `device: (null)
+  await testuri('frida://spawn/ls', `local-device
+device: local
 pname: /bin/ls
 pid: 0
 spawn: true
@@ -45,16 +51,30 @@ run: false
 pid_valid: false
 `);
   await testuri('frida://usb/', `dump-devices
-device: (null)
+local-device
+dump-apps
+dump-procs
+device: local
 pname: (null)
 pid: 0
 spawn: false
 run: false
 pid_valid: false
 `);
-  await testuri('frida://usb//', `dump-procs
-device: (null)
-pname: (null)
+  await testuri('frida://usb//', `get-usb-device
+get-usb-device
+dump-apps
+dump-procs
+device: usb
+pname: 
+pid: 0
+spawn: true
+run: false
+pid_valid: false
+`);
+  await testuri('frida://usb/device-id', `get-usb-device
+device: usb
+pname: device-id
 pid: 0
 spawn: false
 run: false
@@ -67,6 +87,11 @@ function testuri(uri, expect) {
   return new Promise((resolve, reject) => {
     r2pipe.syscmd('r2 ' + uri, (out, err, res) => {
       delete process.env.R2FRIDA_DEBUG;
+/*
+console.error(out);
+console.error('---');
+console.error(expect);
+*/
       testres(err === expect, uri);
       if (err !== expect) {
         return reject(err);
