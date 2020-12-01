@@ -149,10 +149,10 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 ext/swift-frida/node_modules: ext/swift-frida/index.js ext/swift-frida/index.js
 	cd ext/swift-frida && npm i
 
-src/_agent.h: src/_agent.qjs
+src/_agent.h: src/_agent.js
 	r2 -nfqcpc $< | grep 0x > $@
 
-src/_agent.qjs: src/agent/index.js src/agent/plugin.js node_modules
+src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
 
 node_modules: package.json
@@ -212,7 +212,7 @@ android-arm: radare2-android-arm-libs
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
 
 clean:
-	$(RM) src/*.o src/_agent.qjs src/_agent.h
+	$(RM) src/*.o src/_agent.js src/_agent.h
 	$(RM) -rf $(R2A_DIR)
 
 mrproper: clean

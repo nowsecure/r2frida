@@ -80,8 +80,6 @@ extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
 static size_t device_manager_count = 0;
 
-#define QUICKJS_BYTECODE_MAGIC 0x02
-
 #define src__agent__js r_io_frida_agent_code
 
 static const gchar r_io_frida_agent_code[] = {
@@ -372,15 +370,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		code_size = sizeof (r_io_frida_agent_code) - 1;
 	}
 
-	if (code_size > 0 && code_buf[0] == QUICKJS_BYTECODE_MAGIC) {
-		GBytes *bytecode = (code_malloc_data == NULL)
-			? g_bytes_new_static (code_buf, code_size)
-			: g_bytes_new_with_free_func (code_buf, code_size, free, g_steal_pointer (&code_malloc_data));
-		rf->script = frida_session_create_script_from_bytes_sync (rf->session, bytecode, options, rf->cancellable, &error);
-		g_bytes_unref (bytecode);
-	} else {
-		rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
-	}
+	rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
 
 	free (code_malloc_data);
 
