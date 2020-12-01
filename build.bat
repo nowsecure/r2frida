@@ -27,7 +27,7 @@ for %%i in (%*) do (
 
 call npm install
 cd src
-cat .\_agent.qjs | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
+cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 
 mkdir frida > nul 2>&1
 cd frida
