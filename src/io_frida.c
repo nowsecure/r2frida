@@ -270,7 +270,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	if (R_STR_ISEMPTY (lo->device_id)) {
 		lo->device_id = strdup ("local");
 	}
-	rc = resolve_device (device_manager, lo->device_id, &rf->device, rf->cancellable);
+	const char *devid = (R_STR_ISEMPTY (lo->device_id))? NULL: lo->device_id;
+	rc = resolve_device (device_manager, devid, &rf->device, rf->cancellable);
 	if (rc && rf->device) {
 		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
 			goto error;
@@ -284,7 +285,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	if (r2f_debug ()) {
 		printf ("device: %s\n", r_str_get (lo->device_id));
 		printf ("pname: %s\n", r_str_get (lo->process_specifier));
-		printf ("pid: %u\n", lo->pid);
+		printf ("pid: %d\n", lo->pid);
 		printf ("spawn: %s\n", r_str_bool (lo->spawn));
 		printf ("run: %s\n", r_str_bool (lo->run));
 		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
@@ -723,14 +724,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.event   = compile\n");
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
-#if 0
-	} else if (!strcmp (command, "s")) {
-		io->cb_printf ("0x%08"PFMT64x, rf->r2core->offset);
-		return NULL;
-	} else if (!strncmp (command, "s ", 2)) {
-		r_core_cmd0 (rf->r2core, command);
-		return NULL;
-#endif
 	// fails to aim at seek workarounding hostCmd
 	} else if (!strncmp (command, "s  ", 3)) {
 		if (rf && rf->r2core) {
@@ -804,7 +797,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		case '.':
 			(void)__eternalizeScript (rf, command + 2);
 			return strdup ("");
-			break;
 		case ' ':
 			slurpedData = r_file_slurp (command + 2, NULL);
 			if (!slurpedData) {
@@ -927,9 +919,6 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 		if (debug) printf ("device(%s)", type);
 		device = frida_device_manager_get_device_by_id_sync (manager, type, 0, cancellable, error);
 	}
-	if (debug) {
-		return NULL;
-	}
 	return device;
 }
 
@@ -971,185 +960,239 @@ static bool is_process_action(const char *rest) {
 	return false;
 }
 
-static bool resolve_device_id_as_uriroot(char *path, const char *arg, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	char *slash = strchr (arg, '/');
-	if (slash && !*slash) {
-		slash = NULL;
+/// uri parser /// 
+
+typedef enum {
+	R2F_LINK_UNKNOWN = -1,
+	R2F_LINK_LOCAL = 0,
+	R2F_LINK_USB,
+	R2F_LINK_REMOTE,
+} R2FridaLink;
+
+typedef enum {
+	R2F_ACTION_UNKNOWN = -1,
+	R2F_ACTION_ATTACH = 0,
+	R2F_ACTION_SPAWN,
+	R2F_ACTION_LAUNCH,
+	R2F_ACTION_LIST_PIDS,
+	R2F_ACTION_LIST_APPS,
+} R2FridaAction;
+
+static R2FridaAction parse_action(const char *a) {
+	if (!strcmp (a, "attach")) {
+		return R2F_ACTION_ATTACH;
 	}
-	if (!strcmp (path, "launch")) {
-		lo->device_id = NULL;
+	if (!strcmp (a, "spawn")) {
+		return R2F_ACTION_SPAWN;
+	}
+	if (!strcmp (a, "launch")) {
+		return R2F_ACTION_LAUNCH;
+	}
+	if (!strcmp (a, "list")) {
+		return R2F_ACTION_LIST_PIDS;
+	}
+	if (!strcmp (a, "apps")) {
+		return R2F_ACTION_LIST_APPS;
+	}
+	return R2F_ACTION_UNKNOWN;
+}
+
+static R2FridaLink parse_link(const char *a) {
+	if (!strcmp (a, "remote")) {
+		return R2F_LINK_REMOTE;
+	}
+	if (!strcmp (a, "usb")) {
+		return R2F_LINK_USB;
+	}
+	return R2F_LINK_LOCAL;
+	// return R2F_LINK_UNKNOWN;
+}
+
+static bool resolve0(const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	eprintf ("NO ARGS%c", 10);
+	return false;
+}
+
+static bool resolve1(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	char *arg0 = r_list_get_n (args, 0);
+	if (isdigit (*arg0)) {
+		// frida://123 -- attach by process-id
+		lo->pid = atopid (arg0, &lo->pid_valid);
+		lo->spawn = false;
+		lo->process_specifier = g_strdup (arg0);
+	} else {
+		// frida://vim -- attach by process-name
+		lo->pid = -1;
+		char *abspath = r_file_path (arg0);
+		lo->spawn = (abspath && *abspath == '/');
+		lo->process_specifier = abspath? abspath: g_strdup (arg0);
+	}
+	return true;
+}
+
+static bool resolve2(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	char *arg0 = r_list_get_n (args, 0);
+	char *arg1 = r_list_get_n (args, 1);
+	R2FridaAction action = parse_action (arg0);
+	switch (action) {
+	case R2F_ACTION_LIST_APPS:
+		{
+		GError *error = NULL;
+		const char *devid = (R_STR_ISEMPTY (arg1))? NULL: arg1;
+		FridaDevice *device = get_device_manager (device_manager, devid, cancellable, &error); // frida_device_manager_get_device_by_type_sync (device_manager, devid, 0, cancellable, &error);
+		dumpApplications (device, cancellable);
+		g_object_unref (device);
+		}
+		return false;
+	case R2F_ACTION_LIST_PIDS:
+		// frida://list/usb
+		dumpDevices (cancellable);
+		return false;
+	case R2F_ACTION_ATTACH:
+		lo->spawn = false;
+		lo->pid = atopid (arg1, &lo->pid_valid);
+		lo->process_specifier = g_strdup (arg1);
+		return true;
+	case R2F_ACTION_LAUNCH:
 		lo->spawn = true;
 		lo->run = true;
-
-		if (slash) {
-			int first_word_len = slash - arg;
-			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
-				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
-				char * first_word = g_strndup (arg, first_word_len);
-				bool result = resolve_device_id_as_uriroot (first_word, slash + 1, lo, cancellable);
-				g_free (first_word);
-				return result;
-			}
+		lo->pid = -1;
+		{
+		char *abspath = r_file_path (arg1);
+		lo->spawn = (abspath && *abspath == '/');
+		lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
-
-#if __UNIX__
-		char *abspath = r_file_path (arg);
-		lo->process_specifier = g_strdup (abspath? abspath: arg);
-#else
-		lo->process_specifier = g_strdup (arg);
-#endif
 		return true;
-	}
-	if (!strcmp (path, "spawn")) {
-		lo->device_id = NULL;
+	case R2F_ACTION_SPAWN:
 		lo->spawn = true;
-
-		if (slash) {
-			int first_word_len = slash - arg;
-			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
-				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
-				char * first_word = g_strndup (arg, first_word_len);
-				bool result = resolve_device_id_as_uriroot (first_word, slash + 1, lo, cancellable);
-				g_free (first_word);
-				return result;
-			}
+		lo->run = false;
+		lo->pid = -1;
+		{
+		char *abspath = r_file_path (arg1);
+		lo->spawn = (abspath && *abspath == '/');
+		lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
+		return true;
+	case R2F_ACTION_UNKNOWN:
+		break;
+	}
+	return false;
+}
 
-#if __UNIX__
-		char *abspath = r_file_path (arg);
-		lo->process_specifier = g_strdup (abspath? abspath: arg);
-#else
-		lo->process_specifier = g_strdup (arg);
+static bool resolve3(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	char *arg0 = r_list_get_n (args, 0);
+	char *arg1 = r_list_get_n (args, 1);
+	char *arg2 = r_list_get_n (args, 2);
+	// frida://attach/usb//
+	R2FridaAction action = parse_action (arg0);
+	R2FridaLink link = parse_link (arg1);
+	if (!*arg2) {
+		// frida://attach/usb/
+		dumpDevices (cancellable);
+	}
+	return false;
+}
+
+static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
+	char *arg0 = r_list_get_n (args, 0);
+	char *arg1 = r_list_get_n (args, 1);
+	char *arg2 = r_list_get_n (args, 2);
+	char *arg3 = r_list_get_n (args, 3);
+	R2FridaAction action = parse_action (arg0);
+	R2FridaLink link = parse_link (arg1);
+
+	GError *error = NULL;
+	const char *devid = R_STR_ISEMPTY(arg1)? NULL: arg1;
+	if (link == R2F_LINK_REMOTE) {
+		devid = arg2;
+	}
+	FridaDevice *device = get_device_manager (device_manager, devid, cancellable, &error);
+
+	// frida://attach/usb//
+	switch (action) {
+	case R2F_ACTION_UNKNOWN:
+		break;
+	case R2F_ACTION_LIST_APPS:
+		if (device) {
+			if (!dumpApplications (device, cancellable)) {
+				eprintf ("Cannot enumerate apps\n");
+			}
+		} else {
+			eprintf ("Cannot find peer.\n");
+		}
+		break;
+	case R2F_ACTION_LIST_PIDS:
+		if (device) {
+			dumpProcesses (device, cancellable);
+		} else {
+			eprintf ("Cannot find peer.\n");
+		}
+		break;
+	case R2F_ACTION_LAUNCH:
+	case R2F_ACTION_SPAWN:
+	case R2F_ACTION_ATTACH:
+		if (!*arg3) {
+			if (device) {
+				dumpProcesses (device, cancellable);
+			} else {
+				eprintf ("Cannot find perr.\n");
+			}
+		} else {
+			lo->spawn = (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH);;
+			lo->run = action == R2F_ACTION_LAUNCH;
+			lo->pid = -1;
+			if (link == R2F_LINK_USB) {
+				lo->device_id = strdup ("usb");
+			} else {
+				lo->device_id = strdup (arg2);
+			}
+			lo->process_specifier = strdup (arg3);
+			return true;
+		}
+		break;
+#if 0
+		// automatically resolve the deviceid
+		char *first_word = g_strndup (first_field, second_field - first_field - 1);
+
+		if (resolve_device_id_as_uriroot (first_word, second_field, lo, cancellable)) {
+			g_free (first_word);
+			return true;
+		}
+		lo->device_id = first_word;
 #endif
-		return true;
-	}
-	if (!strcmp (path, "attach")) {
-		lo->device_id = NULL;
-
-		if (slash) {
-			int first_word_len = slash - arg;
-			if ((first_word_len == 3 && !strncmp (arg, "usb", 3)) ||
-				(first_word_len == 7 && !strncmp (arg, "connect", 7))) {
-				char * first_word = g_strndup (arg, first_word_len);
-				bool result = resolve_device_id_as_uriroot (first_word, slash + 1, lo, cancellable);
-				g_free (first_word);
-				return result;
-			}
-		}
-
-		lo->process_specifier = g_strdup (arg);
-		if (arg) {
-			lo->pid = atopid (arg, &lo->pid_valid);
-		} else {
-			eprintf ("Cannot attach without arg\n");
-		}
-		return true;
-	}
-	if (!strcmp (path, "usb")) {
-		bool rc = true;
-		char *rest = g_strdup (arg);
-		char *slash = strchr (rest, '/');
-		if (slash) {
-			*slash++ = 0;
-			char *third = strchr (slash, '/');
-			if (third) {
-				*third++ = 0;
-			}
-			if (is_process_action (rest)) {
-				lo->device_id = g_strdup (slash);
-				lo->process_specifier = g_strdup (third? third: "");
-				lo->pid = atopid (lo->process_specifier, &lo->pid_valid);
-			} else if (slash[0]) {
-				// frida://usb//123
-				lo->pid = atopid (slash, &lo->pid_valid);
-				lo->device_id = rest;
-				lo->process_specifier = g_strdup (slash);
-				if (!*rest) {
-					rc = false;
-				}
-			} else {
-				// frida://usb//
-				GError *error = NULL;
-				FridaDevice *device = get_device_manager (device_manager, "usb", cancellable, &error);
-				if (device) {
-					dumpProcesses (device, cancellable);
-				} else {
-					eprintf ("Cannot find an USB device\n");
-					rc = false;
-				}
-			}
-		} else {
-			// frida://usb/
-			if (*rest) {
-				GError *error = NULL;
-				FridaDevice *device = frida_device_manager_get_device_by_id_sync (device_manager, rest, 0, cancellable, &error);
-				if (device) {
-					dumpProcesses (device, cancellable);
-					frida_unref (device);
-				} else {
-					if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-						eprintf ("%s: %s\n", rest, error->message);
-					}
-					g_error_free (error);
-					rc = false;
-				}
-			} else {
-				dumpDevices (cancellable);
-			}
-			g_free (rest);
-		}
-		return rc;
-	}
-	// remote device
-	if (!strcmp (path, "connect")) {
-		// host:port
-		lo->device_id = g_strdup (arg);
-		char *slash = strchr (lo->device_id, '/');
-		if (slash) {
-			*slash++ = 0;
-			lo->pid = atopid (slash, &lo->pid_valid);
-			lo->process_specifier = g_strdup (slash);
-		} else {
-			eprintf ("Usage: r2 frida://connect/ip:port/pid\n");
-			eprintf ("Note: no hostname resolution supported yet.\n");
-		}
-		return true;
 	}
 	return false;
 }
 
 static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	const char *first_field = pathname + 8;
+	// local, usb, remote
+	// attach, spawn, launch, list
 	if (!strcmp (first_field, "?")) {
 		eprintf ("r2 frida://[action]/[target]\n");
 		eprintf ("* target = process-id | process-name | app-name\n");
-		eprintf ("* program = find-in-path | abspath # path or name (in PATH) to program\n");
-		eprintf ("* device = device-id | ''          # as listed in frida-ls-devices\n");
-		eprintf ("* peer = ip-address:port           # no hostname resolution\n");
-		eprintf ("* action = attach | launch | spawn # actions to be done on connect\n");
-		eprintf ("Localhost:\n");
+		eprintf ("* program = find-in-path | abspath\n");
+		eprintf ("* device = local | usb | host:port\n");
+		eprintf ("* action = list | apps | attach | spawn | launch\n");
+
+		eprintf ("Local:\n");
+		eprintf ("* frida://?                        # show this help\n");
 		eprintf ("* frida://                         # list local processes\n");
 		eprintf ("* frida://0                        # attach to frida-helper (no spawn needed)\n");
 		eprintf ("* frida:///usr/local/bin/rax2      # abspath to spawn\n");
+		eprintf ("* frida://rax2                     # same as above, considering local/bin is in PATH\n");
 		eprintf ("* frida://spawn/$(program)         # spawn a new process in the current system\n");
 		eprintf ("* frida://attach/(target)          # attach to target PID in current host\n");
-		eprintf ("Network:\n");
-		eprintf ("* frida://connect/$(peer)/$(target)           # connect to remote frida-server\n");
-		eprintf ("* frida://$(action)/connect/$(peer)/$(target) # connect to remote frida-server\n");
+
 		eprintf ("USB:\n");
-		eprintf ("* frida://usb/                     # list USB devices\n");
-		eprintf ("* frida://usb//                    # list processes\n");
-		eprintf ("* frida://usb//0                   # attach to frida-server via USB\n");
-		eprintf ("* frida://usb//1234                # attach to given PID in the first USB device\n");
-		eprintf ("* frida://usb/$(peer)              # list process-names\n");
-		eprintf ("* frida://usb/$(device)/$(program) # same as attach/usb/$device/$program\n");
-		eprintf ("* frida://$(action)/usb/$(device)/$(target)   # USB attach to target process\n");
-		eprintf ("* frida://usb/$(action)/$(device)/$(program)  # same as above\n");
-		eprintf ("Short URIs: (old)\n");
-		eprintf ("* frida://$(target)                # local process attach\n");
-		eprintf ("* frida://$(device)/$(target)      # attach device\n");
-		eprintf ("* frida:///$(program)              # spawn local\n");
-		eprintf ("* frida://$(device)//$(program)    # spawn device\n");
+		eprintf ("* frida://list/usb//               # list processes in the first usb device\n");
+		eprintf ("* frida://apps/usb//               # list apps in the first usb device\n");
+		eprintf ("* frida://attach/usb//12345        # attach to given pid in the first usb device\n");
+		eprintf ("* frida://spawn/usb//appname       # spawn an app in the first resolved usb device\n");
+		eprintf ("* frida://launch/usb//appname      # spawn+resume an app in the first usb device\n");
+
+		eprintf ("Remote:\n");
+		eprintf ("* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n");
 		eprintf ("Environment:\n");
 		eprintf ("  R2FRIDA_SAFE_IO                  # Workaround a Frida bug on Android/thumb\n");
 		eprintf ("  R2FRIDA_DEBUG                    # Used to debug argument parsing behaviour\n");
@@ -1158,45 +1201,47 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	}
 	lo->run = false;
 	lo->spawn = false;
-	const char *second_field;
-	if (*first_field == '/' || !strncmp (first_field, "./", 2)) {
+
+	const size_t uri_len = strlen ("frida://");
+	if (strncmp (pathname, "frida://", uri_len)) {
+		return false;
+	}
+	if (!pathname[uri_len]) {
+		GError *error = NULL;
+		FridaDevice *device = get_device_manager (device_manager, "local", cancellable, &error);
+		if (device) {
+			dumpProcesses (device, cancellable);
+			g_object_unref (device);
+		} else {
+			eprintf ("Cannot find device.\n");
+		}
+		return false;
+	}
+	char *a = strdup (pathname + uri_len);
+	if (*a == '/' || !strncmp (a, "./", 2)) {
 		// frida:///path/to/file
 		lo->spawn = true;
-		second_field = NULL;
-	} else {
-		// frida://device/...
-		second_field = strchr (first_field, '/');
-	}
-
-	if (!second_field) {
-		// handle short syntax for
-		// spawn: `frida://ls` and attach: `frida://123`
-		lo->device_id = NULL;
-		lo->pid = atoi (first_field);
-		lo->spawn = (lo->pid == 0 && *first_field != '0');
-		char *abspath = r_file_path (first_field);
-		lo->process_specifier = abspath? abspath: g_strdup (first_field);
+		lo->process_specifier = a;
 		return true;
 	}
-	second_field++;
 
-	char *first_word = g_strndup (first_field, second_field - first_field - 1);
+	RList *args = r_str_split_list (a, "/", 4);
+	size_t args_len = r_list_length (args);
 
-	if (resolve_device_id_as_uriroot (first_word, second_field, lo, cancellable)) {
-		g_free (first_word);
-		return true;
+	bool res = false;
+	switch (args_len) {
+	case 1: res = resolve1 (args, lo, cancellable); break;
+	case 2: res = resolve2 (args, lo, cancellable); break;
+	case 3: res = resolve3 (args, lo, cancellable); break;
+	case 4: res = resolve4 (args, lo, cancellable); break;
+	default:
+		eprintf ("Invalid URI.\n");
+		break;
 	}
-	lo->device_id = first_word;
 
-	if (*second_field == '/') {
-		// frida://device//com.your.app
-		lo->spawn = true;
-		second_field++;
-	}
-
-	// frida://device/process or frida://device//com.your.app
-	lo->process_specifier = g_strdup (second_field);
-	return true;
+	r_list_free (args);
+	free (a);
+	return res;
 }
 
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device, GCancellable *cancellable) {

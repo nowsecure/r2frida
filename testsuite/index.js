@@ -1,6 +1,7 @@
 'use strict';
 
 const r2pipe = require('r2pipe-promise');
+const colors = require('colors');
 
 async function testres (res, name) {
   console.error(res? '\x1b[32m[OK]\x1b[0m': '\x1b[31m[XX]\x1b[0m', name);
@@ -21,42 +22,39 @@ pname: 923999
 pid: 923999
 spawn: false
 run: false
-pid_valid: false
+pid_valid: true
 `);
   await testuri('frida://ls', `local-device
 device: local
 pname: /bin/ls
-pid: 0
+pid: -1
 spawn: true
 run: false
 pid_valid: false
 `);
   // list processes in current system.. probably not useful to test
   await testuri('frida://', `local-device
-dump-apps
 dump-procs
-device: local
-pname: 
-pid: 0
-spawn: true
-run: false
-pid_valid: false
+`);
+  await testuri('frida://apps/local', `local-device
+dump-apps
 `);
   await testuri('frida://spawn/ls', `local-device
 device: local
 pname: /bin/ls
-pid: 0
+pid: -1
 spawn: true
 run: false
 pid_valid: false
 `);
+/*
   await testuri('frida://usb/', `dump-devices
 local-device
 dump-apps
 dump-procs
 device: local
 pname: (null)
-pid: 0
+pid: -1
 spawn: false
 run: false
 pid_valid: false
@@ -67,7 +65,7 @@ dump-apps
 dump-procs
 device: usb
 pname: 
-pid: 0
+pid: -1
 spawn: true
 run: false
 pid_valid: false
@@ -75,11 +73,12 @@ pid_valid: false
   await testuri('frida://usb/device-id', `get-usb-device
 device: usb
 pname: device-id
-pid: 0
+pid: -1
 spawn: false
 run: false
 pid_valid: false
 `);
+*/
 }
 
 function testuri(uri, expect) {
@@ -87,13 +86,10 @@ function testuri(uri, expect) {
   return new Promise((resolve, reject) => {
     r2pipe.syscmd('r2 ' + uri, (out, err, res) => {
       delete process.env.R2FRIDA_DEBUG;
-/*
-console.error(out);
-console.error('---');
-console.error(expect);
-*/
       testres(err === expect, uri);
       if (err !== expect) {
+        console.error("---\n" + colors.magenta(expect));
+        console.error("+++\n" + colors.yellow(err));
         return reject(err);
       }
       return resolve('args');
