@@ -1169,11 +1169,11 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	// local, usb, remote
 	// attach, spawn, launch, list
 	if (!strcmp (first_field, "?")) {
-		eprintf ("r2 frida://[action]/[target]\n");
-		eprintf ("* target = process-id | process-name | app-name\n");
-		eprintf ("* program = find-in-path | abspath\n");
-		eprintf ("* device = local | usb | host:port\n");
+		eprintf ("r2 frida://[action]/[link]/[device]/[target]\n");
 		eprintf ("* action = list | apps | attach | spawn | launch\n");
+		eprintf ("* link   = local | usb | remote host:port\n");
+		eprintf ("* device = '' | host:port | device-id\n");
+		eprintf ("* target = pid | appname | process-name | program-in-path | abspath\n");
 
 		eprintf ("Local:\n");
 		eprintf ("* frida://?                        # show this help\n");
