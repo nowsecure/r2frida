@@ -1,11 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 set R2_BASE=""
-for /f tokens^=1-4^ delims^=^" %%a in (package.json) do (
-	if %%b == frida (
-		set frida_version=%%d
-	)
-)
+set frida_version=14.1.3
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
 for /f %%i in ('where radare2') do set R2_BASE=%%i\..\..
