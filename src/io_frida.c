@@ -38,7 +38,7 @@ typedef struct {
 	bool suspended;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
-	volatile FridaCrash *crash;
+	FridaCrash *crash;
 	volatile bool received_reply;
 	JsonObject *reply_stanza;
 	GBytes *reply_bytes;
