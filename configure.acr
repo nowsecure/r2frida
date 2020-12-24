@@ -1,9 +1,12 @@
 PKGNAME r2frida
-VERSION 5.0.1
+VERSION 5.0.2
 CONTACT pancake ; pancake@nowsecure.com
 
+USE_PKGCONFIG!
+
 LANG_C!
-LANG_CXX
+
+EXEC R2_VERSION r2 -v ;
 
 PKGCFG! R2_CFLAGS R2_LDFLAGS r_core
 CHKPRG CURL curl
@@ -12,5 +15,7 @@ CHKPRG! GIT git
 CHKPRG! XZ xz
 CHKPRG! NODE node
 CHKPRG! NPM npm
+
+REPORT R2_VERSION ;
 
 SUBDIRS ./config.mk ./config.h ;
