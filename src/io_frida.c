@@ -620,6 +620,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library (Android see chcon)\n"
 		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
+		"dlf path                   Load a Framework Bundle (iOS) given its path\n"
 		"dm[.|j|*]                  Show memory regions\n"
 		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
 		"dma- (<addr>...)           Kill the allocations at <addr> (or all of them without param)\n"

@@ -230,6 +230,7 @@ const commandHandlers = {
   env: getOrSetEnv,
   envj: getOrSetEnvJson,
   dl: dlopen,
+  dlf: loadFrameworkBundle,
   dtf: traceFormat,
   dth: traceHook,
   dt: trace,
@@ -2286,6 +2287,18 @@ function getEnvJson () {
 function dlopen (args) {
   const path = args[0];
   return Module.load(path);
+}
+
+function loadFrameworkBundle(args) {
+  const path = args[0];
+  const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
+  const full_path = app_path.stringByAppendingPathComponent_(path);
+  const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
+  if (bundle.isLoaded()) {
+    console.log("Bundle already loaded");
+    return false;
+  } 
+  return bundle.load();
 }
 
 function changeSelinuxContext (args) {
