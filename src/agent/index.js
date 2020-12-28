@@ -231,6 +231,7 @@ const commandHandlers = {
   envj: getOrSetEnvJson,
   dl: dlopen,
   dlf: loadFrameworkBundle,
+  'dlf-':unloadFrameworkBundle,
   dtf: traceFormat,
   dth: traceHook,
   dt: trace,
@@ -2299,6 +2300,18 @@ function loadFrameworkBundle(args) {
     return false;
   } 
   return bundle.load();
+}
+
+function unloadFrameworkBundle(args) {
+  const path = args[0];
+  const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
+  const full_path = app_path.stringByAppendingPathComponent_(path);
+  const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
+  if (!bundle.isLoaded()) {
+    console.log("Bundle already unloaded");
+    return false;
+  } 
+  return bundle.unload();
 }
 
 function changeSelinuxContext (args) {
