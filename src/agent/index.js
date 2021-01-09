@@ -2296,6 +2296,9 @@ function dlopen (args) {
     const appHome = new ObjC.Object(NSHomeDirectory()).toString()
     path = path.replace('\/r2f\/AppHome', appHome);  
   } 
+  if (path.includes('\/r2f\/Device')) {
+    path = path.replace('\/r2f\/AppHome', '\/');
+  }
   return Module.load(path);
 }
 
