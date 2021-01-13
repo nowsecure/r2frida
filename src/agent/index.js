@@ -2356,15 +2356,39 @@ function formatArgs (args, fmt) {
       case '^':
         j--;
         break;
-      case 'h':
-        let dumpLen = 128;
-        let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
-        if (optionalNumStr.length > 0) {
-			i += optionalNumStr.length;
-			dumpLen = +optionalNumStr;
+      case 'h': {
+			// hexdump pointer target, default length 128
+			// customize length with h<length>, f.e. h16 to dump 16 bytes
+			let dumpLen = 128;
+			let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
+			if (optionalNumStr.length > 0) {
+				i += optionalNumStr.length;
+				dumpLen = +optionalNumStr;
+			}
+			dumps.push(_hexdumpUntrusted(arg, dumpLen));
+			a.push(`dump:${dumps.length} (len=${dumpLen})`);
 		}
-        dumps.push(_hexdumpUntrusted(arg, dumpLen));
-        a.push(`dump:${dumps.length}`);
+        break
+      case 'H': {
+			// hexdump pointer target, default length 128
+			// use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
+			let dumpLen = 128;
+			let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
+			if (optionalNumStr.length > 0) {
+				i += optionalNumStr.length;
+				let posLenArg = +optionalNumStr;
+				if (posLenArg !== j) {
+					// only adjust dump length, if the length param isn't the dump address itself
+					dumpLen = +args[posLenArg];
+				}
+			}
+			// limit dumpLen, to avoid oversized dumps, caused by  accidentally parsing pointer agrs as length
+			// set length limit to 64K for now
+			const lenLimit = 0x10000;
+			dumpLen = dumpLen > lenLimit ? lenLimit : dumpLen;
+			dumps.push(_hexdumpUntrusted(arg, dumpLen));
+			a.push(`dump:${dumps.length} (len=${dumpLen})`);
+		}
         break
       case 'x':
         a.push('' + ptr(arg));
