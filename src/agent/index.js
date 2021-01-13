@@ -2357,8 +2357,14 @@ function formatArgs (args, fmt) {
         j--;
         break;
       case 'h':
-        dumps.push(_hexdumpUntrusted(arg));
-        a.push(`dump:${dumps.length}`)
+        let dumpLen = 128;
+        let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
+        if (optionalNumStr.length > 0) {
+			i += optionalNumStr.length;
+			dumpLen = +optionalNumStr;
+		}
+        dumps.push(_hexdumpUntrusted(arg, dumpLen));
+        a.push(`dump:${dumps.length}`);
         break
       case 'x':
         a.push('' + ptr(arg));
@@ -2634,7 +2640,7 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
-          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump ${i+1}\n${this.myDumps[i]}`;
+          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump:${i+1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
       }
