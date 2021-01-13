@@ -2286,7 +2286,7 @@ function getEnvJson () {
 }
 
 function dlopen (args) {
-  const path = fs.transformVirtualPaths(args[0]);
+  const path = fs.transformVirtualPath(args[0]);
   if (fs.exist(path)) {
     return Module.load(path)
   }
