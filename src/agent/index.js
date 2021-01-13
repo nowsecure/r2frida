@@ -2343,6 +2343,7 @@ function changeSelinuxContext (args) {
 
 function formatArgs (args, fmt) {
   const a = [];
+  const dumps = [];
   let arg; let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
     try {
@@ -2355,6 +2356,10 @@ function formatArgs (args, fmt) {
       case '^':
         j--;
         break;
+      case 'h':
+        dumps.push(_hexdumpUntrusted(arg));
+        a.push(`dump:${dumps.length}`)
+        break
       case 'x':
         a.push('' + ptr(arg));
         break;
@@ -2404,7 +2409,7 @@ function formatArgs (args, fmt) {
         break;
     }
   }
-  return a;
+  return {args: a, dumps: dumps};
 }
 
 function cloneArgs (args, fmt) {
@@ -2423,6 +2428,15 @@ function cloneArgs (args, fmt) {
     }
   }
   return a;
+}
+
+function _hexdumpUntrusted (addr, len) {
+  try {
+	  if (typeof len === 'number') return hexdump(addr, {length: len});
+	  else return hexdump(addr);
+  } catch (e) {
+    return `hexdump at ${addr} failed: ${e}`;
+  }
 }
 
 function _readUntrustedUtf8 (address, length) {
@@ -2566,7 +2580,9 @@ function traceFormat (args) {
       if (!traceOnEnter) {
         this.keepArgs = cloneArgs(args, format);
       } else {
-        this.myArgs = formatArgs(args, format);
+		let fa = formatArgs(args, format);
+        this.myArgs = fa.args;
+        this.myDumps = fa.dumps;
       }
       if (traceBacktrace) {
         this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
@@ -2589,13 +2605,17 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
+          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump:${i+1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
       }
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-        this.myArgs = formatArgs(this.keepArgs, format);
+   		let fa = formatArgs(this.keepArgs, format);
+        this.myArgs = fa.args;
+        this.myDumps = fa.dumps;
+
         const traceMessage = {
           source: 'dtf',
           name: name,
@@ -2614,6 +2634,7 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
+          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump ${i+1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
       }
