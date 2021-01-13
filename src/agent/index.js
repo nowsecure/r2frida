@@ -24,11 +24,11 @@ const JavaAvailable = Java && Java.available;
 /* globals */
 const pointerSize = Process.pointerSize;
 
-var suspended = false;
-var tracehooks = {};
-var logs = [];
-var traces = {};
-var breakpoints = {};
+let suspended = false;
+const tracehooks = {};
+let logs = [];
+let traces = {};
+let breakpoints = {};
 
 const allocPool = {};
 const pendingCmds = {};
@@ -38,7 +38,7 @@ const specialChars = '`${}~|;#@&<> ()';
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
-    var symbol = DebugSymbol.fromName(expr);
+    const symbol = DebugSymbol.fromName(expr);
     if (symbol && symbol.name) {
       return resolve(symbol.address);
     }
@@ -231,7 +231,7 @@ const commandHandlers = {
   envj: getOrSetEnvJson,
   dl: dlopen,
   dlf: loadFrameworkBundle,
-  'dlf-':unloadFrameworkBundle,
+  'dlf-': unloadFrameworkBundle,
   dtf: traceFormat,
   dth: traceHook,
   dt: trace,
@@ -383,15 +383,15 @@ function _addAlloc (allocPtr) {
   return key;
 }
 
-function resolveSyscallNumber(name) {
-  const ios = Process.arch === 'arm64'? true: false;
+function resolveSyscallNumber (name) {
+  const ios = Process.arch === 'arm64';
   switch (name) {
-  case 'read':
-    return ios?3:0x2000003;
-  case 'write':
-    return ios?4:0x2000004;
-  case 'exit':
-    return ios?1:0x2000001;
+    case 'read':
+      return ios ? 3 : 0x2000003;
+    case 'write':
+      return ios ? 4 : 0x2000004;
+    case 'exit':
+      return ios ? 1 : 0x2000001;
   }
   return '' + name;
 }
@@ -400,7 +400,7 @@ function dxSyscall (args) {
   if (args.length === 0) {
     return 'Usage dxs [syscallname] [args ...]';
   }
-  const syscallNumber = ''+resolveSyscallNumber(args[0]);
+  const syscallNumber = '' + resolveSyscallNumber(args[0]);
   return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
 }
 
@@ -416,7 +416,7 @@ For example:
 `;
   }
   // push arguments
-  for (var i = 1; i < args.length; i++) {
+  for (let i = 1; i < args.length; i++) {
     if (args[i].substring(0, 2) === '0x') {
       nfArgs.push('pointer');
       nfArgsData.push(ptr(args[i]));
@@ -500,7 +500,7 @@ function disasm (addr, len, initialOldName) {
       disco += ';;; ' + (ds.moduleName ? ds.moduleName : dsName) + '\n';
       oldName = dsName;
     }
-    var comment = '';
+    let comment = '';
     const id = op.opStr.indexOf('#0x');
     if (id !== -1) {
       try {
@@ -563,15 +563,15 @@ function symf (name, ret, arg) {
   }
 }
 
-var _getenv = 0;
-var _setenv = 0;
-var _getpid = 0;
-var _getuid = 0;
-var _dup2 = 0;
-var _readlink = 0;
-var _fstat = 0;
-var _close = 0;
-var _kill = 0;
+let _getenv = 0;
+let _setenv = 0;
+let _getpid = 0;
+let _getuid = 0;
+let _dup2 = 0;
+let _readlink = 0;
+let _fstat = 0;
+let _close = 0;
+let _kill = 0;
 
 if (Process.platform === 'windows') {
   _getenv = sym('getenv', 'pointer', ['pointer']);
@@ -692,11 +692,11 @@ function breakpointExist (addr) {
   return bp && !bp.continue;
 }
 
-var _r2 = null;
-var _r_core_new = null;
-var _r_core_cmd_str = null;
-var _r_core_free = null;
-var _free = null;
+let _r2 = null;
+let _r_core_new = null;
+let _r_core_cmd_str = null;
+let _r_core_free = null;
+let _free = null;
 
 function radareCommandInit () {
   if (_r2) {
@@ -887,7 +887,7 @@ function setBreakpoint (name, address) {
 }
 
 function getCwd () {
-  var _getcwd = 0;
+  let _getcwd = 0;
   if (Process.platform === 'windows') {
     _getcwd = sym('_getcwd', 'pointer', ['pointer', 'int']);
   } else {
@@ -1248,19 +1248,19 @@ function lookupSymbolR2 (args) {
 }
 
 function lookupSymbolManyJson (args) {
-  let res = [];
-  for (let arg of args) {
-    res.push({name:arg, address: lookupSymbol ([arg])});
+  const res = [];
+  for (const arg of args) {
+    res.push({ name: arg, address: lookupSymbol([arg]) });
   }
   return res;
 }
 
 function lookupSymbolMany (args) {
-  return lookupSymbolManyJson (args).map(({address}) => address).join('\n');
+  return lookupSymbolManyJson(args).map(({ address }) => address).join('\n');
 }
 
 function lookupSymbolManyR2 (args) {
-  return lookupSymbolManyJson (args)
+  return lookupSymbolManyJson(args)
     .map(({ name, address }) =>
       ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
@@ -1306,7 +1306,7 @@ function lookupSymbolJson (args) {
         address: res
       }];
     }
-    var fcns = DebugSymbol.findFunctionsNamed(symbolName);
+    const fcns = DebugSymbol.findFunctionsNamed(symbolName);
     if (fcns) {
       return fcns.map((f) => { return { name: symbolName, address: f }; });
     }
@@ -1338,7 +1338,7 @@ function listEntrypointJson (args) {
     return false;
   }
   if (Process.platform === 'linux') {
-    var at = DebugSymbol.fromName('main');
+    const at = DebugSymbol.fromName('main');
     if (at) {
       return [at];
     }
@@ -1440,12 +1440,12 @@ function listClassesLoaders (args) {
   if (!JavaAvailable) {
     return 'Error: icL is only available on Android targets.';
   }
-  var res = '';
+  let res = '';
   javaPerform(function () {
     function s2o (s) {
-      var indent = 0;
-      var res = '';
-      for (var ch of s.toString()) {
+      let indent = 0;
+      let res = '';
+      for (const ch of s.toString()) {
         switch (ch) {
           case '[':
             indent++;
@@ -1465,8 +1465,8 @@ function listClassesLoaders (args) {
       }
       return res;
     }
-    var c = Java.enumerateClassLoadersSync();
-    for (var cl in c) {
+    const c = Java.enumerateClassLoadersSync();
+    for (const cl in c) {
       const cs = s2o(c[cl].toString());
       res += cs;
     }
@@ -2289,40 +2289,40 @@ function dlopen (args) {
   let path = args[0];
   if (path.includes('\/r2f\/AppBundle')) {
     const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
-    path = path.replace('\/r2f\/AppBundle', app_path);  
-  } 
+    path = path.replace('\/r2f\/AppBundle', app_path);
+  }
   if (path.includes('\/r2f\/AppHome')) {
-    let NSHomeDirectory = new NativeFunction(Module.findExportByName(null, 'NSHomeDirectory'), 'pointer', []);
-    const appHome = new ObjC.Object(NSHomeDirectory()).toString()
-    path = path.replace('\/r2f\/AppHome', appHome);  
-  } 
+    const NSHomeDirectory = new NativeFunction(Module.findExportByName(null, 'NSHomeDirectory'), 'pointer', []);
+    const appHome = new ObjC.Object(NSHomeDirectory()).toString();
+    path = path.replace('\/r2f\/AppHome', appHome);
+  }
   if (path.includes('\/r2f\/Device')) {
     path = path.replace('\/r2f\/AppHome', '\/');
   }
   return Module.load(path);
 }
 
-function loadFrameworkBundle(args) {
+function loadFrameworkBundle (args) {
   const path = args[0];
   const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
   const full_path = app_path.stringByAppendingPathComponent_(path);
   const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
   if (bundle.isLoaded()) {
-    console.log("Bundle already loaded");
+    console.log('Bundle already loaded');
     return false;
-  } 
+  }
   return bundle.load();
 }
 
-function unloadFrameworkBundle(args) {
+function unloadFrameworkBundle (args) {
   const path = args[0];
   const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
   const full_path = app_path.stringByAppendingPathComponent_(path);
   const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
   if (!bundle.isLoaded()) {
-    console.log("Bundle already unloaded");
+    console.log('Bundle already unloaded');
     return false;
-  } 
+  }
   return bundle.unload();
 }
 
@@ -2337,7 +2337,7 @@ function changeSelinuxContext (args) {
   const con = Memory.allocUtf8String('u:object_r:frida_file:s0');
   const path = Memory.allocUtf8String(file);
 
-  var rv = _setfilecon(path, con);
+  const rv = _setfilecon(path, con);
   return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
 
@@ -2357,39 +2357,39 @@ function formatArgs (args, fmt) {
         j--;
         break;
       case 'h': {
-			// hexdump pointer target, default length 128
-			// customize length with h<length>, f.e. h16 to dump 16 bytes
-			let dumpLen = 128;
-			let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
-			if (optionalNumStr.length > 0) {
-				i += optionalNumStr.length;
-				dumpLen = +optionalNumStr;
-			}
-			dumps.push(_hexdumpUntrusted(arg, dumpLen));
-			a.push(`dump:${dumps.length} (len=${dumpLen})`);
-		}
-        break
+        // hexdump pointer target, default length 128
+        // customize length with h<length>, f.e. h16 to dump 16 bytes
+        let dumpLen = 128;
+        const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
+        if (optionalNumStr.length > 0) {
+          i += optionalNumStr.length;
+          dumpLen = +optionalNumStr;
+        }
+        dumps.push(_hexdumpUntrusted(arg, dumpLen));
+        a.push(`dump:${dumps.length} (len=${dumpLen})`);
+      }
+        break;
       case 'H': {
-			// hexdump pointer target, default length 128
-			// use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
-			let dumpLen = 128;
-			let optionalNumStr = fmt.slice(i+1).match(/^[0-9]*/)[0];
-			if (optionalNumStr.length > 0) {
-				i += optionalNumStr.length;
-				let posLenArg = +optionalNumStr;
-				if (posLenArg !== j) {
-					// only adjust dump length, if the length param isn't the dump address itself
-					dumpLen = +args[posLenArg];
-				}
-			}
-			// limit dumpLen, to avoid oversized dumps, caused by  accidentally parsing pointer agrs as length
-			// set length limit to 64K for now
-			const lenLimit = 0x10000;
-			dumpLen = dumpLen > lenLimit ? lenLimit : dumpLen;
-			dumps.push(_hexdumpUntrusted(arg, dumpLen));
-			a.push(`dump:${dumps.length} (len=${dumpLen})`);
-		}
-        break
+        // hexdump pointer target, default length 128
+        // use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
+        let dumpLen = 128;
+        const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
+        if (optionalNumStr.length > 0) {
+          i += optionalNumStr.length;
+          const posLenArg = +optionalNumStr;
+          if (posLenArg !== j) {
+            // only adjust dump length, if the length param isn't the dump address itself
+            dumpLen = +args[posLenArg];
+          }
+        }
+        // limit dumpLen, to avoid oversized dumps, caused by  accidentally parsing pointer agrs as length
+        // set length limit to 64K for now
+        const lenLimit = 0x10000;
+        dumpLen = dumpLen > lenLimit ? lenLimit : dumpLen;
+        dumps.push(_hexdumpUntrusted(arg, dumpLen));
+        a.push(`dump:${dumps.length} (len=${dumpLen})`);
+      }
+        break;
       case 'x':
         a.push('' + ptr(arg));
         break;
@@ -2439,7 +2439,7 @@ function formatArgs (args, fmt) {
         break;
     }
   }
-  return {args: a, dumps: dumps};
+  return { args: a, dumps: dumps };
 }
 
 function cloneArgs (args, fmt) {
@@ -2462,7 +2462,7 @@ function cloneArgs (args, fmt) {
 
 function _hexdumpUntrusted (addr, len) {
   try {
-	  if (typeof len === 'number') return hexdump(addr, {length: len});
+	  if (typeof len === 'number') return hexdump(addr, { length: len });
 	  else return hexdump(addr);
   } catch (e) {
     return `hexdump at ${addr} failed: ${e}`;
@@ -2571,7 +2571,7 @@ function traceHook (args) {
   if (args.length === 0) {
     return JSON.stringify(tracehooks, null, 2);
   }
-  var arg = args[0];
+  const arg = args[0];
   if (arg !== undefined) {
     tracehookSet(arg, args.slice(1).join(' '));
   }
@@ -2610,7 +2610,7 @@ function traceFormat (args) {
       if (!traceOnEnter) {
         this.keepArgs = cloneArgs(args, format);
       } else {
-		let fa = formatArgs(args, format);
+        const fa = formatArgs(args, format);
         this.myArgs = fa.args;
         this.myDumps = fa.dumps;
       }
@@ -2635,14 +2635,14 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
-          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump:${i+1}\n${this.myDumps[i]}`;
+          for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
       }
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-   		let fa = formatArgs(this.keepArgs, format);
+   		const fa = formatArgs(this.keepArgs, format);
         this.myArgs = fa.args;
         this.myDumps = fa.dumps;
 
@@ -2664,7 +2664,7 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
-          for (let i=0; i<this.myDumps.length; i++) msg += `\ndump:${i+1}\n${this.myDumps[i]}`;
+          for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
       }
@@ -2905,7 +2905,7 @@ function dumpJavaArguments (args) {
 
 function traceJavaConstructors (className) {
   javaPerform(function () {
-    var foo = Java.use(className).$init.overloads;
+    const foo = Java.use(className).$init.overloads;
     foo.forEach((over) => {
       over.implementation = function () {
         console.log('dt', className, '(', dumpJavaArguments(arguments), ')');
@@ -2965,7 +2965,7 @@ function traceJson (args) {
   }
   return new Promise(function (resolve, reject) {
     (function pull () {
-      var arg = args.pop();
+      const arg = args.pop();
       if (arg === undefined) {
         return resolve('');
       }
@@ -3007,11 +3007,11 @@ function arrayBufferToHex (arrayBuffer) {
     throw new TypeError('Expected input to be an ArrayBuffer');
   }
 
-  var view = new Uint8Array(arrayBuffer);
-  var result = '';
-  var value;
+  const view = new Uint8Array(arrayBuffer);
+  let result = '';
+  let value;
 
-  for (var i = 0; i < view.length; i++) {
+  for (let i = 0; i < view.length; i++) {
     value = view[i].toString(16);
     result += (value.length === 1 ? '0' + value : value);
   }
@@ -3023,10 +3023,10 @@ function arrayBufferToHex (arrayBuffer) {
 function tracehook (address, args) {
   const at = nameFromAddress(address);
   const th = tracehooks[at];
-  var fmtarg = [];
+  const fmtarg = [];
   if (th && th.format) {
     for (const fmt of th.format.split(' ')) {
-      var [k, v] = fmt.split(':');
+      const [k, v] = fmt.split(':');
       switch (k) {
         case 'i':
         // console.log('int', args[v]);
@@ -3519,7 +3519,7 @@ function padPointer (value) {
 }
 
 const requestHandlers = {
-  safeio: () => { r2frida.safeio = true },
+  safeio: () => { r2frida.safeio = true; },
   read: io.read,
   write: io.write,
   state: state,
@@ -4209,7 +4209,6 @@ global.r2frida.logs = logs;
 global.r2frida.log = traceLog;
 global.r2frida.emit = traceEmit;
 global.r2frida.safeio = NeedsSafeIo;
-
 
 function sendCommand (cmd, serial) {
   function sendIt () {

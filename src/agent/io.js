@@ -5,7 +5,6 @@ const config = require('./config');
 
 let cachedRanges = [];
 
-
 function read (params) {
   const { offset, count, fast } = params;
   if (r2frida.hookedRead !== null) {
@@ -14,12 +13,12 @@ function read (params) {
   if (r2frida.safeio) {
     if (cachedRanges.length == 0) {
       cachedRanges = Process.enumerateRanges('').map(
-        (map) => [ map.base, ptr(map.base).add(map.size) ]);
+        (map) => [map.base, ptr(map.base).add(map.size)]);
     }
     // TODO: invalidate ranges at some point to refresh
     // process.nextTick(() => { cachedRanges = null; }
     const o = ptr(offset);
-    for (let map of cachedRanges) {
+    for (const map of cachedRanges) {
       if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
         let left = count;
         if (o.add(count).compare(map[1]) > 0) {
