@@ -194,7 +194,7 @@ class FridaFS {
   transformVirtualPath(path) {
     for (const vPrefix of this.transform._mappedPrefixes) {
       const index = path.indexOf(vPrefix);
-      if (index > 0) {
+      if (index >= 0) {
         path = path.slice(index);
         break;
       }
