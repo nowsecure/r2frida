@@ -6,7 +6,9 @@ const { platform, pointerSize } = Process;
 module.exports = {
   ls,
   cat,
-  open
+  open,
+  transformVirtualPath,
+  exist
 };
 
 let fs = null;
@@ -87,12 +89,30 @@ function open (path) {
   return fs.open(normalize(path));
 }
 
+function transformVirtualPath (path) {
+  if (fs === null) {
+    fs = new FridaFS();
+  }
+  return fs.transformVirtualPath(normalize(path));
+}
+
+function exist (path) {
+  if (fs === null) {
+    fs = new FridaFS();
+  }
+  return fs.exist(normalize(path));
+}
+
 class FridaFS {
   constructor () {
     this._api = null;
     this._entryTypes = null;
     this._excludeSet = new Set(['.', '..']);
     this._transform = null;
+  }
+
+  exist (path) {
+    return this.api.getFileSize(path) >= 0;
   }
 
   ls (path) {
@@ -169,6 +189,21 @@ class FridaFS {
       return `${size}`;
     }
     return '';
+  }
+
+  transformVirtualPath(path) {
+    for (const vPrefix of this.transform._mappedPrefixes) {
+      const index = path.indexOf(vPrefix);
+      if (index >= 0) {
+        path = path.slice(index);
+        break;
+      }
+    }
+    const actualPath = this.transform.toActual(path);
+    if (actualPath !== null) {
+      return actualPath;
+    }
+    return path;
   }
 
   get transform () {
