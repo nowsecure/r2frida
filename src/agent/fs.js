@@ -7,7 +7,7 @@ module.exports = {
   ls,
   cat,
   open,
-  transformVirtualPaths,
+  transformVirtualPath,
   exist
 };
 
@@ -89,11 +89,11 @@ function open (path) {
   return fs.open(normalize(path));
 }
 
-function transformVirtualPaths (path) {
+function transformVirtualPath (path) {
   if (fs === null) {
     fs = new FridaFS();
   }
-  return fs.transformVirtualPaths(normalize(path));
+  return fs.transformVirtualPath(normalize(path));
 }
 
 function exist (path) {
@@ -191,12 +191,12 @@ class FridaFS {
     return '';
   }
 
-  transformVirtualPaths(path) {
-    var index = -1;
+  transformVirtualPath(path) {
     for (const vPrefix of this.transform._mappedPrefixes) {
-      index = path.indexOf(vPrefix);
+      const index = path.indexOf(vPrefix);
       if (index > 0) {
         path = path.slice(index);
+        break;
       }
     }
     const actualPath = this.transform.toActual(path);
