@@ -715,6 +715,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  c  = show value as a string (char)\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
+		io->cb_printf ("  h  = hexdump from pointer (optinal length, h16 to dump 16 bytes)\n");
+		io->cb_printf ("  H  = hexdump from pointer (optinal position of length argument, H1 to dump args[1] bytes)\n");
 		io->cb_printf ("  s  = show string in place\n");
 		io->cb_printf ("  O  = show pointer to ObjC object\n");
 		io->cb_printf ("Undocumented: Z, S\n");
