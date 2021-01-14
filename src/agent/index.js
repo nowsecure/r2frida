@@ -2286,20 +2286,11 @@ function getEnvJson () {
 }
 
 function dlopen (args) {
-  let path = args[0];
-  if (path.includes('\/r2f\/AppBundle')) {
-    const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
-    path = path.replace('\/r2f\/AppBundle', app_path);
+  const path = fs.transformVirtualPath(args[0]);
+  if (fs.exist(path)) {
+    return Module.load(path)
   }
-  if (path.includes('\/r2f\/AppHome')) {
-    const NSHomeDirectory = new NativeFunction(Module.findExportByName(null, 'NSHomeDirectory'), 'pointer', []);
-    const appHome = new ObjC.Object(NSHomeDirectory()).toString();
-    path = path.replace('\/r2f\/AppHome', appHome);
-  }
-  if (path.includes('\/r2f\/Device')) {
-    path = path.replace('\/r2f\/AppHome', '\/');
-  }
-  return Module.load(path);
+  return Module.load(args[0]);
 }
 
 function loadFrameworkBundle (args) {
