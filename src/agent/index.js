@@ -602,7 +602,7 @@ const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 if (Process.platform === 'darwin') {
   // required for early instrumentation
   try {
-    Module.load(['/System/Library/Frameworks/Foundation.framework/Foundation']);
+    Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
   } catch (e) {
     // ignored
   }
