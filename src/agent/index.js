@@ -4079,7 +4079,7 @@ function fsList (args) {
 }
 
 function fsGet (args) {
-  return fs.cat(args[0] || '', '*');
+  return fs.cat(args[0] || '', '*', args[1] || 0, args[2] || null);
 }
 
 function fsCat (args) {
