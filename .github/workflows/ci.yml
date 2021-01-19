@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Building Radare2
+      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh )
+    - name: Building r2frida
+      run: ./configure && make -j && sudo make install
+    - name: Packaging
+      run: make -C dist/debian
+    - name: Pub
+      uses: actions/upload-artifact@v2
+      with:
+        path: dist/debian/*/*.deb
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Building Radare2
+      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh )
+    - name: Building r2frida
+      run: ./configure && make -j && sudo make install
