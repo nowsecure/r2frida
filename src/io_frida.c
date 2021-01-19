@@ -1502,6 +1502,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			if (payload && json_object_has_member (payload, "stanza")) {
 				JsonObject *stanza = json_object_get_object_member (payload, "stanza");
 				const char *name = json_object_get_string_member (payload, "name");
+
 				if (name && !strcmp (name, "reply")) {
 					if (stanza) {
 						JsonNode *stanza_node = json_object_get_member (payload, "stanza");

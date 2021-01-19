@@ -73,12 +73,12 @@ function ls (path) {
   return fs.ls(normalize(path));
 }
 
-function cat (path, mode) {
+function cat (path, mode, offset, size) {
   if (fs === null) {
     fs = new FridaFS();
   }
 
-  return fs.cat(normalize(path), mode);
+  return fs.cat(normalize(path), mode, offset, size);
 }
 
 function open (path) {
@@ -143,12 +143,20 @@ class FridaFS {
     return result.join('\n');
   }
 
-  cat (path, mode) {
+  cat (path, mode, offset, size) {
     const actualPath = this.transform.toActual(path);
     if (actualPath !== null) {
-      let size = this.api.getFileSize(actualPath);
-      if (size < 0) {
+      const file_size = this.api.getFileSize(actualPath)
+      if (file_size < 0) {
         console.log(`ERROR: cannot stat ${actualPath}`);
+        return '';
+      }
+      
+      size = parseInt(size);
+      offset = parseInt(offset);
+      size = (size === null) ? file_size : size;
+      if (size < 0) {
+        console.log(`ERROR: invalid size ${size}`);
         return '';
       }
       let weak = false;
@@ -157,12 +165,16 @@ class FridaFS {
         weak = true;
         size = 1024 * 32;
       }
-      if (size > 1024 * 512) {
-        console.log('ERROR: file is too big, use scp for now. (' + size + '');
+      if (size > 1024 * 512) {        
+        console.log('ERROR: file chunk is too big. (' + size + ' bytes)');
         return '';
       }
+
       const buf = Memory.alloc(size);
       const f = this.api.fopen(actualPath, 'rb');
+      if (offset > 0) {
+        this.api.fseek(f, offset, 0);
+      }
       const res = this.api.fread(buf, 1, size, f);
       if (!weak && res !== size) {
         console.log(`ERROR: reading ${actualPath} ${res} vs ${size}`);
@@ -396,7 +408,7 @@ class PosixFSApi {
 
   get api () {
     if (this._api === null) {
-      const exports = resolveExports(['opendir', 'readdir_r', 'closedir', 'fopen', 'fclose', 'fread']);
+      const exports = resolveExports(['opendir', 'readdir_r', 'closedir', 'fopen', 'fclose', 'fread', 'fseek']);
       const available = Object.keys(exports).filter(name => exports[name] === null).length === 0;
       if (!available) {
         throw new Error('ERROR: is this a POSIX system?');
@@ -409,6 +421,7 @@ class PosixFSApi {
         fopen: new NativeFunction(exports.fopen, 'pointer', ['pointer', 'pointer']),
         fclose: new NativeFunction(exports.fclose, 'int', ['pointer']),
         fread: new NativeFunction(exports.fread, 'int', ['pointer', 'int', 'int', 'pointer']),
+        fseek: new NativeFunction(exports.fseek, 'int', ['pointer', 'int', 'int']),
         stat: null,
         statx: null
       };
@@ -457,6 +470,10 @@ class PosixFSApi {
 
   fread (buf, size, nitems, f) {
     return this.api.fread(buf, size, nitems, f);
+  }
+
+  fseek (f, offset, whence) {
+    return this.api.fseek(f, offset, whence);
   }
 
   getFileSize (path) {
