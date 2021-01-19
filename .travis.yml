@@ -24,7 +24,7 @@ git:
 before_script:
   - git clone -q --depth=1 https://github.com/radare/radare2
   - ( cd radare2 && sys/debian.sh /usr ) > /dev/null
-  - cp -f radare2/sys/debian/rad*/*.deb /tmp
+  - cp -f radare2/dist/debian/*/*.deb /tmp
   - ( cd radare2 && git clean -xdf )
   - ( cd radare2 && sys/install.sh /usr ) > /dev/null
 #  - cd radare2 && ./configure --prefix=/usr > /dev/null && make -j4 > /dev/null && sudo make install > /dev/null
