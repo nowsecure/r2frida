@@ -340,7 +340,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		error = NULL;
 		goto error;
 	}
-	rf->session = frida_device_attach_sync (rf->device, rf->pid, rf->cancellable, &error);
+	rf->session = frida_device_attach_sync (rf->device, rf->pid, FRIDA_REALM_NATIVE, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("Cannot attach: %s\n", error->message);
@@ -964,7 +964,7 @@ static bool is_process_action(const char *rest) {
 	return false;
 }
 
-/// uri parser /// 
+/// uri parser ///
 
 typedef enum {
 	R2F_LINK_UNKNOWN = -1,
@@ -1250,7 +1250,7 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 
 static bool resolve_device(FridaDeviceManager *manager, const char *device_id, FridaDevice **device, GCancellable *cancellable) {
 	GError *error = NULL;
-	
+
 	*device = get_device_manager (manager, device_id, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
