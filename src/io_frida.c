@@ -1877,6 +1877,7 @@ static int atopid(const char *maybe_pid, bool *valid) {
 RIOPlugin r_io_plugin_frida = {
 	.name = "frida",
 	.desc = "frida:// io plugin",
+	.uris = "frida://",
 	.license = "MIT",
 	.open = __open,
 	.close = __close,
