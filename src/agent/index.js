@@ -17,7 +17,7 @@ require('../../ext/swift-frida/examples/r2swida/index.js');
 let Gcwd = '/';
 
 function flagify (x) {
-  return x.replace(/@/g, '_').replace(/-/g, '_').replace(/ /g, '');
+  return x.replace(/\+/g, '_').replace(/@/g, '_').replace(/-/g, '_').replace(/ /g, '');
 }
 
 /* ObjC.available is buggy on non-objc apps, so override this */
