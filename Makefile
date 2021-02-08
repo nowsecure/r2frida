@@ -93,7 +93,9 @@ ifeq ($(STRIP_SYMBOLS),yes)
 LDFLAGS+=-Wl,--version-script,ld.script
 LDFLAGS+=-Wl,--gc-sections
 endif
+ifneq ($(shell uname -o),Android)
 LDFLAGS+=-Wl,-dead_strip
+endif
 
 all: .git/modules/ext ext/frida
 	$(MAKE) io_frida.$(SO_EXT)
