@@ -16,6 +16,10 @@ require('../../ext/swift-frida/examples/r2swida/index.js');
 
 let Gcwd = '/';
 
+function flagify (x) {
+  return x.replace(/@/g, '_').replace(/-/g, '_').replace(/ /g, '');
+}
+
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch == 'arm' && Process.pointerSize == 4);
@@ -996,9 +1000,6 @@ function listModulesQuiet () {
 }
 
 function listModulesR2 () {
-  function flagify (x) {
-    return x.replace(/-/g, '_').replace(/ /g, '');
-  }
   return Process.enumerateModules()
     .map(m => 'f lib.' + flagify(m.name) + ' = ' + padPointer(m.base))
     .join('\n');
@@ -1388,10 +1389,11 @@ function listImportsR2 (args) {
     const flags = [];
     if (!seen.has(x.address)) {
       seen.add(x.address);
-      flags.push(`f sym.imp.${x.name} = ${x.address}`);
+      flags.push('f sym.imp.'+flagify(x.name)+` = ${x.address}`);
     }
     if (x.slot !== undefined) {
-      flags.push(`f reloc.${x.targetModuleName}.${x.name}_${x.index} = ${x.slot}`);
+      const fn = flagify(`f reloc.${x.targetModuleName}.${x.name}_${x.index}`);
+      flags.push(`f ${fn} = ${x.slot}`);
     }
     return flags.join('\n');
   }).join('\n');
