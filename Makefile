@@ -86,15 +86,13 @@ endif
 
 ifeq ($(frida_os),android)
 LDFLAGS+=-landroid -llog -lm
+LDFLAGS+=-Wl,-dead_strip
 STRIP_SYMBOLS=yes
 endif
 
 ifeq ($(STRIP_SYMBOLS),yes)
 LDFLAGS+=-Wl,--version-script,ld.script
 LDFLAGS+=-Wl,--gc-sections
-endif
-ifneq ($(shell uname -o),Android)
-LDFLAGS+=-Wl,-dead_strip
 endif
 
 all: .git/modules/ext ext/frida
