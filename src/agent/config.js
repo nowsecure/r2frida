@@ -13,6 +13,7 @@ const config = {
   'hook.logs': true,
   'hook.output': 'simple',
   'file.log': '',
+  'symbols.module': '',
   'symbols.unredact': Process.platform === 'darwin'
 };
 
@@ -27,6 +28,7 @@ const configHelp = {
   'hook.logs': configHelpHookLogs,
   'hook.output': configHelpHookOutput,
   'file.log': configHelpFileLog,
+  'symbols.module': configHelpSymbolsModule,
   'symbols.unredact': configHelpSymbolsUnredact
 };
 
@@ -41,6 +43,7 @@ const configValidator = {
   'hook.logs': configValidateBoolean,
   'hook.output': configValidateString,
   'file.log': configValidateString,
+  'symbols.module': configValidateString,
   'symbols.unredact': configValidateBoolean
 };
 
@@ -149,6 +152,13 @@ function configHelpStalkerIn () {
     raw             stalk everywhere (the default)
     app             stalk only in the app module
     modules         stalk in app module and all linked libraries
+  `;
+}
+
+function configHelpSymbolsModule() {
+  return `When set ignore offset to tell frida which module to use for symbols:
+
+    See =!dm command to get all maps and =!dmm for modules
   `;
 }
 

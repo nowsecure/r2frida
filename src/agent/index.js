@@ -1101,8 +1101,16 @@ function listAllSymbolsR2 (args) {
 function listExportsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
-    : Process.getModuleByAddress(r2frida.offset);
+    : getModuleByAddress(ptr(r2frida.offset));
   return Module.enumerateExports(currentModule.name);
+}
+
+function getModuleByAddress(addr) {
+    const m = config.getString('symbols.module');
+    if (m !== '') {
+        return Process.getModuleByName(m);
+    }
+    return Process.getModuleByAddress(ptr(r2frida.offset));
 }
 
 function listSymbols (args) {
@@ -1129,7 +1137,7 @@ function sanitizeString (str) {
 function listSymbolsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
-    : Process.getModuleByAddress(r2frida.offset);
+    : getModuleByAddress(r2frida.offset);
   const symbols = Module.enumerateSymbols(currentModule.name);
   return symbols.map(sym => {
     if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
@@ -1207,7 +1215,7 @@ function lookupExportJson (args) {
     if (address === null) {
       return [];
     }
-    const m = Process.getModuleByAddress(address);
+    const m = getModuleByAddress(address);
     return [{
       library: m.name,
       name: exportName,
@@ -1349,7 +1357,7 @@ function listEntrypointJson (args) {
     .filter((symbol) => {
       return isEntrypoint(symbol);
     }).map((symbol) => {
-      symbol.moduleName = Process.getModuleByAddress(symbol.address).name;
+      symbol.moduleName = getModuleByAddress(symbol.address).name;
       return symbol;
     });
 }
@@ -1417,7 +1425,7 @@ function listImportsJson (args) {
     moduleName = args[0];
     result = Module.enumerateImports(moduleName) || [];
   } else {
-    const currentModule = Process.getModuleByAddress(r2frida.offset);
+    const currentModule = getModuleByAddress(r2frida.offset);
     if (currentModule) {
       result = Module.enumerateImports(currentModule.name) || [];
     }
@@ -1902,7 +1910,12 @@ function squashRanges (ranges) {
         // console.log("  set", begin, end);
       } else {
         // console.log("  append", begin, end);
-        res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
+        res.push({
+          base: begin,
+          size: end.sub(begin),
+          protection: rwxstr(lastPerm),
+          file: lastFile
+        });
         end = ptr(0);
         begin = ptr(0);
         lastPerm = 0;
@@ -2593,7 +2606,7 @@ function traceFormat (args) {
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
 
-  const currentModule = Process.getModuleByAddress(address);
+  const currentModule = getModuleByAddress(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
     myBacktrace: [],
@@ -2801,7 +2814,7 @@ function traceRegs (args) {
     return 'There\'s already a trace in here';
   }
   const rest = args.slice(1);
-  const currentModule = Process.getModuleByAddress(address);
+  const currentModule = getModuleByAddress(address);
   const listener = Interceptor.attach(address, traceFunction);
   function traceFunction (_) {
     traceListener.hits++;
@@ -3079,7 +3092,7 @@ function traceReal (name, addressString) {
   if (haveTraceAt(address)) {
     return 'There\'s already a trace in here';
   }
-  const currentModule = Process.getModuleByAddress(address);
+  const currentModule = getModuleByAddress(address);
   const listener = Interceptor.attach(address, function (args) {
     const values = tracehook(address, args);
     const traceMessage = {
@@ -4202,6 +4215,7 @@ global.r2frida.logs = logs;
 global.r2frida.log = traceLog;
 global.r2frida.emit = traceEmit;
 global.r2frida.safeio = NeedsSafeIo;
+global.r2frida.module = '';
 
 function sendCommand (cmd, serial) {
   function sendIt () {

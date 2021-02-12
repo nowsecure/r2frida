@@ -1252,7 +1252,7 @@ static bool resolve_device(FridaDeviceManager *manager, const char *device_id, F
 	GError *error = NULL;
 
 	*device = get_device_manager (manager, device_id, cancellable, &error);
-	if (error != NULL) {
+	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("%s\n", error->message);
 		}
