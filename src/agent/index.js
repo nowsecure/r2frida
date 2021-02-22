@@ -1693,7 +1693,8 @@ function listClassesJson (args, classMethods) {
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
   }
-  const klass = ObjC.classes[args[0]];
+  const klassName = args[0];
+  const klass = ObjC.classes[klassName];
   if (klass === undefined) {
     throw new Error('Class ' + args[0] + ' not found');
   }
@@ -1702,7 +1703,7 @@ function listClassesJson (args, classMethods) {
       try {
         result[methodName] = klass[methodName].implementation;
       } catch (_) {
-        console.log('warning: unsupported method \'' + methodName + '\'');
+        console.log('warning: unsupported method \'' + methodName + '\' in ' + klassName);
       }
       return result;
     }, {});
