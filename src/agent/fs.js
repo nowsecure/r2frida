@@ -146,12 +146,12 @@ class FridaFS {
   cat (path, mode, offset, size) {
     const actualPath = this.transform.toActual(path);
     if (actualPath !== null) {
-      const file_size = this.api.getFileSize(actualPath)
+      const file_size = this.api.getFileSize(actualPath);
       if (file_size < 0) {
         console.log(`ERROR: cannot stat ${actualPath}`);
         return '';
       }
-      
+
       size = parseInt(size);
       offset = parseInt(offset);
       size = (size === null) ? file_size : size;
@@ -165,7 +165,7 @@ class FridaFS {
         weak = true;
         size = 1024 * 32;
       }
-      if (size > 1024 * 512) {        
+      if (size > 1024 * 512) {
         console.log('ERROR: file chunk is too big. (' + size + ' bytes)');
         return '';
       }
@@ -203,7 +203,7 @@ class FridaFS {
     return '';
   }
 
-  transformVirtualPath(path) {
+  transformVirtualPath (path) {
     for (const vPrefix of this.transform._mappedPrefixes) {
       const index = path.indexOf(vPrefix);
       if (index >= 0) {

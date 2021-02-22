@@ -155,7 +155,7 @@ function configHelpStalkerIn () {
   `;
 }
 
-function configHelpSymbolsModule() {
+function configHelpSymbolsModule () {
   return `When set ignore offset to tell frida which module to use for symbols:
 
     See =!dm command to get all maps and =!dmm for modules

@@ -1105,12 +1105,12 @@ function listExportsJson (args) {
   return Module.enumerateExports(currentModule.name);
 }
 
-function getModuleByAddress(addr) {
-    const m = config.getString('symbols.module');
-    if (m !== '') {
-        return Process.getModuleByName(m);
-    }
-    return Process.getModuleByAddress(ptr(r2frida.offset));
+function getModuleByAddress (addr) {
+  const m = config.getString('symbols.module');
+  if (m !== '') {
+    return Process.getModuleByName(m);
+  }
+  return Process.getModuleByAddress(ptr(r2frida.offset));
 }
 
 function listSymbols (args) {
@@ -1397,7 +1397,7 @@ function listImportsR2 (args) {
     const flags = [];
     if (!seen.has(x.address)) {
       seen.add(x.address);
-      flags.push('f sym.imp.'+flagify(x.name)+` = ${x.address}`);
+      flags.push('f sym.imp.' + flagify(x.name) + ` = ${x.address}`);
     }
     if (x.slot !== undefined) {
       const fn = flagify(`f reloc.${x.targetModuleName}.${x.name}_${x.index}`);
@@ -1443,7 +1443,9 @@ function listClassesLoadedJson (args) {
   if (JavaAvailable) {
     return listClasses(args);
   }
-  return JSON.stringify(ObjC.enumerateLoadedClassesSync());
+  if (ObjCAvailable) {
+    return JSON.stringify(ObjC.enumerateLoadedClassesSync());
+  }
 }
 
 function listClassesLoaders (args) {
@@ -1488,12 +1490,15 @@ function listClassesLoaded (args) {
   if (JavaAvailable) {
     return listClasses(args);
   }
-  const results = ObjC.enumerateLoadedClassesSync();
-  const loadedClasses = [];
-  for (const module of Object.keys(results)) {
-    loadedClasses.push(...results[module]);
+  if (ObjCAvailable) {
+    const results = ObjC.enumerateLoadedClassesSync();
+    const loadedClasses = [];
+    for (const module of Object.keys(results)) {
+      loadedClasses.push(...results[module]);
+    }
+    return loadedClasses.join('\n');
   }
-  return loadedClasses.join('\n');
+  return [];
 }
 
 // only for java
@@ -1566,9 +1571,11 @@ function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
-    for (const cn of Object.keys(ObjC.classes)) {
-      if (classGlob(cn, args[0])) {
-        methods += listClassesR2([cn]);
+    if (ObjCAvailable) {
+      for (const cn of Object.keys(ObjC.classes)) {
+        if (classGlob(cn, args[0])) {
+          methods += listClassesR2([cn]);
+        }
       }
     }
     return methods;
@@ -1680,23 +1687,25 @@ function listClassesJson (args, classMethods) {
   if (JavaAvailable) {
     return listJavaClassesJson(args, classMethods === true);
   }
+  if (!ObjCAvailable) {
+    return [];
+  }
   if (args.length === 0) {
     return Object.keys(ObjC.classes);
-  } else {
-    const klass = ObjC.classes[args[0]];
-    if (klass === undefined) {
-      throw new Error('Class ' + args[0] + ' not found');
-    }
-    return klass.$ownMethods
-      .reduce((result, methodName) => {
-        try {
-          result[methodName] = klass[methodName].implementation;
-        } catch (_) {
-          console.log('warning: unsupported method \'' + methodName + '\'');
-        }
-        return result;
-      }, {});
   }
+  const klass = ObjC.classes[args[0]];
+  if (klass === undefined) {
+    throw new Error('Class ' + args[0] + ' not found');
+  }
+  return klass.$ownMethods
+    .reduce((result, methodName) => {
+      try {
+        result[methodName] = klass[methodName].implementation;
+      } catch (_) {
+        console.log('warning: unsupported method \'' + methodName + '\'');
+      }
+      return result;
+    }, {});
 }
 
 function listProtocols (args) {
@@ -1800,6 +1809,9 @@ function listStrings (args) {
 }
 
 function listProtocolsJson (args) {
+  if (!ObjCAvailable) {
+    return [];
+  }
   if (args.length === 0) {
     return Object.keys(ObjC.protocols);
   } else {
@@ -2303,12 +2315,16 @@ function getEnvJson () {
 function dlopen (args) {
   const path = fs.transformVirtualPath(args[0]);
   if (fs.exist(path)) {
-    return Module.load(path)
+    return Module.load(path);
   }
   return Module.load(args[0]);
 }
 
 function loadFrameworkBundle (args) {
+  if (!ObjCAvailable) {
+    console.log('dlf: This command requires the objc runtime');
+    return false;
+  }
   const path = args[0];
   const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
   const full_path = app_path.stringByAppendingPathComponent_(path);
@@ -2321,6 +2337,10 @@ function loadFrameworkBundle (args) {
 }
 
 function unloadFrameworkBundle (args) {
+  if (!ObjCAvailable) {
+    console.log('dlf: This command requires the objc runtime');
+    return false;
+  }
   const path = args[0];
   const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
   const full_path = app_path.stringByAppendingPathComponent_(path);
