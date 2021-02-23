@@ -1698,10 +1698,11 @@ function listClassesJson (args, classMethods) {
   if (klass === undefined) {
     throw new Error('Class ' + args[0] + ' not found');
   }
+  const getImpl = ObjC.api.method_getImplementation;
   return klass.$ownMethods
     .reduce((result, methodName) => {
       try {
-        result[methodName] = klass[methodName].implementation;
+        result[methodName] = getImpl(klass[methodName].handle);
       } catch (_) {
         console.log('warning: unsupported method \'' + methodName + '\' in ' + klassName);
       }
