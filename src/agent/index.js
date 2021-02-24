@@ -10,15 +10,12 @@ const config = require('./config');
 const io = require('./io');
 const isObjC = require('./isobjc');
 const strings = require('./strings');
+const utils = require('./utils');
 
 // registered as a plugin
 require('../../ext/swift-frida/examples/r2swida/index.js');
 
 let Gcwd = '/';
-
-function flagify (x) {
-  return x.replace(/\+/g, '_').replace(/@/g, '_').replace(/-/g, '_').replace(/ /g, '');
-}
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
@@ -1001,7 +998,7 @@ function listModulesQuiet () {
 
 function listModulesR2 () {
   return Process.enumerateModules()
-    .map(m => 'f lib.' + flagify(m.name) + ' = ' + padPointer(m.base))
+    .map(m => 'f lib.' + utils.flagify(m.name) + ' = ' + padPointer(m.base))
     .join('\n');
 }
 
@@ -1397,10 +1394,10 @@ function listImportsR2 (args) {
     const flags = [];
     if (!seen.has(x.address)) {
       seen.add(x.address);
-      flags.push('f sym.imp.' + flagify(x.name) + ` = ${x.address}`);
+      flags.push('f sym.imp.' + utils.flagify(x.name) + ` = ${x.address}`);
     }
     if (x.slot !== undefined) {
-      const fn = flagify(`f reloc.${x.targetModuleName}.${x.name}_${x.index}`);
+      const fn = utils.flagify(`f reloc.${x.targetModuleName}.${x.name}_${x.index}`);
       flags.push(`f ${fn} = ${x.slot}`);
     }
     return flags.join('\n');
