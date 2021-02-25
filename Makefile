@@ -86,7 +86,7 @@ endif
 
 ifeq ($(frida_os),android)
 LDFLAGS+=-landroid -llog -lm
-LDFLAGS+=-Wl,--dead_strip
+LDFLAGS+=-Wl
 STRIP_SYMBOLS=yes
 endif
 
