@@ -1582,16 +1582,12 @@ function listClassesR2 (args) {
     return methods;
   }
   const result = listClassesJson(args);
-  if (result instanceof Array) {
-    return result.join('\n');
-  } else {
-    return Object.keys(result)
-      .map(methodName => {
-        const address = result[methodName];
-        return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
-      })
-      .join('\n');
-  }
+  return Object.keys(result)
+    .map(methodName => {
+      const address = result[methodName];
+      return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
+    })
+    .join('\n') + '\n';
 
   function flagName (m) {
     return 'sym.objc.' +
