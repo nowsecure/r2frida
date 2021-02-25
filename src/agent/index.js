@@ -1107,7 +1107,11 @@ function getModuleByAddress (addr) {
   if (m !== '') {
     return Process.getModuleByName(m);
   }
-  return Process.getModuleByAddress(ptr(r2frida.offset));
+  try {
+    return Process.getModuleByAddress(addr);
+  } catch(e) {
+    return Process.getModuleByAddress(ptr(r2frida.offset));
+  }
 }
 
 function listSymbols (args) {
