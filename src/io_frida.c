@@ -1133,7 +1133,23 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 		}
 		break;
 	case R2F_ACTION_LAUNCH:
+		if (device) {
+			if (!dumpApplications (device, cancellable)) {
+				eprintf ("Cannot enumerate apps\n");
+			}
+		} else {
+			eprintf ("Cannot find peer.\n");
+		}
+		break;
 	case R2F_ACTION_SPAWN:
+		if (device) {
+			if (!dumpApplications (device, cancellable)) {
+				eprintf ("Cannot enumerate apps\n");
+			}
+		} else {
+			eprintf ("Cannot find peer.\n");
+		}
+		break;
 	case R2F_ACTION_ATTACH:
 		if (!*arg3) {
 			if (device) {
@@ -1668,7 +1684,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	GArray *applications;
 	gint num_applications, i;
 	GError *error;
-	guint pid_column_width, name_column_width;
+	guint pid_column_width, name_column_width, identifier_column_width, pid;
 
 	if (r2f_debug ()) {
 		printf ("dump-apps\n");
@@ -1693,10 +1709,11 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 		g_array_append_val (applications, application);
 		g_object_unref (application); /* borrow it */
 	}
-	// TODO: g_array_sort (applications, compareProcesses);
+	g_array_sort (applications, compareProcesses);
 
 	pid_column_width = 0;
 	name_column_width = 0;
+	identifier_column_width = 0;
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application;
 		gchar *pid_str;
@@ -1708,11 +1725,13 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 		g_free (pid_str);
 
 		name_column_width = MAX (strlen (frida_application_get_name (application)), name_column_width);
+		identifier_column_width = MAX (strlen (frida_application_get_identifier (application)), identifier_column_width);
 	}
 
-	g_string_append_printf (dump, "%-*s  %s\n",
+	g_string_append_printf (dump, "%-*s  %-*s  %s\n",
 		pid_column_width, "PID",
-		"Name");
+		name_column_width, "Name",
+		"Identifier");
 
 	for (i = 0; i != pid_column_width; i++) {
 		g_string_append_c (dump, '-');
@@ -1721,14 +1740,33 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	for (i = 0; i != name_column_width; i++) {
 		g_string_append_c (dump, '-');
 	}
+
+	g_string_append (dump, "  ");
+	for (i = 0; i != identifier_column_width; i++) {
+		g_string_append_c (dump, '-');
+	}
 	g_string_append_c (dump, '\n');
 
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application = g_array_index (applications, FridaApplication*, i);
-
-		g_string_append_printf (dump, "%*u  %s\n",
-			pid_column_width, frida_application_get_pid (application),
-			frida_application_get_name (application));
+		pid = frida_application_get_pid (application);
+		if (pid == 0) {
+			g_string_append_printf (dump, "%*c  %*s  %s\n",
+				pid_column_width, 
+				'-',
+				name_column_width,
+				frida_application_get_name (application),
+				frida_application_get_identifier (application)
+			);
+		} else {
+			g_string_append_printf (dump, "%*u  %*s  %s\n",
+				pid_column_width, 
+				pid,
+				name_column_width,
+				frida_application_get_name (application),
+				frida_application_get_identifier (application)
+			);
+		}
 	}
 	count = num_applications;
 
