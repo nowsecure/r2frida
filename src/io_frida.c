@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2020 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2021 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
@@ -1133,32 +1133,22 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 		}
 		break;
 	case R2F_ACTION_LAUNCH:
-		if (device) {
-			if (!dumpApplications (device, cancellable)) {
-				eprintf ("Cannot enumerate apps\n");
-			}
-		} else {
-			eprintf ("Cannot find peer.\n");
-		}
-		break;
 	case R2F_ACTION_SPAWN:
-		if (device) {
-			if (!dumpApplications (device, cancellable)) {
-				eprintf ("Cannot enumerate apps\n");
-			}
-		} else {
-			eprintf ("Cannot find peer.\n");
-		}
-		break;
 	case R2F_ACTION_ATTACH:
 		if (!*arg3) {
 			if (device) {
-				dumpProcesses (device, cancellable);
+				if (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH) {
+					if (!dumpApplications (device, cancellable)) {
+						eprintf ("Cannot enumerate apps\n");
+					}
+				} else {
+					dumpProcesses (device, cancellable);
+				}
 			} else {
 				eprintf ("Cannot find perr.\n");
 			}
 		} else {
-			lo->spawn = (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH);;
+			lo->spawn = (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH);
 			lo->run = action == R2F_ACTION_LAUNCH;
 			lo->pid = -1;
 			if (link == R2F_LINK_USB) {
