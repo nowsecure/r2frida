@@ -1583,15 +1583,11 @@ static void dumpDevices(GCancellable *cancellable) {
 		printf ("dump-devices\n");
 		return;
 	}
-	GString *dump;
 	FridaDeviceList *list;
 	GArray *devices;
 	gint num_devices, i;
 	GError *error;
 	guint id_column_width, type_column_width, name_column_width;
-	GEnumClass *type_enum;
-
-	dump = g_string_sized_new (256);
 
 	error = NULL;
 	list = frida_device_manager_enumerate_devices_sync (device_manager, cancellable, &error);
@@ -1621,49 +1617,11 @@ static void dumpDevices(GCancellable *cancellable) {
 		name_column_width = MAX (strlen (frida_device_get_name (device)), name_column_width);
 	}
 
-	g_string_append_printf (dump, "%-*s  %-*s  %s\n",
-		id_column_width, "Id",
-		type_column_width, "Type",
-		"Name");
-
-	for (i = 0; i != id_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != type_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != name_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append_c (dump, '\n');
-
-	type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
-
-	for (i = 0; i != num_devices; i++) {
-		FridaDevice *device;
-		GEnumValue *type;
-
-		device = g_array_index (devices, FridaDevice *, i);
-
-		type = g_enum_get_value (type_enum, frida_device_get_dtype (device));
-
-		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
-			id_column_width, frida_device_get_id (device),
-			type_column_width, type->value_nick,
-			frida_device_get_name (device));
-	}
-
-	r_cons_printf ("%s\n", dump->str);
-
-	g_type_class_unref (type_enum);
-
+	printList("devices", devices, num_devices, id_column_width, type_column_width, name_column_width);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
 
-	g_string_free (dump, TRUE);
 }
 
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
@@ -1839,6 +1797,11 @@ static void printList(char *type, GArray *items, gint num_items, guint first_col
 		g_string_append_printf (dump, "%-*s  %s\n",
 		first_column_width, "PID",
 		"Name");
+	} else if (!strcmp (type, "devices")) {
+		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
+		first_column_width, "Id",
+		second_column_width, "Type",
+		"Name");
 	} else {
 		g_string_free (dump, TRUE);
 		return;
@@ -1876,6 +1839,19 @@ static void printList(char *type, GArray *items, gint num_items, guint first_col
 				first_column_width, frida_process_get_pid (process),
 				frida_process_get_name (process));
 		}
+	} else if (!strcmp (type, "devices")) {
+		GEnumClass *type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
+		for (guint i = 0; i != num_items; i++) {
+			FridaDevice *device;
+			GEnumValue *type;
+			device = g_array_index (items, FridaDevice *, i);
+			type = g_enum_get_value (type_enum, frida_device_get_dtype (device));
+			g_string_append_printf (dump, "%-*s  %-*s  %s\n",
+				first_column_width, frida_device_get_id (device),
+				second_column_width, type->value_nick,
+				frida_device_get_name (device));
+		}
+		g_type_class_unref (type_enum);
 	} else {
 		g_string_free (dump, TRUE);
 		return;
