@@ -1117,35 +1117,32 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 	case R2F_ACTION_UNKNOWN:
 		break;
 	case R2F_ACTION_LIST_APPS:
-		if (device) {
-			if (!dumpApplications (device, cancellable)) {
-				eprintf ("Cannot enumerate apps\n");
-			}
-		} else {
-			eprintf ("Cannot find peer.\n");
+		if (!device) { 
+			eprintf ("Cannot find peer.\n"); 
+		}
+		if (!dumpApplications (device, cancellable)) {
+			eprintf ("Cannot enumerate apps\n");
 		}
 		break;
 	case R2F_ACTION_LIST_PIDS:
-		if (device) {
-			dumpProcesses (device, cancellable);
-		} else {
+		if (!device) {
 			eprintf ("Cannot find peer.\n");
 		}
+		dumpProcesses (device, cancellable);
 		break;
 	case R2F_ACTION_LAUNCH:
 	case R2F_ACTION_SPAWN:
 	case R2F_ACTION_ATTACH:
 		if (!*arg3) {
-			if (device) {
-				if (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH) {
-					if (!dumpApplications (device, cancellable)) {
-						eprintf ("Cannot enumerate apps\n");
-					}
-				} else {
-					dumpProcesses (device, cancellable);
+			if (!device) {
+				eprintf ("Cannot find perr.\n");
+			}
+			if (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH) {
+				if (!dumpApplications (device, cancellable)) {
+					eprintf ("Cannot enumerate apps\n");
 				}
 			} else {
-				eprintf ("Cannot find perr.\n");
+				dumpProcesses (device, cancellable);
 			}
 		} else {
 			lo->spawn = (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH);
