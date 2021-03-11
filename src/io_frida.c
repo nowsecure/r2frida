@@ -1740,23 +1740,13 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application = g_array_index (applications, FridaApplication*, i);
 		pid = frida_application_get_pid (application);
-		if (pid == 0) {
-			g_string_append_printf (dump, "%*c  %*s  %s\n",
-				pid_column_width, 
-				'-',
-				name_column_width,
-				frida_application_get_name (application),
-				frida_application_get_identifier (application)
-			);
-		} else {
-			g_string_append_printf (dump, "%*u  %*s  %s\n",
-				pid_column_width, 
-				pid,
-				name_column_width,
-				frida_application_get_name (application),
-				frida_application_get_identifier (application)
-			);
-		}
+		const char *fmt = pid? "%*u  %*s  %s\n": "%*c  %*s  %s\n";
+		int arg = pid? pid: '-';
+		g_string_append_printf (dump, fmt,
+			pid_column_width, arg, name_column_width,
+			frida_application_get_name (application),
+			frida_application_get_identifier (application)
+		);
 	}
 	count = num_applications;
 
