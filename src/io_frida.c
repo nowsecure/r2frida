@@ -1757,7 +1757,7 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	case APPLICATIONS:
 		r_table_set_columnsf (table, "dss", "PID", "Name", "Identifier");
 		char buf[64];
-		for (i = 0; i != num_items; i++) {
+		for (i = 0; i < num_items; i++) {
 			FridaApplication *application = g_array_index (items, FridaApplication*, i);
 			guint pid = frida_application_get_pid (application);
 			char *arg = pid? sdb_itoa(pid, buf, 10) : "-";
@@ -1770,7 +1770,7 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 		break;
 	case PROCESSES:
 		r_table_set_columnsf (table, "ds", "PID", "Name");
-		for (i = 0; i != num_items; i++) {
+		for (i = 0; i < num_items; i++) {
 			FridaProcess *process = g_array_index (items, FridaProcess *, i);
 			r_table_add_rowf (table, "ds",
 				frida_process_get_pid (process), 
@@ -1781,7 +1781,7 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	case DEVICES:
 		r_table_set_columnsf (table, "sss", "Id", "Type", "Name");
 		type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
-		for (i = 0; i != num_items; i++) {
+		for (i = 0; i < num_items; i++) {
 			FridaDevice *device;
 			GEnumValue *type;
 			device = g_array_index (items, FridaDevice *, i);
