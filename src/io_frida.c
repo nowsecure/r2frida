@@ -48,6 +48,12 @@ typedef struct {
 	RIO *io;
 } RIOFrida;
 
+typedef enum {
+	PROCESSES,
+	APPLICATIONS,
+	DEVICES,
+} R2FridaListType;
+
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
@@ -75,7 +81,7 @@ static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
 static gint computeDeviceScore(FridaDevice *device);
 static gint computeProcessScore(FridaProcess *process);
-static void printList(char *type, GArray *items, gint num_items, guint first_column_width, guint second_column_width, guint third_column_width);
+static void printList(R2FridaListType type, GArray *items, gint num_items, guint first_column_width, guint second_column_width, guint third_column_width);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -318,7 +324,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		if (argc > 1) {
 			frida_spawn_options_set_argv (options, argv, argc);
 		}
-		eprintf("DEBUG ARGV[0]: %s \n", argv[0]);
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
 		g_object_unref (options);
 		r_str_argv_free (argv);
@@ -1617,7 +1622,7 @@ static void dumpDevices(GCancellable *cancellable) {
 		name_column_width = MAX (strlen (frida_device_get_name (device)), name_column_width);
 	}
 
-	printList("devices", devices, num_devices, id_column_width, type_column_width, name_column_width);
+	printList(DEVICES, devices, num_devices, id_column_width, type_column_width, name_column_width);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1671,7 +1676,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 		name_column_width = MAX (strlen (frida_application_get_name (application)), name_column_width);
 		identifier_column_width = MAX (strlen (frida_application_get_identifier (application)), identifier_column_width);
 	}
-	printList("apps", applications, num_applications, pid_column_width, name_column_width, identifier_column_width);
+	printList (APPLICATIONS, applications, num_applications, pid_column_width, name_column_width, identifier_column_width);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1723,7 +1728,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 
 		name_column_width = MAX (strlen (frida_process_get_name (process)), name_column_width);
 	}
-	printList("proc", processes, num_processes, pid_column_width, name_column_width, 0);
+	printList(PROCESSES, processes, num_processes, pid_column_width, name_column_width, 0);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1784,44 +1789,51 @@ static int atopid(const char *maybe_pid, bool *valid) {
 	return number;
 }
 
-static void printList(char *type, GArray *items, gint num_items, guint first_column_width, guint second_column_width, guint third_column_width) {
+static void printList(R2FridaListType type, GArray *items, gint num_items, guint first_column_width, guint second_column_width, guint third_column_width) {
+	guint i;
+	GEnumClass *type_enum;
 	GString *dump;
+	
 	dump = g_string_sized_new (8192);
 	
-	if (!strcmp (type, "apps")) {
+	switch (type) {
+	case APPLICATIONS:
 		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
 		first_column_width, "PID",
 		second_column_width, "Name",
 		"Identifier");
-	} else if (!strcmp (type, "proc")) {
+		break;
+	case PROCESSES:
 		g_string_append_printf (dump, "%-*s  %s\n",
 		first_column_width, "PID",
 		"Name");
-	} else if (!strcmp (type, "devices")) {
+		break;
+	case DEVICES:
 		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
 		first_column_width, "Id",
 		second_column_width, "Type",
 		"Name");
-	} else {
+	default:
 		g_string_free (dump, TRUE);
 		return;
 	}
 
-	for (gint i = 0; i != first_column_width; i++) {
+	for (i = 0; i != first_column_width; i++) {
 		g_string_append_c (dump, '-');
 	}
 	g_string_append (dump, "  ");
-	for (gint i = 0; i != second_column_width; i++) {
+	for (i = 0; i != second_column_width; i++) {
 		g_string_append_c (dump, '-');
 	}
 	g_string_append (dump, "  ");
-	for (gint i = 0; i != third_column_width; i++) {
+	for (i = 0; i != third_column_width; i++) {
 		g_string_append_c (dump, '-');
 	}
 	g_string_append_c (dump, '\n');
 	
-	if (!strcmp (type, "apps")) {
-		for (gint i = 0; i != num_items; i++) {
+	switch (type) {
+	case APPLICATIONS:
+		for (i = 0; i != num_items; i++) {
 			FridaApplication *application = g_array_index (items, FridaApplication*, i);
 			guint pid = frida_application_get_pid (application);
 			const char *fmt = pid? "%*u  %*s  %s\n": "%*c  %*s  %s\n";
@@ -1832,16 +1844,18 @@ static void printList(char *type, GArray *items, gint num_items, guint first_col
 				frida_application_get_identifier (application)
 			);
 		}
-	} else if (!strcmp (type, "proc")) {
-		for (gint i = 0; i != num_items; i++) {
+		break;
+	case PROCESSES:
+		for (i = 0; i != num_items; i++) {
 			FridaProcess *process = g_array_index (items, FridaProcess *, i);
 			g_string_append_printf (dump, "%*u  %s\n",
 				first_column_width, frida_process_get_pid (process),
 				frida_process_get_name (process));
 		}
-	} else if (!strcmp (type, "devices")) {
-		GEnumClass *type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
-		for (guint i = 0; i != num_items; i++) {
+		break;
+	case DEVICES:
+		type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
+		for (i = 0; i != num_items; i++) {
 			FridaDevice *device;
 			GEnumValue *type;
 			device = g_array_index (items, FridaDevice *, i);
@@ -1852,9 +1866,11 @@ static void printList(char *type, GArray *items, gint num_items, guint first_col
 				frida_device_get_name (device));
 		}
 		g_type_class_unref (type_enum);
-	} else {
+		break;
+	default:
 		g_string_free (dump, TRUE);
 		return;
+		break;
 	}
 	r_cons_printf ("%s\n", dump->str);
 	g_string_free (dump, TRUE);
