@@ -1754,7 +1754,8 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	r_table_align (table, 0, R_TABLE_ALIGN_LEFT);
 	r_table_align (table, 1, R_TABLE_ALIGN_LEFT);
 	r_table_align (table, 2, R_TABLE_ALIGN_RIGHT);
-	
+	r_table_sort(table, 1, true);
+
 	switch (type) {
 	case APPLICATIONS:
 		r_table_set_columnsf (table, "dss", "PID", "Name", "Identifier");
@@ -1765,7 +1766,7 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 			char *arg = pid? sdb_itoa(pid, buf, 10) : "-";
 			r_table_add_rowf (table, "sss",
 				arg,
-				r_str_escape_utf8_keep_printable(frida_application_get_name (application), 1, 0),
+				frida_application_get_name (application),
 				frida_application_get_identifier (application)
 			);
 		}
@@ -1799,6 +1800,7 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	default:
 		goto error;
 	}
+
 	r_cons_printf ("%s\n", r_table_tostring (table));
 error:
 	r_table_free (table);
