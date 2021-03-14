@@ -1751,10 +1751,6 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	GEnumClass *type_enum;
 
 	RTable *table = r_table_new ("printList");
-	r_table_align (table, 0, R_TABLE_ALIGN_LEFT);
-	r_table_align (table, 1, R_TABLE_ALIGN_LEFT);
-	r_table_align (table, 2, R_TABLE_ALIGN_RIGHT);
-	r_table_sort(table, 1, true);
 
 	switch (type) {
 	case APPLICATIONS:
@@ -1800,8 +1796,13 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	default:
 		goto error;
 	}
-
-	r_cons_printf ("%s\n", r_table_tostring (table));
+	r_table_align (table, 0, R_TABLE_ALIGN_LEFT);
+	r_table_align (table, 1, R_TABLE_ALIGN_RIGHT);
+	r_table_align (table, 2, R_TABLE_ALIGN_RIGHT);
+	r_table_sort (table, 0, 0);
+	char *s = r_table_tostring (table);
+	r_cons_printf ("%s\n", s);
+	free (s);
 error:
 	r_table_free (table);
 }
