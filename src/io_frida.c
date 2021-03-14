@@ -48,6 +48,12 @@ typedef struct {
 	RIO *io;
 } RIOFrida;
 
+typedef enum {
+	PROCESSES,
+	APPLICATIONS,
+	DEVICES,
+} R2FridaListType;
+
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
@@ -75,6 +81,7 @@ static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
 static gint computeDeviceScore(FridaDevice *device);
 static gint computeProcessScore(FridaProcess *process);
+static void printList(R2FridaListType type, GArray *items, gint num_items);
 
 extern RIOPlugin r_io_plugin_frida;
 static FridaDeviceManager *device_manager = NULL;
@@ -1117,35 +1124,32 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 	case R2F_ACTION_UNKNOWN:
 		break;
 	case R2F_ACTION_LIST_APPS:
-		if (device) {
-			if (!dumpApplications (device, cancellable)) {
-				eprintf ("Cannot enumerate apps\n");
-			}
-		} else {
-			eprintf ("Cannot find peer.\n");
+		if (!device) { 
+			eprintf ("Cannot find peer.\n"); 
+		}
+		if (!dumpApplications (device, cancellable)) {
+			eprintf ("Cannot enumerate apps\n");
 		}
 		break;
 	case R2F_ACTION_LIST_PIDS:
-		if (device) {
-			dumpProcesses (device, cancellable);
-		} else {
+		if (!device) {
 			eprintf ("Cannot find peer.\n");
 		}
+		dumpProcesses (device, cancellable);
 		break;
 	case R2F_ACTION_LAUNCH:
 	case R2F_ACTION_SPAWN:
 	case R2F_ACTION_ATTACH:
 		if (!*arg3) {
-			if (device) {
-				if (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH) {
-					if (!dumpApplications (device, cancellable)) {
-						eprintf ("Cannot enumerate apps\n");
-					}
-				} else {
-					dumpProcesses (device, cancellable);
+			if (!device) {
+				eprintf ("Cannot find perr.\n");
+			}
+			if (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH) {
+				if (!dumpApplications (device, cancellable)) {
+					eprintf ("Cannot enumerate apps\n");
 				}
 			} else {
-				eprintf ("Cannot find perr.\n");
+				dumpProcesses (device, cancellable);
 			}
 		} else {
 			lo->spawn = (action == R2F_ACTION_SPAWN || action == R2F_ACTION_LAUNCH);
@@ -1584,15 +1588,10 @@ static void dumpDevices(GCancellable *cancellable) {
 		printf ("dump-devices\n");
 		return;
 	}
-	GString *dump;
 	FridaDeviceList *list;
 	GArray *devices;
 	gint num_devices, i;
 	GError *error;
-	guint id_column_width, type_column_width, name_column_width;
-	GEnumClass *type_enum;
-
-	dump = g_string_sized_new (256);
 
 	error = NULL;
 	list = frida_device_manager_enumerate_devices_sync (device_manager, cancellable, &error);
@@ -1612,79 +1611,27 @@ static void dumpDevices(GCancellable *cancellable) {
 	}
 	g_array_sort (devices, compareDevices);
 
-	id_column_width = 0;
-	type_column_width = 6;
-	name_column_width = 0;
-	for (i = 0; i != num_devices; i++) {
-		FridaDevice *device = g_array_index (devices, FridaDevice *, i);
-
-		id_column_width = MAX (strlen (frida_device_get_id (device)), id_column_width);
-		name_column_width = MAX (strlen (frida_device_get_name (device)), name_column_width);
-	}
-
-	g_string_append_printf (dump, "%-*s  %-*s  %s\n",
-		id_column_width, "Id",
-		type_column_width, "Type",
-		"Name");
-
-	for (i = 0; i != id_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != type_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != name_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append_c (dump, '\n');
-
-	type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
-
-	for (i = 0; i != num_devices; i++) {
-		FridaDevice *device;
-		GEnumValue *type;
-
-		device = g_array_index (devices, FridaDevice *, i);
-
-		type = g_enum_get_value (type_enum, frida_device_get_dtype (device));
-
-		g_string_append_printf (dump, "%-*s  %-*s  %s\n",
-			id_column_width, frida_device_get_id (device),
-			type_column_width, type->value_nick,
-			frida_device_get_name (device));
-	}
-
-	r_cons_printf ("%s\n", dump->str);
-
-	g_type_class_unref (type_enum);
-
+	printList(DEVICES, devices, num_devices);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
 
-	g_string_free (dump, TRUE);
 }
 
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
-	GString *dump;
 	int count = 0;
 	FridaApplicationList *list;
 	GArray *applications;
 	gint num_applications, i;
 	GError *error;
-	guint pid_column_width, name_column_width, identifier_column_width, pid;
 
 	if (r2f_debug ()) {
 		printf ("dump-apps\n");
 		return 0;
 	}
 
-	dump = g_string_sized_new (8192);
-
 	error = NULL;
-        list = frida_device_enumerate_applications_sync (device, cancellable, &error);
+    list = frida_device_enumerate_applications_sync (device, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("error: %s\n", error->message);
@@ -1701,62 +1648,12 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	}
 	g_array_sort (applications, compareProcesses);
 
-	pid_column_width = 0;
-	name_column_width = 0;
-	identifier_column_width = 0;
-	for (i = 0; i != num_applications; i++) {
-		FridaApplication *application;
-		gchar *pid_str;
-
-		application = g_array_index (applications, FridaApplication *, i);
-
-		pid_str = g_strdup_printf ("%u", frida_application_get_pid (application));
-		pid_column_width = MAX (strlen (pid_str), pid_column_width);
-		g_free (pid_str);
-
-		name_column_width = MAX (strlen (frida_application_get_name (application)), name_column_width);
-		identifier_column_width = MAX (strlen (frida_application_get_identifier (application)), identifier_column_width);
-	}
-
-	g_string_append_printf (dump, "%-*s  %-*s  %s\n",
-		pid_column_width, "PID",
-		name_column_width, "Name",
-		"Identifier");
-
-	for (i = 0; i != pid_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != name_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-
-	g_string_append (dump, "  ");
-	for (i = 0; i != identifier_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append_c (dump, '\n');
-
-	for (i = 0; i != num_applications; i++) {
-		FridaApplication *application = g_array_index (applications, FridaApplication*, i);
-		pid = frida_application_get_pid (application);
-		const char *fmt = pid? "%*u  %*s  %s\n": "%*c  %*s  %s\n";
-		int arg = pid? pid: '-';
-		g_string_append_printf (dump, fmt,
-			pid_column_width, arg, name_column_width,
-			frida_application_get_name (application),
-			frida_application_get_identifier (application)
-		);
-	}
-	count = num_applications;
-
-	r_cons_printf ("%s\n", dump->str);
-
+	printList (APPLICATIONS, applications, num_applications);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
 
-	g_string_free (dump, TRUE);
+	count = num_applications;
 	return count;
 }
 
@@ -1765,14 +1662,10 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 		printf ("dump-procs\n");
 		return;
 	}
-	GString *dump;
 	FridaProcessList *list;
 	GArray *processes;
 	gint num_processes, i;
 	GError *error;
-	guint pid_column_width, name_column_width;
-
-	dump = g_string_sized_new (8192);
 
 	error = NULL;
 	list = frida_device_enumerate_processes_sync (device, cancellable, &error);
@@ -1792,49 +1685,10 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	}
 	g_array_sort (processes, compareProcesses);
 
-	pid_column_width = 0;
-	name_column_width = 0;
-	for (i = 0; i != num_processes; i++) {
-		FridaProcess *process;
-		gchar *pid_str;
-
-		process = g_array_index (processes, FridaProcess *, i);
-
-		pid_str = g_strdup_printf ("%u", frida_process_get_pid (process));
-		pid_column_width = MAX (strlen (pid_str), pid_column_width);
-		g_free (pid_str);
-
-		name_column_width = MAX (strlen (frida_process_get_name (process)), name_column_width);
-	}
-
-	g_string_append_printf (dump, "%-*s  %s\n",
-		pid_column_width, "PID",
-		"Name");
-
-	for (i = 0; i != pid_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append (dump, "  ");
-	for (i = 0; i != name_column_width; i++) {
-		g_string_append_c (dump, '-');
-	}
-	g_string_append_c (dump, '\n');
-
-	for (i = 0; i != num_processes; i++) {
-		FridaProcess *process = g_array_index (processes, FridaProcess *, i);
-
-		g_string_append_printf (dump, "%*u  %s\n",
-			pid_column_width, frida_process_get_pid (process),
-			frida_process_get_name (process));
-	}
-
-	r_cons_printf ("%s\n", dump->str);
-
+	printList(PROCESSES, processes, num_processes);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
-
-	g_string_free (dump, TRUE);
 }
 
 static gint compareDevices(gconstpointer element_a, gconstpointer element_b) {
@@ -1890,6 +1744,66 @@ static int atopid(const char *maybe_pid, bool *valid) {
 	int number = strtol (maybe_pid, &endptr, 10);
 	*valid = endptr == NULL || (endptr - maybe_pid) == strlen (maybe_pid);
 	return number;
+}
+
+static void printList(R2FridaListType type, GArray *items, gint num_items) {
+	guint i;
+	GEnumClass *type_enum;
+
+	RTable *table = r_table_new ("printList");
+	r_table_align (table, 0, R_TABLE_ALIGN_LEFT);
+	r_table_align (table, 1, R_TABLE_ALIGN_LEFT);
+	r_table_align (table, 2, R_TABLE_ALIGN_RIGHT);
+	r_table_sort(table, 1, true);
+
+	switch (type) {
+	case APPLICATIONS:
+		r_table_set_columnsf (table, "dss", "PID", "Name", "Identifier");
+		char buf[64];
+		for (i = 0; i < num_items; i++) {
+			FridaApplication *application = g_array_index (items, FridaApplication*, i);
+			guint pid = frida_application_get_pid (application);
+			char *arg = pid? sdb_itoa(pid, buf, 10) : "-";
+			r_table_add_rowf (table, "sss",
+				arg,
+				frida_application_get_name (application),
+				frida_application_get_identifier (application)
+			);
+		}
+		break;
+	case PROCESSES:
+		r_table_set_columnsf (table, "ds", "PID", "Name");
+		for (i = 0; i < num_items; i++) {
+			FridaProcess *process = g_array_index (items, FridaProcess *, i);
+			r_table_add_rowf (table, "ds",
+				frida_process_get_pid (process), 
+				frida_process_get_name (process)
+			);
+		}
+		break;
+	case DEVICES:
+		r_table_set_columnsf (table, "sss", "Id", "Type", "Name");
+		type_enum = g_type_class_ref (FRIDA_TYPE_DEVICE_TYPE);
+		for (i = 0; i < num_items; i++) {
+			FridaDevice *device;
+			GEnumValue *type;
+			device = g_array_index (items, FridaDevice *, i);
+			type = g_enum_get_value (type_enum, frida_device_get_dtype (device));
+			r_table_add_rowf (table, "sss",
+				frida_device_get_id (device), 
+				type->value_nick,
+				frida_device_get_name (device)
+			);
+		}
+		g_type_class_unref (type_enum);
+		break;
+	default:
+		goto error;
+	}
+
+	r_cons_printf ("%s\n", r_table_tostring (table));
+error:
+	r_table_free (table);
 }
 
 RIOPlugin r_io_plugin_frida = {
