@@ -13,8 +13,7 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "10.1.0",
-    "mjolner": "4.0.2"
+    "frida-compile": "10.1.0"
   },
   "engines": {
     "node": ">=10"
