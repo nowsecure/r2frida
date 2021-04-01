@@ -39,7 +39,9 @@ But you can always follow the standard way in here:
 	$ git clone --recursive https://github.com/nowsecure/r2frida.git
 	$ cd r2frida
 	$ make
-	$ sudo make install
+	$ make install
+
+$ make install should be done as user. It should not be done as root.
 
 On Windows:
 
