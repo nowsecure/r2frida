@@ -1,0 +1,7 @@
+#ifndef R2FRIDA_CONFIG_H
+#define R2FRIDA_CONFIG_H
+
+#define PREFIX "."
+#define DATADIR "."
+
+#endif

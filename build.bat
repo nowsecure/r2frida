@@ -23,6 +23,7 @@ for %%i in (%*) do (
 	if "%%i"=="install" (set INSTALL=1)
 )
 
+copy config.h.w64 config.h
 call npm install
 cd src
 cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
