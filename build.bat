@@ -4,7 +4,7 @@ set R2_BASE=""
 set frida_version=14.2.17
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
-for /f %%i in ('where radare2') do set R2_BASE=%%i\..\..
+for /f %%i in ('where radare2') do set R2_BASE=%%i\..
 set DEBUG=/O2
 set INSTALL=
 
@@ -14,6 +14,7 @@ if not exist %R2_BASE% (
 	set /p R2_PLUGDIR="Please enter full path of radare2 plugin dir (radare2 -H): "
 )
 
+echo Using R2_BASE: %R2_BASE%
 set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr /I"%R2_BASE%\include\libr\sdb"
 
 for %%i in (%*) do (
