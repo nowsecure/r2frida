@@ -65,8 +65,8 @@ jobs:
         git submodule update --init
         call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
         build.bat
-        zip -r ..\r2ghidra-w64.zip io_frida.dll
+        zip -r ..\r2frida-${{env.R2V}}-w64.zip io_frida.dll
     - uses: actions/upload-artifact@v2
       with:
-        name: r2ghidra-${{env.R2V}}-w64.zip
-        path: r2ghidra-w64.zip
+        name: r2frida-${{env.R2V}}-w64.zip
+        path: r2frida-w64.zip
