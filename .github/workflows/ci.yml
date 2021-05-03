@@ -68,5 +68,6 @@ jobs:
         zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
     - uses: actions/upload-artifact@v2
       with:
+        if-no-files-found: error
         name: r2frida-${{env.R2V}}-w64.zip
         path: r2frida-${{env.R2V}}-w64.zip
