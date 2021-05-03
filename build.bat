@@ -52,7 +52,7 @@ if not "%INSTALL%"=="" (
 	echo Installing...
 	mkdir "%R2_PLUGDIR%" > nul 2>&1
 	echo Copying 'io_frida.dll' to %R2_PLUGDIR%
-	cp io_frida.dll "%R2_PLUGDIR%\io_frida.dll"
+	copy io_frida.dll "%R2_PLUGDIR%\io_frida.dll"
 	if not "%DEBUG%"=="/O2" (
 		echo Copying 'io_frida.pdb' to %R2_PLUGDIR%
 		cp io_frida.pdb "%R2_PLUGDIR%\io_frida.pdb"
