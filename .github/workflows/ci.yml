@@ -1,7 +1,12 @@
 name: ci
 
+env:
+  R2V: 5.2.1
+
 on:
   push:
+    branches:
+      - master
   pull_request:
 
 jobs:
@@ -27,3 +32,41 @@ jobs:
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh )
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v1
+      with:
+        python-version: 3.7.x
+    - name: Preparing msvc toolchain
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+    - name: dependencies
+      shell: bash
+      run: |
+        pip install ninja meson wget
+        choco install zip
+    - name: install r2
+      shell: bash
+      run: |
+        python -m wget https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-${R2V}-w64.zip -o r2.zip
+        unzip r2.zip
+        mv radare2-${R2V}-w64 radare2
+        pwd
+    - name: make
+      shell: cmd
+      run: |
+        cd
+        set PKG_CONFIG_PATH=%CD%\radare2\lib\pkgconfig
+        set PATH=%CD%\radare2\bin;%PATH%
+        set ARCH=x64
+        git submodule update --init
+        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+        build.bat
+        zip -r ..\r2frida-${{env.R2V}}-w64.zip io_frida.dll
+    - uses: actions/upload-artifact@v2
+      with:
+        name: r2frida-${{env.R2V}}-w64.zip
+        path: r2frida-w64.zip

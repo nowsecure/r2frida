@@ -4,7 +4,8 @@ set R2_BASE=""
 set frida_version=14.2.17
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
-for /f %%i in ('where radare2') do set R2_BASE=%%i\..\..
+REM for /f %%i in ('where radare2') do set R2_BASE=%%i\..
+set R2_BASE=%cd%\radare2
 set DEBUG=/O2
 set INSTALL=
 
@@ -14,13 +15,15 @@ if not exist %R2_BASE% (
 	set /p R2_PLUGDIR="Please enter full path of radare2 plugin dir (radare2 -H): "
 )
 
-set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr"
+echo Using R2_BASE: %R2_BASE%
+set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr" /I"%R2_BASE%\include\libr\sdb"
 
 for %%i in (%*) do (
 	if "%%i"=="debug" (set DEBUG=/Z7)
 	if "%%i"=="install" (set INSTALL=1)
 )
 
+copy config.h.w64 config.h
 call npm install
 cd src
 cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
@@ -34,7 +37,7 @@ if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
 	echo Downloading Frida Core Sdk
 
 	powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, ""frida-core-sdk.exe-!frida_version!-!frida_os_arch!"")" ^
-	|| wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe
+	|| wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
 
 	echo Extracting...
 	.\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
@@ -42,6 +45,7 @@ if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
 cd ..
 
 echo Compiling...
+echo cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
 cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
 
 if not "%INSTALL%"=="" (
