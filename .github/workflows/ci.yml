@@ -23,6 +23,7 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v2
       with:
+        name: r2frida-${{env.R2V}}_amd64.deb
         path: dist/debian/*.deb
   build-macos:
     runs-on: macos-latest
@@ -32,6 +33,12 @@ jobs:
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh )
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
+    - name: Pub
+      uses: actions/upload-artifact@v2
+      with:
+        if-no-files-found: error
+        name: r2frida-${{env.R2V}}.pkg
+        path: r2frida-${{env.R2V}}.pkg
   build-windows:
     runs-on: windows-latest
     steps:
