@@ -14,7 +14,7 @@ if not exist %R2_BASE% (
 	set /p R2_PLUGDIR="Please enter full path of radare2 plugin dir (radare2 -H): "
 )
 
-set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr"
+set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr /I"%R2_BASE%\include\libr\sdb"
 
 for %%i in (%*) do (
 	if "%%i"=="debug" (set DEBUG=/Z7)
