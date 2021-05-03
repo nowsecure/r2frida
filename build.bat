@@ -16,7 +16,7 @@ if not exist %R2_BASE% (
 )
 
 echo Using R2_BASE: %R2_BASE%
-set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr /I"%R2_BASE%\include\libr\sdb"
+set R2_INC=/I"%R2_BASE%\include" /I"%R2_BASE%\include\libr" /I"%R2_BASE%\include\libr\sdb"
 
 for %%i in (%*) do (
 	if "%%i"=="debug" (set DEBUG=/Z7)
