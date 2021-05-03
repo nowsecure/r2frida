@@ -9,6 +9,8 @@ set R2_BASE=%cd%\radare2
 set DEBUG=/O2
 set INSTALL=
 
+for /f %%i in ('radare2 -qv') do set R2V=%%i
+
 if not exist %R2_BASE% (
 	echo radare2 not found
 	set /p R2_BASE="Please enter full path of radare2 installation: "
@@ -48,6 +50,7 @@ echo Compiling...
 echo cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
 cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
 
+zip ..\r2frida-%R2V%-w64.zip io_frida.dll
 if not "%INSTALL%"=="" (
 	echo Installing...
 	mkdir "%R2_PLUGDIR%" > nul 2>&1
