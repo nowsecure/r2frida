@@ -5,7 +5,7 @@ set frida_version=14.2.17
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
 REM for /f %%i in ('where radare2') do set R2_BASE=%%i\..
-set R2_BASE=radare2
+set R2_BASE=%cd%\radare2
 set DEBUG=/O2
 set INSTALL=
 
