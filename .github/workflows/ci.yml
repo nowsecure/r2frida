@@ -23,7 +23,7 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v2
       with:
-        path: dist/debian/*/*.deb
+        path: dist/debian/*.deb
   build-macos:
     runs-on: macos-latest
     steps:
