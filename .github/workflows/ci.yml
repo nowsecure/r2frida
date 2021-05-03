@@ -40,7 +40,7 @@ jobs:
       with:
         if-no-files-found: error
         name: r2frida-${{env.R2V}}.pkg
-        path: r2frida-${{env.R2V}}.pkg
+        path: dist/macos/macos-pkg/r2frida-${{env.R2V}}.pkg
   build-windows:
     runs-on: windows-latest
     steps:
