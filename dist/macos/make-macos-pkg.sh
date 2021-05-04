@@ -33,6 +33,7 @@ if [ ! -d build/r2frida.app ]; then
 fi
 export CFLAGS=-O2
 ./configure --prefix="${PREFIX}" || exit 1
+${MAKE}
 ${MAKE} install PREFIX="${PREFIX}" DESTDIR=${SRC} || exit 1
 mkdir -p "${DST}"
 if [ -d "${SRC}" ]; then
