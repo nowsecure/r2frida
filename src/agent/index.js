@@ -945,6 +945,24 @@ async function dumpInfoJson () {
     cwd: getCwd(),
   };
 
+  if (ObjCAvailable) {
+    try {
+      const id = ObjC.classes.NSBundle.mainBundle().infoDictionary();
+      function get(k) {
+        const v = id.objectForKey_(k);
+        return v? v.toString(): "";
+      }
+      res.bundle = get("CFBundleIdentifier");
+      res.exename = get("CFBundleExecutable");
+      res.appname = get("CFBundleDisplayName");
+      res.appversion = get("CFBundleShortVersionString");
+      res.appnumversion = get("CFBundleNumericVersion");
+      res.apphome = ObjC.classes.NSBundle.mainBundle().bundleURL().path()
+      res.minOS = get("MinimumOSVersion");
+    } catch(e) {
+      console.error(e);
+    }
+  }
   if (JavaAvailable) {
     await performOnJavaVM(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
