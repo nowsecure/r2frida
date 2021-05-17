@@ -3187,16 +3187,17 @@ function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
+      const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
         traceEmit({
           source: 'java',
           class: klass,
-          method: method,
+          method,
           returnValue: value,
-          timestamp: new Date()
+          timestamp
         });
       } else {
-        traceEmit(`[java trace][${traceMessage.timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+        traceEmit(`[java trace][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
       }
       switch (value) {
         case 0: return false;
