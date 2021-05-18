@@ -10,7 +10,12 @@ else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
 endif
+
+ifeq ($(frida_os),android)
+frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,arm,g' -e 's,aarch64,arm64,g')
+else
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g' -e 's,aarch64,arm64,g')
+endif
 frida_os_arch := $(frida_os)-$(frida_arch)
 
 WGET?=wget
