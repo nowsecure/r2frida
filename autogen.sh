@@ -10,3 +10,7 @@ if [ -n "$1" ]; then
 	echo "./configure $*"
 	./configure $*
 fi
+
+V=`./configure -qV`
+jq ".version=\"$V\"" package.json > p
+mv p package.json

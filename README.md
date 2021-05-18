@@ -4,7 +4,7 @@ r2frida
 Radare2 and Frida better together.
 
 
-[![Build](https://travis-ci.com/nowsecure/r2frida.svg?branch=master)](https://travis-ci.com/nowsecure/r2frida)
+[![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
 
 ![logo](r2frida.png)
 
