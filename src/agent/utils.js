@@ -5,4 +5,3 @@ module.exports = {
 function flagify (s) {
   return s.replace(/[\s-\/\\()\[\]<>!?$;%@`|&"+,]/g, '_');
 }
-

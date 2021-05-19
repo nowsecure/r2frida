@@ -19,7 +19,7 @@ let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
-const NeedsSafeIo = (Process.platform === 'linux' && Process.arch == 'arm' && Process.pointerSize == 4);
+const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const JavaAvailable = Java && Java.available;
 
 /* globals */
@@ -206,6 +206,7 @@ const commandHandlers = {
   dmp: changeMemoryProtection,
   'dm.': listMemoryRangesHere,
   dmm: listMemoryMaps,
+  'dmm*': listMemoryMapsR2,
   'dmm.': listMemoryRangesHere, // alias for 'dm.'
   dmh: listMallocRanges,
   'dmh*': listMallocRangesR2,
@@ -948,18 +949,18 @@ async function dumpInfoJson () {
   if (ObjCAvailable) {
     try {
       const id = ObjC.classes.NSBundle.mainBundle().infoDictionary();
-      function get(k) {
+      function get (k) {
         const v = id.objectForKey_(k);
-        return v? v.toString(): "";
+        return v ? v.toString() : '';
       }
-      res.bundle = get("CFBundleIdentifier");
-      res.exename = get("CFBundleExecutable");
-      res.appname = get("CFBundleDisplayName");
-      res.appversion = get("CFBundleShortVersionString");
-      res.appnumversion = get("CFBundleNumericVersion");
-      res.apphome = ObjC.classes.NSBundle.mainBundle().bundleURL().path()
-      res.minOS = get("MinimumOSVersion");
-    } catch(e) {
+      res.bundle = get('CFBundleIdentifier');
+      res.exename = get('CFBundleExecutable');
+      res.appname = get('CFBundleDisplayName');
+      res.appversion = get('CFBundleShortVersionString');
+      res.appnumversion = get('CFBundleNumericVersion');
+      res.apphome = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
+      res.minOS = get('MinimumOSVersion');
+    } catch (e) {
       console.error(e);
     }
   }
@@ -1127,7 +1128,7 @@ function getModuleByAddress (addr) {
   }
   try {
     return Process.getModuleByAddress(addr);
-  } catch(e) {
+  } catch (e) {
     return Process.getModuleByAddress(ptr(r2frida.offset));
   }
 }
@@ -1956,6 +1957,24 @@ function squashRanges (ranges) {
     res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
   }
   return res;
+}
+
+function listMemoryMapsR2 () {
+  function filterFile (file) {
+    return file.replace(/\//g, '_').replace(/-/g, '_');
+  }
+  return squashRanges(listMemoryRangesJson())
+    .filter(_ => _.file)
+    .map(({ base, size, protection, file }) =>
+      [
+        'f',
+        'dmm.' + filterFile(file.path),
+        '=',
+        padPointer(base),
+      ]
+        .join(' ')
+    )
+    .join('\n') + '\n';
 }
 
 function listMemoryMaps () {
@@ -4132,7 +4151,7 @@ function fsList (args) {
 }
 
 function fsGet (args) {
-  return fs.cat(args[0] ?? '', '*', args[1] ?? 0, args[2] ?? null);
+  return fs.cat(args[0] || '', '*', args[1] || 0, args[2] || null);
 }
 
 function fsCat (args) {
