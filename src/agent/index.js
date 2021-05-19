@@ -464,7 +464,7 @@ function printHexdump (lenstr) {
 
 function disasmCode (lenstr) {
   const len = +lenstr || 32;
-  return disasm(offset, len);
+  return disasm(r2frida.offset, len);
 }
 
 function disasm (addr, len, initialOldName) {
@@ -492,14 +492,15 @@ function disasm (addr, len, initialOldName) {
     }
     const ds = DebugSymbol.fromAddress(addr);
     let dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
+    let moduleName = ds.moduleName;
     if (!ds.moduleName) {
-      ds.moduleName = '';
+      moduleName = '';
     }
     if (!dsName) {
       dsName = '';
     }
-    if ((ds.moduleName || dsName) && dsName !== oldName) {
-      disco += ';;; ' + (ds.moduleName ? ds.moduleName : dsName) + '\n';
+    if ((moduleName || dsName) && dsName !== oldName) {
+      disco += ';;; ' + (moduleName ? moduleName : dsName) + '\n';
       oldName = dsName;
     }
     let comment = '';
