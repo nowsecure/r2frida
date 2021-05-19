@@ -284,6 +284,7 @@ e dbg.backend = io
 e anal.autoname=true
 e cmd.fcn.new=aan
 .=!ie*
+.=!dmm*
 .=!il*
 m /r2f io 0
 s entry0
