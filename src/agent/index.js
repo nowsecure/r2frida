@@ -3006,7 +3006,7 @@ function traceJava (klass, method) {
       } else {
         let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
         if (config.getBoolean('hook.backtrace')) {
-          msg += ` backtrace: \n${traceMessage.backtrace.toString().split(",").join("\nat ")}\n`;
+          msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
         }
         traceEmit(msg);
       }
