@@ -3004,9 +3004,9 @@ function traceJava (klass, method) {
       if (config.getString('hook.output') === 'json') {
         traceEmit(traceMessage);
       } else {
-        let msg = `[java trace][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
+        let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
         if (config.getBoolean('hook.backtrace')) {
-          msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+           msg += ` backtrace: \n${traceMessage.backtrace.toString().split(",").join("\nat ")}\n`;
         }
         traceEmit(msg);
       }
