@@ -12,7 +12,12 @@ if (Process.arch == "arm64" && Process.platform == "linux") {
         arm64Writer.flush();
     });
     const fun = new NativeFunction(getBaseCode, 'int', []);
-    console.log("getPid From syscall : ", fun());
+    console.log('getPid From syscall : ', fun());
 } else {
-    console.log("Unsupported arch");
-}
+    console.log('Unsupported arch');
+}    
+
+
+
+
+
