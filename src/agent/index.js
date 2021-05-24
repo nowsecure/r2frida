@@ -261,6 +261,7 @@ const commandHandlers = {
   dis: interceptRetString,
   di0: interceptRet0,
   di1: interceptRet1,
+  dii: interceptRetInt,
   'di-1': interceptRet_1,
   // unix compat
   pwd: getCwd,
@@ -3259,6 +3260,11 @@ function interceptRet0 (args) {
 }
 
 function interceptRetString (args) {
+  const target = args[0];
+  return interceptRet(target, args[1]);
+}
+
+function interceptRetInt (args) {
   const target = args[0];
   return interceptRet(target, args[1]);
 }

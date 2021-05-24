@@ -446,6 +446,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!\\dtSf $flag",
 		"!!!\\dc",
 		"!!!\\di",
+		"!!!\\dii",
 		"!!!\\di0",
 		"!!!\\di1",
 		"!!!\\di-1",
