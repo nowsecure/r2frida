@@ -3218,7 +3218,7 @@ function interceptRetJava (klass, method, value) {
           timestamp
         });
       } else {
-        traceEmit(`[java trace][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
       }
       switch (value) {
         case 0: return false;
