@@ -710,7 +710,7 @@ function radareCommandInit () {
   if (!_r_core_new) {
     _r_core_new = sym('r_core_new', 'pointer', []);
     if (!_r_core_new) {
-      console.error('ERROR: Cannot find r_core_new. Do \\dl /tmp/libr.dylib');
+      console.error('ERROR: Cannot find r_core_new. Do =!dl /tmp/libr.dylib');
       return false;
     }
     _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
@@ -744,12 +744,12 @@ function radareSeek (args) {
 function radareCommand (args) {
   const cmd = args.join(' ');
   if (cmd.length === 0) {
-    return 'Usage: \\r [cmd]';
+    return 'Usage: =!r [cmd]';
   }
   if (radareCommandInit()) {
     return radareCommandString(cmd);
   }
-  return '\\dl /tmp/libr.dylib';
+  return '=!dl /tmp/libr.dylib';
 }
 
 function sendSignal (args) {
@@ -762,7 +762,7 @@ function sendSignal (args) {
     const [pid, sig] = args;
     _kill(+pid, +sig);
   } else {
-    return 'Usage: \\dk ([pid]) [sig]';
+    return 'Usage: =!dk ([pid]) [sig]';
   }
   return '';
 }
@@ -1098,7 +1098,7 @@ function listAllSymbolsJson (args) {
 }
 
 function listAllHelp (args) {
-  return 'See \\ia? for more information. Those commands may take a while to run.';
+  return 'See =!ia? for more information. Those commands may take a while to run.';
 }
 
 function listAllSymbols (args) {
@@ -2044,7 +2044,7 @@ function _getMemoryRanges (protection) {
 async function changeMemoryProtection (args) {
   const [addr, size, protection] = args;
   if (args.length !== 3 || protection.length > 3) {
-    return 'Usage: \\dmp [address] [size] [rwx]';
+    return 'Usage: =!dmp [address] [size] [rwx]';
   }
   const address = getPtr(addr);
   const mapsize = await numEval(size);
@@ -3142,7 +3142,7 @@ function traceReal (name, addressString) {
         const methd = javaName.substring(dot + 1);
         traceJava(klass, methd);
       } else {
-        console.log('Invalid java method name. Use \\dt java:package.class.method');
+        console.log('Invalid java method name. Use =!dt java:package.class.method');
       }
     }
     return;
