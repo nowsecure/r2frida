@@ -3005,9 +3005,9 @@ function traceJava (klass, method) {
       if (config.getString('hook.output') === 'json') {
         traceEmit(traceMessage);
       } else {
-        let msg = `[java trace][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
+        let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
         if (config.getBoolean('hook.backtrace')) {
-          msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+          msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
         }
         traceEmit(msg);
       }
@@ -3219,7 +3219,7 @@ function interceptRetJava (klass, method, value) {
           timestamp
         });
       } else {
-        traceEmit(`[java trace][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
       }
       switch (value) {
         case 0: return false;
