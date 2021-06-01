@@ -1,7 +1,7 @@
 name: ci
 
 env:
-  R2V: 5.2.1
+  R2V: 5.3.0
 
 on:
   push:
