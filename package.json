@@ -19,7 +19,7 @@
     "node": ">=10"
   },
   "devDependencies": {
-    "semistandard": "16.0.0"
+    "semistandard": "16.0.1"
   },
   "semistandard": {
     "globals": [
