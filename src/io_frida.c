@@ -1817,7 +1817,11 @@ RIOPlugin r_io_plugin_frida = {
 	.close = __close,
 	.read = __read,
 	.check = __check,
+#if R2_VERSION_MAJOR >= 5 && R2_VERSION_MINOR >= 4
+	.seek = __lseek,
+#else
 	.lseek = __lseek,
+#endif
 	.write = __write,
 	.resize = __resize,
 	.system = __system,
