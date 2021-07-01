@@ -92,6 +92,8 @@ const commandHandlers = {
   E: evalNum,
   '?e': echo,
   '/': search,
+  '/i': searchInstances,
+  '/ij': searchInstancesJson,
   '/j': searchJson,
   '/x': searchHex,
   '/xj': searchHexJson,
@@ -502,7 +504,7 @@ function disasm (addr, len, initialOldName) {
       dsName = '';
     }
     if ((moduleName || dsName) && dsName !== oldName) {
-      disco += ';;; ' + (moduleName ? moduleName : dsName) + '\n';
+      disco += ';;; ' + (moduleName || dsName) + '\n';
       oldName = dsName;
     }
     let comment = '';
@@ -3792,6 +3794,27 @@ function searchJson (args) {
   });
 }
 
+function searchInstancesJson (args) {
+  const className = args.join('');
+  if (ObjCAvailable) {
+    const results = JSON.parse(JSON.stringify(ObjC.chooseSync(ObjC.classes[className])));
+    return results.map(function (res) {
+      return { address: res.handle, content: className };
+    });
+  } else {
+    Java.performNow(function () {
+      const results = Java.choose(Java.classes[className]);
+      return results.map(function (res) {
+        return { address: res, content: className };
+      });
+    });
+  }
+}
+
+function searchInstances (args) {
+  return _readableHits(searchInstancesJson(args));
+}
+
 function searchHex (args) {
   return searchHexJson(args).then(hits => {
     return _readableHits(hits);
@@ -3936,7 +3959,7 @@ function _filterPrintable (arr) {
 
 function _readableHits (hits) {
   const output = hits.map(hit => {
-    if (hit.flag !== undefined) {
+    if (typeof hit.flag === 'string') {
       return `${hexPtr(hit.address)} ${hit.flag} ${hit.content}`;
     }
     return `${hexPtr(hit.address)} ${hit.content}`;

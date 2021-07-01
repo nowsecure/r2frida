@@ -428,6 +428,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!=!?",
 		"!!!=!?V",
 		"!!!=!/",
+		"!!!=!/i",
+		"!!!=!/ij",
 		"!!!=!/w",
 		"!!!=!/wj",
 		"!!!=!/x",
