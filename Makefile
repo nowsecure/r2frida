@@ -225,7 +225,7 @@ mrproper: clean
 	$(RM) ext/frida
 	$(RM) -r ext/node
 
-install:
+user-install install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
@@ -233,7 +233,7 @@ symstall:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
 	ln -fs $(shell pwd)/io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
-uninstall:
+user-uninstall uninstall:
 	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 
 release:
