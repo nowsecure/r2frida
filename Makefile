@@ -43,6 +43,7 @@ else
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 endif
 R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
+R2_PLUGSYS=$(shell r2 -H R2_LIBR_PLUGINS)
 ifeq ($(R2_PLUGDIR),)
 r2:
 	@echo Please install r2
@@ -225,16 +226,31 @@ mrproper: clean
 	$(RM) ext/frida
 	$(RM) -r ext/node
 
-user-install install:
+# user wide
+
+user-install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
-symstall:
-	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
+user-uninstall:
+	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+
+user-symstall:
+	mkdir -p "$(DESTDIR)/$(R2_PLUGDIR)"
 	ln -fs $(shell pwd)/io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
-user-uninstall uninstall:
-	$(RM) $(DESTDIR)/"$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+# system wide
+
+install:
+	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
+	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
+
+symstall:
+	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
+	ln -fs $(shell pwd)/io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
+
+uninstall:
+	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
 
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
