@@ -209,7 +209,7 @@ const commandHandlers = {
   'dm.': listMemoryRangesHere,
   dmm: listMemoryMaps,
   'dmm*': listMemoryMapsR2,
-  'dmm.': listMemoryRangesHere, // alias for 'dm.'
+  'dmm.': listMemoryMapsHere, // alias for 'dm.'
   dmh: listMallocRanges,
   'dmh*': listMallocRangesR2,
   dmhj: listMallocRangesJson,
@@ -1888,6 +1888,25 @@ function listMallocRanges (args) {
     .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
 }
 
+function listMemoryMapsHere (args) {
+  if (args.length !== 1) {
+    args = [ptr(r2frida.offset)];
+  }
+  const addr = ptr(args[0]);
+  return squashRanges(listMemoryRangesJson())
+    .filter(({ base, size }) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
+    .map(({ base, size, protection, file }) => {
+      return [
+        padPointer(base),
+        '-',
+        padPointer(base.add(size)),
+        protection,
+        file.path
+      ].join(' ');
+    })
+    .join('\n') + '\n';
+}
+
 function listMemoryRangesHere (args) {
   if (args.length !== 1) {
     args = [ptr(r2frida.offset)];
@@ -2807,9 +2826,11 @@ function objectToString (o) {
 
 function tracelogToString (l) {
   const line = [l.source, l.name || l.address, objectToString(l.values)].join('\t');
-  const bt = (!l.backtrace) ? '' : l.backtrace.map((b) => {
-    return ['', b.address, b.moduleName, b.name].join('\t');
-  }).join('\n') + '\n';
+  const bt = (!l.backtrace)
+    ? ''
+    : l.backtrace.map((b) => {
+      return ['', b.address, b.moduleName, b.name].join('\t');
+    }).join('\n') + '\n';
   return line + bt;
 }
 
@@ -2994,7 +3015,8 @@ function traceJava (klass, method) {
     k[method].implementation = function (args) {
       const res = this[method]();
       const bt = config.getBoolean('hook.backtrace')
-        ? Throwable.$new().getStackTrace().map(_ => _.toString()) : [];
+        ? Throwable.$new().getStackTrace().map(_ => _.toString())
+        : [];
       const traceMessage = {
         source: 'dt',
         klass: klass,
@@ -3651,7 +3673,8 @@ function perform (params) {
   }
   const userHandler = global.r2frida.commandHandler(name);
   const handler = userHandler !== undefined
-    ? userHandler : commandHandlers[name];
+    ? userHandler
+    : commandHandlers[name];
   if (handler === undefined) {
     throw new Error('Unhandled command: ' + name);
   }

@@ -47,7 +47,8 @@ function read (params) {
         const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
         const moduleEnds = currentRange.base.add(currentRange.size);
         const left = (readEnds.compare(moduleEnds) > 0
-          ? readEnds : moduleEnds).sub(offset);
+          ? readEnds
+          : moduleEnds).sub(offset);
         const bytes = Memory.readByteArray(ptr(offset), +left);
         return [{}, (bytes !== null) ? bytes : []];
       } catch (e) {
