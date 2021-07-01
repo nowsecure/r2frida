@@ -1941,7 +1941,6 @@ function rwxint (x) {
 }
 
 function squashRanges (ranges) {
-// console.log("SquashRanges");
   const res = [];
   let begin = ptr(0);
   let end = ptr(0);
@@ -1949,9 +1948,6 @@ function squashRanges (ranges) {
   let lastFile = '';
   for (const r of ranges) {
     lastPerm |= rwxint(r.protection);
-    if (r.file) {
-      lastFile = r.file;
-    }
     // console.log("-", r.base, range.base.add(range.size));
     if (r.base.equals(end)) {
       // enlarge segment
@@ -1975,6 +1971,9 @@ function squashRanges (ranges) {
         lastPerm = 0;
         lastFile = '';
       }
+    }
+    if (r.file) {
+      lastFile = r.file;
     }
   }
   if (!begin.equals(ptr(0))) {
