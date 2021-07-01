@@ -428,6 +428,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!=!?",
 		"!!!=!?V",
 		"!!!=!/",
+		"!!!=!/i",
+		"!!!=!/ij",
 		"!!!=!/w",
 		"!!!=!/wj",
 		"!!!=!/x",
@@ -1817,7 +1819,11 @@ RIOPlugin r_io_plugin_frida = {
 	.close = __close,
 	.read = __read,
 	.check = __check,
+#if ((R2_VERSION_MAJOR == 5 && R2_VERSION_MINOR >= 4) || R2_VERSION_MAJOR > 5)
+	.seek = __lseek,
+#else
 	.lseek = __lseek,
+#endif
 	.write = __write,
 	.resize = __resize,
 	.system = __system,
@@ -1829,7 +1835,7 @@ R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
 	.version = R2_VERSION,
-#if R2_VERSION_MAJOR >= 4 && R2_VERSION_MINOR >= 2
+#if ((R2_VERSION_MAJOR == 4 && R2_VERSION_MINOR >= 2) || R2_VERSION_MAJOR > 4)
 	.pkgname = "r2frida"
 #endif
 };
