@@ -429,6 +429,12 @@ function autoType (args) {
       const str = args[i].substring(1, args[i].length - 1);
       const buf = Memory.allocUtf8String(str.replace(/\\n/g, '\n'));
       nfArgsData.push(buf);
+    } else if (args[i].endsWith('f')) {
+      nfArgs.push('float');
+      nfArgsData.push(0.0f + args[i]);
+    } else if (args[i].endsWith('F')) {
+      nfArgs.push('double');
+      nfArgsData.push(0.0f + args[i]);
     } else if (+args[i] > 0 || args[i] === '0') {
       nfArgs.push('int');
       nfArgsData.push(+args[i]);
