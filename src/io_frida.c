@@ -68,6 +68,7 @@ static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
+static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname);
 static int atopid(const char *maybe_pid, bool *valid);
 
 // event handlers
@@ -308,6 +309,12 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	if (lo->spawn) {
+		char *appid = resolve_bundleid (rf->device, rf->cancellable, lo->process_specifier);
+		if (appid) {
+			free (lo->process_specifier);
+			lo->process_specifier = appid;
+		}
+		// try to resolve it as an app name too
 		char **argv = r_str_argv (lo->process_specifier, NULL);
 		if (!argv) {
 			eprintf ("Invalid process specifier\n");
@@ -1621,6 +1628,48 @@ beach:
 
 }
 
+static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname) {
+	int count = 0;
+	FridaApplicationList *list;
+	GArray *applications;
+	gint num_applications, i;
+	GError *error;
+
+	if (r2f_debug ()) {
+		printf ("resolve-bundleid\n");
+		return 0;
+	}
+
+	error = NULL;
+	list = frida_device_enumerate_applications_sync (device, cancellable, &error);
+	if (error != NULL) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("error: %s\n", error->message);
+		}
+		goto beach;
+	}
+	num_applications = frida_application_list_size (list);
+
+	char *res = NULL;
+	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
+	for (i = 0; i != num_applications; i++) {
+		FridaApplication *application = frida_application_list_get (list, i);
+		if (application) {
+			const char *an = frida_application_get_name (application);
+			if (!strcmp (appname, an)) {
+				res = strdup (frida_application_get_identifier (application));
+				break;
+			}
+			g_object_unref (application); /* borrow it */
+		}
+	}
+
+beach:
+	g_clear_error (&error);
+	g_clear_object (&list);
+	return res;
+}
+
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	int count = 0;
 	FridaApplicationList *list;
@@ -1634,7 +1683,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	}
 
 	error = NULL;
-    list = frida_device_enumerate_applications_sync (device, cancellable, &error);
+	list = frida_device_enumerate_applications_sync (device, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("error: %s\n", error->message);
@@ -1697,29 +1746,26 @@ beach:
 static gint compareDevices(gconstpointer element_a, gconstpointer element_b) {
 	FridaDevice *a = *(FridaDevice **) element_a;
 	FridaDevice *b = *(FridaDevice **) element_b;
-	gint score_a, score_b;
 
-	score_a = computeDeviceScore (a);
-	score_b = computeDeviceScore (b);
+	gint score_a = computeDeviceScore (a);
+	gint score_b = computeDeviceScore (b);
 	if (score_a != score_b) {
 		return score_b - score_a;
 	}
-
 	return strcmp (frida_device_get_name (a), frida_device_get_name (b));
 }
 
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b) {
 	FridaProcess *a = *(FridaProcess **) element_a;
 	FridaProcess *b = *(FridaProcess **) element_b;
-	gint score_a, score_b, name_equality;
 
-	score_a = computeProcessScore (a);
-	score_b = computeProcessScore (b);
+	gint score_a = computeProcessScore (a);
+	gint score_b = computeProcessScore (b);
 	if (score_a != score_b) {
 		return score_b - score_a;
 	}
 
-	name_equality = strcmp (frida_process_get_name (a), frida_process_get_name (b));
+	gint name_equality = strcmp (frida_process_get_name (a), frida_process_get_name (b));
 	if (name_equality != 0) {
 		return name_equality;
 	}
