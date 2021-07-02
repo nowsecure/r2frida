@@ -187,6 +187,10 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   fdj: lookupAddressJson,
   ic: listClasses,
+  icw: listClassesWhere,
+  icv: listClassVariables,
+  ics: listClassSuperMethods,
+  ica: listClassesAllMethods,
   icn: listClassesNatives,
   icL: listClassesLoaders,
   icl: listClassesLoaded,
@@ -1572,6 +1576,62 @@ function listClassesNatives (args) {
   return natives;
 }
 
+function listClassesAllMethods (args) {
+  return listClassesJson(args, 'all').join('\n');
+}
+
+function listClassSuperMethods (args) {
+  return listClassesJson(args, 'super').join('\n');
+}
+
+function listClassVariables (args) {
+  return listClassesJson(args, 'ivars').join('\n');
+}
+
+function listClassesWhere (args, mode) {
+  let out = '';
+  if (args.length === 0) {
+    const moduleNames = {};
+    const result = listClassesJson([]);
+    if (ObjCAvailable) {
+      const klasses = ObjC.classes;
+      for (const k of result) {
+        moduleNames[k] = klasses[k].$moduleName;
+      }
+    }
+    for (const klass of result) {
+      const modName = moduleNames[klass];
+      out += [modName, klass].join(' ') + '\n';
+    }
+    return out;
+  } else {
+    const moduleNames = {};
+    const result = listClassesJson([]);
+    if (ObjCAvailable) {
+      const klasses = ObjC.classes;
+      for (const k of result) {
+        moduleNames[k] = ObjC.classes[k].$moduleName;
+      }
+    }
+    for (const k of result) {
+      const modName = moduleNames[k];
+      if (modName && modName.indexOf(args[0]) != -1) {
+        const ins = searchInstancesJson([k]);
+        const inss = ins.map((x) => { return x.address; }).join(' ');
+        out += k + ' # ' + inss + '\n';
+        if (mode === 'ivars') {
+          for (const a of ins) {
+            out += 'instance ' + padPointer(a.address) + '\n';
+            const i = new ObjC.Object(ptr(a.address));
+            out += (JSON.stringify(i.$ivars)) + '\n';
+          }
+        }
+      }
+    }
+    return out;
+  }
+}
+
 function listClasses (args) {
   const result = listClassesJson(args);
   if (result instanceof Array) {
@@ -1697,16 +1757,16 @@ function listJavaClassesJson (args, classMethodsOnly) {
 }
 
 function listClassMethods (args) {
-  return listClassesJson(args, true).join('\n');
+  return listClassesJson(args, 'methods').join('\n');
 }
 
 function listClassMethodsJson (args) {
-  return listClassesJson(args, true);
+  return listClassesJson(args, 'methods');
 }
 
-function listClassesJson (args, classMethods) {
+function listClassesJson (args, mode) {
   if (JavaAvailable) {
-    return listJavaClassesJson(args, classMethods === true);
+    return listJavaClassesJson(args, mode === 'methods');
   }
   if (!ObjCAvailable) {
     return [];
@@ -1717,18 +1777,41 @@ function listClassesJson (args, classMethods) {
   const klassName = args[0];
   const klass = ObjC.classes[klassName];
   if (klass === undefined) {
-    throw new Error('Class ' + args[0] + ' not found');
+    throw new Error('Class ' + klassName + ' not found');
   }
+  let out = '';
+  if (mode === 'ivars') {
+    const ins = searchInstancesJson([klassName]);
+    out += klassName + ': ';
+    for (const i of ins) {
+      out += 'instance ' + padPointer(ptr(i.address)) + ': ';
+      const ii = new ObjC.Object(ptr(i.address));
+      out += JSON.stringify(ii.$ivars, null, '  ');
+    }
+    return [out];
+  }
+  const methods =
+	(mode == 'methods')
+	  ? klass.$ownMethods
+	  : (mode == 'super')
+	      ? klass.$super.$ownMethods
+	          : (mode == 'all')
+	              ? klass.$methods
+	              : klass.$ownMethods;
   const getImpl = ObjC.api.method_getImplementation;
-  return klass.$ownMethods
-    .reduce((result, methodName) => {
-      try {
-        result[methodName] = getImpl(klass[methodName].handle);
-      } catch (_) {
-        console.log('warning: unsupported method \'' + methodName + '\' in ' + klassName);
-      }
-      return result;
-    }, {});
+  try {
+    return methods
+      .reduce((result, methodName) => {
+        try {
+          result[methodName] = getImpl(klass[methodName].handle);
+        } catch (_) {
+          console.error('warning: unsupported method \'' + methodName + '\' in ' + klassName);
+        }
+        return result;
+      }, {});
+  } catch (e) {
+    return methods;
+  }
 }
 
 function listProtocols (args) {

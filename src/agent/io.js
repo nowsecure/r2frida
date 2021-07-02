@@ -11,7 +11,7 @@ function read (params) {
     return r2frida.hookedRead(offset, count);
   }
   if (r2frida.safeio) {
-    if (cachedRanges.length == 0) {
+    if (cachedRanges.length === 0) {
       cachedRanges = Process.enumerateRanges('').map(
         (map) => [map.base, ptr(map.base).add(map.size)]);
     }
