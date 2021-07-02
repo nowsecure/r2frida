@@ -431,10 +431,10 @@ function autoType (args) {
       nfArgsData.push(buf);
     } else if (args[i].endsWith('f')) {
       nfArgs.push('float');
-      nfArgsData.push(0.0f + args[i]);
+      nfArgsData.push(0.0 + args[i]);
     } else if (args[i].endsWith('F')) {
       nfArgs.push('double');
-      nfArgsData.push(0.0f + args[i]);
+      nfArgsData.push(0.0 + args[i]);
     } else if (+args[i] > 0 || args[i] === '0') {
       nfArgs.push('int');
       nfArgsData.push(+args[i]);
