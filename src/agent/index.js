@@ -225,6 +225,7 @@ const commandHandlers = {
   'dma-': removeAlloc,
   dp: getPid,
   dxc: dxCall,
+  dxo: dxObjc,
   dxs: dxSyscall,
   dpj: getPidJson,
   dpt: listThreads,
@@ -414,19 +415,11 @@ function dxSyscall (args) {
   return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
 }
 
-function dxCall (args) {
+function autoType (args) {
   const nfArgs = [];
   const nfArgsData = [];
-  if (args.length === 0) {
-    return `
-Usage: dxc [funcptr] [arg0 arg1..]
-For example:
- =!dxc write 1 "hello\\n" 6
- =!dxc read 0 \`?v rsp\` 10
-`;
-  }
   // push arguments
-  for (let i = 1; i < args.length; i++) {
+  for (let i = 0; i < args.length; i++) {
     if (args[i].substring(0, 2) === '0x') {
       nfArgs.push('pointer');
       nfArgsData.push(ptr(args[i]));
@@ -445,9 +438,46 @@ For example:
       nfArgsData.push(address);
     }
   }
+  return [nfArgs, nfArgsData];
+}
+
+function dxObjc (args) {
+  if (!ObjCAvailable) {
+    return 'dxo requires the objc runtime to be available to work.';
+  }
+  // Usage: "dxo instance-pointer [arg0 arg1]"
+  const instancePointer = args[0];
+  const methodName = args[1];
+  const [v, t] = autoType(args.slice(2));
+  try {
+    ObjC.schedule(ObjC.mainQueue, function () {
+      const instance = new ObjC.Object(ptr(instancePointer));
+      const method = instance[methodName];
+      if (method) {
+        method(...t);
+      } else {
+        console.error('unknown method ' + methodName + ' for objc instance at ' + padPointer(ptr(instancePointer)));
+      }
+    });
+  } catch (e) {
+    console.error(e);
+  }
+  return '';
+}
+
+function dxCall (args) {
+  if (args.length === 0) {
+    return `
+Usage: dxc [funcptr] [arg0 arg1..]
+For example:
+ =!dxc write 1 "hello\\n" 6
+ =!dxc read 0 \`?v rsp\` 10
+`;
+  }
   const address = (args[0].substring(0, 2) === '0x')
     ? ptr(args[0])
     : Module.getExportByName(null, args[0]);
+  const [nfArgs, nfArgsData] = autoType(args.slice(1));
   const fun = new NativeFunction(address, 'pointer', nfArgs);
   if (nfArgs.length === 0) {
     return fun();
