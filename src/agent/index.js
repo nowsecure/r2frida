@@ -265,11 +265,19 @@ const commandHandlers = {
   dtsfj: stalkTraceFunctionJson,
   'dtsf*': stalkTraceFunctionR2,
   di: interceptHelp,
+  dif: interceptHelp,
+  // intercept ret after calling function
   dis: interceptRetString,
   di0: interceptRet0,
   di1: interceptRet1,
   dii: interceptRetInt,
   'di-1': interceptRet_1,
+  // intercept ret and dont call the function
+  difs: interceptFunRetString,
+  dif0: interceptFunRet0,
+  dif1: interceptFunRet1,
+  difi: interceptFunRetInt,
+  'dif-1': interceptFunRet_1,
   // unix compat
   pwd: getCwd,
   cd: chDir,
@@ -3344,8 +3352,11 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di0, di1 or di-1 passing as argument the address to intercept';
+  return 'Usage: di[f][0,1,-1,s] [addr] : intercept function before/after calling and replace return value\n';
+  'dif0 0x808080  # when program calls this address, dont run the function and return 0\n';
 }
+
+/* Intercept function calls *after* calling the original function code */
 
 function interceptRetJava (klass, method, value) {
   javaPerform(function () {
@@ -3419,6 +3430,42 @@ function interceptRet1 (args) {
 function interceptRet_1 (args) { // eslint-disable-line
   const target = args[0];
   return interceptRet(target, -1);
+}
+
+/* Intercept function calls *before* calling the original function code */
+function interceptFunRet (target, value) {
+  if (target.startsWith('java:')) {
+    return 'TODO: not yet implemented';
+  }
+  const p = getPtr(target);
+  Interceptor.replace(p, new NativeCallback(function () {
+    return ptr(value);
+  }, 'pointer', ['pointer']));
+}
+
+function interceptFunRet0 (args) {
+  const target = args[0];
+  return interceptFunRet(target, 0);
+}
+
+function interceptFunRetString (args) {
+  const target = args[0];
+  return interceptFunRet(target, args[1]);
+}
+
+function interceptFunRetInt (args) {
+  const target = args[0];
+  return interceptFunRet(target, args[1]);
+}
+
+function interceptFunRet1 (args) {
+  const target = args[0];
+  return interceptFunRet(target, 1);
+}
+
+function interceptFunRet_1 (args) { // eslint-disable-line
+  const target = args[0];
+  return interceptFunRet(target, -1);
 }
 
 function getenv (name) {
