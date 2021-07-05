@@ -129,7 +129,7 @@ const commandHandlers = {
   ieq: listEntrypointQuiet,
   'ie*': listEntrypointR2,
   iej: listEntrypointJson,
-
+  afs: analFunctionSignature,
   ii: listImports,
   'ii*': listImportsR2,
   iij: listImportsJson,
@@ -1465,6 +1465,33 @@ function listEntrypoint (args) {
     .map((entry) => {
       return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
     }).join('\n');
+}
+
+function analFunctionSignature (args) {
+  if (!ObjCAvailable) {
+    return 'Error: afs is only implemented for ObjC methods.';
+  }
+  if (args.length === 1) {
+    return listClasses(args);
+  }
+  if (args.length > 0) {
+    const klassName = args[0];
+    const methodName = args[1].replace(/:/g, '_');
+    const klass = ObjC.classes[klassName];
+    if (!instance) {
+      return 'Cannot find class named ' + klassName;
+    }
+    const instance = ObjC.chooseSync(ObjC.classes[klassName])[0]
+    if (!instance) {
+      return 'Cannot find any instance for ' + klassName;
+    }
+    const method = instance[methodName];
+    if (!method) {
+      return 'Cannot find method ' + methodName + ' for class ' + klassName;
+    }
+    return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
+  }
+  return 'Usage: afs [klassName] [methodName]';
 }
 
 function listImports (args) {
