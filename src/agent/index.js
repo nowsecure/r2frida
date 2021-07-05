@@ -4174,7 +4174,8 @@ function evalConfig (args) {
   if (args.length === 0) {
     return config.asR2Script();
   }
-  const kv = args[0].split(/=/);
+  const argstr = args.join(' ');
+  const kv = argstr.split(/=/);
   const [k, v] = kv;
   if (kv.length === 2) {
     if (config.get(k) !== undefined) {
@@ -4183,18 +4184,21 @@ function evalConfig (args) {
         return config.helpFor(kv[0]);
       }
       // set (and flatten case for variables except file.log)
+      /*
       if (kv[0] !== 'file.log' && typeof kv[1] === 'string') {
         config.set(kv[0], kv[1].toLowerCase());
       } else {
         config.set(kv[0], kv[1]);
       }
+*/
+      config.set(kv[0], kv[1]);
     } else {
       console.error('unknown variable');
     }
     return '';
   }
   // get
-  return config.getString(args[0]);
+  return config.getString(argstr);
 }
 
 function _renderEndian (value, bigEndian, width) {
