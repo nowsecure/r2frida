@@ -2867,6 +2867,7 @@ function traceFormat (args) {
   }
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
+  const useCmd = config.getString('hook.usecmd');
 
   const currentModule = getModuleByAddress(address);
   const listener = Interceptor.attach(ptr(address), {
@@ -2906,11 +2907,14 @@ function traceFormat (args) {
           for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
           traceEmit(msg);
         }
+        if (useCmd.length > 0) {
+          console.log('[r2cmd]' + useCmd);
+        }
       }
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-   		const fa = formatArgs(this.keepArgs, format);
+        const fa = formatArgs(this.keepArgs, format);
         this.myArgs = fa.args;
         this.myDumps = fa.dumps;
 
@@ -2934,6 +2938,9 @@ function traceFormat (args) {
           }
           for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
           traceEmit(msg);
+        }
+        if (useCmd.length > 0) {
+          console.log('[r2cmd]' + useCmd);
         }
       }
     }
@@ -3494,7 +3501,11 @@ function interceptFunRet (target, value) {
     return 'TODO: not yet implemented';
   }
   const p = getPtr(target);
+  const useCmd = config.getString('hook.usecmd');
   Interceptor.replace(p, new NativeCallback(function () {
+    if (useCmd.length > 0) {
+      console.log('[r2cmd]' + useCmd);
+    }
     return ptr(value);
   }, 'pointer', ['pointer']));
 }

@@ -1584,7 +1584,18 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		JsonNodeType type = json_node_get_node_type (payload_node);
 		const char *message = json_node_get_string (payload_node);
 		if (message) {
-			eprintf ("%s\n", message);
+			const char *cmd_prefix = "[r2cmd]";
+			if (r_str_startswith (message, cmd_prefix)) {
+				// r_cons_newline ();
+				const char *cmd = message + strlen (cmd_prefix);
+				eprintf ("Running r2 command: '%s'\n", cmd);
+				// r_core_cmdf (rf->r2core, "&:%s", cmd);
+				r_core_cmd_queue (rf->r2core, cmd);
+				// r_core_cmdf (rf->r2core, "%s", cmd);
+				// r_cons_flush ();
+			} else {
+				eprintf ("%s\n", message);
+			}
 		}
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
