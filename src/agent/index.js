@@ -1500,9 +1500,17 @@ function analFunctionSignature (args) {
     const methodName = args[1].replace(/:/g, '_');
     const klass = ObjC.classes[klassName];
     if (!klass) {
+      // try to resolve from DebugSymbol
+      const at = klassName.startsWith('0x')
+        ? DebugSymbol.fromAddress(ptr(klassName))
+        : DebugSymbol.fromName(klassName);
+      if (at) {
+        return JSON.stringify(at);
+      }
       return 'Cannot find class named ' + klassName;
     }
-    const instance = ObjC.chooseSync(ObjC.classes[klassName])[0]
+    // const instance = ObjC.chooseSync(ObjC.classes[klassName])[0];
+    const instance = ObjC.chooseSync(klass)[0];
     if (!instance) {
       return 'Cannot find any instance for ' + klassName;
     }
