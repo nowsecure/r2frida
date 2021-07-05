@@ -623,6 +623,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		"/w[j] string               Search wide string\n"
 		"<space> code..             Evaluate Cycript code\n"
 		"?                          Show this help\n"
+		"?e message                 Show message like ?e but from the agent\n"
+		"?E title message           Show UIAlert dialog with given title and message\n"
 		"?V                         Show target Frida version\n"
 		"chcon file                 Change SELinux context (dl might require this)\n"
 		"d.                         Start the chrome tools debugger\n"

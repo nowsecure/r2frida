@@ -91,6 +91,7 @@ function javaTraceExample () {
 const commandHandlers = {
   E: evalNum,
   '?e': echo,
+  '?E': uiAlert,
   '/': search,
   '/i': searchInstances,
   '/ij': searchInstancesJson,
@@ -4021,6 +4022,28 @@ Script.setGlobalAccessHandler({
 
 function fridaVersion () {
   return { version: Frida.version };
+}
+
+function uiAlert (args) {
+  if (!ObjCAvailable) {
+    return 'Error: ui-alert is not implemented for this platform';
+  }
+  if (args.length < 2) {
+    return 'Usage: ?E title message';
+  }
+  const title = args[0];
+  const message = args.slice(1).join(' ');
+  ObjC.schedule(ObjC.mainQueue, function () {
+    const UIAlertView = ObjC.classes.UIAlertView; /* iOS 7 */
+    const view = UIAlertView.alloc().initWithTitle_message_delegate_cancelButtonTitle_otherButtonTitles_(
+      title,
+      message,
+      NULL,
+      'OK',
+      NULL);
+    view.show();
+    view.release();
+  });
 }
 
 function search (args) {
