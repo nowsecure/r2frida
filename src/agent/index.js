@@ -459,16 +459,33 @@ function dxObjc (args) {
   if (!ObjCAvailable) {
     return 'dxo requires the objc runtime to be available to work.';
   }
+  if (args.length === 0) {
+    return 'Usage: dxo [klassname|instancepointer] [methodname] [args...]';
+  }
+  if (args.length === 1) {
+    return listClasses(args);
+  }
   // Usage: "dxo instance-pointer [arg0 arg1]"
-  const instancePointer = args[0];
+  let instancePointer = null;
+  if (args[0].startsWith('0x')) {
+    instancePointer = new ObjC.Object(ptr(args[0]));
+  } else {
+    const klassName = args[0];
+    if (!ObjC.classes[klassName]) {
+      return 'Cannot find objc class ' + klassName;
+    }
+    const instances = ObjC.chooseSync(ObjC.classes[klassName])
+    if (!instances) {
+      return 'Cannot find any instance for klass ' + klassName;
+    }
+    instancePointer = instances[0];
+  }
   const methodName = args[1];
   const [v, t] = autoType(args.slice(2));
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
-      const instance = new ObjC.Object(ptr(instancePointer));
-      const method = instance[methodName];
-      if (method) {
-        method(...t);
+      if (instancePointer.hasOwnProperty(methodName)) {
+        instancePointer[methodName](...t);
       } else {
         console.error('unknown method ' + methodName + ' for objc instance at ' + padPointer(ptr(instancePointer)));
       }
