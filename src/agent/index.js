@@ -1488,14 +1488,17 @@ function analFunctionSignature (args) {
   if (!ObjCAvailable) {
     return 'Error: afs is only implemented for ObjC methods.';
   }
+  if (args.length === 0) {
+    return 'Usage: afs [class] [method]';
+  }
   if (args.length === 1) {
     return listClasses(args);
   }
-  if (args.length > 0) {
+  if (args.length > 1) {
     const klassName = args[0];
     const methodName = args[1].replace(/:/g, '_');
     const klass = ObjC.classes[klassName];
-    if (!instance) {
+    if (!klass) {
       return 'Cannot find class named ' + klassName;
     }
     const instance = ObjC.chooseSync(ObjC.classes[klassName])[0]
