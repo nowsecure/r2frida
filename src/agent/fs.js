@@ -146,15 +146,15 @@ class FridaFS {
   cat (path, mode, offset, size) {
     const actualPath = this.transform.toActual(path);
     if (actualPath !== null) {
-      const file_size = this.api.getFileSize(actualPath);
-      if (file_size < 0) {
+      const fileSize = this.api.getFileSize(actualPath);
+      if (fileSize < 0) {
         console.log(`ERROR: cannot stat ${actualPath}`);
         return '';
       }
 
       size = parseInt(size);
       offset = parseInt(offset);
-      size = (size === null) ? file_size : size;
+      size = (size === null) ? fileSize : size;
       if (size < 0) {
         console.log(`ERROR: invalid size ${size}`);
         return '';

@@ -9,8 +9,6 @@
 #include "frida-core.h"
 #include "../config.h"
 
-#define D(x) if (debug) { printf ("%s\n", x); }
-
 typedef struct {
 	const char * cmd_string;
 	ut64 serial;
@@ -633,6 +631,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		"dc                         Continue breakpoints or resume a spawned process\n"
 		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
+		"dif[0,1,-1] [addr]         Intercept return value of address without executing the function\n"
 		"dk ([pid]) [sig]           Send specific signal to specific pid in the remote system\n"
 		"dkr                        Print the crash report (if the app has crashed)\n"
 		"dl libname                 Dlopen a library (Android see chcon)\n"
@@ -922,6 +921,7 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 }
 
 static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error) {
+#define D(x) if (debug) { printf ("%s\n", x); }
 	const bool debug = r2f_debug ();
 	FridaDevice *device = NULL;
 	if (R_STR_ISEMPTY (type)) {

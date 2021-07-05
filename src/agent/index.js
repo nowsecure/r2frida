@@ -474,7 +474,7 @@ function dxObjc (args) {
     if (!ObjC.classes[klassName]) {
       return 'Cannot find objc class ' + klassName;
     }
-    const instances = ObjC.chooseSync(ObjC.classes[klassName])
+    const instances = ObjC.chooseSync(ObjC.classes[klassName]);
     if (!instances) {
       return 'Cannot find any instance for klass ' + klassName;
     }
@@ -725,7 +725,7 @@ function breakpointUnset (args) {
 */
     const symbol = Module.findExportByName(null, args[0]);
     const arg0 = args[0];
-    const addr = arg0 == '*' ? ptr(0) : (symbol !== null) ? symbol : ptr(arg0);
+    const addr = arg0 === '*' ? ptr(0) : (symbol !== null) ? symbol : ptr(arg0);
     const newbps = [];
     let found = false;
     for (const k of Object.keys(breakpoints)) {
@@ -1891,13 +1891,13 @@ function listClassesJson (args, mode) {
     return [out];
   }
   const methods =
-	(mode == 'methods')
-	  ? klass.$ownMethods
-	  : (mode == 'super')
-	      ? klass.$super.$ownMethods
-	          : (mode == 'all')
-	              ? klass.$methods
-	              : klass.$ownMethods;
+(mode === 'methods')
+  ? klass.$ownMethods
+  : (mode === 'super')
+      ? klass.$super.$ownMethods
+      : (mode === 'all')
+          ? klass.$methods
+          : klass.$ownMethods;
   const getImpl = ObjC.api.method_getImplementation;
   try {
     return methods
@@ -2299,59 +2299,59 @@ function listThreadsJson () {
 function regProfileAliasFor (arch) {
   switch (arch) {
     case 'arm64':
-      return `=PC	pc
-=SP	sp
-=BP	x29
-=A0	x0
-=A1	x1
-=A2	x2
-=A3	x3
-=ZF	zf
-=SF	nf
-=OF	vf
-=CF	cf
-=SN	x8
+      return `=PC pc
+=SP sp
+=BP x29
+=A0 x0
+=A1 x1
+=A2 x2
+=A3 x3
+=ZF zf
+=SF nf
+=OF vf
+=CF cf
+=SN x8
 `;
     case 'arm':
-      return `=PC	r15
-=LR	r14
-=SP	sp
-=BP	fp
-=A0	r0
-=A1	r1
-=A2	r2
-=A3	r3
-=ZF	zf
-=SF	nf
-=OF	vf
-=CF	cf
-=SN	r7
+      return `=PC r15
+=LR r14
+=SP sp
+=BP fp
+=A0 r0
+=A1 r1
+=A2 r2
+=A3 r3
+=ZF zf
+=SF nf
+=OF vf
+=CF cf
+=SN r7
 `;
     case 'ia64':
     case 'x64':
-      return `=PC	rip
-=SP	rsp
-=BP	rbp
-=A0	rdi
-=A1	rsi
-=A2	rdx
-=A3	rcx
-=A4	r8
-=A5	r9
-=SN	rax
+      return `=PC rip
+=SP rsp
+=BP rbp
+=A0 rdi
+=A1 rsi
+=A2 rdx
+=A3 rcx
+=A4 r8
+=A5 r9
+=SN rax
 `;
     case 'ia32':
     case 'x86':
-      return `=PC	eip
-=SP	esp
-=BP	ebp
-=A0	eax
-=A1	ebx
-=A2	ecx
-=A3	edx
-=A4	esi
-=A5	edi
-=SN	eax
+      return `=PC eip
+=SP esp
+=BP ebp
+=A0 eax
+=A1 ebx
+=A2 ecx
+=A3 edx
+=A4 esi
+=A5 edi
+=SN eax
 `;
   }
   return '';
@@ -2730,8 +2730,8 @@ function cloneArgs (args, fmt) {
 
 function _hexdumpUntrusted (addr, len) {
   try {
-	  if (typeof len === 'number') return hexdump(addr, { length: len });
-	  else return hexdump(addr);
+    if (typeof len === 'number') return hexdump(addr, { length: len });
+    else return hexdump(addr);
   } catch (e) {
     return `hexdump at ${addr} failed: ${e}`;
   }
@@ -3549,8 +3549,10 @@ function getWindowsUserNameA () {
   const buf = Memory.allocUtf8String('A'.repeat(PATH_MAX));
   const char_out = Memory.allocUtf8String('A'.repeat(PATH_MAX));
   const res = _GetUserNameA(buf, char_out);
-  const user = Memory.readCString(buf);
-  return user;
+  if (res) {
+    return Memory.readCString(buf);
+  }
+  return '';
 }
 
 function stalkTraceFunction (args) {
