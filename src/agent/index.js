@@ -785,7 +785,7 @@ function radareCommandString (cmd) {
 
 function radareSeek (args) {
   const addr = getPtr('' + args);
-  const cmdstr = 's  ' + (addr || '' + args);
+  const cmdstr = 's ' + (addr || '' + args);
   return cmdstr;
   // XXX hangs
   // return hostCmd(cmdstr);
@@ -1006,12 +1006,21 @@ async function dumpInfoJson () {
         const v = id.objectForKey_(k);
         return v ? v.toString() : '';
       }
+      const NSHomeDirectory = new NativeFunction(
+        Module.getExportByName(null, 'NSHomeDirectory'),
+        'pointer', []);
+      const NSTemporaryDirectory = new NativeFunction(
+        Module.getExportByName(null, 'NSTemporaryDirectory'),
+        'pointer', []);
       res.bundle = get('CFBundleIdentifier');
       res.exename = get('CFBundleExecutable');
       res.appname = get('CFBundleDisplayName');
       res.appversion = get('CFBundleShortVersionString');
       res.appnumversion = get('CFBundleNumericVersion');
-      res.apphome = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
+      res.homedir = (new ObjC.Object(NSHomeDirectory()).toString());
+      res.tmpdir = (new ObjC.Object(NSTemporaryDirectory()).toString());
+      res.bundledir = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
+      // res.appdata = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
       res.minOS = get('MinimumOSVersion');
     } catch (e) {
       console.error(e);
