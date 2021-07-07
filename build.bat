@@ -28,7 +28,8 @@ for %%i in (%*) do (
 copy config.h.w64 config.h
 call npm install
 cd src
-cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
+REM cat .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
+cat _agent.js | r2 -nfqcpc $< | grep 0x > _agent.h || (echo "r2 must be in path & exit /b 1)
 
 mkdir frida > nul 2>&1
 cd frida
