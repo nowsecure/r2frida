@@ -188,6 +188,7 @@ const commandHandlers = {
   'fd*': lookupAddressR2,
   fdj: lookupAddressJson,
   ic: listClasses,
+  ich: listClassesHooks,
   icw: listClassesWhere,
   icv: listClassVariables,
   ics: listClassSuperMethods,
@@ -1695,6 +1696,37 @@ function listClassSuperMethods (args) {
 
 function listClassVariables (args) {
   return listClassesJson(args, 'ivars').join('\n');
+}
+
+function listClassesHooks (args, mode) {
+  let out = '';
+  if (args.length === 0) {
+    return 'Usage: :ich [kw]';
+  }
+  const moduleNames = {};
+  const result = listClassesJson([]);
+  if (ObjCAvailable) {
+    const klasses = ObjC.classes;
+    for (const k of result) {
+      moduleNames[k] = ObjC.classes[k].$moduleName;
+    }
+  }
+  for (const k of result) {
+    const modName = moduleNames[k];
+    if (k.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
+      const ins = searchInstancesJson([k]);
+      const inss = ins.map((x) => { return x.address; }).join(' ');
+      const a = 'OOO';
+      const klass = ObjC.classes[k];
+      if (klass) {
+        for (const m of klass.$ownMethods) {
+          // TODO: use instance.argumentTypes to generate the 'OOO'
+          out += ':dtf objc:' + k + '.' + m + ' ' + a + '\n';
+        }
+      }
+    }
+  }
+  return out;
 }
 
 function listClassesWhere (args, mode) {
