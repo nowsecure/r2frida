@@ -79,7 +79,6 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable);
 static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
 static gint computeDeviceScore(FridaDevice *device);
-static gint computeProcessScore(FridaProcess *process);
 static void printList(R2FridaListType type, GArray *items, gint num_items);
 
 extern RIOPlugin r_io_plugin_frida;
@@ -352,7 +351,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		error = NULL;
 		goto error;
 	}
-	rf->session = frida_device_attach_sync (rf->device, rf->pid, FRIDA_REALM_NATIVE, rf->cancellable, &error);
+	rf->session = frida_device_attach_sync (rf->device, rf->pid, NULL, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("Cannot attach: %s\n", error->message);
@@ -937,7 +936,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 		device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, error);
 	} else if (strchr (type, ':')) { // host:port
 		D ("get-usb-device");
-		device = frida_device_manager_add_remote_device_sync (manager, type, cancellable, error);
+		device = frida_device_manager_add_remote_device_sync (manager, type, NULL, cancellable, error);
 	} else {
 		if (debug) printf ("device(%s)", type);
 		device = frida_device_manager_get_device_by_id_sync (manager, type, 0, cancellable, error);
@@ -1338,7 +1337,6 @@ static JsonBuilder *build_request(const char *type) {
 }
 
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
-	GError *error = NULL;
 	JsonObject *reply_stanza = NULL;
 	GBytes *reply_bytes = NULL;
 
@@ -1349,18 +1347,10 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	json_node_unref (root);
 	g_object_unref (builder);
 
-	frida_script_post_sync (rf->script, message, data, rf->cancellable, &error);
+	frida_script_post (rf->script, message, data);
 
 	g_free (message);
 	g_bytes_unref (data);
-
-	if (error) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
-		}
-		g_error_free (error);
-		return NULL;
-	}
 
 	g_mutex_lock (&rf->lock);
 
@@ -1385,17 +1375,17 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 		switch (rf->detach_reason) {
 		case FRIDA_SESSION_DETACH_REASON_APPLICATION_REQUESTED:
 			break;
+		case FRIDA_SESSION_DETACH_REASON_PROCESS_REPLACED:
+			eprintf ("Process replaced\n");
+			break;
 		case FRIDA_SESSION_DETACH_REASON_PROCESS_TERMINATED:
 			eprintf ("Target process terminated\n");
 			break;
-		case FRIDA_SESSION_DETACH_REASON_SERVER_TERMINATED:
+		case FRIDA_SESSION_DETACH_REASON_CONNECTION_TERMINATED:
 			eprintf ("Server terminated\n");
 			break;
 		case FRIDA_SESSION_DETACH_REASON_DEVICE_LOST:
 			eprintf ("Device lost\n");
-			break;
-		case FRIDA_SESSION_DETACH_REASON_PROCESS_REPLACED:
-			eprintf ("Process replaced\n");
 			break;
 		}
 		return NULL;
@@ -1442,8 +1432,6 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 }
 
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
-	GError *error = NULL;
-
 	json_builder_end_object (builder);
 	json_builder_end_object (builder);
 	JsonNode *root = json_builder_get_root (builder);
@@ -1451,17 +1439,10 @@ static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes 
 	json_node_unref (root);
 	g_object_unref (builder);
 
-	frida_script_post_sync (rf->script, message, data, rf->cancellable, &error);
+	frida_script_post (rf->script, message, data);
 
 	g_free (message);
 	g_bytes_unref (data);
-
-	if (error) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
-		}
-		g_error_free (error);
-	}
 }
 
 static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
@@ -1654,7 +1635,7 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 	}
 
 	error = NULL;
-	list = frida_device_enumerate_applications_sync (device, cancellable, &error);
+	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("error: %s\n", error->message);
@@ -1696,7 +1677,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	}
 
 	error = NULL;
-	list = frida_device_enumerate_applications_sync (device, cancellable, &error);
+	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("error: %s\n", error->message);
@@ -1733,7 +1714,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	GError *error;
 
 	error = NULL;
-	list = frida_device_enumerate_processes_sync (device, cancellable, &error);
+	list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("error: %s\n", error->message);
@@ -1772,12 +1753,6 @@ static gint compareProcesses(gconstpointer element_a, gconstpointer element_b) {
 	FridaProcess *a = *(FridaProcess **) element_a;
 	FridaProcess *b = *(FridaProcess **) element_b;
 
-	gint score_a = computeProcessScore (a);
-	gint score_b = computeProcessScore (b);
-	if (score_a != score_b) {
-		return score_b - score_a;
-	}
-
 	gint name_equality = strcmp (frida_process_get_name (a), frida_process_get_name (b));
 	if (name_equality != 0) {
 		return name_equality;
@@ -1795,10 +1770,6 @@ static gint computeDeviceScore(FridaDevice *device) {
 	case FRIDA_DEVICE_TYPE_REMOTE:
 		return 1;
 	}
-}
-
-static gint computeProcessScore(FridaProcess *process) {
-	return (frida_process_get_small_icon (process) != NULL) ? 1 : 0;
 }
 
 static int atopid(const char *maybe_pid, bool *valid) {
