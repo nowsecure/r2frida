@@ -1588,13 +1588,13 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 		if (message) {
 			const char *cmd_prefix = "[r2cmd]";
 			if (r_str_startswith (message, cmd_prefix)) {
-				// r_cons_newline ();
 				const char *cmd = message + strlen (cmd_prefix);
-				eprintf ("Running r2 command: '%s'\n", cmd);
-				// r_core_cmdf (rf->r2core, "&:%s", cmd);
+				// eprintf ("Running r2 command: '%s'\n", cmd);
+#if ((R2_VERSION_MAJOR == 5 && R2_VERSION_MINOR >= 4) || R2_VERSION_MAJOR > 5)
 				r_core_cmd_queue (rf->r2core, cmd);
-				// r_core_cmdf (rf->r2core, "%s", cmd);
-				// r_cons_flush ();
+#else
+				r_core_cmd0 (rf->r2core, cmd);
+#endif
 			} else {
 				eprintf ("%s\n", message);
 			}
