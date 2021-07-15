@@ -129,7 +129,12 @@ r2-sdk-ios/$(r2_version):
 	mv r2-sdk-ios/*/* r2-sdk-ios
 	rm -f radare2-ios-arm64-$(r2_version).tar.gz
 
-.PHONY: ext/frida
+.PHONY: ext/frida asan
+
+asan:
+	$(MAKE) clean
+	$(MAKE) USE_ASAN=1
+
 
 ext/swift-frida/index.js: .gitmodules node_modules
 	git submodule update --init
