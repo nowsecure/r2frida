@@ -3,10 +3,11 @@ r2frida
 
 Radare2 and Frida better together.
 
-
 [![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
 
-![logo](r2frida.png)
+<p align="center">
+  <img src="r2frida.png">
+</p>
 
 Description
 -----------
