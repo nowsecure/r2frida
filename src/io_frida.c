@@ -160,8 +160,8 @@ static bool __request_safe_io(RIOFrida *rf) {
 	return true;
 }
 
-static R2FridaLaunchOptions *r2frida_launchopt_new (const char *pathname) {
-	R2FridaLaunchOptions *lo = R_NEW0(R2FridaLaunchOptions);
+static R2FridaLaunchOptions *r2frida_launchopt_new(const char *pathname) {
+	R2FridaLaunchOptions *lo = R_NEW0 (R2FridaLaunchOptions);
 	if (lo) {
 		// lo
 	}
@@ -169,8 +169,11 @@ static R2FridaLaunchOptions *r2frida_launchopt_new (const char *pathname) {
 }
 
 static void r2frida_launchopt_free(R2FridaLaunchOptions *lo) {
-	g_free (lo->device_id);
-	g_free (lo->process_specifier);
+	if (lo) {
+		g_free (lo->device_id);
+		g_free (lo->process_specifier);
+		free (lo);
+	}
 }
 
 static void r_io_frida_free(RIOFrida *rf) {
@@ -273,9 +276,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 	if (R_STR_ISEMPTY (lo->device_id)) {
+		free (lo->device_id);
 		lo->device_id = strdup ("local");
 	}
-	const char *devid = (R_STR_ISEMPTY (lo->device_id))? NULL: lo->device_id;
+	const char *devid = (R_STR_ISNOTEMPTY (lo->device_id))? lo->device_id: NULL;
 	rc = resolve_device (device_manager, devid, &rf->device, rf->cancellable);
 	if (rc && rf->device) {
 		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
@@ -322,7 +326,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			r_str_argv_free (argv);
 			goto error;
 		}
-
 		FridaSpawnOptions *options = frida_spawn_options_new ();
 		const int argc = g_strv_length (argv);
 		if (argc > 1) {
@@ -338,11 +341,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			}
 			goto error;
 		}
-		if (lo->run) {
-			rf->suspended = false;
-		} else {
-			rf->suspended = true;
-		}
+		rf->suspended = !lo->run;
 	} else {
 		rf->pid = lo->pid;
 		rf->suspended = false;
@@ -404,7 +403,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	r2frida_launchopt_free (lo);
 	if (user_wants_safe_io ()) {
 		__request_safe_io (rf);
 	}
@@ -488,6 +486,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	if (lo->run) {
 		resume (rf);
 	}
+	r2frida_launchopt_free (lo);
 	return fd;
 
 error:
@@ -1623,6 +1622,7 @@ beach:
 }
 
 static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname) {
+	char *res = NULL;
 	int count = 0;
 	FridaApplicationList *list;
 	GArray *applications;
@@ -1631,7 +1631,7 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 
 	if (r2f_debug ()) {
 		printf ("resolve-bundleid\n");
-		return 0;
+		return NULL;
 	}
 
 	error = NULL;
@@ -1644,7 +1644,6 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 	}
 	num_applications = frida_application_list_size (list);
 
-	char *res = NULL;
 	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application = frida_application_list_get (list, i);
