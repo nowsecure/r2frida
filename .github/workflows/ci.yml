@@ -1,7 +1,7 @@
 name: ci
 
 env:
-  R2V: 5.3.0
+  R2V: 5.3.1
 
 on:
   push:
@@ -60,9 +60,9 @@ jobs:
     - name: install r2
       shell: bash
       run: |
-        python -m wget https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-${R2V}-w64.zip -o r2.zip
+        python -m wget https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-${{env.R2V}}-w64.zip -o r2.zip
         unzip r2.zip
-        mv radare2-${R2V}-w64 radare2
+        mv radare2-${{env.R2V}}-w64 radare2 || mv radare2-w64-${{env.R2V}} radare2
         pwd
     - name: make
       shell: cmd
