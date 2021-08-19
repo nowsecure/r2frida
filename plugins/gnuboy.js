@@ -1,5 +1,24 @@
-// run '\. plugin.js' inside an 'r2 frida://' session to load it
-// run '\.-test' to unload it and '\.' to list hem all
+/*
+
+First of all you need to install the gnuboy emulator
+
+  $ r2pm -ci gnuboy
+  $ r2pm -r gnuboy sml.gb
+
+Now we are ready to attach to it using r2frida:
+
+  $ r2 frida://attach/gnuboy
+
+Load the plugin and we are all set!
+
+  > :. gnuboy.js
+
+This plugin exposes the `gb` command that have different actions
+to get the registers, step, swap gbram and process memory io,
+mute the audio and more to come!
+
+*/
+
 
 
 function sym(name, ret, arg) {
@@ -7,6 +26,7 @@ function sym(name, ret, arg) {
     return new NativeFunction(Module.findExportByName(null, name), ret, arg);
   } catch (e) {
     console.error(name, ':', e);
+    return null;
   }
 }
 
@@ -56,7 +76,6 @@ function showCpu() {
 }
 
 var cpu_emulate = sym('cpu_emulate', 'void', ['int']);
-var cpu_emulate_orig = cpu_emulate;
 var cpu_emulate_hooked = false;
 var cpu_emulate_intercepted = false;
 var usleep = sym('usleep', 'void', ['int']);
@@ -73,10 +92,7 @@ function cpuStop() {
   if (cpu_emulate_hooked) {
     return;
   }
-  if (cpu_emulate_intercepted) {
-    cpuStop();
-  } else {
-    cpu_emulate_orig = sym('cpu_emulate', 'void', ['int']);
+  if (!cpu_emulate_intercepted) {
     const cb = new NativeCallback(cpu_emulate_callback, 'void', ['int']);
     Interceptor.replace(cpu_emulate, cb);
     cpu_emulate_intercepted = true;
