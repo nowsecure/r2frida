@@ -55,38 +55,46 @@ function showCpu() {
   return r;
 }
 
-var cpu_emulate_hook = null;
 var cpu_emulate = sym('cpu_emulate', 'void', ['int']);
 var cpu_emulate_orig = cpu_emulate;
+var cpu_emulate_hooked = false;
+var cpu_emulate_intercepted = false;
 var usleep = sym('usleep', 'void', ['int']);
 
 
+function cpu_emulate_callback(cycles) {
+  if (cpu_emulate_hooked) {
+    return
+  }
+  cpu_emulate(cycles);
+}
+
 function cpuStop() {
-  if (cpu_emulate_hook) {
+  if (cpu_emulate_hooked) {
     return;
   }
-  const cb = new NativeCallback(function (cycles){}, 'void', ['int']);
-  Interceptor.replace(cpu_emulate, cb);
-  cpu_emulate_hook = true;
+  if (cpu_emulate_intercepted) {
+    cpuStop();
+  } else {
+    cpu_emulate_orig = sym('cpu_emulate', 'void', ['int']);
+    const cb = new NativeCallback(cpu_emulate_callback, 'void', ['int']);
+    Interceptor.replace(cpu_emulate, cb);
+    cpu_emulate_intercepted = true;
+  }
+  cpu_emulate_hooked = true;
 }
 
 function cpuStep() {
-  if (cpu_emulate_hook) {
-    Interceptor.revert(cpu_emulate);
-  Interceptor.replace(cpu_emulate, cpu_emulate_orig);
-    Interceptor.flush();
-    cpu_emulate_hook = false;
+  if (!cpu_emulate_intercepted) {
+    cpuStop();
   }
+  cpu_emulate_hooked = false;
   cpu_emulate(1);
-  cpuStop();
+  cpu_emulate_hooked = true;
 }
 
 function cpuCont() {
-  if (cpu_emulate_hook) {
-    Interceptor.revert(cpu_emulate);
-    Interceptor.flush();
-    cpu_emulate_hook = false;
-  }
+  cpu_emulate_hooked = false;
 }
 
 function soundOff() {
