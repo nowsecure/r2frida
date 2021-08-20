@@ -66,7 +66,7 @@ static void pending_cmd_free(RFPendingCmd * pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
-static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname);
+static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *appname);
 static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid);
 static int atopid(const char *maybe_pid, bool *valid);
 
@@ -310,10 +310,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 	if (lo->spawn) {
-		char *appid = resolve_bundleid (rf->device, rf->cancellable, lo->process_specifier);
-		if (appid) {
+		char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
+		if (package_name) {
 			free (lo->process_specifier);
-			lo->process_specifier = appid;
+			lo->process_specifier = package_name;
 		}
 		// try to resolve it as an app name too
 		char **argv = r_str_argv (lo->process_specifier, NULL);
@@ -1629,7 +1629,7 @@ beach:
 
 }
 
-static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname) {
+static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *process_name) {
 	char *res = NULL;
 	int count = 0;
 	FridaApplicationList *list;
@@ -1638,7 +1638,7 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 	GError *error;
 
 	if (r2f_debug ()) {
-		printf ("resolve-bundleid\n");
+		printf ("resolve_package_name_by_process_name\n");
 		return NULL;
 	}
 
@@ -1656,8 +1656,8 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application = frida_application_list_get (list, i);
 		if (application) {
-			const char *an = frida_application_get_name (application);
-			if (!strcmp (appname, an)) {
+			const char *name = frida_application_get_name (application);
+			if (!strcmp (process_name, name)) {
 				res = strdup (frida_application_get_identifier (application));
 				break;
 			}
