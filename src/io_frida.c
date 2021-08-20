@@ -67,6 +67,7 @@ static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes 
 static void exec_pending_cmd_if_needed(RIOFrida * rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
 static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, const char *appname);
+static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid);
 static int atopid(const char *maybe_pid, bool *valid);
 
 // event handlers
@@ -308,7 +309,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		// rf->device = get_device_manager (device_manager, "local", rf->cancellable, &error);
 		goto error;
 	}
-
 	if (lo->spawn) {
 		char *appid = resolve_bundleid (rf->device, rf->cancellable, lo->process_specifier);
 		if (appid) {
@@ -1308,9 +1308,18 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 	if (!lo->process_specifier) {
 		return false;
 	}
-
 	FridaProcess *process = frida_device_get_process_by_name_sync (
 		device, lo->process_specifier, 0, cancellable, &error);
+	if (error != NULL) {
+		error = NULL;
+		char *procname = resolve_process_name_by_package_name(device, cancellable, lo->process_specifier);
+		if (procname) {
+			free (lo->process_specifier);
+			lo->process_specifier = procname;
+		}
+		process = frida_device_get_process_by_name_sync (
+		device, lo->process_specifier, 0, cancellable, &error);
+	}
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			eprintf ("%s\n", error->message);
@@ -1318,7 +1327,6 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 		g_error_free (error);
 		return false;
 	}
-
 	lo->pid = frida_process_get_pid (process);
 	g_object_unref (process);
 
@@ -1651,6 +1659,48 @@ static char *resolve_bundleid(FridaDevice *device, GCancellable *cancellable, co
 			const char *an = frida_application_get_name (application);
 			if (!strcmp (appname, an)) {
 				res = strdup (frida_application_get_identifier (application));
+				break;
+			}
+			g_object_unref (application); /* borrow it */
+		}
+	}
+
+beach:
+	g_clear_error (&error);
+	g_clear_object (&list);
+	return res;
+}
+
+static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid) {
+	char *res = NULL;
+	int count = 0;
+	FridaApplicationList *list;
+	GArray *applications;
+	gint num_applications, i;
+	GError *error;
+
+	if (r2f_debug ()) {
+		printf ("resolve_process_name_by_package_name\n");
+		return NULL;
+	}
+
+	error = NULL;
+	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
+	if (error != NULL) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("error: %s\n", error->message);
+		}
+		goto beach;
+	}
+	num_applications = frida_application_list_size (list);
+
+	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
+	for (i = 0; i != num_applications; i++) {
+		FridaApplication *application = frida_application_list_get (list, i);
+		if (application) {
+			const char *bid = frida_application_get_identifier (application);
+			if (!strcmp (bundleid, bid)) {
+				res = strdup (frida_application_get_name (application));
 				break;
 			}
 			g_object_unref (application); /* borrow it */
