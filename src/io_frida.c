@@ -316,7 +316,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			lo->process_specifier = package_name;
 		}
 		// try to resolve it as an app name too
-		char **argv = r_str_argv (lo->process_specifier, NULL);
+		char *a = strdup (lo->process_specifier);
+		char **argv = r_str_argv (a, NULL);
 		if (!argv) {
 			eprintf ("Invalid process specifier\n");
 			goto error;
@@ -326,14 +327,16 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			r_str_argv_free (argv);
 			goto error;
 		}
-		FridaSpawnOptions *options = frida_spawn_options_new ();
 		const int argc = g_strv_length (argv);
+		FridaSpawnOptions *options = frida_spawn_options_new ();
 		if (argc > 1) {
 			frida_spawn_options_set_argv (options, argv, argc);
 		}
+		// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
 		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
 		g_object_unref (options);
 		r_str_argv_free (argv);
+		free (a);
 
 		if (error) {
 			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
@@ -1652,7 +1655,7 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	num_applications = frida_application_list_size (list);
 
 	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
-	for (i = 0; i != num_applications; i++) {
+	for (i = 0; i < num_applications; i++) {
 		FridaApplication *application = frida_application_list_get (list, i);
 		if (application) {
 			const char *name = frida_application_get_name (application);
