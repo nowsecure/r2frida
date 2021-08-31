@@ -1018,11 +1018,12 @@ async function dumpInfoJson () {
     cwd: getCwd(),
   };
 
-  if (ObjCAvailable) {
+  if (ObjCAvailable && !suspended) {
     try {
-      const id = ObjC.classes.NSBundle.mainBundle().infoDictionary();
+      const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle)? ObjC.classes.NSBundle.mainBundle(): '';
+      const id = mb? mb.infoDictionary(): '';
       function get (k) {
-        const v = id.objectForKey_(k);
+        const v = id? id.objectForKey_(k): '';
         return v ? v.toString() : '';
       }
       const NSHomeDirectory = new NativeFunction(
