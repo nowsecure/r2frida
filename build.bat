@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 set R2_BASE=""
-set frida_version=15.0.16
+set frida_version=15.0.19
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
 REM for /f %%i in ('where radare2') do set R2_BASE=%%i\..
