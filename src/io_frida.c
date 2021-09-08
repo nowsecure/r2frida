@@ -362,7 +362,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	FridaScriptOptions * options = frida_script_options_new ();
-	frida_script_options_set_name (options, "r2io");
+	frida_script_options_set_name (options, "_agent");
 	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
 
 	const char *code_buf = NULL;
