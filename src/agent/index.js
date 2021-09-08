@@ -303,9 +303,9 @@ async function initBasicInfoFromTarget (args) {
 e dbg.backend = io
 e anal.autoname=true
 e cmd.fcn.new=aan
-.=!ie*
-.=!dmm*
-.=!il*
+.:ie*
+.:dmm*
+.:il*
 m /r2f io 0
 s entry0
  `;
@@ -505,8 +505,8 @@ function dxCall (args) {
     return `
 Usage: dxc [funcptr] [arg0 arg1..]
 For example:
- =!dxc write 1 "hello\\n" 6
- =!dxc read 0 \`?v rsp\` 10
+ :dxc write 1 "hello\\n" 6
+ :dxc read 0 \`?v rsp\` 10
 `;
   }
   const address = (args[0].substring(0, 2) === '0x')
@@ -781,7 +781,7 @@ function radareCommandInit () {
   if (!_r_core_new) {
     _r_core_new = sym('r_core_new', 'pointer', []);
     if (!_r_core_new) {
-      console.error('ERROR: Cannot find r_core_new. Do =!dl /tmp/libr.dylib');
+      console.error('ERROR: Cannot find r_core_new. Do :dl /tmp/libr.dylib');
       return false;
     }
     _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
@@ -815,12 +815,12 @@ function radareSeek (args) {
 function radareCommand (args) {
   const cmd = args.join(' ');
   if (cmd.length === 0) {
-    return 'Usage: =!r [cmd]';
+    return 'Usage: :r [cmd]';
   }
   if (radareCommandInit()) {
     return radareCommandString(cmd);
   }
-  return '=!dl /tmp/libr.dylib';
+  return ':dl /tmp/libr.dylib';
 }
 
 function sendSignal (args) {
@@ -833,7 +833,7 @@ function sendSignal (args) {
     const [pid, sig] = args;
     _kill(+pid, +sig);
   } else {
-    return 'Usage: =!dk ([pid]) [sig]';
+    return 'Usage: :dk ([pid]) [sig]';
   }
   return '';
 }
@@ -855,7 +855,7 @@ function breakpointContinueUntil (args) {
 function breakpointContinue (args) {
   if (suspended) {
     suspended = false;
-    return hostCmd('=!dc');
+    return hostCmd(':dc');
   }
   let count = 0;
   for (const k of Object.keys(breakpoints)) {
@@ -1023,10 +1023,10 @@ async function dumpInfoJson () {
 
   if (ObjCAvailable && !suspended) {
     try {
-      const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle)? ObjC.classes.NSBundle.mainBundle(): '';
-      const id = mb? mb.infoDictionary(): '';
+      const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
+      const id = mb ? mb.infoDictionary() : '';
       function get (k) {
-        const v = id? id.objectForKey_(k): '';
+        const v = id ? id.objectForKey_(k) : '';
         return v ? v.toString() : '';
       }
       const NSHomeDirectory = new NativeFunction(
@@ -1180,7 +1180,7 @@ function listAllSymbolsJson (args) {
 }
 
 function listAllHelp (args) {
-  return 'See =!ia? for more information. Those commands may take a while to run.';
+  return 'See :ia? for more information. Those commands may take a while to run.';
 }
 
 function listAllSymbols (args) {
@@ -2292,7 +2292,7 @@ function _getMemoryRanges (protection) {
 async function changeMemoryProtection (args) {
   const [addr, size, protection] = args;
   if (args.length !== 3 || protection.length > 3) {
-    return 'Usage: =!dmp [address] [size] [rwx]';
+    return 'Usage: :dmp [address] [size] [rwx]';
   }
   const address = getPtr(addr);
   const mapsize = await numEval(size);
@@ -3159,7 +3159,7 @@ function traceRegs (args) {
   function traceFunction (_) {
     traceListener.hits++;
     const regState = {};
-    rest.map((r) => {
+    rest.forEach((r) => {
       let regName = r;
       let regValue;
       if (r.indexOf('=') !== -1) {
@@ -3537,7 +3537,7 @@ function traceReal (name, addressString) {
         const methd = javaName.substring(dot + 1);
         traceJava(klass, methd);
       } else {
-        console.log('Invalid java method name. Use =!dt java:package.class.method');
+        console.log('Invalid java method name. Use :dt java:package.class.method');
       }
     }
     return;

@@ -411,6 +411,75 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	const char *autocompletions[] = {
+		"!!!:chcon",
+		"!!!:eval",
+		"!!!:e",
+		"!!!:e/",
+		"!!!:env",
+		"!!!:j",
+		"!!!:i",
+		"!!!:ii",
+		"!!!:il",
+		"!!!:is",
+		"!!!:isa $flag",
+		"!!!:iE",
+		"!!!:iEa $flag",
+		"!!!:ic",
+		"!!!:ip",
+		"!!!:init",
+		"!!!:fd $flag",
+		"!!!:dd",
+		"!!!:ddj",
+		"!!!:?",
+		"!!!:?V",
+		"!!!:/",
+		"!!!:/i",
+		"!!!:/ij",
+		"!!!:/w",
+		"!!!:/wj",
+		"!!!:/x",
+		"!!!:/xj",
+		"!!!:/v1 $flag",
+		"!!!:/v2 $flag",
+		"!!!:/v4 $flag",
+		"!!!:/v8 $flag",
+		"!!!:dt $flag",
+		"!!!:dt- $flag",
+		"!!!:dt-*",
+		"!!!:dth",
+		"!!!:dtq",
+		"!!!:dtr",
+		"!!!:dtS",
+		"!!!:dtSf $flag",
+		"!!!:dc",
+		"!!!:di",
+		"!!!:dii",
+		"!!!:di0",
+		"!!!:di1",
+		"!!!:di-1",
+		"!!!:dl",
+		"!!!:dl2",
+		"!!!:dx",
+		"!!!:dm",
+		"!!!:dma",
+		"!!!:dma-",
+		"!!!:dmas",
+		"!!!:dmad",
+		"!!!:dmal",
+		"!!!:dmm",
+		"!!!:dmh",
+		"!!!:dmhm",
+		"!!!:dmp $flag",
+		"!!!:db",
+		"!!!:dp",
+		"!!!:dpj",
+		"!!!:dpt",
+		"!!!:dr",
+		"!!!:drj",
+		"!!!:dk",
+		"!!!:dkr",
+		"!!!:t",
+		"!!!:. $file",
 		"!!!=!chcon",
 		"!!!=!eval",
 		"!!!=!e",
@@ -478,6 +547,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!=!drj",
 		"!!!=!dk",
 		"!!!=!dkr",
+		"!!!=!t",
 		"!!!=!. $file",
 		NULL
 	};
@@ -503,13 +573,11 @@ error:
 }
 
 static int __close(RIODesc *fd) {
-	RIOFrida *rf;
-
 	if (!fd || !fd->data) {
 		return -1;
 	}
 
-	rf = fd->data;
+	RIOFrida *rf = fd->data;
 	rf->detached = true;
 	resume (rf);
 	r_io_frida_free (fd->data);
@@ -616,72 +684,72 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		// TODO: move this into the .js
-		io->cb_printf ("r2frida commands available via =! or : prefixes\n"
-		". script                   Run script\n"
-		"  frida-expression         Run given expression inside the agent\n"
-		"/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
-		"/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
-		"/w[j] string               Search wide string\n"
-		"<space> code..             Evaluate Cycript code\n"
-		"?                          Show this help\n"
-		"?e message                 Show message like ?e but from the agent\n"
-		"?E title message           Show UIAlert dialog with given title and message\n"
-		"?V                         Show target Frida version\n"
-		"chcon file                 Change SELinux context (dl might require this)\n"
-		"d.                         Start the chrome tools debugger\n"
-		"db (<addr>|<sym>)          List or place breakpoint\n"
-		"db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
-		"dc                         Continue breakpoints or resume a spawned process\n"
-		"dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
-		"di[0,1,-1] [addr]          Intercept and replace return value of address\n"
-		"dif[0,1,-1] [addr]         Intercept return value of address without executing the function\n"
-		"dk ([pid]) [sig]           Send specific signal to specific pid in the remote system\n"
-		"dkr                        Print the crash report (if the app has crashed)\n"
-		"dl libname                 Dlopen a library (Android see chcon)\n"
-		"dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
-		"dlf path                   Load a Framework Bundle (iOS) given its path\n"
-		"dlf- path                  Unload a Framework Bundle (iOS) given its path\n"
-		"dm[.|j|*]                  Show memory regions\n"
-		"dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
-		"dma- (<addr>...)           Kill the allocations at <addr> (or all of them without param)\n"
-		"dmad <addr> <size>         Allocate <size> bytes on the heap, copy contents from <addr>\n"
-		"dmal                       List live heap allocations created with dma[s]\n"
-		"dmas <string>              Allocate a string initiated with <string> on the heap\n"
-		"dmh                        List all heap allocated chunks\n"
-		"dmh*                       Export heap chunks and regions as r2 flags\n"
-		"dmhj                       List all heap allocated chunks in JSON\n"
-		"dmhm                       Show which maps are used to allocate heap chunks\n"
-		"dmm                        List all named squashed maps\n"
-		"dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
-		"dp                         Show current pid\n"
-		"dpt                        Show threads\n"
-		"dr                         Show thread registers (see dpt)\n"
-		"dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
-		"dt- (<addr>|<sym>)         Clear trace\n"
-		"dt-*                       Clear all tracing\n"
-		"dt.                        Trace at current offset\n"
-		"dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
-		"dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
-		"dtl[-*] [msg]              debug trace log console, useful to .=!T*\n"
-		"dtr <addr> (<regs>...)     Trace register values\n"
-		"dts[*j] seconds            Trace all threads for given seconds using the stalker\n"
-		"dtsf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
-		"dxc [sym|addr] [args..]    Call the target symbol with given args\n"
-		"e[?] [a[=b]]               List/get/set config evaluable vars\n"
-		"env [k[=v]]                Get/set environment variable\n"
-		"eval code..                Evaluate Javascript code in agent side\n"
-		"fd[*j] <address>           Inverse symbol resolution\n"
-		"i                          Show target information\n"
-		"iE[*] <lib>                Same as is, but only for the export global ones\n"
-		"ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
-		"ii[*]                      List imports\n"
-		"il                         List libraries\n"
-		"ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
-		"is[*] <lib>                List symbols of lib (local and global ones)\n"
-		"isa[*] (<lib>) <sym>       Show address of symbol\n"
-		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
-		"t [swift-module-name]      Show structs, enums, classes and protocols for a module (see swift: prefix)\n"
-		"r [r2cmd]                  Run r2 command using r_core_cmd_str API call (use 'dl libr2.so)\n"
+		io->cb_printf ("r2frida commands are prefixed with `=!` or `:`.\n"
+		":. script                   Run script\n"
+		":  frida-expression         Run given expression inside the agent\n"
+		":/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"
+		":/v[1248][j] value          Search for a value honoring `e cfg.bigendian` of given width\n"
+		":/w[j] string               Search wide string\n"
+		":<space> code..             Evaluate Cycript code\n"
+		":?                          Show this help\n"
+		":?e message                 Show message like ?e but from the agent\n"
+		":?E title message           Show UIAlert dialog with given title and message\n"
+		":?V                         Show target Frida version\n"
+		":chcon file                 Change SELinux context (dl might require this)\n"
+		":d.                         Start the chrome tools debugger\n"
+		":db (<addr>|<sym>)          List or place breakpoint\n"
+		":db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
+		":dc                         Continue breakpoints or resume a spawned process\n"
+		":dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
+		":di[0,1,-1] [addr]          Intercept and replace return value of address\n"
+		":dif[0,1,-1] [addr]         Intercept return value of address without executing the function\n"
+		":dk ([pid]) [sig]           Send specific signal to specific pid in the remote system\n"
+		":dkr                        Print the crash report (if the app has crashed)\n"
+		":dl libname                 Dlopen a library (Android see chcon)\n"
+		":dl2 libname [main]         Inject library using Frida's >= 8.2 new API\n"
+		":dlf path                   Load a Framework Bundle (iOS) given its path\n"
+		":dlf- path                  Unload a Framework Bundle (iOS) given its path\n"
+		":dm[.|j|*]                  Show memory regions\n"
+		":dma <size>                 Allocate <size> bytes on the heap, address is returned\n"
+		":dma- (<addr>...)           Kill the allocations at <addr> (or all of them without param)\n"
+		":dmad <addr> <size>         Allocate <size> bytes on the heap, copy contents from <addr>\n"
+		":dmal                       List live heap allocations created with dma[s]\n"
+		":dmas <string>              Allocate a string initiated with <string> on the heap\n"
+		":dmh                        List all heap allocated chunks\n"
+		":dmh*                       Export heap chunks and regions as r2 flags\n"
+		":dmhj                       List all heap allocated chunks in JSON\n"
+		":dmhm                       Show which maps are used to allocate heap chunks\n"
+		":dmm                        List all named squashed maps\n"
+		":dmp <addr> <size> <perms>  Change page at <address> with <size>, protection <perms> (rwx)\n"
+		":dp                         Show current pid\n"
+		":dpt                        Show threads\n"
+		":dr                         Show thread registers (see dpt)\n"
+		":dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
+		":dt- (<addr>|<sym>)         Clear trace\n"
+		":dt-*                       Clear all tracing\n"
+		":dt.                        Trace at current offset\n"
+		":dtf <addr> [fmt]           Trace address with format (^ixzO) (see dtf?)\n"
+		":dth (addr|sym)(x:0 y:1 ..) Define function header (z=str,i=int,v=hex barray,s=barray)\n"
+		":dtl[-*] [msg]              debug trace log console, useful to .:T*\n"
+		":dtr <addr> (<regs>...)     Trace register values\n"
+		":dts[*j] seconds            Trace all threads for given seconds using the stalker\n"
+		":dtsf[*j] [sym|addr]        Trace address or symbol using the stalker (Frida >= 10.3.13)\n"
+		":dxc [sym|addr] [args..]    Call the target symbol with given args\n"
+		":e[?] [a[=b]]               List/get/set config evaluable vars\n"
+		":env [k[=v]]                Get/set environment variable\n"
+		":eval code..                Evaluate Javascript code in agent side\n"
+		":fd[*j] <address>           Inverse symbol resolution\n"
+		":i                          Show target information\n"
+		":iE[*] <lib>                Same as is, but only for the export global ones\n"
+		":ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
+		":ii[*]                      List imports\n"
+		":il                         List libraries\n"
+		":ip <protocol>              List Objective-C protocols or methods of <protocol>\n"
+		":is[*] <lib>                List symbols of lib (local and global ones)\n"
+		":isa[*] (<lib>) <sym>       Show address of symbol\n"
+		":j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
+		":r [r2cmd]                  Run r2 command using r_core_cmd_str API call (use 'dl libr2.so)\n"
+		":t [swift-module-name]      Show structs, enums, classes and protocols for a module (see swift: prefix)\n"
 		);
 		return NULL;
 	}
@@ -708,7 +776,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	if (!strcmp (command, "")) {
-		r_core_cmd0 (rf->r2core, ".=!i*");
+		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
 	} else if (!strncmp (command, "o/", 2)) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
