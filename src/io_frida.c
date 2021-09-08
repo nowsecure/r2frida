@@ -680,6 +680,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		"is[*] <lib>                List symbols of lib (local and global ones)\n"
 		"isa[*] (<lib>) <sym>       Show address of symbol\n"
 		"j java-expression          Run given expression inside a Java.perform(function(){}) block\n"
+		"t [swift-module-name]      Show structs, enums, classes and protocols for a module (see swift: prefix)\n"
 		"r [r2cmd]                  Run r2 command using r_core_cmd_str API call (use 'dl libr2.so)\n"
 		);
 		return NULL;

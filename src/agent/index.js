@@ -18,6 +18,7 @@ require('../../ext/swift-frida/examples/r2swida/index.js');
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
+const SwiftAvailable = Process.platform === 'darwin' && Swift && Swift.available;
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const JavaAvailable = Java && Java.available;
@@ -245,6 +246,7 @@ const commandHandlers = {
   'dlf-': unloadFrameworkBundle,
   dtf: traceFormat,
   dth: traceHook,
+  t: types,
   dt: trace,
   dtj: traceJson,
   dtq: traceQuiet,
@@ -1009,6 +1011,7 @@ async function dumpInfoJson () {
     uid: _getuid(),
     objc: ObjCAvailable,
     runtime: Script.runtime,
+    swift: SwiftAvailable,
     java: JavaAvailable,
     mainLoop: hasMainLoop(),
     pageSize: Process.pageSize,
@@ -2812,6 +2815,30 @@ function getPtr (p) {
   if (!p || p === '$$') {
     return ptr(global.r2frida.offset);
   }
+  if (p.startsWith('swift:')) {
+    if (!SwiftAvailable) {
+      return ptr(0);
+    }
+    // swift:CLASSNAME.method
+    const km = p.substring(6).split('.');
+    if (km.length !== 2) {
+      return ptr(0);
+    }
+    const klass = km[0];
+    const method = km[1];
+    if (!Swift.classes[klass]) {
+      console.error('Missing class ' + klass);
+      return;
+    }
+    const klassDefinition = Swift.classes[klass];
+    let targetAddress = ptr(0);
+    for (const kd of klassDefinition.$methods) {
+      if (method === kd.name) {
+        targetAddress = kd.address;
+      }
+    }
+    return p;
+  }
   if (p.startsWith('java:')) {
     return p;
   }
@@ -3239,6 +3266,23 @@ function traceJavaConstructors (className) {
   });
 }
 
+function traceSwift (klass, method) {
+  if (!SwiftAvailable) {
+    return;
+  }
+  const targetAddress = getPtr('swift:' + klass + '.' + method);
+  if (ptr(0).equals(targetAddress)) {
+    console.error('Missing method ' + method + ' in class ' + klass);
+    return;
+  }
+
+  const callback = function (args) {
+    const msg = ['[SWIFT]', klass, method, JSON.stringify(args)];
+    traceEmit(msg.join(' '));
+  };
+  Swift.Interceptor.Attach(target, callback);
+}
+
 function traceJava (klass, method) {
   javaPerform(function () {
     const Throwable = Java.use('java.lang.Throwable');
@@ -3301,6 +3345,92 @@ function traceJson (args) {
       }
     })();
   });
+}
+
+function types (args) {
+  let res = '';
+  if (SwiftAvailable) {
+    switch (args.length) {
+      case 0:
+        for (const mod in Swift.modules) {
+          res += mod + '\n';
+        }
+        break;
+      case 1:
+        try {
+          const target = args[0];
+          const module = (Swift && Swift.modules) ? Swift.modules[target] : null;
+          if (!module) {
+            throw new Error('No module named like this.');
+          }
+          res += 'module ' + target + '\n\n';
+          let m = module.enums;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              if (e.$conformances) {
+                res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
+              }
+              res += 'enum ' + e + ' {\n';
+              if (m[e].$fields) {
+                for (const f of m[e].$fields) {
+                  res += '  ' + f.name + ',\n';
+                }
+              }
+              res += '}\n';
+            }
+            res += '\n';
+          }
+          m = Swift.modules[target].classes;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              res += 'class ' + e + ' {\n';
+              if (m[e].$fields) {
+                for (const f of m[e].$fields) {
+                  res += '  ' + f.name + ' ' + f.typeName + '\n';
+                }
+              }
+              if (m[e].$methods) {
+                for (const f of m[e].$methods) {
+                  res += '  fn ' + f.name + '() // ' + f.address + '\n';
+                }
+              }
+              res += '}\n';
+            }
+            res += '\n';
+          }
+          m = Swift.modules[target].structs;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              if (e.$conformances) {
+                res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
+              }
+              res += 'struct ' + e + ' {\n';
+              if (m[e].$fields) {
+                for (const f of m[e].$fields) {
+                  res += '  ' + f.name + ' ' + f.typeName + '\n';
+                }
+              }
+              res += '}\n';
+            }
+            res += '\n';
+          }
+          m = module.protocols;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              if (m[e].isClassOnly) {
+                res += 'class ';
+              }
+              res += 'protocol ' + e + ' (requires: ' + m[e].numRequirements + ')\n';
+            }
+            res += '\n';
+          }
+        } catch (e) {
+          res += e;
+        }
+        break;
+    }
+  }
+  return res;
 }
 
 function trace (args) {
@@ -3384,6 +3514,16 @@ function tracehook (address, args) {
 function traceReal (name, addressString) {
   if (arguments.length === 0) {
     return traceList();
+  }
+  if (name.startsWith('swift:')) {
+    const km = name.substring(6);
+    const dot = km.lastIndexOf('.');
+    if (dot === -1) {
+      return 'Invalid syntax for swift uri. Use "swift:KLASS.METHOD"';
+    }
+    const klass = km.substring(0, dot);
+    const methd = km.substring(dot + 1);
+    return traceSwift(klass, methd);
   }
   if (name.startsWith('java:')) {
     const javaName = name.substring(5);
