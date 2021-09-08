@@ -247,6 +247,7 @@ const commandHandlers = {
   dtf: traceFormat,
   dth: traceHook,
   t: types,
+  't*': typesR2,
   dt: trace,
   dtj: traceJson,
   dtq: traceQuiet,
@@ -3347,6 +3348,69 @@ function traceJson (args) {
   });
 }
 
+function typesR2 (args) {
+  let res = '';
+  if (SwiftAvailable) {
+    switch (args.length) {
+      case 0:
+        for (const mod in Swift.modules) {
+          res += mod + '\n';
+        }
+        break;
+      case 1:
+        try {
+          const target = args[0];
+          const module = (Swift && Swift.modules) ? Swift.modules[target] : null;
+          if (!module) {
+            throw new Error('No module named like this.');
+          }
+          let m = module.enums;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              res += 'td enum ' + e + ' {';
+              const fields = [];
+              if (m[e].$fields) {
+                for (const f of m[e].$fields) {
+                  fields.push(f.name);
+                }
+              }
+              res += fields.join(', ');
+              res += '}\n';
+            }
+          }
+          m = Swift.modules[target].classes;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              if (m[e].$methods) {
+                for (const f of m[e].$methods) {
+                  const name = f.type + '_' + (f.name ? f.name : f.address);
+                  res += 'f swift.' + target + '.' + e + '.' + name + ' = ' + f.address + '\n';
+                }
+              }
+            }
+          }
+          m = Swift.modules[target].structs;
+          if (m) {
+            for (const e of Object.keys(m)) {
+              res += '"td struct ' + target + '.' + e + ' {';
+              if (m[e].$fields) {
+                for (const f of m[e].$fields) {
+                  res += 'int ' + f.name + ';';
+                  // res += '  ' + f.name + ' ' + f.typeName + '\n';
+                }
+              }
+              res += '}"\n';
+            }
+          }
+        } catch (e) {
+          res += e;
+        }
+        break;
+    }
+  }
+  return res;
+}
+
 function types (args) {
   let res = '';
   if (SwiftAvailable) {
@@ -3391,7 +3455,8 @@ function types (args) {
               }
               if (m[e].$methods) {
                 for (const f of m[e].$methods) {
-                  res += '  fn ' + f.name + '() // ' + f.address + '\n';
+                  const name = f.type + (f.name ? f.name : f.address);
+                  res += '  fn ' + name + '() // ' + f.address + '\n';
                 }
               }
               res += '}\n';
