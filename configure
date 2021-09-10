@@ -109,12 +109,12 @@ done
 : ${INSTALL_PROGRAM_STRIP:=${INSTALL} -m 755 -s}
 : ${INSTALL_MAN:=${INSTALL} -m 444}
 : ${INSTALL_LIB:=${INSTALL} -m 755 -c}
- PKGNAME='r2frida' ; VERSION='5.4.1' ; VERSION_MAJOR=5; VERSION_MINOR=4; VERSION_PATCH=1; VERSION_NUMBER=50401; CONTACT_MAIL="pancake@nowsecure.com" ; CONTACT_NAME="pancake" ; CONTACT="pancake <pancake@nowsecure.com>" ;
+ PKGNAME='r2frida' ; VERSION='5.4.2' ; VERSION_MAJOR=5; VERSION_MINOR=4; VERSION_PATCH=2; VERSION_NUMBER=50402; CONTACT_MAIL="pancake@nowsecure.com" ; CONTACT_NAME="pancake" ; CONTACT="pancake <pancake@nowsecure.com>" ;
 }
 
 show_usage() {
 cat <<EOF2
-'configure' configures r2frida-5.4.1 to adapt to many kinds of systems.
+'configure' configures r2frida-5.4.2 to adapt to many kinds of systems.
 
 Usage: ./configure [OPTION]... [VAR=VALUE]...
 
@@ -191,10 +191,10 @@ ocho() {
 
 show_version() {
 if [ "$QUIET" = 1 ]; then
-	echo "5.4.1"
+	echo "5.4.2"
 	exit 0
 fi
-echo "r2frida-5.4.1 configuration script done with acr v1.9.8.
+echo "r2frida-5.4.2 configuration script done with acr v1.9.8.
 The 'Free Software Foundation' message is only for autodetection.
 Originally written by pancake <nopcode.org>."
 exit 0
@@ -223,7 +223,7 @@ case $flag in
 	show_version ; ;;
 -r|--r|--report)
 echo "PKGNAME:   r2frida"
-echo "VERSION:   5.4.1"
+echo "VERSION:   5.4.2"
 echo "LANGS:     c"
 echo "PKG-CONFIG:  r_core"
 	exit 0
