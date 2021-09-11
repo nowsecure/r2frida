@@ -3666,9 +3666,7 @@ function interceptHelp (args) {
   'dif0 0x808080  # when program calls this address, dont run the function and return 0\n';
 }
 
-/* Intercept function calls *after* calling the original function code */
-
-function interceptRetJava (klass, method, value) {
+function interceptFunRetJava (klass, method, value) {
   javaPerform(function () {
     const System = javaUse(klass);
     System[method].implementation = function (library) {
@@ -3694,20 +3692,54 @@ function interceptRetJava (klass, method, value) {
   });
 }
 
-function interceptRetJavaExpression (target, value) {
+function interceptRetJava (klass, method, value) {
+  javaPerform(function () {
+    const System = javaUse(klass);
+    System[method].overload().implementation = function () {
+      const timestamp = new Date();
+      if (config.getString('hook.output') === 'json') {
+        traceEmit({
+          source: 'java',
+          class: klass,
+          method,
+          returnValue: value,
+          timestamp
+        });
+      } else {
+        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+      }
+      let m = System.getDeclaredMethod(method, null); 
+      m.invoke(this);
+      switch (value) {
+        case 0: return false;
+        case 1: return true;
+        case -1: return -1; // TODO should throw an error?
+      }
+      return value;
+    };
+  });
+}
+
+function parseTargetJavaExpression (target) {
   let klass = target.substring('java:'.length);
   const lastDot = klass.lastIndexOf('.');
   if (lastDot !== -1) {
     const method = klass.substring(lastDot + 1);
     klass = klass.substring(0, lastDot);
-    return interceptRetJava(klass, method, value);
+    return [klass, method];
   }
-  return 'Error: Wrong java method syntax';
+  throw new Error('Error: Wrong java method syntax');
 }
 
+/* Intercept function call and modify the return value after calling the original function code */
 function interceptRet (target, value) {
   if (target.startsWith('java:')) {
-    return interceptRetJavaExpression(target, value);
+    try {
+      const java_target = parseTargetJavaExpression(target, value);
+      return interceptRetJava(java_target[0], java_target[1], value);
+    } catch(e) {
+      return e.message
+    }
   }
   const p = getPtr(target);
   Interceptor.attach(p, {
@@ -3742,10 +3774,11 @@ function interceptRet_1 (args) { // eslint-disable-line
   return interceptRet(target, -1);
 }
 
-/* Intercept function calls *before* calling the original function code */
+/* Intercept function calls and modify return value without calling the original function code */
 function interceptFunRet (target, value) {
   if (target.startsWith('java:')) {
-    return 'TODO: not yet implemented';
+    const java_target = parseTargetJavaExpression(target, value);
+    return interceptFunRetJava(java_target[0], java_target[1], value);
   }
   const p = getPtr(target);
   const useCmd = config.getString('hook.usecmd');
