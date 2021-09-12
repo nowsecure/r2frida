@@ -3692,24 +3692,24 @@ function interceptFunRetJava (klass, method, value) {
   });
 }
 
-function interceptRetJava (klass, method, value) {
+function interceptRetJava (className, methodName, value) {
   javaPerform(function () {
-    const System = javaUse(klass);
-    System[method].overload().implementation = function () {
+    const targetClass = javaUse(className);
+    targetClass[methodName].overload().implementation = function () {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
         traceEmit({
           source: 'java',
-          class: klass,
-          method,
+          class: className,
+          methodName,
           returnValue: value,
           timestamp
         });
       } else {
-        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
       }
-      let m = System.getDeclaredMethod(method, null); 
-      m.invoke(this);
+      console.log(methodName);
+      this[methodName]();
       switch (value) {
         case 0: return false;
         case 1: return true;
