@@ -3662,13 +3662,15 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di[0,1,-1,s] [addr] : intercept function method and replace the return value.\n';
+  return 'Usage: di[0,1,-1,s] [addr] : intercepts function method and replace the return value.\n';
   'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n';
 }
 
 function interceptFunHelp (args) {
-  return 'Usage: dif[0,1,-1,s] [addr] : intercept function method, call it, and replace the return value.\n';
-  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n';
+  return 'Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n'
+  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n'
+  'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n'
+  'dis 0x808080 str  #.\n';
 }
 
 function interceptRetJava (klass, method, value) {
@@ -3735,28 +3737,29 @@ function parseTargetJavaExpression (target) {
   throw new Error('Error: Wrong java method syntax');
 }
 
-/* Intercept function call and modify the return value after calling the original function code */
-function interceptRet (target, value, paramTypes) {
+/* Intercepts function call and modify the return value without calling the original function code */
+function interceptRet (target, value) {
   if (target.startsWith('java:')) {
     try {
       const java_target = parseTargetJavaExpression(target, value);
-      return interceptRetJava(java_target[0], java_target[1], value, paramTypes);
+      return interceptRetJava(java_target[0], java_target[1], value);
     } catch(e) {
       return e.message
     }
   }
-  const p = getPtr(target);
-  Interceptor.attach(p, {
-    onLeave (retval) {
-      retval.replace(ptr(value));
+  const funcPtr = getPtr(target);
+  const useCmd = config.getString('hook.usecmd');
+  Interceptor.replace(funcPtr, new NativeCallback(function () {
+    if (useCmd.length > 0) {
+      console.log('[r2cmd]' + useCmd);
     }
-  });
+    return ptr(value);
+  }, 'pointer', ['pointer']));
 }
 
 function interceptRet0 (args) {
   const target = args[0];
-  const paramTypes = args[1];
-  return interceptRet(target, 0, paramTypes);
+  return interceptRet(target, 0);
 }
 
 function interceptRetString (args) {
@@ -3779,45 +3782,48 @@ function interceptRet_1 (args) { // eslint-disable-line
   return interceptRet(target, -1);
 }
 
-/* Intercept function calls and modify return value without calling the original function code */
-function interceptFunRet (target, value) {
+/* Intercept function calls and modify return value after calling the original function code */
+function interceptFunRet (target, value, paramTypes) {
   if (target.startsWith('java:')) {
     const javaTarget = parseTargetJavaExpression(target, value);
-    return interceptFunRetJava(javaTarget[0], javaTarget[1], value);
+    return interceptFunRetJava(javaTarget[0], javaTarget[1], value, paramTypes);
   }
   const p = getPtr(target);
-  const useCmd = config.getString('hook.usecmd');
-  Interceptor.replace(p, new NativeCallback(function () {
-    if (useCmd.length > 0) {
-      console.log('[r2cmd]' + useCmd);
+  Interceptor.attach(p, {
+    onLeave (retval) {
+      retval.replace(ptr(value));
     }
-    return ptr(value);
-  }, 'pointer', ['pointer']));
+  });
 }
 
 function interceptFunRet0 (args) {
   const target = args[0];
-  return interceptFunRet(target, 0);
+  const paramTypes = args[1];
+  return interceptFunRet(target, 0, paramTypes);
 }
 
 function interceptFunRetString (args) {
   const target = args[0];
-  return interceptFunRet(target, args[1]);
+  const paramTypes = args[2];
+  return interceptFunRet(target, args[1], paramTypes);
 }
 
 function interceptFunRetInt (args) {
   const target = args[0];
-  return interceptFunRet(target, args[1]);
+  const paramTypes = args[2];
+  return interceptFunRet(target, args[1], paramTypes);
 }
 
 function interceptFunRet1 (args) {
   const target = args[0];
-  return interceptFunRet(target, 1);
+  const paramTypes = args[1];
+  return interceptFunRet(target, 1, paramTypes);
 }
 
 function interceptFunRet_1 (args) { // eslint-disable-line
   const target = args[0];
-  return interceptFunRet(target, -1);
+  const paramTypes = args[1];
+  return interceptFunRet(target, -1, paramTypes);
 }
 
 function getenv (name) {
