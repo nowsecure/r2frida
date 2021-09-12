@@ -270,14 +270,14 @@ const commandHandlers = {
   dtsfj: stalkTraceFunctionJson,
   'dtsf*': stalkTraceFunctionR2,
   di: interceptHelp,
-  dif: interceptHelp,
-  // intercept ret after calling function
+  dif: interceptFunHelp,
+  // intercept ret function and dont call the function
   dis: interceptRetString,
   di0: interceptRet0,
   di1: interceptRet1,
   dii: interceptRetInt,
   'di-1': interceptRet_1,
-  // intercept ret and dont call the function
+  // intercept ret after calling the function
   difs: interceptFunRetString,
   dif0: interceptFunRet0,
   dif1: interceptFunRet1,
@@ -3662,11 +3662,16 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di[f][0,1,-1,s] [addr] : intercept function [without] method calling and replace return value\n';
-  'dif0 0x808080  # when program calls this address, dont run the function and return 0\n';
+  return 'Usage: di[0,1,-1,s] [addr] : intercept function method and replace the return value.\n';
+  'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n';
 }
 
-function interceptFunRetJava (klass, method, value) {
+function interceptFunHelp (args) {
+  return 'Usage: dif[0,1,-1,s] [addr] : intercept function method, call it, and replace the return value.\n';
+  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n';
+}
+
+function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const targetClass = javaUse(klass);
     targetClass[method].implementation = function (library) {
@@ -3692,10 +3697,10 @@ function interceptFunRetJava (klass, method, value) {
   });
 }
 
-function interceptRetJava (className, methodName, value) {
+function interceptFunRetJava (className, methodName, value, paramTypes) {
   javaPerform(function () {
     const targetClass = javaUse(className);
-    targetClass[methodName].overload().implementation = function (args) {
+    targetClass[methodName].overload(paramTypes).implementation = function (args) {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
         traceEmit({
@@ -3731,11 +3736,11 @@ function parseTargetJavaExpression (target) {
 }
 
 /* Intercept function call and modify the return value after calling the original function code */
-function interceptRet (target, value) {
+function interceptRet (target, value, paramTypes) {
   if (target.startsWith('java:')) {
     try {
       const java_target = parseTargetJavaExpression(target, value);
-      return interceptRetJava(java_target[0], java_target[1], value);
+      return interceptRetJava(java_target[0], java_target[1], value, paramTypes);
     } catch(e) {
       return e.message
     }
@@ -3750,7 +3755,8 @@ function interceptRet (target, value) {
 
 function interceptRet0 (args) {
   const target = args[0];
-  return interceptRet(target, 0);
+  const paramTypes = args[1];
+  return interceptRet(target, 0, paramTypes);
 }
 
 function interceptRetString (args) {
@@ -3776,8 +3782,8 @@ function interceptRet_1 (args) { // eslint-disable-line
 /* Intercept function calls and modify return value without calling the original function code */
 function interceptFunRet (target, value) {
   if (target.startsWith('java:')) {
-    const java_target = parseTargetJavaExpression(target, value);
-    return interceptFunRetJava(java_target[0], java_target[1], value);
+    const javaTarget = parseTargetJavaExpression(target, value);
+    return interceptFunRetJava(javaTarget[0], javaTarget[1], value);
   }
   const p = getPtr(target);
   const useCmd = config.getString('hook.usecmd');
