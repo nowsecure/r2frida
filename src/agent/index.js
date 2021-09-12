@@ -3668,8 +3668,8 @@ function interceptHelp (args) {
 
 function interceptFunRetJava (klass, method, value) {
   javaPerform(function () {
-    const System = javaUse(klass);
-    System[method].implementation = function (library) {
+    const targetClass = javaUse(klass);
+    targetClass[method].implementation = function (library) {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
         traceEmit({
@@ -3695,7 +3695,7 @@ function interceptFunRetJava (klass, method, value) {
 function interceptRetJava (className, methodName, value) {
   javaPerform(function () {
     const targetClass = javaUse(className);
-    targetClass[methodName].overload().implementation = function () {
+    targetClass[methodName].overload().implementation = function (args) {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
         traceEmit({
@@ -3708,7 +3708,7 @@ function interceptRetJava (className, methodName, value) {
       } else {
         traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
       }
-      this[methodName]();
+      this[methodName](args);
       switch (value) {
         case 0: return false;
         case 1: return true;
