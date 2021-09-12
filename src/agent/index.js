@@ -3662,7 +3662,7 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di[f][0,1,-1,s] [addr] : intercept function before/after calling and replace return value\n';
+  return 'Usage: di[f][0,1,-1,s] [addr] : intercept function [without] method calling and replace return value\n';
   'dif0 0x808080  # when program calls this address, dont run the function and return 0\n';
 }
 
