@@ -3708,7 +3708,6 @@ function interceptRetJava (className, methodName, value) {
       } else {
         traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
       }
-      console.log(methodName);
       this[methodName]();
       switch (value) {
         case 0: return false;
