@@ -15,7 +15,7 @@ const utils = require('./utils');
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const SwiftAvailable = Process.platform === 'darwin' && Swift && Swift.available;
+const SwiftAvailable = Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const JavaAvailable = Java && Java.available;
@@ -3409,88 +3409,96 @@ function typesR2 (args) {
 }
 
 function types (args) {
-  let res = '';
   if (SwiftAvailable) {
-    switch (args.length) {
-      case 0:
-        for (const mod in Swift.modules) {
-          res += mod + '\n';
+    return swiftTypes(args);
+  }
+  return '';
+}
+
+function swiftTypes (args) {
+  if (!SwiftAvailable) {
+    return '';
+  }
+  let res = '';
+  switch (args.length) {
+    case 0:
+      for (const mod in Swift.modules) {
+        res += mod + '\n';
+      }
+      break;
+    case 1:
+      try {
+        const target = args[0];
+        const module = (Swift && Swift.modules) ? Swift.modules[target] : null;
+        if (!module) {
+          throw new Error('No module named like this.');
         }
-        break;
-      case 1:
-        try {
-          const target = args[0];
-          const module = (Swift && Swift.modules) ? Swift.modules[target] : null;
-          if (!module) {
-            throw new Error('No module named like this.');
-          }
-          res += 'module ' + target + '\n\n';
-          let m = module.enums;
-          if (m) {
-            for (const e of Object.keys(m)) {
-              if (e.$conformances) {
-                res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
-              }
-              res += 'enum ' + e + ' {\n';
-              if (m[e].$fields) {
-                for (const f of m[e].$fields) {
-                  res += '  ' + f.name + ',\n';
-                }
-              }
-              res += '}\n';
+        res += 'module ' + target + '\n\n';
+        let m = module.enums;
+        if (m) {
+          for (const e of Object.keys(m)) {
+            if (e.$conformances) {
+              res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
             }
-            res += '\n';
-          }
-          m = Swift.modules[target].classes;
-          if (m) {
-            for (const e of Object.keys(m)) {
-              res += 'class ' + e + ' {\n';
-              if (m[e].$fields) {
-                for (const f of m[e].$fields) {
-                  res += '  ' + f.name + ' ' + f.typeName + '\n';
-                }
+            res += 'enum ' + e + ' {\n';
+            if (m[e].$fields) {
+              for (const f of m[e].$fields) {
+                res += '  ' + f.name + ',\n';
               }
-              if (m[e].$methods) {
-                for (const f of m[e].$methods) {
-                  const name = f.type + (f.name ? f.name : f.address);
-                  res += '  fn ' + name + '() // ' + f.address + '\n';
-                }
-              }
-              res += '}\n';
             }
-            res += '\n';
+            res += '}\n';
           }
-          m = Swift.modules[target].structs;
-          if (m) {
-            for (const e of Object.keys(m)) {
-              if (e.$conformances) {
-                res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
-              }
-              res += 'struct ' + e + ' {\n';
-              if (m[e].$fields) {
-                for (const f of m[e].$fields) {
-                  res += '  ' + f.name + ' ' + f.typeName + '\n';
-                }
-              }
-              res += '}\n';
-            }
-            res += '\n';
-          }
-          m = module.protocols;
-          if (m) {
-            for (const e of Object.keys(m)) {
-              if (m[e].isClassOnly) {
-                res += 'class ';
-              }
-              res += 'protocol ' + e + ' (requires: ' + m[e].numRequirements + ')\n';
-            }
-            res += '\n';
-          }
-        } catch (e) {
-          res += e;
+          res += '\n';
         }
-        break;
-    }
+        m = Swift.modules[target].classes;
+        if (m) {
+          for (const e of Object.keys(m)) {
+            res += 'class ' + e + ' {\n';
+            if (m[e].$fields) {
+              for (const f of m[e].$fields) {
+                res += '  ' + f.name + ' ' + f.typeName + '\n';
+              }
+            }
+            if (m[e].$methods) {
+              for (const f of m[e].$methods) {
+                const name = f.type + (f.name ? f.name : f.address);
+                res += '  fn ' + name + '() // ' + f.address + '\n';
+              }
+            }
+            res += '}\n';
+          }
+          res += '\n';
+        }
+        m = Swift.modules[target].structs;
+        if (m) {
+          for (const e of Object.keys(m)) {
+            if (e.$conformances) {
+              res += '// conforms to ' + (m[e].$conformances.join(', ')) + '\n';
+            }
+            res += 'struct ' + e + ' {\n';
+            if (m[e].$fields) {
+              for (const f of m[e].$fields) {
+                res += '  ' + f.name + ' ' + f.typeName + '\n';
+              }
+            }
+            res += '}\n';
+          }
+          res += '\n';
+        }
+        m = module.protocols;
+        if (m) {
+          for (const e of Object.keys(m)) {
+            if (m[e].isClassOnly) {
+              res += 'class ';
+            }
+            res += 'protocol ' + e + ' (requires: ' + m[e].numRequirements + ')\n';
+          }
+          res += '\n';
+        }
+      } catch (e) {
+        res += e;
+      }
+      break;
   }
   return res;
 }
@@ -3664,9 +3672,9 @@ function interceptHelp (args) {
 }
 
 function interceptFunHelp (args) {
-  return 'Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n'
-  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n'
-  'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n'
+  return 'Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n';
+  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n';
+  'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n';
   'dis 0x808080 str  #.\n';
 }
 
@@ -3740,8 +3748,8 @@ function interceptRet (target, value) {
     try {
       const java_target = parseTargetJavaExpression(target, value);
       return interceptRetJava(java_target[0], java_target[1], value);
-    } catch(e) {
-      return e.message
+    } catch (e) {
+      return e.message;
     }
   }
   const funcPtr = getPtr(target);

@@ -50,7 +50,7 @@ const configValidator = {
 };
 
 function configHelpJavaWait () {
-  return `Wait for Java classloader to be ready (boolean)`;
+  return 'Wait for Java classloader to be ready (boolean)';
 }
 
 function configHelpSearchIn () {
