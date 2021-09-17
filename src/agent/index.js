@@ -12,9 +12,6 @@ const isObjC = require('./isobjc');
 const strings = require('./strings');
 const utils = require('./utils');
 
-// registered as a plugin
-require('../../ext/swift-frida/examples/r2swida/index.js');
-
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */

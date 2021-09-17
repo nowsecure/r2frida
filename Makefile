@@ -136,9 +136,6 @@ asan:
 	$(MAKE) USE_ASAN=1
 
 
-ext/swift-frida/index.js: .gitmodules node_modules
-	git submodule update --init
-
 ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
 		(cd ext && rm -f frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
@@ -155,9 +152,6 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 
 .git/modules/ext:
 	git submodule update --init
-
-ext/swift-frida/node_modules: ext/swift-frida/index.js ext/swift-frida/index.js
-	cd ext/swift-frida && npm i
 
 src/_agent.h: src/_agent.js
 	r2 -nfqcpc $< | grep 0x > $@

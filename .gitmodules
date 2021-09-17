@@ -1,3 +1,0 @@
-[submodule "ext/swift-frida"]
-	path = ext/swift-frida
-	url = https://github.com/trufae/swift-frida.git
