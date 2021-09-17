@@ -44,6 +44,7 @@ typedef struct {
 	RFPendingCmd * pending_cmd;
 	char *crash_report;
 	RIO *io;
+	RSocket *s;
 } RIOFrida;
 
 typedef enum {
@@ -130,7 +131,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	}
 
 	rf->cancellable = g_cancellable_new (); // TODO: call cancel() when shutting down
-
+	rf->s = r_socket_new (false);
 	rf->detached = false;
 	rf->detach_reason = 0;
 	rf->io = io;
@@ -181,7 +182,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (!rf) {
 		return;
 	}
-
+	r_socket_free (rf->s);
 	free (rf->crash_report);
 	g_clear_object (&rf->crash);
 	g_clear_object (&rf->script);
@@ -1622,7 +1623,24 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 							: strdup (json_object_get_string_member (stanza, "message"));
 						message = r_str_append (message, "\n");
 						if (filename && message) {
-							(void) r_file_dump (filename, (const ut8*)message, -1, true);
+							bool sent = false;
+							if (r_str_startswith (filename, "tcp:")) {
+								char *host = strdup (filename + 4);
+								char *port = strchr (host, ':');
+								if (port) {
+									*port++ = 0;
+									if (!r_socket_is_connected (rf->s)) {
+										r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
+									}
+									size_t msglen = strlen (message);
+									if (r_socket_write (rf->s, message, msglen) == msglen) {
+										sent = true;
+									}
+								}
+							}
+							if (!sent) {
+								(void) r_file_dump (filename, (const ut8*)message, -1, true);
+							}
 						}
 						free (message);
 						// json_node_unref (stanza_node);
