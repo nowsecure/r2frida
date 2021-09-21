@@ -2714,6 +2714,14 @@ function formatArgs (args, fmt) {
         const s = _readUntrustedUtf8(arg);
         a.push(JSON.stringify(s));
         break;
+      case 'w': // *s
+        const sw = _readUntrustedUtf16(arg);
+        a.push(JSON.stringify(sw));
+        break;
+      case 'a': // *s
+        const sa = _readUntrustedAnsi(arg);
+        a.push(JSON.stringify(sa));
+        break;
       case 'Z': // *s[i]
         const len = +args[j + 1];
         const str = _readUntrustedUtf8(arg, len);
@@ -2792,6 +2800,36 @@ function _readUntrustedUtf8 (address, length) {
       return Memory.readCString(ptr(address));
     }
     return '(invalid utf8)';
+  }
+}
+
+function _readUntrustedUtf16 (address, length) {
+  try {
+    if (typeof length === 'number') {
+      return Memory.readUtf16String(ptr(address), length);
+    }
+    return Memory.readUtf16String(ptr(address));
+  } catch (e) {
+    if (e.message !== 'invalid UTF-16') {
+      // TODO: just use this, doo not mess with utf8 imho
+      return Memory.readCString(ptr(address));
+    }
+    return '(invalid utf16)';
+  }
+}
+
+function _readUntrustedAnsi (address, length) {
+  try {
+    if (typeof length === 'number') {
+      return Memory.readAnsiString(ptr(address), length);
+    }
+    return Memory.readAnsiString(ptr(address));
+  } catch (e) {
+    if (e.message !== 'invalid Ansi') {
+      // TODO: just use this, doo not mess with utf8 imho
+      return Memory.readCString(ptr(address));
+    }
+    return '(invalid Ansi)';
   }
 }
 
