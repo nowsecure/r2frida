@@ -803,6 +803,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  c  = show value as a string (char)\n");
 		io->cb_printf ("  i  = show decimal argument\n");
 		io->cb_printf ("  z  = show pointer to string\n");
+		io->cb_printf ("  w  = show pointer to UTF-16 string\n");
+		io->cb_printf ("  a  = show pointer to ANSI string\n");
 		io->cb_printf ("  h  = hexdump from pointer (optional length, h16 to dump 16 bytes)\n");
 		io->cb_printf ("  H  = hexdump from pointer (optional position of length argument, H1 to dump args[1] bytes)\n");
 		io->cb_printf ("  s  = show string in place\n");
