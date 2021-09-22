@@ -1630,11 +1630,13 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 								if (port) {
 									*port++ = 0;
 									if (!r_socket_is_connected (rf->s)) {
-										r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
+										(void)r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
 									}
-									size_t msglen = strlen (message);
-									if (r_socket_write (rf->s, message, msglen) == msglen) {
-										sent = true;
+									if (r_socket_is_connected (rf->s)) {
+										size_t msglen = strlen (message);
+										if (r_socket_write (rf->s, message, msglen) == msglen) {
+											sent = true;
+										}
 									}
 								}
 							}
