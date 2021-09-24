@@ -1606,9 +1606,15 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					if (stanza) {
 						JsonNode *message_node = json_object_get_member (stanza, "message");
 						JsonNodeType type = json_node_get_node_type (message_node);
-						char *message = (type == JSON_NODE_OBJECT)
-							? json_to_string (message_node, FALSE)
-							: strdup (json_object_get_string_member (stanza, "message"));
+						char *message = NULL;
+						if (type == JSON_NODE_OBJECT) {
+							message = json_to_string (message_node, FALSE);
+						} else {
+							const char *cmessage = json_object_get_string_member (stanza, "message");
+							if (cmessage) {
+								message = strdup (cmessage);
+							}
+						}
 						if (message) {
 							eprintf ("%s\n", message);
 							free (message);
