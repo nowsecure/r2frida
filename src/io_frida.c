@@ -1632,7 +1632,12 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 						message = r_str_append (message, "\n");
 						if (filename && message) {
 							bool sent = false;
-							if (r_str_startswith (filename, "tcp:")) {
+							if (*filename == '|') {
+								// redirect the message to a program shell
+								char *emsg = r_str_escape (message);
+								r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
+								free (emsg);
+							} else if (r_str_startswith (filename, "tcp:")) {
 								char *host = strdup (filename + 4);
 								char *port = strchr (host, ':');
 								if (port) {
