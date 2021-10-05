@@ -220,6 +220,7 @@ const commandHandlers = {
   dmhm: listMallocMaps,
   dma: allocSize,
   dmas: allocString,
+  dmaw: allocWstring,
   dmad: allocDup,
   dmal: listAllocs,
   'dma-': removeAlloc,
@@ -350,6 +351,15 @@ function allocString (args) {
     return _addAlloc(a);
   }
   throw new Error('Usage: dmas [string]');
+}
+
+function allocWstring (args) {
+  const theString = args.join(' ');
+  if (theString.length > 0) {
+    const a = Memory.allocUtf16String(theString);
+    return _addAlloc(a);
+  }
+  throw new Error('Usage: dmaw [string]');
 }
 
 function allocDup (args) {
