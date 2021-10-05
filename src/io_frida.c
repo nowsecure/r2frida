@@ -465,6 +465,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!:dma",
 		"!!!:dma-",
 		"!!!:dmas",
+		"!!!:dmaw",
 		"!!!:dmad",
 		"!!!:dmal",
 		"!!!:dmm",
@@ -534,6 +535,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!=!dma",
 		"!!!=!dma-",
 		"!!!=!dmas",
+		"!!!=!dmaw",
 		"!!!=!dmad",
 		"!!!=!dmal",
 		"!!!=!dmm",
@@ -716,6 +718,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		":dmad <addr> <size>         Allocate <size> bytes on the heap, copy contents from <addr>\n"
 		":dmal                       List live heap allocations created with dma[s]\n"
 		":dmas <string>              Allocate a string initiated with <string> on the heap\n"
+		":dmaw <string>              Allocate a widechar string initiated with <string> on the heap\n"
 		":dmh                        List all heap allocated chunks\n"
 		":dmh*                       Export heap chunks and regions as r2 flags\n"
 		":dmhj                       List all heap allocated chunks in JSON\n"
