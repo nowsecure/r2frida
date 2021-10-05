@@ -14,6 +14,7 @@ function stalkFunction (config, address) {
     const recursiveCountByThread = {};
     const threads = new Set();
     const completedThreads = new Set();
+    let aliveTimeout = null;
 
     _clearEvents();
     _initModules(config);
@@ -48,6 +49,7 @@ function stalkFunction (config, address) {
             hook.detach();
             if (aliveTimeout !== null) {
               clearTimeout(aliveTimeout);
+              aliveTimeout = null;
             }
             _notifyEvents(completedThreads, resolve);
           }
@@ -57,7 +59,6 @@ function stalkFunction (config, address) {
 
     tickAlive();
 
-    let aliveTimeout = null;
     function tickAlive () {
       if (config.timeout === 0) {
         return;
