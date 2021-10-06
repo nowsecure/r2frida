@@ -575,18 +575,16 @@ error:
 	return NULL;
 }
 
-static int __close(RIODesc *fd) {
+static bool __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
-		return -1;
+		return false;
 	}
-
 	RIOFrida *rf = fd->data;
 	rf->detached = true;
 	resume (rf);
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
-
-	return 0;
+	return true;
 }
 
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
