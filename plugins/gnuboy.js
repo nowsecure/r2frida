@@ -52,7 +52,7 @@ const gnuboyWrite = sym('mem_write', 'void', ['int', 'uint8']);
 
 function hookedRead (offset, count) {
   var i = 0;
-  var data = []; // new ArrayBuffer(count);
+  var data = [];
   for (i = 0; i < count; i++) {
     data[i] = gnuboyRead(offset + i);
   }
@@ -61,7 +61,7 @@ function hookedRead (offset, count) {
 
 function hookedWrite (offset, data) {
   var i = 0;
-  var b = []; // new ArrayBuffer(data);
+  var b = [];
   for (i = 0; i < b.length; i++) {
     gnuboyWrite(offset + i, b[i]);
   }
