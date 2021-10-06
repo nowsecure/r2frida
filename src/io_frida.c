@@ -2002,7 +2002,7 @@ error:
 
 RIOPlugin r_io_plugin_frida = {
 	.name = "frida",
-	.desc = "frida:// io plugin",
+	.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
 	.uris = "frida://",
 	.license = "MIT",
 	.open = __open,
