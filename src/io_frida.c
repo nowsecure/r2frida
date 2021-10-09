@@ -1928,6 +1928,7 @@ static gint computeDeviceScore(FridaDevice *device) {
 	case FRIDA_DEVICE_TYPE_REMOTE:
 		return 1;
 	}
+	return 0;
 }
 
 static int atopid(const char *maybe_pid, bool *valid) {
