@@ -2737,7 +2737,11 @@ function formatArgs (args, fmt) {
           if (!arg.isNull()) {
             if (isObjC(arg)) {
               const o = new ObjC.Object(arg);
-              a.push(`${o.$className}: "${o.toString()}"`);
+              if(o.$className == "Foundation.__NSSwiftData") {
+                a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o,4).toString()}"`);
+              } else {
+                a.push(`${o.$className}: "${o.toString()}"`);
+              }
             } else {
               const str = Memory.readCString(arg);
               if (str.length > 2) {
