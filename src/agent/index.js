@@ -2737,7 +2737,7 @@ function formatArgs (args, fmt) {
           if (!arg.isNull()) {
             if (isObjC(arg)) {
               const o = new ObjC.Object(arg);
-              if(o.$className == "Foundation.__NSSwiftData") {
+              if (o.$className === 'Foundation.__NSSwiftData') {
                 a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o,4).toString()}"`);
               } else {
                 a.push(`${o.$className}: "${o.toString()}"`);
