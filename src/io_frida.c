@@ -1199,7 +1199,7 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 	R2FridaLink link = parse_link (arg1);
 
 	GError *error = NULL;
-	const char *devid = R_STR_ISEMPTY(arg1)? NULL: arg1;
+	const char *devid = R_STR_ISNOTEMPTY (arg2)? arg2: NULL;
 	if (link == R2F_LINK_REMOTE) {
 		devid = arg2;
 	}
