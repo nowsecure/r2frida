@@ -984,7 +984,9 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	r_list_foreach (files, iter, file) {
 		if (r_str_endswith (file, ".js")) {
 			char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
-			eprintf ("Loading %s\n", file);
+			if (r2f_debug()) {
+				eprintf ("Loading %s\n", file);
+			}
 			char * s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
