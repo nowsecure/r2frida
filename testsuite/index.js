@@ -99,7 +99,7 @@ function testuri(uri, expect) {
 
 async function r2fridaTestSpawn() {
   return test('spawn', 'frida://spawn/rax2', async function (r2) {
-    const res = await r2.cmd('=!?V');
+    const res = await r2.cmd(':?V');
     const r2fVersion = JSON.parse(res);
     return r2fVersion.hasOwnProperty('version');
   });
@@ -107,11 +107,11 @@ async function r2fridaTestSpawn() {
 
 async function r2fridaTestEntrypoint() {
   await test('entrypoint', 'frida://spawn/rax2', async function (r2) {
-    const entry = await r2.cmd('=!ie');
+    const entry = await r2.cmd(':ie');
     return entry.startsWith('0x');
   });
   await test('entrypoint code', 'frida://spawn/rax2', async function (r2) {
-    await r2.cmd('.=!ie*;s entry0');
+    await r2.cmd('.:ie*;s entry0');
     const entry = await r2.cmd('pd 10~invalid?');
     return entry.trim() === '0';
   });
@@ -119,7 +119,7 @@ async function r2fridaTestEntrypoint() {
 
 async function r2fridaTestLibs() {
   return test('libraries', 'frida://spawn/rax2', async function (r2) {
-    const libs = await r2.cmd('=!ilq');
+    const libs = await r2.cmd(':ilq');
     return libs.length > 10;
   });
 }
@@ -127,9 +127,9 @@ async function r2fridaTestLibs() {
 async function r2fridaTestDlopen() {
   return test('dlopen', 'frida://0', async function (r2) {
     // macOS-specific test
-    const mustBeEmpty = await r2.cmd('=!il~r_util');
-    const ra = await r2.cmd('=!dl libr_util.dylib');
-    const mustBeLoaded = await r2.cmd('=!il~r_util');
+    const mustBeEmpty = await r2.cmd(':il~r_util');
+    const ra = await r2.cmd(':dl libr_util.dylib');
+    const mustBeLoaded = await r2.cmd(':il~r_util');
     // console.error(mustBeEmpty)
     // console.error(mustBeLoaded)
     return mustBeEmpty.trim() === '' && mustBeLoaded.trim() !== '';
@@ -138,7 +138,7 @@ async function r2fridaTestDlopen() {
 
 async function r2fridaTestSearch() {
   return test('finding nemo', 'frida://0', async function (r2) {
-    const r = await r2.cmd('=!/ NEMO');
+    const r = await r2.cmd(':/ NEMO');
     return (r.split('hit0').length > 2);
   });
 }
@@ -147,9 +147,9 @@ async function r2fridaTestSearch() {
 async function r2fridaTestFrida() {
   return test('frida', 'frida://0', async function (r2) {
     // XXX cant read console output
-    // await r2.cmd('=! console.log(123) > .a');
+    // await r2.cmd(': console.log(123) > .a');
     // const n123 = await r2.cmd('cat .a;rm .a');
-    const r = await r2.cmd('=!dxc write 1 "" 4');
+    const r = await r2.cmd(':dxc write 1 "" 4');
     return r.indexOf('"0x4"') !== -1;
   });
 }
