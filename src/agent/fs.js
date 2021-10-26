@@ -2,6 +2,7 @@
 
 const { normalize } = require('path');
 const { platform, pointerSize } = Process;
+const { toByteArray } = require('base64-js');
 
 module.exports = {
   ls,
@@ -10,6 +11,13 @@ module.exports = {
   transformVirtualPath,
   exist
 };
+
+function debase(a) {
+  if (a.startsWith('base64:')) {
+    return normalize(toByteArray(a.slice(7)));
+  }
+  return normalize(a);
+}
 
 let fs = null;
 
@@ -70,7 +78,7 @@ function ls (path) {
   if (fs === null) {
     fs = new FridaFS();
   }
-  return fs.ls(normalize(path));
+  return fs.ls(debase(path));
 }
 
 function cat (path, mode, offset, size) {
@@ -78,7 +86,7 @@ function cat (path, mode, offset, size) {
     fs = new FridaFS();
   }
 
-  return fs.cat(normalize(path), mode, offset, size);
+  return fs.cat(debase(path), mode, offset, size);
 }
 
 function open (path) {
@@ -86,7 +94,7 @@ function open (path) {
     fs = new FridaFS();
   }
 
-  return fs.open(normalize(path));
+  return fs.open(debase(path));
 }
 
 function transformVirtualPath (path) {
@@ -100,7 +108,7 @@ function exist (path) {
   if (fs === null) {
     fs = new FridaFS();
   }
-  return fs.exist(normalize(path));
+  return fs.exist(debase(path));
 }
 
 class FridaFS {
