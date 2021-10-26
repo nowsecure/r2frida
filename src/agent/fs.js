@@ -14,7 +14,12 @@ module.exports = {
 
 function debase(a) {
   if (a.startsWith('base64:')) {
-    return normalize(toByteArray(a.slice(7)));
+    try {
+      const data = toByteArray(a.slice(7)));
+      a = String.fromCharCode.apply(null, data);
+    } catch(e) {
+      // invalid base64
+    }
   }
   return normalize(a);
 }
