@@ -306,7 +306,7 @@ e cmd.fcn.new=aan
 .:dmm*
 .:il*
 m /r2f io 0
-s entry0
+s entry0 2> /dev/null
  `;
   return str;
 }
