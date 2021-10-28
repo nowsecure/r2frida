@@ -1132,8 +1132,16 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 
 	GError *error = NULL;
 	const char *devid = R_STR_ISNOTEMPTY (arg2)? arg2: NULL;
-	if (link == R2F_LINK_REMOTE) {
+	switch (link) {
+	case R2F_LINK_USB:
+		devid = R_STR_ISNOTEMPTY (arg2)? arg2: "usb";
+		break;
+	case R2F_LINK_REMOTE:
 		devid = arg2;
+		break;
+	default:
+		devid = NULL;
+		break;
 	}
 	FridaDevice *device = get_device_manager (device_manager, devid, cancellable, &error);
 
@@ -1142,18 +1150,20 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 	case R2F_ACTION_UNKNOWN:
 		break;
 	case R2F_ACTION_LIST_APPS:
-		if (!device) { 
+		if (device) {
+			if (!dumpApplications (device, cancellable)) {
+				eprintf ("Cannot enumerate apps\n");
+			}
+		} else {
 			eprintf ("Cannot find peer.\n"); 
-		}
-		if (!dumpApplications (device, cancellable)) {
-			eprintf ("Cannot enumerate apps\n");
 		}
 		break;
 	case R2F_ACTION_LIST_PIDS:
-		if (!device) {
+		if (device) {
+			dumpProcesses (device, cancellable);
+		} else {
 			eprintf ("Cannot find peer.\n");
 		}
-		dumpProcesses (device, cancellable);
 		break;
 	case R2F_ACTION_LAUNCH:
 	case R2F_ACTION_SPAWN:
