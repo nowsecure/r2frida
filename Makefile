@@ -1,7 +1,7 @@
 include config.mk
 
 r2_version=$(VERSION)
-frida_version=15.1.8
+frida_version=15.1.9
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 
