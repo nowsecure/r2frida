@@ -56,7 +56,7 @@ CXXFLAGS+=$(CFLAGS)
 
 USE_ASAN?=0
 ifeq ($(USE_ASAN),1)
-ASAN_CFLAGS=-fsanitize=address,integer,undefined
+ASAN_CFLAGS=-fsanitize=address,undefined,signed-integer-overflow,integer-divide-by-zero
 ASAN_LDFLAGS=$(ASAN_CFLAGS)
 CFLAGS+=$(ASAN_CFLAGS)
 LDFLAGS+=$(ASAN_LDFLAGS)
