@@ -1183,7 +1183,7 @@ static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 			lo->run = action == R2F_ACTION_LAUNCH;
 			lo->pid = -1;
 			if (link == R2F_LINK_USB) {
-				lo->device_id = strdup ("usb");
+				lo->device_id = strdup (devid);
 			} else {
 				lo->device_id = strdup (arg2);
 			}
