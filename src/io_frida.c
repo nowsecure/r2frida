@@ -184,8 +184,12 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (!rf) {
 		return;
 	}
-	g_signal_handler_disconnect (rf->script, rf->onmsg_handler);
-	g_signal_handler_disconnect (rf->session, rf->ondtc_handler);
+	if (rf->script && rf->onmsg_handler) {
+		g_signal_handler_disconnect (rf->script, rf->onmsg_handler);
+	}
+	if (rf->session && rf->ondtc_handler) {
+		g_signal_handler_disconnect (rf->session, rf->ondtc_handler);
+	}
 	r_socket_free (rf->s);
 	free (rf->crash_report);
 	g_clear_object (&rf->crash);
