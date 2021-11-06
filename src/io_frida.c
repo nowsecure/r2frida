@@ -45,6 +45,8 @@ typedef struct {
 	char *crash_report;
 	RIO *io;
 	RSocket *s;
+	gulong onmsg_handler;
+	gulong ondtc_handler;
 } RIOFrida;
 
 typedef enum {
@@ -182,6 +184,8 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (!rf) {
 		return;
 	}
+	g_signal_handler_disconnect (rf->script, rf->onmsg_handler);
+	g_signal_handler_disconnect (rf->session, rf->ondtc_handler);
 	r_socket_free (rf->s);
 	free (rf->crash_report);
 	g_clear_object (&rf->crash);
@@ -202,8 +206,8 @@ static void r_io_frida_free(RIOFrida *rf) {
 	}
 
 	g_object_unref (rf->cancellable);
-
-	R_FREE (rf);
+	memset (rf, 0, sizeof (RIOFrida));
+	free (rf);
 }
 
 static const char *detachReasonAsString(RIOFrida *rf) {
@@ -396,8 +400,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
-	g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
+	rf->onmsg_handler = g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
+	rf->ondtc_handler = g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
 
 	frida_script_load_sync (rf->script, rf->cancellable, &error);
 	if (error) {
@@ -1486,6 +1490,9 @@ static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 
 static void on_detached(FridaSession *session, FridaSessionDetachReason reason, FridaCrash *crash, gpointer user_data) {
 	RIOFrida *rf = user_data;
+	if (!rf || !rf->io) {
+		return;
+	}
 	rf->detached = true;
 	rf->detach_reason = reason;
 	eprintf ("DetachReason: %s\n", detachReasonAsString (rf));
