@@ -518,7 +518,7 @@ static bool __close(RIODesc *fd) {
 }
 
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
-	GBytes *bytes;
+	GBytes *bytes = NULL;
 	gsize n;
 
 	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
@@ -537,7 +537,9 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	}
 
 	gconstpointer data = g_bytes_get_data (bytes, &n);
-	memcpy (buf, data, R_MIN (n, count));
+	if (data && buf) {
+		memcpy (buf, data, R_MIN (n, count));
+	}
 
 	json_object_unref (result);
 	g_bytes_unref (bytes);
