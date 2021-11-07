@@ -275,6 +275,7 @@ const commandHandlers = {
   di1: interceptRet1,
   dii: interceptRetInt,
   'di-1': interceptRet_1,
+  'div': interceptRetVoid,
   // intercept ret after calling the function
   difs: interceptFunRetString,
   dif0: interceptFunRet0,
@@ -3719,8 +3720,9 @@ function clearTrace (args) {
 }
 
 function interceptHelp (args) {
-  return 'Usage: di[0,1,-1,s] [addr] : intercepts function method and replace the return value.\n';
+  return 'Usage: di[0,1,-1,s,v] [addr] : intercepts function method and replace the return value.\n';
   'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n';
+  'div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n';
 }
 
 function interceptFunHelp (args) {
@@ -3750,6 +3752,7 @@ function interceptRetJava (klass, method, value) {
         case 0: return false;
         case 1: return true;
         case -1: return -1; // TODO should throw an error?
+        case null: return;
       }
       return value;
     };
@@ -3838,6 +3841,12 @@ function interceptRet_1 (args) { // eslint-disable-line
   const target = args[0];
   return interceptRet(target, -1);
 }
+
+function interceptRetVoid (args) { // eslint-disable-line
+  const target = args[0];
+  return interceptRet(target, null);
+}
+
 
 /* Intercept function calls and modify return value after calling the original function code */
 function interceptFunRet (target, value, paramTypes) {
