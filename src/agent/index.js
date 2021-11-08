@@ -4580,10 +4580,10 @@ function evalConfigSearch (args) {
   const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
   const from = currentRange.base;
   const to = from.add(currentRange.size);
-  return `e search.in=raw
+  return `e search.in=range
 e search.from=${from}
 e search.to=${to}
-e anal.in=raw
+e anal.in=range
 e anal.from=${from}
 e anal.to=${to}`;
 }
