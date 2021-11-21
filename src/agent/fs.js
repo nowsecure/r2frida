@@ -178,7 +178,7 @@ class FridaFS {
         weak = true;
         size = 1024 * 32;
       }
-      if (size > 1024 * 512) {
+      if (size > 1024 * 4096) {
         console.log('ERROR: file chunk is too big. (' + size + ' bytes)');
         return '';
       }
