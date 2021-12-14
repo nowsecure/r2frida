@@ -2,6 +2,7 @@ include config.mk
 
 r2_version=$(VERSION)
 frida_version=15.1.14
+R2FRIDA_PRECOMPILED_AGENT?=0
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 
@@ -158,8 +159,13 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 src/_agent.h: src/_agent.js
 	r2 -nfqcpc $< | grep 0x > $@
 
+ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
+src/_agent.js:
+	$(WGET) -O src/_agent.js https://github.com/nowsecure/r2frida/releases/download/v5.5.0/_agent.js
+else
 src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
+endif
 
 node_modules: package.json
 	mkdir -p node_modules
