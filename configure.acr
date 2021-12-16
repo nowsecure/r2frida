@@ -1,5 +1,5 @@
 PKGNAME r2frida
-VERSION 5.5.0
+VERSION 5.5.4
 CONTACT pancake ; pancake@nowsecure.com
 
 USE_PKGCONFIG!
@@ -8,13 +8,18 @@ LANG_C!
 
 EXEC R2_VERSION r2 -v ;
 
+ARG_WITH PRECOMPILED_AGENT precompiled-agent do not require node/npm ;
+
+IFNOT PRECOMPILED_AGENT {
+	CHKPRG! NODE node
+	CHKPRG! NPM npm
+}
+
 PKGCFG! R2_CFLAGS R2_LDFLAGS r_core
 CHKPRG CURL curl
 CHKPRG WGET wget
 CHKPRG! GIT git
 CHKPRG! XZ xz
-CHKPRG! NODE node
-CHKPRG! NPM npm
 
 REPORT R2_VERSION ;
 
