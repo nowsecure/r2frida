@@ -1138,7 +1138,7 @@ function listExports (args) {
 function listExportsR2 (args) {
   return listExportsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
