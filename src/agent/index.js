@@ -1161,7 +1161,7 @@ function listAllExports (args) {
 function listAllExportsR2 (args) {
   return listAllExportsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
@@ -1203,7 +1203,7 @@ function listAllSymbols (args) {
 function listAllSymbolsR2 (args) {
   return listAllSymbolsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + name, '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
@@ -1281,7 +1281,7 @@ function lookupAddress (args) {
 function lookupAddressR2 (args) {
   return lookupAddressJson(args)
     .map(({ type, name, address }) =>
-      ['f', 'sym.' + name, '=', address].join(' '))
+      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
@@ -1366,7 +1366,7 @@ function lookupSymbol (args) {
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
     .map(({ name, address }) =>
-      ['f', 'sym.' + name, '=', address].join(' '))
+      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
@@ -1385,7 +1385,7 @@ function lookupSymbolMany (args) {
 function lookupSymbolManyR2 (args) {
   return lookupSymbolManyJson(args)
     .map(({ name, address }) =>
-      ['f', 'sym.' + name, '=', address].join(' '))
+      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
