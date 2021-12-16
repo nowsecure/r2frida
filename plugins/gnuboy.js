@@ -19,6 +19,11 @@ mute the audio and more to come!
 
 */
 
+const eventNone = 0;
+const eventPress = 1;
+const eventRelease = 2;
+const eventRepeat = 3;
+
 function symptr(name) {
   var p = Module.findExportByName(null, name);
   if (p) {
@@ -50,6 +55,18 @@ function sym(name, ret, arg) {
   }
 }
 
+function gnuboyInput() {
+/*
+	typedef struct event_s {
+		int type;
+		int code;
+		int dx, dy;
+		int x, y;
+	} event_t;
+  // var ptr = Memory.alloc(6 * 8);
+*/
+}
+
 function showHelp() {
   return 'gnuboy Commands:\n'
   + '# This plugin requires to be attached to "r2pm -ci gnuboy"\n'
@@ -61,6 +78,12 @@ function showHelp() {
   + 'gb stop  - stop execution\n'
   + 'gb step  - perform one step\n'
   + 'gb cont  - continue execution\n'
+/*
+  + '# INP\n'
+  + 'gb press - press button\n'
+  + 'gb release - press button\n'
+  + 'gb repeat - press button\n'
+*/
   + '# APU\n'
   + 'gb mute  - mute audio\n'
   + '# LCD\n'

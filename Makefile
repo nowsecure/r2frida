@@ -161,7 +161,7 @@ src/_agent.h: src/_agent.js
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 src/_agent.js:
-	$(WGET) -O src/_agent.js https://github.com/nowsecure/r2frida/releases/download/v5.5.0/_agent.js
+	$(WGET) -O src/_agent.js https://github.com/nowsecure/r2frida/releases/download/v5.5.4/_agent.js
 else
 src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
