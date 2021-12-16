@@ -1101,7 +1101,7 @@ async function dumpInfoJson () {
 
 function listModules () {
   return Process.enumerateModules()
-    .map(m => padPointer(m.base) + ' ' + m.name)
+    .map(m => [padPointer(m.base), padPointer(m.base.add(m.size)), m.name].join(' '))
     .join('\n');
 }
 
