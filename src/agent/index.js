@@ -33,7 +33,6 @@ const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
-const specialChars = '`${}~|;#@&<> ()';
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -1111,7 +1110,7 @@ function listModulesQuiet () {
 
 function listModulesR2 () {
   return Process.enumerateModules()
-    .map(m => 'f lib.' + utils.flagify(m.name) + ' = ' + padPointer(m.base))
+    .map(m => 'f lib.' + utils.sanitizeString(m.name) + ' = ' + padPointer(m.base))
     .join('\n');
 }
 
@@ -1138,7 +1137,7 @@ function listExports (args) {
 function listExportsR2 (args) {
   return listExportsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
@@ -1161,7 +1160,7 @@ function listAllExports (args) {
 function listAllExportsR2 (args) {
   return listAllExportsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
@@ -1203,7 +1202,7 @@ function listAllSymbols (args) {
 function listAllSymbolsR2 (args) {
   return listAllSymbolsJson(args)
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
@@ -1239,13 +1238,9 @@ function listSymbolsR2 (args) {
   return listSymbolsJson(args)
     .filter(({ address }) => !address.isNull())
     .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
-}
-
-function sanitizeString (str) {
-  return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
 }
 
 function listSymbolsJson (args) {
@@ -1281,7 +1276,7 @@ function lookupAddress (args) {
 function lookupAddressR2 (args) {
   return lookupAddressJson(args)
     .map(({ type, name, address }) =>
-      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
+      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
@@ -1366,7 +1361,7 @@ function lookupSymbol (args) {
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
     .map(({ name, address }) =>
-      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
+      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
@@ -1385,7 +1380,7 @@ function lookupSymbolMany (args) {
 function lookupSymbolManyR2 (args) {
   return lookupSymbolManyJson(args)
     .map(({ name, address }) =>
-      ['f', 'sym.' + sanitizeString(name), '=', address].join(' '))
+      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
 
