@@ -1064,18 +1064,23 @@ async function dumpInfoJson () {
       if (app !== null) {
         const ctx = app.getApplicationContext();
         if (ctx !== null) {
-          try {
-            res.dataDir = ctx.getDataDir().getAbsolutePath();
-          } catch (e) {
-            // not available below API 24 (<Android7)
+          function tryTo(x) {
+            let r = '';
+            try {
+              r = x();
+            } catch (e) {
+              // ignored
+            }
+            return r;
           }
-          res.codeCacheDir = ctx.getCodeCacheDir().getAbsolutePath();
-          res.extCacheDir = ctx.getExternalCacheDir().getAbsolutePath();
-          res.obbDir = ctx.getObbDir().getAbsolutePath();
-          res.filesDir = ctx.getFilesDir().getAbsolutePath();
-          res.noBackupDir = ctx.getNoBackupFilesDir().getAbsolutePath();
-          res.codePath = ctx.getPackageCodePath();
-          res.packageName = ctx.getPackageName();
+          res.dataDir = tryTo(() => ctx.getDataDir().getAbsolutePath());
+          res.codeCacheDir = tryTo(() => ctx.getCodeCacheDir().getAbsolutePath());
+          res.extCacheDir = tryTo(() => ctx.getExternalCacheDir().getAbsolutePath());
+          res.obbDir = tryTo(() => ctx.getObbDir().getAbsolutePath());
+          res.filesDir = tryTo(() => ctx.getFilesDir().getAbsolutePath());
+          res.noBackupDir = tryTo(() => ctx.getNoBackupFilesDir().getAbsolutePath());
+          res.codePath = tryTo(() => ctx.getPackageCodePath());
+          res.packageName = tryTo(() => ctx.getPackageName());
         }
 
         try {
