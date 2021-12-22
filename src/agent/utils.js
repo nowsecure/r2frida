@@ -1,5 +1,4 @@
 module.exports = {
-  flagify,
   sanitizeString
 };
 
