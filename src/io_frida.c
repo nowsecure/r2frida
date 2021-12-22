@@ -1561,19 +1561,21 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
 					if (stanza) {
 						JsonNode *message_node = json_object_get_member (stanza, "message");
-						JsonNodeType type = json_node_get_node_type (message_node);
-						char *message = NULL;
-						if (type == JSON_NODE_OBJECT) {
-							message = json_to_string (message_node, FALSE);
-						} else {
-							const char *cmessage = json_object_get_string_member (stanza, "message");
-							if (cmessage) {
-								message = strdup (cmessage);
+						if (message_node) {
+							JsonNodeType type = json_node_get_node_type (message_node);
+							char *message = NULL;
+							if (type == JSON_NODE_OBJECT) {
+								message = json_to_string (message_node, FALSE);
+							} else {
+								const char *cmessage = json_object_get_string_member (stanza, "message");
+								if (cmessage) {
+									message = strdup (cmessage);
+								}
 							}
-						}
-						if (message) {
-							eprintf ("%s\n", message);
-							free (message);
+							if (message) {
+								eprintf ("%s\n", message);
+								free (message);
+							}
 						}
 					}
 				} else if (name && !strcmp (name, "log-file")) {
@@ -1581,39 +1583,41 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					if (stanza) {
 						const char *filename = json_object_get_string_member (stanza, "filename");
 						JsonNode *message_node = json_object_get_member (stanza, "message");
-						JsonNodeType type = json_node_get_node_type (message_node);
-						char *message = (type == JSON_NODE_OBJECT)
-							? json_to_string (message_node, FALSE)
-							: strdup (json_object_get_string_member (stanza, "message"));
-						message = r_str_append (message, "\n");
-						if (filename && message) {
-							bool sent = false;
-							if (*filename == '|') {
-								// redirect the message to a program shell
-								char *emsg = r_str_escape (message);
-								r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
-								free (emsg);
-							} else if (r_str_startswith (filename, "tcp:")) {
-								char *host = strdup (filename + 4);
-								char *port = strchr (host, ':');
-								if (port) {
-									*port++ = 0;
-									if (!r_socket_is_connected (rf->s)) {
-										(void)r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
-									}
-									if (r_socket_is_connected (rf->s)) {
-										size_t msglen = strlen (message);
-										if (r_socket_write (rf->s, message, msglen) == msglen) {
-											sent = true;
+						if (message_node) {
+							JsonNodeType type = json_node_get_node_type (message_node);
+							char *message = (type == JSON_NODE_OBJECT)
+								? json_to_string (message_node, FALSE)
+								: strdup (json_object_get_string_member (stanza, "message"));
+							if (filename && message) {
+								bool sent = false;
+								message = r_str_append (message, "\n");
+								if (*filename == '|') {
+									// redirect the message to a program shell
+									char *emsg = r_str_escape (message);
+									r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
+									free (emsg);
+								} else if (r_str_startswith (filename, "tcp:")) {
+									char *host = strdup (filename + 4);
+									char *port = strchr (host, ':');
+									if (port) {
+										*port++ = 0;
+										if (!r_socket_is_connected (rf->s)) {
+											(void)r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
+										}
+										if (r_socket_is_connected (rf->s)) {
+											size_t msglen = strlen (message);
+											if (r_socket_write (rf->s, message, msglen) == msglen) {
+												sent = true;
+											}
 										}
 									}
 								}
+								if (!sent) {
+									(void) r_file_dump (filename, (const ut8*)message, -1, true);
+								}
 							}
-							if (!sent) {
-								(void) r_file_dump (filename, (const ut8*)message, -1, true);
-							}
+							free (message);
 						}
-						free (message);
 						// json_node_unref (stanza_node);
 					}
 				} else {
