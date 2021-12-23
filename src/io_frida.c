@@ -257,262 +257,6 @@ static bool user_wants_safe_io(void) {
 	return do_want;
 }
 
-static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
-	GError *error = NULL;
-
-	R2FridaLaunchOptions *lo = r2frida_launchopt_new (pathname);
-	if (!lo) {
-		return NULL;
-	}
-
-	frida_init ();
-
-	RIOFrida *rf = r_io_frida_new (io);
-	if (!rf) {
-		goto error;
-	}
-
-	if (!device_manager) {
-		device_manager = frida_device_manager_new ();
-	}
-	device_manager_count++;
-
-	if (!__check (io, pathname, false)) {
-		goto error;
-	}
-
-	bool rc = resolve_target (pathname, lo, rf->cancellable);
-	if (!rc) {
-		goto error;
-	}
-	if (R_STR_ISEMPTY (lo->device_id)) {
-		free (lo->device_id);
-		lo->device_id = strdup ("local");
-	}
-	const char *devid = (R_STR_ISNOTEMPTY (lo->device_id))? lo->device_id: NULL;
-	rc = resolve_device (device_manager, devid, &rf->device, rf->cancellable);
-	if (rc && rf->device) {
-		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
-			goto error;
-		}
-	}
-	if (R_STR_ISEMPTY (lo->process_specifier)) {
-		if (dumpApplications (rf->device, rf->cancellable) == 0) {
-			dumpProcesses (rf->device, rf->cancellable);
-		}
-	}
-	if (r2f_debug ()) {
-		printf ("device: %s\n", r_str_get (lo->device_id));
-		printf ("pname: %s\n", r_str_get (lo->process_specifier));
-		printf ("pid: %d\n", lo->pid);
-		printf ("spawn: %s\n", r_str_bool (lo->spawn));
-		printf ("run: %s\n", r_str_bool (lo->run));
-		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
-		goto error;
-	}
-	if (!rc) {
-		goto error;
-	}
-	if (!rf->device) {
-		eprintf ("This should never happen.\n");
-		// rf->device = get_device_manager (device_manager, "local", rf->cancellable, &error);
-		goto error;
-	}
-	if (lo->spawn) {
-		char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
-		if (package_name) {
-			free (lo->process_specifier);
-			lo->process_specifier = package_name;
-		}
-		// try to resolve it as an app name too
-		char *a = strdup (lo->process_specifier);
-		char **argv = r_str_argv (a, NULL);
-		if (!argv) {
-			eprintf ("Invalid process specifier\n");
-			goto error;
-		}
-		if (!*argv) {
-			eprintf ("Invalid arguments for spawning\n");
-			r_str_argv_free (argv);
-			goto error;
-		}
-		const int argc = g_strv_length (argv);
-		FridaSpawnOptions *options = frida_spawn_options_new ();
-		if (argc > 1) {
-			frida_spawn_options_set_argv (options, argv, argc);
-		}
-		// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
-		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
-		g_object_unref (options);
-		r_str_argv_free (argv);
-		free (a);
-
-		if (error) {
-			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				eprintf ("Cannot spawn: %s\n", error->message);
-			}
-			goto error;
-		}
-		rf->suspended = !lo->run;
-	} else {
-		rf->pid = lo->pid;
-		rf->suspended = false;
-	}
-	if (!rf->device) {
-		error = NULL;
-		goto error;
-	}
-	rf->session = frida_device_attach_sync (rf->device, rf->pid, NULL, rf->cancellable, &error);
-	if (error) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("Cannot attach: %s\n", error->message);
-		}
-		goto error;
-	}
-
-	FridaScriptOptions * options = frida_script_options_new ();
-	frida_script_options_set_name (options, "_agent");
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-
-	const char *code_buf = NULL;
-	char *code_malloc_data = NULL;
-	size_t code_size = 0;
-
-	char *r2f_as = r_sys_getenv ("R2FRIDA_AGENT_SCRIPT");
-	if (r2f_as) {
-		code_malloc_data = r_file_slurp (r2f_as, &code_size);
-		code_buf = code_malloc_data;
-		if (!code_buf) {
-			eprintf ("Cannot slurp R2FRIDA_AGENT_SCRIPT\n");
-		}
-		free (r2f_as);
-	}
-
-	if (code_buf == NULL) {
-		code_buf = r_io_frida_agent_code;
-		code_size = sizeof (r_io_frida_agent_code) - 1;
-	}
-
-	rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
-
-	free (code_malloc_data);
-
-	if (error) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("Cannot create script: %s\n", error->message);
-		}
-		goto error;
-	}
-
-	rf->onmsg_handler = g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
-	rf->ondtc_handler = g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
-
-	frida_script_load_sync (rf->script, rf->cancellable, &error);
-	if (error) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("Cannot load script: %s\n", error->message);
-		}
-		goto error;
-	}
-
-	if (user_wants_safe_io ()) {
-		__request_safe_io (rf);
-	}
-
-	const char *autocompletions[] = {
-		"!!!:chcon",
-		"!!!:eval",
-		"!!!:e",
-		"!!!:e/",
-		"!!!:env",
-		"!!!:j",
-		"!!!:i",
-		"!!!:ii",
-		"!!!:il",
-		"!!!:is",
-		"!!!:isa $flag",
-		"!!!:iE",
-		"!!!:iEa $flag",
-		"!!!:ic",
-		"!!!:ip",
-		"!!!:init",
-		"!!!:fd $flag",
-		"!!!:dd",
-		"!!!:ddj",
-		"!!!:?",
-		"!!!:?V",
-		"!!!:/",
-		"!!!:/i",
-		"!!!:/ij",
-		"!!!:/w",
-		"!!!:/wj",
-		"!!!:/x",
-		"!!!:/xj",
-		"!!!:/v1 $flag",
-		"!!!:/v2 $flag",
-		"!!!:/v4 $flag",
-		"!!!:/v8 $flag",
-		"!!!:dt $flag",
-		"!!!:dt- $flag",
-		"!!!:dt-*",
-		"!!!:dth",
-		"!!!:dtq",
-		"!!!:dtr",
-		"!!!:dtS",
-		"!!!:dtSf $flag",
-		"!!!:dc",
-		"!!!:di",
-		"!!!:dii",
-		"!!!:di0",
-		"!!!:di1",
-		"!!!:di-1",
-		"!!!:dl",
-		"!!!:dl2",
-		"!!!:dx",
-		"!!!:dm",
-		"!!!:dma",
-		"!!!:dma-",
-		"!!!:dmas",
-		"!!!:dmaw",
-		"!!!:dmad",
-		"!!!:dmal",
-		"!!!:dmm",
-		"!!!:dmh",
-		"!!!:dmhm",
-		"!!!:dmp $flag",
-		"!!!:db",
-		"!!!:dp",
-		"!!!:dpj",
-		"!!!:dpt",
-		"!!!:dr",
-		"!!!:drj",
-		"!!!:dk",
-		"!!!:dkr",
-		"!!!:t",
-		"!!!:. $file",
-		NULL
-	};
-	int i;
-	for (i = 0; autocompletions[i]; i++) {
-		io->corebind.cmd (rf->r2core, autocompletions[i]);
-	}
-	RIODesc *fd = r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
-	if (lo->run) {
-		resume (rf);
-	}
-	r2frida_launchopt_free (lo);
-	return fd;
-
-error:
-	g_clear_error (&error);
-
-	r2frida_launchopt_free (lo);
-
-	r_io_frida_free (rf);
-
-	return NULL;
-}
-
 static bool __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return false;
@@ -912,8 +656,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	return sys_result;
 }
 
-static bool scripts_loaded = false;
-
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	if (!core || !fd || !path) {
 		return;
@@ -936,6 +678,272 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 
 		}
 	}
+}
+
+static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
+	GError *error = NULL;
+
+	R2FridaLaunchOptions *lo = r2frida_launchopt_new (pathname);
+	if (!lo) {
+		return NULL;
+	}
+
+	frida_init ();
+
+	RIOFrida *rf = r_io_frida_new (io);
+	if (!rf) {
+		goto error;
+	}
+
+	if (!device_manager) {
+		device_manager = frida_device_manager_new ();
+	}
+	device_manager_count++;
+
+	if (!__check (io, pathname, false)) {
+		goto error;
+	}
+
+	bool rc = resolve_target (pathname, lo, rf->cancellable);
+	if (!rc) {
+		goto error;
+	}
+	if (R_STR_ISEMPTY (lo->device_id)) {
+		free (lo->device_id);
+		lo->device_id = strdup ("local");
+	}
+	const char *devid = (R_STR_ISNOTEMPTY (lo->device_id))? lo->device_id: NULL;
+	rc = resolve_device (device_manager, devid, &rf->device, rf->cancellable);
+	if (rc && rf->device) {
+		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
+			goto error;
+		}
+	}
+	if (R_STR_ISEMPTY (lo->process_specifier)) {
+		if (dumpApplications (rf->device, rf->cancellable) == 0) {
+			dumpProcesses (rf->device, rf->cancellable);
+		}
+	}
+	if (r2f_debug ()) {
+		printf ("device: %s\n", r_str_get (lo->device_id));
+		printf ("pname: %s\n", r_str_get (lo->process_specifier));
+		printf ("pid: %d\n", lo->pid);
+		printf ("spawn: %s\n", r_str_bool (lo->spawn));
+		printf ("run: %s\n", r_str_bool (lo->run));
+		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
+		goto error;
+	}
+	if (!rc) {
+		goto error;
+	}
+	if (!rf->device) {
+		eprintf ("This should never happen.\n");
+		// rf->device = get_device_manager (device_manager, "local", rf->cancellable, &error);
+		goto error;
+	}
+	if (lo->spawn) {
+		char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
+		if (package_name) {
+			free (lo->process_specifier);
+			lo->process_specifier = package_name;
+		}
+		// try to resolve it as an app name too
+		char *a = strdup (lo->process_specifier);
+		char **argv = r_str_argv (a, NULL);
+		if (!argv) {
+			eprintf ("Invalid process specifier\n");
+			goto error;
+		}
+		if (!*argv) {
+			eprintf ("Invalid arguments for spawning\n");
+			r_str_argv_free (argv);
+			goto error;
+		}
+		const int argc = g_strv_length (argv);
+		FridaSpawnOptions *options = frida_spawn_options_new ();
+		if (argc > 1) {
+			frida_spawn_options_set_argv (options, argv, argc);
+		}
+		// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
+		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
+		g_object_unref (options);
+		r_str_argv_free (argv);
+		free (a);
+
+		if (error) {
+			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+				eprintf ("Cannot spawn: %s\n", error->message);
+			}
+			goto error;
+		}
+		rf->suspended = !lo->run;
+	} else {
+		rf->pid = lo->pid;
+		rf->suspended = false;
+	}
+	if (!rf->device) {
+		error = NULL;
+		goto error;
+	}
+	rf->session = frida_device_attach_sync (rf->device, rf->pid, NULL, rf->cancellable, &error);
+	if (error) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("Cannot attach: %s\n", error->message);
+		}
+		goto error;
+	}
+
+	FridaScriptOptions * options = frida_script_options_new ();
+	frida_script_options_set_name (options, "_agent");
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+
+	const char *code_buf = NULL;
+	char *code_malloc_data = NULL;
+	size_t code_size = 0;
+
+	char *r2f_as = r_sys_getenv ("R2FRIDA_AGENT_SCRIPT");
+	if (r2f_as) {
+		code_malloc_data = r_file_slurp (r2f_as, &code_size);
+		code_buf = code_malloc_data;
+		if (!code_buf) {
+			eprintf ("Cannot slurp R2FRIDA_AGENT_SCRIPT\n");
+		}
+		free (r2f_as);
+	}
+
+	if (code_buf == NULL) {
+		code_buf = r_io_frida_agent_code;
+		code_size = sizeof (r_io_frida_agent_code) - 1;
+	}
+
+	rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
+
+	free (code_malloc_data);
+
+	if (error) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("Cannot create script: %s\n", error->message);
+		}
+		goto error;
+	}
+
+	rf->onmsg_handler = g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
+	rf->ondtc_handler = g_signal_connect (rf->session, "detached", G_CALLBACK (on_detached), rf);
+
+	frida_script_load_sync (rf->script, rf->cancellable, &error);
+	if (error) {
+		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			eprintf ("Cannot load script: %s\n", error->message);
+		}
+		goto error;
+	}
+
+	if (user_wants_safe_io ()) {
+		__request_safe_io (rf);
+	}
+
+	const char *autocompletions[] = {
+		"!!!:chcon",
+		"!!!:eval",
+		"!!!:e",
+		"!!!:e/",
+		"!!!:env",
+		"!!!:j",
+		"!!!:i",
+		"!!!:ii",
+		"!!!:il",
+		"!!!:is",
+		"!!!:isa $flag",
+		"!!!:iE",
+		"!!!:iEa $flag",
+		"!!!:ic",
+		"!!!:ip",
+		"!!!:init",
+		"!!!:fd $flag",
+		"!!!:dd",
+		"!!!:ddj",
+		"!!!:?",
+		"!!!:?V",
+		"!!!:/",
+		"!!!:/i",
+		"!!!:/ij",
+		"!!!:/w",
+		"!!!:/wj",
+		"!!!:/x",
+		"!!!:/xj",
+		"!!!:/v1 $flag",
+		"!!!:/v2 $flag",
+		"!!!:/v4 $flag",
+		"!!!:/v8 $flag",
+		"!!!:dt $flag",
+		"!!!:dt- $flag",
+		"!!!:dt-*",
+		"!!!:dth",
+		"!!!:dtq",
+		"!!!:dtr",
+		"!!!:dtS",
+		"!!!:dtSf $flag",
+		"!!!:dc",
+		"!!!:di",
+		"!!!:dii",
+		"!!!:di0",
+		"!!!:di1",
+		"!!!:di-1",
+		"!!!:dl",
+		"!!!:dl2",
+		"!!!:dx",
+		"!!!:dm",
+		"!!!:dma",
+		"!!!:dma-",
+		"!!!:dmas",
+		"!!!:dmaw",
+		"!!!:dmad",
+		"!!!:dmal",
+		"!!!:dmm",
+		"!!!:dmh",
+		"!!!:dmhm",
+		"!!!:dmp $flag",
+		"!!!:db",
+		"!!!:dp",
+		"!!!:dpj",
+		"!!!:dpt",
+		"!!!:dr",
+		"!!!:drj",
+		"!!!:dk",
+		"!!!:dkr",
+		"!!!:t",
+		"!!!:. $file",
+		NULL
+	};
+	int i;
+	for (i = 0; autocompletions[i]; i++) {
+		io->corebind.cmd (rf->r2core, autocompletions[i]);
+	}
+	RIODesc *fd = r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
+	if (lo->run) {
+		resume (rf);
+	}
+	r2frida_launchopt_free (lo);
+
+	/* load scripts */
+	RCore *core = rf->r2core;
+	const char *path = DATADIR R_SYS_DIR "r2frida" R_SYS_DIR "scripts";
+	load_scripts (core, fd, path);
+
+	const char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
+	load_scripts (core, fd, homepath);
+	free (homepath);
+	
+	return fd;
+
+error:
+	g_clear_error (&error);
+
+	r2frida_launchopt_free (lo);
+
+	r_io_frida_free (rf);
+
+	return NULL;
 }
 
 static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error) {
@@ -967,22 +975,10 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	JsonObject *result;
 	const char *value;
 
-	if (!fd || !fd->data) {
+	if (!io || !fd || !command) {
 		return NULL;
 	}
-	rf = fd->data;
-	/* load scripts */
-	if (!scripts_loaded) {
-		RCore *core = rf->r2core;
-		const char *path = DATADIR R_SYS_DIR "r2frida" R_SYS_DIR "scripts";
-		load_scripts (core, fd, path);
-
-		char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
-		load_scripts (core, fd, homepath);
-		free (homepath);
-
-		scripts_loaded = true;
-	}
+	
 	return __system_continuation (io, fd, command);
 }
 
