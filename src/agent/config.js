@@ -201,7 +201,7 @@ function isFalse (x) {
 
 function asR2Script () {
   return Object.keys(config)
-    .map(k => 'e ' + k + '=' + config[k])
+    .map(k => ':e ' + k + '=' + config[k])
     .join('\n');
 }
 
