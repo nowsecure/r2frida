@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2021 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2022 - pancake, oleavr, mrmacete */
 
 #include <r_core.h>
 #include <r_io.h>
