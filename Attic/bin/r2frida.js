@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
 ** Commandline entrypoint for `ratafia` (r2 + Frida)
-** --pancake 2015-2016 @ NowSecure
+** --pancake 2015-2022 @ NowSecure
 */
 'use strict';
 
