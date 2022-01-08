@@ -930,7 +930,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	const char *path = DATADIR R_SYS_DIR "r2frida" R_SYS_DIR "scripts";
 	load_scripts (core, fd, path);
 
-	const char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
+	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
 	load_scripts (core, fd, homepath);
 	free (homepath);
 	
