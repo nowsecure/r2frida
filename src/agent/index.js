@@ -15,7 +15,7 @@ const utils = require('./utils');
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const SwiftAvailable = Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
+const SwiftAvailable = Process.platform === 'darwin' && global.hasOwnProperty('Swift'); //&& Swift.available;
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const JavaAvailable = Java && Java.available;
@@ -2220,15 +2220,12 @@ function squashRanges (ranges) {
 }
 
 function listMemoryMapsR2 () {
-  function filterFile (file) {
-    return file.replace(/\//g, '_').replace(/-/g, '_');
-  }
   return squashRanges(listMemoryRangesJson())
     .filter(_ => _.file)
     .map(({ base, size, protection, file }) =>
       [
         'f',
-        'dmm.' + filterFile(file.path),
+        'dmm.' + utils.sanitizeString(file.path),
         '=',
         padPointer(base),
       ]
