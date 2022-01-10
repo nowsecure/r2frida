@@ -2,6 +2,7 @@
 
 const config = {
   'java.wait': false,
+  'want.swift': false,
   'patch.code': true,
   'search.in': 'perm:r--',
   'search.quiet': false,
@@ -19,6 +20,7 @@ const config = {
 };
 
 const configHelp = {
+  'want.swift': configHelpWantSwift,
   'java.wait': configHelpJavaWait,
   'search.in': configHelpSearchIn,
   'stalker.event': configHelpStalkerEvent,
@@ -35,6 +37,7 @@ const configHelp = {
 };
 
 const configValidator = {
+  'want.swift': configValidateBoolean,
   'java.wait': configValidateBoolean,
   'search.in': configValidateSearchIn,
   'stalker.event': configValidateStalkerEvent,
@@ -48,6 +51,10 @@ const configValidator = {
   'symbols.module': configValidateString,
   'symbols.unredact': configValidateBoolean
 };
+
+function configHelpWantSwift() {
+  return 'Use Swift.Frida if available, disabled by default as long as some apps make Frida crash';
+}
 
 function configHelpJavaWait () {
   return 'Wait for Java classloader to be ready (boolean)';

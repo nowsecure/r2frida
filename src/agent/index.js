@@ -15,7 +15,9 @@ const utils = require('./utils');
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-const SwiftAvailable = Process.platform === 'darwin' && global.hasOwnProperty('Swift'); //&& Swift.available;
+const SwiftAvailable = function () {
+  return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
+};
 const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const JavaAvailable = Java && Java.available;
@@ -3397,7 +3399,7 @@ function traceJson (args) {
 
 function typesR2 (args) {
   let res = '';
-  if (SwiftAvailable) {
+  if (SwiftAvailable()) {
     switch (args.length) {
       case 0:
         for (const mod in Swift.modules) {
@@ -3459,14 +3461,17 @@ function typesR2 (args) {
 }
 
 function types (args) {
-  if (SwiftAvailable) {
+  if (SwiftAvailable()) {
     return swiftTypes(args);
   }
   return '';
 }
 
 function swiftTypes (args) {
-  if (!SwiftAvailable) {
+  if (!SwiftAvailable()) {
+    if (config.getBoolean('want.swift')) {
+      console.error('See :e want.swift=true');
+    }
     return '';
   }
   let res = '';
