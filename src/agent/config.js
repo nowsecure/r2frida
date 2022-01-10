@@ -230,12 +230,20 @@ function helpFor (k) {
   return '';
 }
 
+function getStringValue(k) {
+  const ck = config[k];
+  if (configValidateBoolean(ck)) {
+    return ck? "true": "false";
+  }
+  return ck ? ('' + ck) : '';
+}
+
 module.exports = {
   values: config, // bad practice, dont expose
   set: set, // c(k, v) => config[k] = v,
   get: (k) => config[k],
   getBoolean: (k) => isTrue(config[k]),
-  getString: (k) => (config[k]) ? '' + config[k] : '',
+  getString: getStringValue,
   asR2Script: asR2Script,
   helpFor: helpFor
 };
