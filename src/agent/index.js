@@ -149,6 +149,10 @@ const commandHandlers = {
   isj: listSymbolsJson,
   'is*': listSymbolsR2,
 
+  iS: listSections,
+  'iS.': listSectionsHere,
+  'iS*': listSectionsR2,
+
   ias: lookupSymbol,
   'ias*': lookupSymbolR2,
   iasj: lookupSymbolJson,
@@ -2162,6 +2166,137 @@ function listMemoryRangesHere (args) {
         .join(' ')
     )
     .join('\n') + '\n';
+}
+
+function listSectionsHere () {
+  const here = ptr(r2frida.offset);
+  const moduleAddr = Process.enumerateModules()
+    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+    .map(m => m.base)
+  return listSections(moduleAddr);
+}
+
+function listSectionsR2 (args) {
+  let i = 0;
+  return listSectionsJson(args)
+  .map(({ vmaddr, vmsize, name }) => {
+    return [`f section.${i++}.${name} ${vmsize} ${vmaddr}`].join(' ');
+  })
+  .join('\n');
+}
+
+function listSections (args) {
+  return listSectionsJson(args)
+  .map(({ vmaddr, vmsize, name }) => {
+    return [vmaddr, vmsize, name].join(' ');
+  })
+  .join('\n');
+}
+
+function listSectionsJson (args) {
+  if (!ObjCAvailable && !SwiftAvailable) {
+    return 'Only iOS supported.';
+  }
+  let baseAddr = undefined;
+  if (args.length === 1) {
+    baseAddr = ptr(args[0]);
+  } else {
+    baseAddr = Process.enumerateModules()[0].base;
+  }
+  return listMachoSections(baseAddr);
+}
+
+function listMachoSections (baseAddr) {
+  let result = [];
+  if (!isMachoHeaderAtOffset(baseAddr)) {
+      throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
+  }
+  const machoHeader = parseMachoHeader(baseAddr);
+  if (machoHeader !== undefined) {
+    const segments = getSegments(baseAddr, machoHeader.ncmds);
+    segments
+      .filter((segment) => segment.name == '__TEXT' || segment.name == '__DATA')
+      .forEach((segment) => {
+        result.push(...getSections(segment));
+      });
+  }
+  return result;
+}
+
+function parseMachoHeader (offset) {
+  const header = { 
+    magic: offset.readU32(),
+    cputype: offset.add(0x4).readU32(),
+    cpusubtype: offset.add(0x8).readU32(),
+    filetype: offset.add(0x0c).readU32(),
+    ncmds: offset.add(0x10).readU32(),
+    sizeofcmds: offset.add(0x14).readU32(),
+    flags: offset.add(0x18).readU32(),
+  };
+  if (header.cputype !== 0x0100000c) {
+    throw new Error('Only support for 64-bit apps');
+  }
+  return header;
+}
+
+function getSegments (baseAddr, ncmds) {
+  const LC_SEGMENT_64 = 0x19;
+  let cursor = baseAddr.add(0x20);
+  let segments = [];
+  let slide = 0;
+  while (ncmds-- > 0) {
+    const command = cursor.readU32();
+    const cmdSize = cursor.add(4).readU32();
+    if (command !== LC_SEGMENT_64) {
+      cursor = cursor.add(cmdSize);
+      continue;
+    }
+    let segment = {
+      name: cursor.add(0x8).readUtf8String(),
+      vmaddr: cursor.add(0x18).readPointer(),
+      vmsize: cursor.add(0x18).add(8).readPointer(),
+      nsects: cursor.add(64).readU32(),
+      sectionsPtr: cursor.add(72)
+    };
+    if (segment.name === '__TEXT') {
+      slide = baseAddr.sub(segment.vmaddr);
+    }
+    cursor = cursor.add(cmdSize);
+    segments.push(segment);
+  }
+  segments
+    .filter(seg => seg.name != '__PAGEZERO')
+    .forEach((seg) => {
+      seg.vmaddr = seg.vmaddr.add(slide);
+      seg.slide = slide;
+  });
+  return segments;
+}
+
+function getSections (segment) {
+  let { name, nsects, sectionsPtr, slide } = segment;
+  const sects = [];
+  while (nsects--) {
+    sects.push({
+      name: `${name}.${sectionsPtr.readUtf8String()}`,
+      vmaddr: sectionsPtr.add(32).readPointer().add(slide),
+      vmsize: sectionsPtr.add(40).readU64()
+    });
+    sectionsPtr = sectionsPtr.add(80);
+  }
+  return sects;
+}
+
+function isMachoHeaderAtOffset (offset) { 
+  const cursor = trunc4k(offset);
+  if (cursor.readU32() == 0xfeedfacf) {
+    return true;
+  }
+  return false;
+}
+
+function trunc4k (x) {
+  return x.and(ptr('0xfff').not());
 }
 
 function rwxstr (x) {
