@@ -429,6 +429,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		":iE[*] <lib>                Same as is, but only for the export global ones\n"
 		":iS[*]                      List sections\n"
 		":iS.                        List sections from the module at current offset\n"
+		":iSj                        List sections in Json format\n"
 		":ic <class>                 List Objective-C/Android Java classes, or methods of <class>\n"
 		":ii[*]                      List imports\n"
 		":il                         List libraries\n"
