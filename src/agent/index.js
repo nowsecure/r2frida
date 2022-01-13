@@ -154,6 +154,7 @@ const commandHandlers = {
   iS: listSections,
   'iS.': listSectionsHere,
   'iS*': listSectionsR2,
+  iSj: listSectionsJson,
 
   ias: lookupSymbol,
   'ias*': lookupSymbolR2,
@@ -2196,15 +2197,10 @@ function listSections (args) {
 }
 
 function listSectionsJson (args) {
-  if (!ObjCAvailable && !SwiftAvailable) {
+  if (!ObjCAvailable && !SwiftAvailable()) {
     return 'Only iOS supported.';
   }
-  let baseAddr = undefined;
-  if (args.length === 1) {
-    baseAddr = ptr(args[0]);
-  } else {
-    baseAddr = Process.enumerateModules()[0].base;
-  }
+  const baseAddr = (args.length === 1) ? baseAddr = ptr(args[0]) : baseAddr = Process.enumerateModules()[0].base;
   return listMachoSections(baseAddr);
 }
 
