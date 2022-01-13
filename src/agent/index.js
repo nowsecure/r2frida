@@ -2183,7 +2183,7 @@ function listSectionsR2 (args) {
   let i = 0;
   return listSectionsJson(args)
   .map(({ vmaddr, vmsize, name }) => {
-    return [`f section.${i++}.${name} ${vmsize} ${vmaddr}`].join(' ');
+    return [`f section.${i++}.${Utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
   })
   .join('\n');
 }
