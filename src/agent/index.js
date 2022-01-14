@@ -2997,7 +2997,7 @@ function getPtr (p) {
     return ptr(global.r2frida.offset);
   }
   if (p.startsWith('swift:')) {
-    if (!SwiftAvailable) {
+    if (!SwiftAvailable()) {
       return ptr(0);
     }
     // swift:CLASSNAME.method
@@ -3448,7 +3448,7 @@ function traceJavaConstructors (className) {
 }
 
 function traceSwift (klass, method) {
-  if (!SwiftAvailable) {
+  if (!SwiftAvailable()) {
     return;
   }
   const targetAddress = getPtr('swift:' + klass + '.' + method);
