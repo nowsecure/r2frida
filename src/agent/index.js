@@ -1026,7 +1026,7 @@ async function dumpInfoJson () {
     uid: _getuid(),
     objc: ObjCAvailable,
     runtime: Script.runtime,
-    swift: SwiftAvailable,
+    swift: SwiftAvailable(),
     java: JavaAvailable,
     mainLoop: hasMainLoop(),
     pageSize: Process.pageSize,
