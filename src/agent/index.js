@@ -1559,7 +1559,8 @@ function listImportsR2 (args) {
       flags.push('f sym.imp.' + utils.sanitizeString(x.name) + ` = ${x.address}`);
     }
     if (x.slot !== undefined) {
-      const fn = utils.sanitizeString(`f reloc.${x.targetModuleName}.${x.name}_${x.index}`);
+      const tm = x.targetModuleName ? x.targetModuleName + '.' : '';
+      const fn = utils.sanitizeString(`reloc.${tm}${x.name}`); // _${x.index}`);
       flags.push(`f ${fn} = ${x.slot}`);
     }
     return flags.join('\n');
