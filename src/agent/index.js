@@ -1251,8 +1251,8 @@ function listSymbols (args) {
 function listSymbolsR2 (args) {
   return listSymbolsJson(args)
     .filter(({ address }) => !address.isNull())
-    .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
+    .map(({ name, address }) => {
+      return ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
 }
