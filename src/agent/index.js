@@ -1053,6 +1053,8 @@ async function dumpInfoJson () {
       res.bundle = get('CFBundleIdentifier');
       res.exename = get('CFBundleExecutable');
       res.appname = get('CFBundleDisplayName');
+      res.modulename = Process.enumerateModulesSync()[0].name;
+      res.modulebase = Process.enumerateModulesSync()[0].base;
       res.appversion = get('CFBundleShortVersionString');
       res.appnumversion = get('CFBundleNumericVersion');
       res.homedir = (new ObjC.Object(NSHomeDirectory()).toString());
