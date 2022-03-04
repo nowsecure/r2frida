@@ -1552,16 +1552,45 @@ function listImports (args) {
 
 function listImportsR2 (args) {
   const seen = new Set();
+  let stubAddress = 0;
+  const stubSize = Process.arch === 'x64' ? 6 : 8;
+  if (Process.platform === 'darwin') {
+    try {
+      const baseAddr = Process.enumerateModules()[0].base;
+      const machoHeader = parseMachoHeader(baseAddr);
+      const segments = getSegments(baseAddr, machoHeader.ncmds);
+      for (const seg of segments) {
+        if (seg.name === '__TEXT') {
+          for (const sec of getSections(seg)) {
+            if (sec.name === '__TEXT.__stubs') {
+              stubAddress = sec.vmaddr;
+              break;
+            }
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      // ignore
+    }
+  }
   return listImportsJson(args).map((x) => {
     const flags = [];
     if (!seen.has(x.address)) {
       seen.add(x.address);
-      flags.push('f sym.imp.' + utils.sanitizeString(x.name) + ` = ${x.address}`);
+      flags.push('f sym.' + utils.sanitizeString(x.name) + ` = ${x.address}`);
     }
     if (x.slot !== undefined) {
       const tm = x.targetModuleName ? x.targetModuleName + '.' : '';
       const fn = utils.sanitizeString(`reloc.${tm}${x.name}`); // _${x.index}`);
       flags.push(`f ${fn} = ${x.slot}`);
+    }
+    if (stubAddress) {
+      if (x.index > 0) {
+        const pltaddr = ptr(stubAddress).add(stubSize * (x.index - 1));
+        flags.push('f sym.imp.' + utils.sanitizeString(x.name) + ` = ${pltaddr}`);
+      }
     }
     return flags.join('\n');
   }).join('\n');
@@ -2176,25 +2205,25 @@ function listSectionsHere () {
   const here = ptr(r2frida.offset);
   const moduleAddr = Process.enumerateModules()
     .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
-    .map(m => m.base)
+    .map(m => m.base);
   return listSections(moduleAddr);
 }
 
 function listSectionsR2 (args) {
   let i = 0;
   return listSectionsJson(args)
-  .map(({ vmaddr, vmsize, name }) => {
-    return [`f section.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
-  })
-  .join('\n');
+    .map(({ vmaddr, vmsize, name }) => {
+      return [`f section.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
+    })
+    .join('\n');
 }
 
 function listSections (args) {
   return listSectionsJson(args)
-  .map(({ vmaddr, vmsize, name }) => {
-    return [vmaddr, vmsize, name].join(' ');
-  })
-  .join('\n');
+    .map(({ vmaddr, vmsize, name }) => {
+      return [vmaddr, vmsize, name].join(' ');
+    })
+    .join('\n');
 }
 
 function listSectionsJson (args) {
