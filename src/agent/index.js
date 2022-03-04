@@ -2198,7 +2198,7 @@ function listSections (args) {
 }
 
 function listSectionsJson (args) {
-  if (!ObjCAvailable && !SwiftAvailable()) {
+  if (Process.platform !== 'darwin') {
     return 'Only iOS supported.';
   }
   const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
@@ -2232,10 +2232,15 @@ function parseMachoHeader (offset) {
     sizeofcmds: offset.add(0x14).readU32(),
     flags: offset.add(0x18).readU32(),
   };
-  if (header.cputype !== 0x0100000c) {
-    throw new Error('Only support for 64-bit apps');
+  if (header.cputype === 0x0100000c) {
+    // arm64
+    return header;
   }
-  return header;
+  if (header.cputype === 0x01000007) {
+    // x86-64
+    return header;
+  }
+  throw new Error('Only support for 64-bit apps');
 }
 
 function getSegments (baseAddr, ncmds) {
