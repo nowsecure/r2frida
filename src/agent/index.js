@@ -281,7 +281,7 @@ const commandHandlers = {
   di1: interceptRet1,
   dii: interceptRetInt,
   'di-1': interceptRet_1,
-  'div': interceptRetVoid,
+  div: interceptRetVoid,
   // intercept ret after calling the function
   difs: interceptFunRetString,
   dif0: interceptFunRet0,
@@ -1071,7 +1071,7 @@ async function dumpInfoJson () {
       if (app !== null) {
         const ctx = app.getApplicationContext();
         if (ctx !== null) {
-          function tryTo(x) {
+          function tryTo (x) {
             let r = '';
             try {
               r = x();
@@ -2235,9 +2235,9 @@ function listSectionsJson (args) {
 }
 
 function listMachoSections (baseAddr) {
-  let result = [];
+  const result = [];
   if (!isMachoHeaderAtOffset(baseAddr)) {
-      throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
+    throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
   }
   const machoHeader = parseMachoHeader(baseAddr);
   if (machoHeader !== undefined) {
@@ -2252,7 +2252,7 @@ function listMachoSections (baseAddr) {
 }
 
 function parseMachoHeader (offset) {
-  const header = { 
+  const header = {
     magic: offset.readU32(),
     cputype: offset.add(0x4).readU32(),
     cpusubtype: offset.add(0x8).readU32(),
@@ -2275,7 +2275,7 @@ function parseMachoHeader (offset) {
 function getSegments (baseAddr, ncmds) {
   const LC_SEGMENT_64 = 0x19;
   let cursor = baseAddr.add(0x20);
-  let segments = [];
+  const segments = [];
   let slide = 0;
   while (ncmds-- > 0) {
     const command = cursor.readU32();
@@ -2284,7 +2284,7 @@ function getSegments (baseAddr, ncmds) {
       cursor = cursor.add(cmdSize);
       continue;
     }
-    let segment = {
+    const segment = {
       name: cursor.add(0x8).readUtf8String(),
       vmaddr: cursor.add(0x18).readPointer(),
       vmsize: cursor.add(0x18).add(8).readPointer(),
@@ -2302,7 +2302,7 @@ function getSegments (baseAddr, ncmds) {
     .forEach((seg) => {
       seg.vmaddr = seg.vmaddr.add(slide);
       seg.slide = slide;
-  });
+    });
   return segments;
 }
 
@@ -2320,7 +2320,7 @@ function getSections (segment) {
   return sects;
 }
 
-function isMachoHeaderAtOffset (offset) { 
+function isMachoHeaderAtOffset (offset) {
   const cursor = trunc4k(offset);
   if (cursor.readU32() == 0xfeedfacf) {
     return true;
@@ -2914,7 +2914,7 @@ function formatArgs (args, fmt) {
             if (isObjC(arg)) {
               const o = new ObjC.Object(arg);
               if (o.$className === 'Foundation.__NSSwiftData') {
-                a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o,4).toString()}"`);
+                a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o, 4).toString()}"`);
               } else {
                 a.push(`${o.$className}: "${o.toString()}"`);
               }
@@ -4014,7 +4014,6 @@ function interceptRetVoid (args) { // eslint-disable-line
   const target = args[0];
   return interceptRet(target, null);
 }
-
 
 /* Intercept function calls and modify return value after calling the original function code */
 function interceptFunRet (target, value, paramTypes) {
