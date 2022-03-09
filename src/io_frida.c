@@ -262,10 +262,13 @@ static bool __close(RIODesc *fd) {
 		return false;
 	}
 	RIOFrida *rf = fd->data;
+	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	resume (rf);
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
+	g_cond_signal (&rf->cond);
+	g_mutex_unlock (&rf->lock);
 	return true;
 }
 
@@ -1496,6 +1499,7 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 	if (!rf || !rf->io) {
 		return;
 	}
+	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	rf->detach_reason = reason;
 	eprintf ("DetachReason: %s\n", detachReasonAsString (rf));
@@ -1505,7 +1509,6 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 		rf->crash_report = strdup (crash_report);
 		eprintf ("CrashReport: %s\n", crash_report);
 	}
-	g_mutex_lock (&rf->lock);
 	rf->crash = (crash != NULL) ? g_object_ref (crash) : NULL;
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
