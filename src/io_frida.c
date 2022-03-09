@@ -151,8 +151,8 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	return rf;
 }
 
-static bool __request_safe_io(RIOFrida *rf) {
-	JsonBuilder *builder = build_request ("safeio");
+static bool request_safe_io(RIOFrida *rf, bool doset) {
+	JsonBuilder *builder = build_request (doset? "safeio": "unsafeio");
 
 	JsonObject *result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
@@ -847,9 +847,9 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 
-	if (user_wants_safe_io ()) {
-		__request_safe_io (rf);
-	}
+	// safe io is required at start time, otherwise frida-server
+	// locks in Memory.readByteArray() which locks the second shell
+	request_safe_io (rf, true);
 
 	const char *autocompletions[] = {
 		"!!!:chcon",
@@ -942,6 +942,9 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
 	load_scripts (core, fd, homepath);
 	free (homepath);
+	if (!user_wants_safe_io ()) {
+		request_safe_io (rf, false);
+	}
 	
 	return fd;
 

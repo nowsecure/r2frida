@@ -4392,6 +4392,7 @@ function padPointer (value) {
 
 const requestHandlers = {
   safeio: () => { r2frida.safeio = true; },
+  unsafeio: () => { if (!NeedsSafeIo) { r2frida.safeio = false; } },
   read: io.read,
   write: io.write,
   state: state,
