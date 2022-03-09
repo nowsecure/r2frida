@@ -1825,7 +1825,7 @@ function listClassesWhere (args, mode) {
     }
     for (const k of result) {
       const modName = moduleNames[k];
-      if (modName && modName.indexOf(args[0]) != -1) {
+      if (modName && modName.indexOf(args[0]) !== -1) {
         const ins = searchInstancesJson([k]);
         const inss = ins.map((x) => { return x.address; }).join(' ');
         out += k + ' # ' + inss + '\n';
@@ -2262,7 +2262,7 @@ function listMachoSections (baseAddr) {
   if (machoHeader !== undefined) {
     const segments = getSegments(baseAddr, machoHeader.ncmds);
     segments
-      .filter((segment) => segment.name == '__TEXT' || segment.name == '__DATA')
+      .filter((segment) => segment.name === '__TEXT' || segment.name === '__DATA')
       .forEach((segment) => {
         result.push(...getSections(segment));
       });
@@ -2317,7 +2317,7 @@ function getSegments (baseAddr, ncmds) {
     segments.push(segment);
   }
   segments
-    .filter(seg => seg.name != '__PAGEZERO')
+    .filter(seg => seg.name !== '__PAGEZERO')
     .forEach((seg) => {
       seg.vmaddr = seg.vmaddr.add(slide);
       seg.slide = slide;
@@ -2341,7 +2341,7 @@ function getSections (segment) {
 
 function isMachoHeaderAtOffset (offset) {
   const cursor = trunc4k(offset);
-  if (cursor.readU32() == 0xfeedfacf) {
+  if (cursor.readU32() === 0xfeedfacf) {
     return true;
   }
   return false;
