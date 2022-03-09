@@ -12,18 +12,19 @@ const isObjC = require('./isobjc');
 const strings = require('./strings');
 const utils = require('./utils');
 
-const putsAddress = Module.findExportByName(null, 'puts');
-const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
+function initializePuts () {
+  const putsAddress = Module.findExportByName(null, 'puts');
+  const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
 
-global.r2frida.puts = function (s) {
-  if (putsFunction) {
-    const a = Memory.allocUtf8String(s);
-    putsFunction(a);
-  } else {
-    console.error(s);
-  }
+  return function (s) {
+    if (putsFunction) {
+      const a = Memory.allocUtf8String(s);
+      putsFunction(a);
+    } else {
+      console.error(s);
+    }
+  };
 }
-
 
 let Gcwd = '/';
 
@@ -5196,6 +5197,7 @@ global.r2frida.log = traceLog;
 global.r2frida.emit = traceEmit;
 global.r2frida.safeio = NeedsSafeIo;
 global.r2frida.module = '';
+global.r2frida.puts = initializePuts();
 
 function sendCommand (cmd, serial) {
   function sendIt () {
