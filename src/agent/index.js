@@ -1050,18 +1050,21 @@ async function dumpInfoJson () {
       const NSTemporaryDirectory = new NativeFunction(
         Module.getExportByName(null, 'NSTemporaryDirectory'),
         'pointer', []);
-      res.bundle = get('CFBundleIdentifier');
-      res.exename = get('CFBundleExecutable');
-      res.appname = get('CFBundleDisplayName');
+
+      const bundleIdentifier = get('CFBundleIdentifier');
+      if (bundleIdentifier) {
+        res.bundle = bundleIdentifier;
+        res.exename = get('CFBundleExecutable');
+        res.appname = get('CFBundleDisplayName');
+        res.appversion = get('CFBundleShortVersionString');
+        res.appnumversion = get('CFBundleNumericVersion');
+        res.minOS = get('MinimumOSVersion');
+      }
       res.modulename = Process.enumerateModulesSync()[0].name;
       res.modulebase = Process.enumerateModulesSync()[0].base;
-      res.appversion = get('CFBundleShortVersionString');
-      res.appnumversion = get('CFBundleNumericVersion');
       res.homedir = (new ObjC.Object(NSHomeDirectory()).toString());
       res.tmpdir = (new ObjC.Object(NSTemporaryDirectory()).toString());
       res.bundledir = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
-      // res.appdata = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
-      res.minOS = get('MinimumOSVersion');
     } catch (e) {
       console.error(e);
     }
