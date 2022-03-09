@@ -290,10 +290,13 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	if (!result) {
 		return -1;
 	}
-
-	gconstpointer data = g_bytes_get_data (bytes, &n);
-	if (data && buf) {
-		memcpy (buf, data, R_MIN (n, count));
+	if (bytes) {
+		gconstpointer data = g_bytes_get_data (bytes, &n);
+		if (data && buf) {
+			memcpy (buf, data, R_MIN (n, count));
+		}
+	} else {
+		memset (buf, 0xff, R_MIN (n, count));
 	}
 
 	json_object_unref (result);
