@@ -12,6 +12,19 @@ const isObjC = require('./isobjc');
 const strings = require('./strings');
 const utils = require('./utils');
 
+const putsAddress = Module.findExportByName(null, 'puts');
+const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
+
+global.r2frida.puts = function (s) {
+  if (putsFunction) {
+    const a = Memory.allocUtf8String(s);
+    putsFunction(a);
+  } else {
+    console.error(s);
+  }
+}
+
+
 let Gcwd = '/';
 
 /* ObjC.available is buggy on non-objc apps, so override this */
