@@ -5136,16 +5136,14 @@ function onStanza (stanza, data) {
           .catch(e => {
             send(wrapStanza('reply', {
               error: e.message
-            }));
+            }), []);
           });
       } else {
         const [replyStanza, replyBytes] = value;
         send(wrapStanza('reply', replyStanza), replyBytes);
       }
     } catch (e) {
-      send(wrapStanza('reply', {
-        error: e.message
-      }));
+      send(wrapStanza('reply', { error: e.message }), []);
     }
   } else if (stanza.type === 'bp') {
     console.error('Breakpoint handler');
