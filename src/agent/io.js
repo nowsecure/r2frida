@@ -11,25 +11,29 @@ function read (params) {
     return r2frida.hookedRead(offset, count);
   }
   if (r2frida.safeio) {
-    if (cachedRanges.length === 0) {
-      cachedRanges = Process.enumerateRanges('').map(
-        (map) => [map.base, ptr(map.base).add(map.size)]);
-    }
-    // TODO: invalidate ranges at some point to refresh
-    // process.nextTick(() => { cachedRanges = null; }
-    const o = ptr(offset);
-    for (const map of cachedRanges) {
-      if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
-        let left = count;
-        if (o.add(count).compare(map[1]) > 0) {
-          const rest = o.add(count).sub(map[1]);
-          left = left.sub(rest);
-        }
-        const bytes = Memory.readByteArray(o, left);
-        return [{}, (bytes !== null) ? bytes : []];
+    try {
+      if (cachedRanges.length === 0) {
+        cachedRanges = Process.enumerateRanges('').map(
+          (map) => [map.base, ptr(map.base).add(map.size)]);
       }
+      // TODO: invalidate ranges at some point to refresh
+      // process.nextTick(() => { cachedRanges = null; }
+      const o = ptr(offset);
+      for (const map of cachedRanges) {
+        if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
+          let left = count;
+          if (o.add(count).compare(map[1]) > 0) {
+            const rest = o.add(count).sub(map[1]);
+            left = left.sub(rest);
+          }
+          const bytes = Memory.readByteArray(o, left);
+          return [{}, (bytes !== null) ? bytes : []];
+        }
+      }
+      return [{}, []];
+    } catch (e) {
+      console.error('safeio-read', e);
     }
-    return [{}, []];
   }
   if (offset < 0) {
     return [{}, []];
