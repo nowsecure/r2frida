@@ -5125,7 +5125,9 @@ function onStanza (stanza, data) {
   if (handler !== undefined) {
     try {
       const value = handler(stanza.payload, data);
-      if (value instanceof Promise) {
+      if (value === undefined) {
+        send(wrapStanza('reply', {}), []);
+      } else if (value instanceof Promise) {
         // handle async stuff in here
         value
           .then(([replyStanza, replyBytes]) => {
