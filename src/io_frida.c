@@ -1579,6 +1579,8 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 								free (message);
 							}
 						}
+					} else {
+						eprintf ("Missing stanza for log message\n");
 					}
 				} else if (name && !strcmp (name, "log-file")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
@@ -1619,8 +1621,12 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 								}
 							}
 							free (message);
+						} else {
+							eprintf ("Missing message node\n");
 						}
 						// json_node_unref (stanza_node);
+					} else {
+						eprintf ("Missing stanza for log-file message\n");
 					}
 				} else {
 					if (!r_str_startswith (name, "action-")) {
@@ -1652,6 +1658,8 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			} else {
 				eprintf ("%s\n", message);
 			}
+		} else {
+			eprintf ("Missing message: %s\n", message);
 		}
 	} else {
 		eprintf ("Unhandled message: %s\n", raw_message);
@@ -1954,8 +1962,10 @@ static void printList(R2FridaListType type, GArray *items, gint num_items) {
 	r_table_align (table, 2, R_TABLE_ALIGN_RIGHT);
 	r_table_sort (table, 0, 0);
 	char *s = r_table_tostring (table);
-	r_cons_printf ("%s\n", s);
-	free (s);
+	if (s) {
+		r_cons_printf ("%s\n", s);
+		free (s);
+	}
 error:
 	r_table_free (table);
 }
