@@ -265,10 +265,10 @@ static bool __close(RIODesc *fd) {
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	resume (rf);
-	r_io_frida_free (fd->data);
-	fd->data = NULL;
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
+	r_io_frida_free (fd->data);
+	fd->data = NULL;
 	return true;
 }
 
