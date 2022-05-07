@@ -9,6 +9,12 @@
 #include "frida-core.h"
 #include "../config.h"
 
+#if R2_VERSION_NUMBER >= 50609
+#define COREBIND(x) (x)->coreb
+#else
+#define COREBIND(x) (x)->corebind
+#endif
+
 typedef struct {
 	const char * cmd_string;
 	ut64 serial;
@@ -140,7 +146,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->crash = NULL;
 	rf->crash_report = NULL;
 	rf->received_reply = false;
-	rf->r2core = io->corebind.core;
+	rf->r2core = COREBIND (io).core;
 	if (!rf->r2core) {
 		eprintf ("ERROR: r2frida cannot find the RCore instance from IO->user.\n");
 		free (rf);
@@ -926,7 +932,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	};
 	int i;
 	for (i = 0; autocompletions[i]; i++) {
-		io->corebind.cmd (rf->r2core, autocompletions[i]);
+		COREBIND (io).cmd (rf->r2core, autocompletions[i]);
 	}
 	RIODesc *fd = r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
 	if (lo->run) {
@@ -1453,7 +1459,7 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 	if (!rf->pending_cmd) {
 		return;
 	}
-	char *output = rf->io->corebind.cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
+	char *output = COREBIND (rf->io).cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
 
 	ut64 serial = rf->pending_cmd->serial;
 	pending_cmd_free (rf->pending_cmd);
