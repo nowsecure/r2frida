@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "colors": "^1.4.1",
+    "colors": "^1.4.0",
     "r2pipe-promise": "^1.4.1"
   },
   "devDependencies": {},
