@@ -1,6 +1,7 @@
 include config.mk
 
-r2_version=$(VERSION)
+R2V=$(VERSION)
+R2V=5.6.8
 frida_version=15.1.22
 R2FRIDA_PRECOMPILED_AGENT?=0
 
@@ -23,6 +24,15 @@ frida_os_arch := $(frida_os)-$(frida_arch)
 
 WGET?=wget
 CURL?=curl
+
+ifneq ($(shell $(WGET) --help > /dev/null 2>&1),)
+USE_WGET=1
+DLCMD=$(WGET) -c
+else
+USE_WGET=0
+DLCMD=$(CURL) -L
+endif
+
 DESTDIR?=
 
 ifeq ($(shell uname),Darwin)
@@ -118,19 +128,19 @@ IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 .PHONY: io_frida.$(SO_EXT)
 
 # XXX we are statically linking to the .a we should use shared libs if exist
-ios: r2-sdk-ios/$(r2_version)
+ios: r2-sdk-ios/$(R2V)
 	$(MAKE) \
 	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr" \
 	LDFLAGS="-Lr2-sdk-ios/lib -lr -shared -fPIC" \
 	CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
 
-r2-sdk-ios/$(r2_version):
+r2-sdk-ios/$(R2V):
 	rm -rf r2-sdk-ios
-	wget http://radare.mikelloc.com/get/$(r2_version)/radare2-ios-arm64-$(r2_version).tar.gz
-	mkdir -p r2-sdk-ios/$(r2_version)
-	tar xzvf radare2-ios-arm64-$(r2_version).tar.gz -C r2-sdk-ios
+	$(DLCMD) https://github.com/radareorg/radare2/releases/download/$(R2V)/r2ios-sdk-$(R2V).zip
+	mkdir -p r2-sdk-ios/$(R2V)
+	tar xzvf radare2-ios-arm64-$(R2V).tar.gz -C r2-sdk-ios
 	mv r2-sdk-ios/*/* r2-sdk-ios
-	rm -f radare2-ios-arm64-$(r2_version).tar.gz
+	rm -f radare2-ios-arm64-$(R2V).tar.gz
 
 .PHONY: ext/frida asan
 
@@ -184,7 +194,7 @@ android:
 ifeq ($(STRIP_SYMBOLS),yes)
 	$(R2S) aarch64 aarch64-linux-android-strip io_frida.so
 endif
-	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm64.so
+	cp -f io_frida.so /tmp/io_frida-$(R2V)-android-arm64.so
 	# git clean -xdf
 	touch src/io_frida.c
 	rm -rf ext
@@ -193,14 +203,14 @@ endif
 ifeq ($(STRIP_SYMBOLS),yes)
 	$(R2S) arm arm-linux-androideabi-strip io_frida.so
 endif
-	cp -f io_frida.so /tmp/io_frida-$(r2_version)-android-arm.so
+	cp -f io_frida.so /tmp/io_frida-$(R2V)-android-arm.so
 
 radare2-android-arm64-libs:
-	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2_${r2_version}_aarch64.deb
-	wget -c http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_${r2_version}_aarch64.deb
+	$(DLCMD) http://termux.net/dists/stable/main/binary-aarch64/radare2_${R2V}_aarch64.deb
+	$(DLCMD) http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_${R2V}_aarch64.deb
 	mkdir -p $(R2A_ROOT)
-	cd $(R2A_ROOT) ; 7z x -y ../radare2_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
-	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_${r2_version}_aarch64.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) && 7z x -y ../radare2_${R2V}_aarch64.deb && tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) && 7z x -y ../radare2-dev_${R2V}_aarch64.deb && tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	ln -fs $(R2A_ROOT)/data/data/com.termux/files/
 
 R2A_DIR=$(R2A_ROOT)/data/data/com.termux/files/usr
@@ -211,11 +221,11 @@ android-arm64: radare2-android-arm64-libs
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
 
 radare2-android-arm-libs:
-	wget -c http://termux.net/dists/stable/main/binary-arm/radare2_${r2_version}_arm.deb
-	wget -c http://termux.net/dists/stable/main/binary-arm/radare2-dev_${r2_version}_arm.deb
+	$(DLCMD) http://termux.net/dists/stable/main/binary-arm/radare2_$(R2V)_arm.deb
+	$(DLCMD) http://termux.net/dists/stable/main/binary-arm/radare2-dev_$(R2V)_arm.deb
 	mkdir -p $(R2A_ROOT)
-	cd $(R2A_ROOT) ; 7z x -y ../radare2_${r2_version}_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
-	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_${r2_version}_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) ; 7z x -y ../radare2_$(R2V)_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
+	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_$(R2V)_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	ln -fs $(R2A_ROOT)/data/data/com.termux/files/
 
 android-arm: radare2-android-arm-libs
