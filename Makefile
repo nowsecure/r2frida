@@ -4,6 +4,7 @@ R2V=$(VERSION)
 R2V=5.6.8
 frida_version=15.1.22
 R2FRIDA_PRECOMPILED_AGENT?=0
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/v5.6.2/_agent.js
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 
@@ -171,7 +172,11 @@ src/_agent.h: src/_agent.js
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 src/_agent.js:
-	$(WGET) -O src/_agent.js https://github.com/nowsecure/r2frida/releases/download/v5.6.2/_agent.js
+ifeq ($(USE_WGET),1)
+	$(WGET) -O src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
+else
+	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
+endif
 else
 src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
 	npm run build
