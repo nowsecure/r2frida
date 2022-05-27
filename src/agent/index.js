@@ -2445,11 +2445,8 @@ function listMemoryRangesR2 () {
   return listMemoryRangesJson()
     .map(({ base, size, protection, file }) =>
       [
-        'f', 'map.' + padPointer(base),
-        '=', base,
-        // padPointer(base.add(size)),
-        '#',
-        protection,
+        'f', 'map.' + padPointer(base) + '.' + protection.replace(/-/g, '_'), size, base,
+        '#', protection,
       ]
         .concat((file !== undefined) ? [file.path] : [])
         .join(' ')
