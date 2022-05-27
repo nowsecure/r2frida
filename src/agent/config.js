@@ -9,7 +9,7 @@ const config = {
   'stalker.event': 'compile',
   'stalker.timeout': 5 * 60,
   'stalker.in': 'raw',
-  'hook.backtrace': true,
+  'hook.backtrace': false,
   'hook.verbose': true,
   'hook.logs': true,
   'hook.output': 'simple',
