@@ -322,6 +322,7 @@ async function initBasicInfoFromTarget (args) {
   const str = `
 e dbg.backend = io
 e anal.autoname=true
+e asm.slow=false
 e cmd.fcn.new=aan
 .:i*
 s r2f.modulebase
