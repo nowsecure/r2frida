@@ -13,7 +13,7 @@
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "10.2.5"
+    "frida-compile": "12.0.0"
   },
   "engines": {
     "node": ">=12"
