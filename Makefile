@@ -252,6 +252,7 @@ mrproper: clean
 
 user-install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
+	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 
 user-uninstall:
