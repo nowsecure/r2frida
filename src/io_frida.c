@@ -40,6 +40,7 @@ typedef struct {
 	GMutex lock;
 	GCond cond;
 	bool suspended;
+	bool suspended2;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
 	FridaCrash *crash;
@@ -114,6 +115,13 @@ static bool r2f_debug() {
 
 static void resume(RIOFrida *rf) {
 	if (!rf) {
+		return;
+	}
+	if (rf->suspended2) {
+		// send breakpoint-action
+		rf->suspended2 = false;
+		const char *message = "{\"type\": \"breakpoint-action\",\"action\":\"resume\"}";
+		frida_script_post (rf->script, message, NULL);
 		return;
 	}
 	GError *error = NULL;
@@ -558,7 +566,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return NULL;
-	} else if (!strcmp (command, "dc") && rf->suspended) {
+	} else if (!strcmp (command, "dc")) { //  && (rf->suspended || rf->suspended2)) {
+		g_mutex_unlock (&rf->lock);
 		resume (rf);
 		return NULL;
 	}
@@ -1526,6 +1535,14 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 	g_mutex_unlock (&rf->lock);
 }
 
+static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
+	g_mutex_lock (&rf->lock);
+	g_assert (!rf->pending_cmd);
+	rf->suspended2 = true;
+	g_cond_signal (&rf->cond);
+	g_mutex_unlock (&rf->lock);
+}
+
 static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_lock (&rf->lock);
 	g_assert (!rf->pending_cmd);
@@ -1569,6 +1586,8 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					} else {
 						eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
 					}
+				} else if (name && !strcmp (name, "breakpoint-event")) {
+					on_breakpoint_event (rf, json_object_get_object_member (payload, "stanza"));
 				} else if (name && !strcmp (name, "cmd")) {
 					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 				} else if (name && !strcmp (name, "log")) {
@@ -1647,7 +1666,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 				}
 				json_object_unref (payload);
 			} else {
-				eprintf ("Unexpected payload\n");
+				eprintf ("Unexpected payload (%s)\n", raw_message);
 			}
 		} else {
 			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
