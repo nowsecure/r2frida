@@ -12,12 +12,12 @@ module.exports = {
   exist
 };
 
-function debase(a) {
+function debase (a) {
   if (a.startsWith('base64:')) {
     try {
       const data = toByteArray(a.slice(7));
       a = String.fromCharCode.apply(null, data);
-    } catch(e) {
+    } catch (e) {
       // invalid base64
     }
   }

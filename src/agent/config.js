@@ -52,7 +52,7 @@ const configValidator = {
   'symbols.unredact': configValidateBoolean
 };
 
-function configHelpWantSwift() {
+function configHelpWantSwift () {
   return 'Use Swift.Frida if available, disabled by default as long as some apps make Frida crash';
 }
 
@@ -230,10 +230,10 @@ function helpFor (k) {
   return '';
 }
 
-function getStringValue(k) {
+function getStringValue (k) {
   const ck = config[k];
   if (configValidateBoolean(ck)) {
-    return ck? "true": "false";
+    return ck ? 'true' : 'false';
   }
   return ck ? ('' + ck) : '';
 }

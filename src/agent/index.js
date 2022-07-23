@@ -129,6 +129,7 @@ const commandHandlers = {
   e: evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
+  dbn: breakpointNative,
   db: breakpoint,
   dbj: breakpointJson,
   'db-': breakpointUnset,
@@ -749,6 +750,7 @@ function getR2Arch (arch) {
 }
 
 function breakpointUnset (args) {
+ // DEPRECATE
   if (args.length === 1) {
     /*
     if (args[0] === '*') {
@@ -918,6 +920,79 @@ function breakpointJson (args) {
       reject(e);
     });
   });
+}
+
+const newBreakpoints = new Map();
+
+class CodePatch {
+  constructor(address) {
+    const insn = Instruction.parse(address);
+    this.address = address;
+    this.insn = insn;
+
+    const insnSize = insn.size;
+    this._newData = breakpointInstruction();
+    this._originalData = address.readByteArray(insnSize);
+    this._applied = false;
+  }
+
+  toggle() {
+    this._apply(this._applied ? this._originalData : this._newData);
+    this._applied = !this._applied;
+  }
+
+  enable() {
+    if (!this._applied)
+      this.toggle();
+  }
+
+  disable() {
+    if (this._applied)
+      this.toggle();
+  }
+
+  _apply(data) {
+    Memory.patchCode(this.address, data.byteLength, code => {
+      code.writeByteArray(data);
+    });
+  }
+}
+
+function breakpointInstruction() {
+  return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
+}
+
+function breakpointNative (args) {
+  if (args.length === 0) {
+    for (const [address, bp] of newBreakpoints.entries()) {
+      if (bp.patches[0].address.equals(ptr(address))) {
+        console.log(address);
+      }
+    }
+  } else {
+    const addr = args[0];
+    if (addr.startsWith('-')) {
+       const bp = newBreakpoints.get(addr.substring(1));
+       for (const p of bp.patches) {
+         p.disable();
+         newBreakpoints.delete(p.address.toString());
+       }
+       return;
+    }
+    const ptrAddr = ptr(args[0]);
+
+    const p1 = new CodePatch(ptrAddr);
+    const p2 = new CodePatch(p1.insn.next);
+
+    const bp = {
+      patches: [p1, p2]
+    };
+
+    newBreakpoints.set(p1.address.toString(), bp);
+    newBreakpoints.set(p2.address.toString(), bp);
+
+    p1.toggle();
+  }
 }
 
 function breakpoint (args) {
@@ -5122,6 +5197,7 @@ function getModuleAt (addr) {
 }
 
 let onceStanza = false;
+
 function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
@@ -5248,5 +5324,46 @@ function wrapStanza (name, stanza) {
     stanza: stanza
   };
 }
+
+function isBreakpointAddress (addr) {
+  console.log('check is-breakpoint-address');
+  return true;
+}
+
+Process.setExceptionHandler(({ address }) => {
+  const bp = newBreakpoints.get(address.toString());
+  if (!bp) {
+    return false;
+  }
+
+  const index = bp.patches.findIndex(p => p.address.equals(address));
+  if (index === 0) {
+    send({ name: 'breakpoint-event', stanza: {} });
+
+    let state = 'stopped';
+    do {
+      const op = recv('breakpoint-action', ({ action }) => {
+        switch (action) {
+          case 'register-change':
+            console.log('TODO1');
+            break;
+          case 'resume':
+            state = 'running';
+            break;
+          default:
+            console.log('TODO2');
+            break;
+        }
+      });
+      op.wait();
+    } while (state === 'stopped');
+  }
+
+  for (const p of bp.patches) {
+    p.toggle();
+  }
+
+  return true;
+});
 
 recv(onStanza);
