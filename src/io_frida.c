@@ -402,8 +402,10 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		":?V                         Show target Frida version\n"
 		":chcon file                 Change SELinux context (dl might require this)\n"
 		":d.                         Start the chrome tools debugger\n"
-		":db (<addr>|<sym>)          List or place breakpoint\n"
-		":db- (<addr>|<sym>)|*       Remove breakpoint(s)\n"
+		":dbn [addr|-addr]           List set, or delete a breakpoint\n"
+		":dbnc [addr] [command]      Associate an r2 command to an r2frida breakpoint\n"
+		":db (<addr>|<sym>)          List or place breakpoint (DEPRECATED)\n"
+		":db- (<addr>|<sym>)|*       Remove breakpoint(s) (DEPRECATED)\n"
 		":dc                         Continue breakpoints or resume a spawned process\n"
 		":dd[j-][fd] ([newfd])       List, dup2 or close filedescriptors (ddj for JSON)\n"
 		":di[0,1,-1,i,s,v] [addr]    Intercepts and replace return value of address without calling the function\n"
@@ -1538,6 +1540,13 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_lock (&rf->lock);
 	g_assert (!rf->pending_cmd);
+	if (json_object_has_member (cmd_stanza, "cmd")) {
+		const char *command = json_object_get_string_member (cmd_stanza, "cmd");
+		if (R_STR_ISNOTEMPTY (command)) {
+			r_core_cmd0 (rf->r2core, command);
+			r_cons_flush ();
+		}
+	}
 	rf->suspended2 = true;
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
