@@ -130,6 +130,7 @@ const commandHandlers = {
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
   dbn: breakpointNative,
+  dbnc: breakpointNativeCommand,
   db: breakpoint,
   dbj: breakpointJson,
   'db-': breakpointUnset,
@@ -959,7 +960,27 @@ class CodePatch {
 }
 
 function breakpointInstruction() {
-  return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
+  if (Process.arch === 'arm64') {
+    return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
+  }
+  return new Uint8Array([0xcc]).buffer;
+}
+
+function breakpointNativeCommand (args) {
+  if (args.length >= 2) {
+    const address = args[0];
+    const command = args.slice(1).join(' ');
+    for (const [bpaddr, bp] of newBreakpoints.entries()) {
+      if (bp.patches[0].address.equals(ptr(bpaddr))) {
+        if (bpaddr === address) {
+          bp.cmd = command;
+          break;
+        }
+      }
+    }
+  } else {
+    console.error('Usage: dbnc [address-of-breakpoint] [r2-command-to-run-when-hit]');
+  }
 }
 
 function breakpointNative (args) {
@@ -969,16 +990,14 @@ function breakpointNative (args) {
         console.log(address);
       }
     }
-  } else {
+  } else if (args[0].startsWith('-')) {
     const addr = args[0];
-    if (addr.startsWith('-')) {
-       const bp = newBreakpoints.get(addr.substring(1));
-       for (const p of bp.patches) {
-         p.disable();
-         newBreakpoints.delete(p.address.toString());
-       }
-       return;
-    }
+     const bp = newBreakpoints.get(addr.substring(1));
+     for (const p of bp.patches) {
+       p.disable();
+       newBreakpoints.delete(p.address.toString());
+     }
+  } else {
     const ptrAddr = ptr(args[0]);
 
     const p1 = new CodePatch(ptrAddr);
@@ -5338,7 +5357,7 @@ Process.setExceptionHandler(({ address }) => {
 
   const index = bp.patches.findIndex(p => p.address.equals(address));
   if (index === 0) {
-    send({ name: 'breakpoint-event', stanza: {} });
+    send({ name: 'breakpoint-event', stanza: {cmd: bp.cmd}});
 
     let state = 'stopped';
     do {
@@ -5358,9 +5377,11 @@ Process.setExceptionHandler(({ address }) => {
       op.wait();
     } while (state === 'stopped');
   }
-
-  for (const p of bp.patches) {
-    p.toggle();
+  const afterBp = newBreakpoints.get(address.toString());
+  if (afterBp) {
+    for (const p of bp.patches) {
+      p.toggle();
+    }
   }
 
   return true;
