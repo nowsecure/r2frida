@@ -1,10 +1,10 @@
 include config.mk
 
 R2V=$(VERSION)
-R2V=5.7.0
+R2V=5.7.2
 frida_version=15.2.2
 R2FRIDA_PRECOMPILED_AGENT?=0
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/v5.7.0/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/v5.7.2/_agent.js
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 
