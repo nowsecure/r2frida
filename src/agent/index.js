@@ -11,6 +11,14 @@ const io = require('./io');
 const isObjC = require('./isobjc');
 const strings = require('./strings');
 const utils = require('./utils');
+const newBreakpoints = new Map();
+
+// r2->io->frida->r2pipe->r2
+let _r2 = null;
+let _r_core_new = null;
+let _r_core_cmd_str = null;
+let _r_core_free = null;
+let _free = null;
 
 function initializePuts () {
   const putsAddress = Module.findExportByName(null, 'puts');
@@ -43,7 +51,6 @@ let suspended = false;
 const tracehooks = {};
 let logs = [];
 let traces = {};
-let breakpoints = {};
 
 const allocPool = {};
 const pendingCmds = {};
@@ -129,10 +136,9 @@ const commandHandlers = {
   e: evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
-  dbn: breakpointNative,
-  dbnc: breakpointNativeCommand,
-  db: breakpoint,
+  db: breakpointNative,
   dbj: breakpointJson,
+  dbc: breakpointNativeCommand,
   'db-': breakpointUnset,
   dc: breakpointContinue,
   dcu: breakpointContinueUntil,
@@ -750,66 +756,6 @@ function getR2Arch (arch) {
   return arch;
 }
 
-function breakpointUnset (args) {
- // DEPRECATE
-  if (args.length === 1) {
-    /*
-    if (args[0] === '*') {
-      for (let k of Object.keys(breakpoints)) {
-        const bp = breakpoints[k];
-        Interceptor.revert(ptr(bp.address));
-      }
-      breakpoints = {};
-      return 'All breakpoints removed';
-    }
-*/
-    const symbol = Module.findExportByName(null, args[0]);
-    const arg0 = args[0];
-    const addr = arg0 === '*' ? ptr(0) : (symbol !== null) ? symbol : ptr(arg0);
-    const newbps = [];
-    let found = false;
-    for (const k of Object.keys(breakpoints)) {
-      const bp = breakpoints[k];
-      console.log(bp.address, addr, JSON.stringify(bp));
-      if (arg0 === '*' || '' + bp.address === '' + addr) {
-        found = true;
-        console.log('Breakpoint reverted', JSON.stringify(bp));
-        breakpoints[k].continue = true;
-        // continue execution
-        // send continue action here
-        bp.handler.detach();
-      } else {
-        newbps.push(bp);
-      }
-    }
-    if (!found) {
-      console.error('Cannot found any breakpoint matching');
-    }
-    // // NOPE
-    // if (arg0 === '*') {
-    //   Interceptor.detachAll();
-    // }
-    breakpoints = {};
-    for (const bp of newbps) {
-      breakpoints[bp.address] = bp;
-    }
-    Interceptor.flush();
-    return '';
-  }
-  return 'Usage: db- [addr|*]';
-}
-
-function breakpointExist (addr) {
-  const bp = breakpoints['' + addr];
-  return bp && !bp.continue;
-}
-
-let _r2 = null;
-let _r_core_new = null;
-let _r_core_cmd_str = null;
-let _r_core_free = null;
-let _free = null;
-
 function radareCommandInit () {
   if (_r2) {
     return true;
@@ -875,17 +821,9 @@ function sendSignal (args) {
 }
 
 function breakpointContinueUntil (args) {
-  return new Promise((resolve, reject) => {
-    numEval(args[0]).then(num => {
-      setBreakpoint(num);
-      const shouldPromise = breakpointContinue();
-      if (typeof shouldPromise === 'object') {
-        shouldPromise.then(resolve).catch(reject);
-      } else {
-        resolve(shouldPromise);
-      }
-    }).catch(reject);
-  });
+  breakpointNative(args);
+  breakpointContinue([]);
+  breakpointNative(['-' + args[0]]);
 }
 
 function breakpointContinue (args) {
@@ -893,37 +831,8 @@ function breakpointContinue (args) {
     suspended = false;
     return hostCmd(':dc');
   }
-  let count = 0;
-  for (const k of Object.keys(breakpoints)) {
-    const bp = breakpoints[k];
-    if (bp && bp.stopped) {
-      count++;
-      bp.continue = true;
-    }
-  }
-  for (const thread of Process.enumerateThreads()) {
-    // console.error('send ', thread.id);
-    send(wrapStanza('action-' + thread.id, { action: 'continue' }));
-  }
   return 'Continue ' + count + ' thread(s).';
 }
-
-function breakpointJson (args) {
-  if (args.length === 0) {
-    return JSON.stringify(breakpoints, null, '  ');
-  }
-  return new Promise((resolve, reject) => {
-    numEval(args[0]).then(num => {
-      setBreakpoint(num);
-      resolve(JSON.stringify(breakpoints, null, '  '));
-    }).catch(e => {
-      console.error(e);
-      reject(e);
-    });
-  });
-}
-
-const newBreakpoints = new Map();
 
 class CodePatch {
   constructor(address) {
@@ -979,25 +888,28 @@ function breakpointNativeCommand (args) {
       }
     }
   } else {
-    console.error('Usage: dbnc [address-of-breakpoint] [r2-command-to-run-when-hit]');
+    console.error('Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]');
   }
 }
 
-function breakpointNative (args) {
-  if (args.length === 0) {
-    for (const [address, bp] of newBreakpoints.entries()) {
-      if (bp.patches[0].address.equals(ptr(address))) {
-        console.log(address);
-      }
+function breakpointUnset(args) {
+  const addr = args[0];
+  const bp = newBreakpoints.get(addr);
+  for (const p of bp.patches) {
+    p.disable();
+    newBreakpoints.delete(p.address.toString());
+  }
+}
+
+function breakpointList(args) {
+  for (const [address, bp] of newBreakpoints.entries()) {
+    if (bp.patches[0].address.equals(ptr(address))) {
+      console.log(address);
     }
-  } else if (args[0].startsWith('-')) {
-    const addr = args[0];
-     const bp = newBreakpoints.get(addr.substring(1));
-     for (const p of bp.patches) {
-       p.disable();
-       newBreakpoints.delete(p.address.toString());
-     }
-  } else {
+  }
+}
+
+function breakpointSet (args) {
     const ptrAddr = ptr(args[0]);
 
     const p1 = new CodePatch(ptrAddr);
@@ -1011,82 +923,32 @@ function breakpointNative (args) {
     newBreakpoints.set(p2.address.toString(), bp);
 
     p1.toggle();
-  }
 }
 
-function breakpoint (args) {
+function breakpointJson (args) {
+  let json = {};
+  for (const [address, bp] of newBreakpoints.entries()) {
+    if (bp.patches[0].address.equals(ptr(address))) {
+      const k = '' + bp.patches[0].address;
+      json[k] = {};
+      json[k].enabled = true;
+      if (bp.cmd) {
+        json[k].cmd = bp.cmd;
+      }
+    }
+  }
+  return JSON.stringify(json);
+}
+
+function breakpointNative (args) {
   if (args.length === 0) {
-    return Object.keys(breakpoints).map((bpat) => {
-      const bp = breakpoints[bpat];
-      const stop = bp.stopped ? 'stop' : 'nostop';
-      const cont = bp.continue ? 'cont' : 'nocont';
-      return [bp.address, bp.moduleName, bp.name, stop, cont].join('\t');
-    }).join('\n');
+    breakpointList([]);
+  } else if (args[0].startsWith('-')) {
+    const addr = args[0].substring(1);
+    breakpointUnset([addr]);
+  } else {
+    breakpointSet(args);
   }
-  return new Promise((resolve, reject) => {
-    numEval(args[0]).then(num => {
-      resolve(setBreakpoint(args[0], num));
-    }).catch(e => {
-      console.error(e);
-      reject(e);
-    });
-  });
-}
-
-function setBreakpoint (name, address) {
-  const symbol = Module.findExportByName(null, name);
-  const addr = (symbol !== null) ? symbol : ptr(address);
-  if (breakpointExist(addr)) {
-    return 'Cant set a breakpoint twice';
-  }
-  const addrString = '' + addr;
-  const currentModule = Process.findModuleByAddress(address);
-  const bp = {
-    name: name,
-    moduleName: currentModule ? currentModule.name : '',
-    stopped: false,
-    address: address,
-    continue: false,
-    handler: Interceptor.attach(addr, function () {
-      if (breakpoints[addrString]) {
-        breakpoints[addrString].stopped = true;
-        if (config.getBoolean('hook.backtrace')) {
-          console.log(addr);
-          const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-          console.log(bt.join('\n\t'));
-        }
-      }
-      /*
-      while (breakpointExist(addr)) {
-        Thread.sleep(1);
-      }
-      */
-
-      const tid = this.threadId;
-      send({ type: 'breakpoint-hit', name: addrString, tid: tid });
-      let state = 'stopped';
-      do {
-        const op = recv((stanza, data) => {
-          if (stanza.payload.command === 'dc') {
-            state = 'hit';
-            for (const bp in breakpoints) {
-              breakpoints[bp].continue = true;
-            }
-          } else {
-            onceStanza = true;
-            onStanza(stanza, data);
-          }
-        });
-        op.wait();
-      } while (state === 'stopped');
-
-      if (breakpoints[addrString]) {
-        breakpoints[addrString].stopped = false;
-        breakpoints[addrString].continue = false;
-      }
-    })
-  };
-  breakpoints[addrString] = bp;
 }
 
 function getCwd () {
@@ -5344,11 +5206,7 @@ function wrapStanza (name, stanza) {
   };
 }
 
-function isBreakpointAddress (addr) {
-  console.log('check is-breakpoint-address');
-  return true;
-}
-
+/* breakpoint handler */
 Process.setExceptionHandler(({ address }) => {
   const bp = newBreakpoints.get(address.toString());
   if (!bp) {
