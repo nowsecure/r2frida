@@ -569,7 +569,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		}
 		return NULL;
 	} else if (!strcmp (command, "dc")) { //  && (rf->suspended || rf->suspended2)) {
-		g_mutex_unlock (&rf->lock);
 		resume (rf);
 		return NULL;
 	}
