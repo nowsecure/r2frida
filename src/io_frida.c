@@ -1,5 +1,7 @@
 /* radare2 - MIT - Copyright 2016-2022 - pancake, oleavr, mrmacete */
 
+#define R_LOG_ORIGIN "r2frida"
+
 #include <r_core.h>
 #include <r_io.h>
 #include <r_lib.h>
@@ -133,7 +135,7 @@ static void resume(RIOFrida *rf) {
 		g_clear_error (&error);
 	} else {
 		rf->suspended = false;
-		eprintf ("resumed spawned process.\n");
+		R_LOG_INFO ("resumed spawned process");
 	}
 }
 
@@ -322,7 +324,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	char *agent_code = r_file_slurp (fileName, NULL);
 	if (!agent_code) {
-		eprintf ("Cannot load '%s'\n", fileName);
+		R_LOG_ERROR ("Cannot load '%s'", fileName);
 		return false;
 	}
 	GError *error;
@@ -332,7 +334,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
-		eprintf ("%s\n", error->message);
+		R_LOG_ERROR ("%s", error->message);
 		return false;
 	}
 	frida_script_load_sync (script, NULL, NULL);
@@ -501,7 +503,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		frida_session_enable_debugger_sync (rf->session, port, rf->cancellable, &error);
 		if (error) {
 			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				eprintf ("frida_session_enable_debugger_sync error: %s\n", error->message);
+				R_LOG_ERROR ("frida_session_enable_debugger_sync error: %s", error->message);
 			}
 			g_error_free (error);
 		}
@@ -534,7 +536,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		if (rf && rf->r2core) {
 			r_core_cmdf (rf->r2core, "s %s", command + 2);
 		} else {
-			eprintf ("Invalid rf\n");
+			R_LOG_ERROR ("Invalid r2 core instance");
 		}
 		return NULL;
 	} else if (!strncmp (command, "dkr", 3)) {
@@ -568,7 +570,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return NULL;
-	} else if (!strcmp (command, "dc")) { //  && (rf->suspended || rf->suspended2)) {
+	} else if (!strcmp (command, "dc") && (rf->suspended || rf->suspended2)) {
 		resume (rf);
 		return NULL;
 	}
@@ -762,7 +764,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 	if (!rf->device) {
-		eprintf ("This should never happen.\n");
+		R_LOG_ERROR ("This should never happen");
 		// rf->device = get_device_manager (device_manager, "local", rf->cancellable, &error);
 		goto error;
 	}
@@ -776,11 +778,11 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		char *a = strdup (lo->process_specifier);
 		char **argv = r_str_argv (a, NULL);
 		if (!argv) {
-			eprintf ("Invalid process specifier\n");
+			R_LOG_ERROR ("Invalid process specifier");
 			goto error;
 		}
 		if (!*argv) {
-			eprintf ("Invalid arguments for spawning\n");
+			R_LOG_ERROR ("Invalid arguments for spawning");
 			r_str_argv_free (argv);
 			goto error;
 		}
@@ -797,7 +799,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 		if (error) {
 			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				eprintf ("Cannot spawn: %s\n", error->message);
+				R_LOG_ERROR ("Cannot spawn: %s", error->message);
 			}
 			goto error;
 		}
@@ -813,7 +815,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	rf->session = frida_device_attach_sync (rf->device, rf->pid, NULL, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("Cannot attach: %s\n", error->message);
+			R_LOG_ERROR ("Cannot attach: %s", error->message);
 		}
 		goto error;
 	}
@@ -1450,7 +1452,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	}
 
 	if (json_object_has_member (reply_stanza, "error")) {
-		eprintf ("error: %s\n", json_object_get_string_member (reply_stanza, "error"));
+		R_LOG_ERROR ("%s", json_object_get_string_member (reply_stanza, "error"));
 		json_object_unref (reply_stanza);
 		g_bytes_unref (reply_bytes);
 		return NULL;
@@ -1589,10 +1591,10 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 						if (stanza_type == JSON_NODE_OBJECT) {
 							on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
 						} else {
-							eprintf ("Bug in the agent, cannot find stanza in the message: %s\n", raw_message);
+							R_LOG_ERROR ("Bug in the agent, cannot find stanza in the message: %s", raw_message);
 						}
 					} else {
-						eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
+						R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
 					}
 				} else if (name && !strcmp (name, "breakpoint-event")) {
 					on_breakpoint_event (rf, json_object_get_object_member (payload, "stanza"));
@@ -1619,7 +1621,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 							}
 						}
 					} else {
-						eprintf ("Missing stanza for log message\n");
+						R_LOG_WARN ("Missing stanza for log message");
 					}
 				} else if (name && !strcmp (name, "log-file")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
@@ -1661,23 +1663,23 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 							}
 							free (message);
 						} else {
-							eprintf ("Missing message node\n");
+							R_LOG_WARN ("Missing message node");
 						}
 						// json_node_unref (stanza_node);
 					} else {
-						eprintf ("Missing stanza for log-file message\n");
+						R_LOG_WARN ("Missing stanza for log-file message");
 					}
 				} else {
 					if (!r_str_startswith (name, "action-")) {
-						eprintf ("Unknown packet named '%s'\n", name);
+						R_LOG_WARN ("Unknown packet named '%s'", name);
 					}
 				}
 				json_object_unref (payload);
 			} else {
-				eprintf ("Unexpected payload (%s)\n", raw_message);
+				R_LOG_ERROR ("Unexpected payload (%s)", raw_message);
 			}
 		} else {
-			eprintf ("Bug in the agent, expected an object: %s\n", raw_message);
+			R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
 		}
 	} else if (!strcmp (type, "log")) {
 		// This is reached from the agent when calling console.log
@@ -1698,10 +1700,10 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 				eprintf ("%s\n", message);
 			}
 		} else {
-			eprintf ("Missing message: %s\n", message);
+			R_LOG_ERROR ("Missing message: %s", message);
 		}
 	} else {
-		eprintf ("Unhandled message: %s\n", raw_message);
+		R_LOG_ERROR ("Unhandled message: %s", raw_message);
 	}
 
 	json_node_unref (message);
@@ -1721,7 +1723,7 @@ static void dumpDevices(GCancellable *cancellable) {
 	list = frida_device_manager_enumerate_devices_sync (device_manager, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
@@ -1759,7 +1761,7 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
@@ -1801,7 +1803,7 @@ static char *resolve_process_name_by_package_name(FridaDevice *device, GCancella
 	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
@@ -1827,7 +1829,6 @@ beach:
 }
 
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
-	int count = 0;
 	FridaApplicationList *list;
 	GArray *applications;
 	gint num_applications, i;
@@ -1842,7 +1843,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
@@ -1861,13 +1862,12 @@ beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
 
-	count = num_applications;
-	return count;
+	return num_applications;
 }
 
 static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	if (!device) {
-		eprintf ("error: no device selected\n");
+		R_LOG_ERROR ("no device selected");
 		return;
 	}
 	if (r2f_debug ()) {
@@ -1883,7 +1883,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			eprintf ("error: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}

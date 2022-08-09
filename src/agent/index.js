@@ -831,11 +831,11 @@ function breakpointContinue (args) {
     suspended = false;
     return hostCmd(':dc');
   }
-  return 'Continue ' + count + ' thread(s).';
+  return 'Continue thread(s).';
 }
 
 class CodePatch {
-  constructor(address) {
+  constructor (address) {
     const insn = Instruction.parse(address);
     this.address = address;
     this.insn = insn;
@@ -846,29 +846,27 @@ class CodePatch {
     this._applied = false;
   }
 
-  toggle() {
+  toggle () {
     this._apply(this._applied ? this._originalData : this._newData);
     this._applied = !this._applied;
   }
 
-  enable() {
-    if (!this._applied)
-      this.toggle();
+  enable () {
+    if (!this._applied) { this.toggle(); }
   }
 
-  disable() {
-    if (this._applied)
-      this.toggle();
+  disable () {
+    if (this._applied) { this.toggle(); }
   }
 
-  _apply(data) {
+  _apply (data) {
     Memory.patchCode(this.address, data.byteLength, code => {
       code.writeByteArray(data);
     });
   }
 }
 
-function breakpointInstruction() {
+function breakpointInstruction () {
   if (Process.arch === 'arm64') {
     return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
   }
@@ -892,7 +890,7 @@ function breakpointNativeCommand (args) {
   }
 }
 
-function breakpointUnset(args) {
+function breakpointUnset (args) {
   const addr = args[0];
   const bp = newBreakpoints.get(addr);
   for (const p of bp.patches) {
@@ -901,7 +899,7 @@ function breakpointUnset(args) {
   }
 }
 
-function breakpointList(args) {
+function breakpointList (args) {
   for (const [address, bp] of newBreakpoints.entries()) {
     if (bp.patches[0].address.equals(ptr(address))) {
       console.log(address);
@@ -910,23 +908,23 @@ function breakpointList(args) {
 }
 
 function breakpointSet (args) {
-    const ptrAddr = ptr(args[0]);
+  const ptrAddr = ptr(args[0]);
 
-    const p1 = new CodePatch(ptrAddr);
-    const p2 = new CodePatch(p1.insn.next);
+  const p1 = new CodePatch(ptrAddr);
+  const p2 = new CodePatch(p1.insn.next);
 
-    const bp = {
-      patches: [p1, p2]
-    };
+  const bp = {
+    patches: [p1, p2]
+  };
 
-    newBreakpoints.set(p1.address.toString(), bp);
-    newBreakpoints.set(p2.address.toString(), bp);
+  newBreakpoints.set(p1.address.toString(), bp);
+  newBreakpoints.set(p2.address.toString(), bp);
 
-    p1.toggle();
+  p1.toggle();
 }
 
 function breakpointJson (args) {
-  let json = {};
+  const json = {};
   for (const [address, bp] of newBreakpoints.entries()) {
     if (bp.patches[0].address.equals(ptr(address))) {
       const k = '' + bp.patches[0].address;
@@ -5077,7 +5075,7 @@ function getModuleAt (addr) {
   return modules.length > 0 ? modules[0] : null;
 }
 
-let onceStanza = false;
+const onceStanza = false;
 
 function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
@@ -5215,7 +5213,7 @@ Process.setExceptionHandler(({ address }) => {
 
   const index = bp.patches.findIndex(p => p.address.equals(address));
   if (index === 0) {
-    send({ name: 'breakpoint-event', stanza: {cmd: bp.cmd}});
+    send({ name: 'breakpoint-event', stanza: { cmd: bp.cmd } });
 
     let state = 'stopped';
     do {
