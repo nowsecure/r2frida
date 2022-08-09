@@ -21,6 +21,12 @@ CHKPRG WGET wget
 CHKPRG! GIT git
 CHKPRG! XZ xz
 
+IFNOT HAVE_WGET {
+	IFNOT HAVE_CURL {
+		DIENOW You need curl or wget to download the Frida SDK ;
+	}
+}
+
 REPORT R2_VERSION ;
 
 SUBDIRS ./config.mk ./config.h ;
