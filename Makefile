@@ -74,7 +74,7 @@ CFLAGS+=$(ASAN_CFLAGS)
 LDFLAGS+=$(ASAN_LDFLAGS)
 endif
 
-WANT_SESSION_DEBUGGER:=1
+WANT_SESSION_DEBUGGER?=1
 
 CFLAGS+=-DWANT_SESSION_DEBUGGER=$(WANT_SESSION_DEBUGGER)
 
@@ -82,11 +82,13 @@ CFLAGS+=-DWANT_SESSION_DEBUGGER=$(WANT_SESSION_DEBUGGER)
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
 FRIDA_CPPFLAGS+=-Iext/frida
-ifeq ($(frida_os),android)
-FRIDA_LIBS+=ext/frida/libfrida-core.a
-else
-FRIDA_LIBS+=ext/frida/libfrida-core.a -lresolv
+FRIDA_CORE_LIBS=ext/frida/libfrida-core.a
+#FRIDA_CORE_LIBS=$(shell find /tmp/lib/*.a)
+ifneq ($(frida_os),android)
+FRIDA_LIBS+=-lresolv
 endif
+
+FRIDA_LIBS+=$(FRIDA_CORE_LIBS)
 
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)

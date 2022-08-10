@@ -10,11 +10,12 @@ make FRIDA_MAPPER=disabled FRIDA_FLAGS_COMMON="-Doptimization=s -Db_ndebug=true"
 make core-macos || exit 1
 make gum-macos || exit 1
 mkdir -p /tmp/lib || exit 1
-cp -rf build/frida-macos-arm64/lib/*.a /tmp/lib
-cp -rf build/sdk-macos-arm64/lib/*.a /tmp/lib/
+cp -rf build/frida-macos-arm64/lib/*.a /tmp/lib/ || exit 1
+cp -rf build/sdk-macos-arm64/lib/*.a /tmp/lib/ || exit 1
+cp -rf build/sdk-macos-arm64/lib/gio/modules/libgioopenssl.a /tmp/lib/ || exit 1
 cd ..
 cd ..
 pwd
 # build r2frida
-make FRIDA_LIBS=`ls /tmp/lib/*.a`
-make user-install
+make FRIDA_CORE_LIBS="$(echo `find /tmp/lib/*.a`)" WANT_SESSION_DEBUGGER=0
+make user-install || exit 1
