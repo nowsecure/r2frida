@@ -5075,8 +5075,6 @@ function getModuleAt (addr) {
   return modules.length > 0 ? modules[0] : null;
 }
 
-const onceStanza = false;
-
 function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
@@ -5109,9 +5107,7 @@ function onStanza (stanza, data) {
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
-  if (!onceStanza) {
-    recv(onStanza);
-  }
+  recv(onStanza);
 }
 
 let cmdSerial = 0;
