@@ -1114,6 +1114,9 @@ static bool resolve2(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 		dumpDevices (cancellable);
 		return false;
 	case R2F_ACTION_ATTACH:
+		if (R_STR_ISEMPTY (arg1)) {
+			return false;
+		}
 		lo->spawn = false;
 		lo->pid = atopid (arg1, &lo->pid_valid);
 		lo->process_specifier = g_strdup (arg1);
