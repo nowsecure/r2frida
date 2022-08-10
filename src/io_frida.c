@@ -1073,13 +1073,8 @@ static R2FridaLink parse_link(const char *a) {
 	// return R2F_LINK_UNKNOWN;
 }
 
-static bool resolve0(const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	eprintf ("NO ARGS%c", 10);
-	return false;
-}
-
 static bool resolve1(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	char *arg0 = r_list_get_n (args, 0);
+	const char *arg0 = r_list_get_n (args, 0);
 	if (isdigit (*arg0)) {
 		// frida://123 -- attach by process-id
 		lo->pid = atopid (arg0, &lo->pid_valid);
@@ -1096,8 +1091,8 @@ static bool resolve1(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 }
 
 static bool resolve2(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	char *arg0 = r_list_get_n (args, 0);
-	char *arg1 = r_list_get_n (args, 1);
+	const char *arg0 = r_list_get_n (args, 0);
+	const char *arg1 = r_list_get_n (args, 1);
 	R2FridaAction action = parse_action (arg0);
 	switch (action) {
 	case R2F_ACTION_LIST_APPS:
@@ -1125,20 +1120,24 @@ static bool resolve2(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 		lo->spawn = true;
 		lo->run = true;
 		lo->pid = -1;
-		{
-		char *abspath = r_file_path (arg1);
-		lo->spawn = (abspath && *abspath == '/');
-		lo->process_specifier = abspath? abspath: g_strdup (arg1);
+		if (R_STR_ISEMPTY (arg1)) {
+			return false;
+		} else {
+			char *abspath = r_file_path (arg1);
+			lo->spawn = (abspath && *abspath == '/');
+			lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
 		return true;
 	case R2F_ACTION_SPAWN:
 		lo->spawn = true;
 		lo->run = false;
 		lo->pid = -1;
-		{
-		char *abspath = r_file_path (arg1);
-		lo->spawn = (abspath && *abspath == '/');
-		lo->process_specifier = abspath? abspath: g_strdup (arg1);
+		if (R_STR_ISEMPTY (arg1)) {
+			return false;
+		} else {
+			char *abspath = r_file_path (arg1);
+			lo->spawn = (abspath && *abspath == '/');
+			lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
 		return true;
 	case R2F_ACTION_UNKNOWN:
@@ -1148,9 +1147,9 @@ static bool resolve2(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 }
 
 static bool resolve3(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	char *arg0 = r_list_get_n (args, 0);
-	char *arg1 = r_list_get_n (args, 1);
-	char *arg2 = r_list_get_n (args, 2);
+	const char *arg0 = r_list_get_n (args, 0);
+	const char *arg1 = r_list_get_n (args, 1);
+	const char *arg2 = r_list_get_n (args, 2);
 	// frida://attach/usb//
 	R2FridaAction action = parse_action (arg0);
 	R2FridaLink link = parse_link (arg1);
@@ -1162,10 +1161,10 @@ static bool resolve3(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 }
 
 static bool resolve4(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	char *arg0 = r_list_get_n (args, 0);
-	char *arg1 = r_list_get_n (args, 1);
-	char *arg2 = r_list_get_n (args, 2);
-	char *arg3 = r_list_get_n (args, 3);
+	const char *arg0 = r_list_get_n (args, 0);
+	const char *arg1 = r_list_get_n (args, 1);
+	const char *arg2 = r_list_get_n (args, 2);
+	const char *arg3 = r_list_get_n (args, 3);
 	R2FridaAction action = parse_action (arg0);
 	R2FridaLink link = parse_link (arg1);
 
