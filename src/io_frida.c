@@ -4,10 +4,6 @@
 
 #include <r_core.h>
 #include <r_io.h>
-#include <r_lib.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
 #include "frida-core.h"
 #include "../config.h"
 
@@ -158,7 +154,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->received_reply = false;
 	rf->r2core = COREBIND (io).core;
 	if (!rf->r2core) {
-		eprintf ("ERROR: r2frida cannot find the RCore instance from IO->user.\n");
+		R_LOG_ERROR ("r2frida cannot find the RCore instance from IO->user");
 		free (rf);
 		return NULL;
 	}
@@ -169,14 +165,11 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 
 static bool request_safe_io(RIOFrida *rf, bool doset) {
 	JsonBuilder *builder = build_request (doset? "safeio": "unsafeio");
-
 	JsonObject *result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
 		return false;
 	}
-
 	json_object_unref (result);
-
 	return true;
 }
 
@@ -481,23 +474,24 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
 		if (result) {
 			json_object_unref (result);
-		} else if (!strncmp (command, "dkr", 3)) {
+		} else if (r_str_startswith (command, "dkr")) {
 			// let it pass
 		} else {
 			return NULL;
 		}
 	}
 
-	if (!strcmp (command, "")) {
+	if (R_STR_ISEMPTY (command)) {
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
-	} else if (!strncmp (command, "o/", 2)) {
+	} else if (r_str_startswith (command, "o/")) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
-	} else if (!strncmp (command, "d.", 2)) {
+	} else if (r_str_startswith (command, "d.")) {
+#if WANT_SESSION_DEBUGGER
 		int port = 0; // 9229
 		if (command[2] == ' ') {
-			port = r_num_math (NULL, command + 3);
+			port = r_num_math (NULL, r_str_trim_head_ro (command + 3));
 		}
 		GError *error = NULL;
 		frida_session_enable_debugger_sync (rf->session, port, rf->cancellable, &error);
@@ -507,6 +501,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			}
 			g_error_free (error);
 		}
+#else
+		R_LOG_WARN ("This build of r2frida doesn't support the Chrome debugger");
+#endif
 		return NULL;
 	} else if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
@@ -983,7 +980,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 	if (R_STR_ISEMPTY (type)) {
 		type = "local";
 	}
-	if (!strncmp (type, "usb", 3)) {
+	if (r_str_startswith (type, "usb")) {
 		D ("get-usb-device");
 		device = frida_device_manager_get_device_by_type_sync (manager, FRIDA_DEVICE_TYPE_USB, 0, cancellable, error);
 	} else if (!strcmp (type, "local")) {
@@ -1743,24 +1740,21 @@ static void dumpDevices(GCancellable *cancellable) {
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
-
 }
 
 static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *process_name) {
 	char *res = NULL;
 	int count = 0;
-	FridaApplicationList *list;
 	GArray *applications;
 	gint num_applications, i;
-	GError *error;
 
 	if (r2f_debug ()) {
 		printf ("resolve_package_name_by_process_name\n");
 		return NULL;
 	}
 
-	error = NULL;
-	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
+	GError *error = NULL;
+	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("%s", error->message);
