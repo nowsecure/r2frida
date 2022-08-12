@@ -155,7 +155,6 @@ asan:
 	$(MAKE) clean
 	$(MAKE) USE_ASAN=1
 
-
 ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
 		(cd ext && rm -f frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
