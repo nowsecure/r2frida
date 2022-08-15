@@ -402,7 +402,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		// TODO: move this into the .js
-		io->cb_printf ("r2frida commands are prefixed with `:` (previously known as =! or \\).\n"
+		io->cb_printf ("r2frida commands are prefixed with `:` (alias for `=!`).\n"
 		":. script                   Run script\n"
 		":  frida-expression         Run given expression inside the agent\n"
 		":/[x][j] <string|hexpairs>  Search hex/string pattern in memory ranges (see search.in=?)\n"

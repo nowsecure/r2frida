@@ -172,7 +172,7 @@ $ r2 frida://spawn/usb//Weather # Run the weather app
 
 ### Commands
 
-The list of commands is available via 
+These are the most frequent commands, so you must learn them and suffix it with `?` to get subcommands help.
 
 ```
 :i        # get information of the target (pid, name, home, arch, bits, ..)
