@@ -633,13 +633,15 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				const bool is_ts = r_str_endswith (filename, ".ts");
 				json_builder_set_member_name (builder, is_c? "ccode": "code");
 				if (is_ts && r2f_compiler ()) {
-					const char *filename = command + 2;
+#if __WINDOWS__
+					R_LOG_ERROR ("Can't compile typescript on the fly with frida 15");
+#else
 					GError *error = NULL;
 					FridaCompiler *compiler = frida_compiler_new (device_manager);
 				// 	g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
-					gchar *code = frida_compiler_build_sync (compiler, filename, NULL, NULL, &error);
-					slurpedData = code;
+					slurpedData = frida_compiler_build_sync (compiler, filename, NULL, NULL, &error);
 					g_object_unref (compiler);
+#endif
 				} else {
 					slurpedData = r_file_slurp (filename, NULL);
 				}
