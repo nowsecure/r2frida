@@ -105,6 +105,10 @@ static bool r2f_debug() {
 	return r_sys_getenv_asbool ("R2FRIDA_DEBUG");
 }
 
+static bool r2f_compiler() {
+	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE");
+}
+
 static void resume(RIOFrida *rf) {
 	if (!rf) {
 		return;
@@ -585,21 +589,35 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			}
 			break;
 		case '.':
-			(void)__eternalizeScript (rf, command + 2);
+			{
+				const char *filename = r_str_trim_head_ro (command + 2);
+				(void)__eternalizeScript (rf, filename);
+			}
 			return strdup ("");
 		case ' ':
-			slurpedData = r_file_slurp (command + 2, NULL);
-			if (!slurpedData) {
-				io->cb_printf ("Cannot slurp %s\n", command + 2);
-				return NULL;
+			{
+				const char *filename = r_str_trim_head_ro (command + 2);
+				builder = build_request ("evaluate");
+				const bool is_c = r_str_endswith (filename, ".c");
+				const bool is_ts = r_str_endswith (filename, ".ts");
+				json_builder_set_member_name (builder, is_c? "ccode": "code");
+				if (is_ts && r2f_compiler ()) {
+					const char *filename = command + 2;
+					GError *error = NULL;
+					FridaCompiler *compiler = frida_compiler_new (device_manager);
+				// 	g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
+					gchar *code = frida_compiler_build_sync (compiler, filename, NULL, NULL, &error);
+					slurpedData = code;
+					g_object_unref (compiler);
+				} else {
+					slurpedData = r_file_slurp (filename, NULL);
+				}
+				if (!slurpedData) {
+					R_LOG_ERROR ("Cannot slurp %s", filename);
+					return NULL;
+				}
+				json_builder_add_string_value (builder, slurpedData);
 			}
-			builder = build_request ("evaluate");
-			if (r_str_endswith (command + 2, ".c")) {
-				json_builder_set_member_name (builder, "ccode");
-			} else {
-				json_builder_set_member_name (builder, "code");
-			}
-			json_builder_add_string_value (builder, slurpedData);
 			break;
 		case '-':
 			builder = build_request ("evaluate");
