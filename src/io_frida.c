@@ -91,8 +91,8 @@ static gint computeDeviceScore(FridaDevice *device);
 static void printList(R2FridaListType type, GArray *items, gint num_items);
 
 extern RIOPlugin r_io_plugin_frida;
-static R_TH_LOCAL FridaDeviceManager *device_manager = NULL;
-static R_TH_LOCAL size_t device_manager_count = 0;
+static FridaDeviceManager *device_manager = NULL;
+static size_t device_manager_count = 0;
 
 static const char * const helpmsg = ""\
 	"r2 frida://[action]/[link]/[device]/[target]\n"
