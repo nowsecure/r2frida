@@ -104,7 +104,7 @@ jobs:
       - build-linux
       - build-macos
       - build-windows
-      - build-script
+      - build-agent
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
