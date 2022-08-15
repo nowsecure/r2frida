@@ -102,13 +102,7 @@ static const gchar r_io_frida_agent_code[] = {
 };
 
 static bool r2f_debug() {
-	char *a = r_sys_getenv ("R2FRIDA_DEBUG");
-	int rc = 0;
-	if (a) {
-		rc = atoi (a);
-		free (a);
-	}
-	return rc;
+	return r_sys_getenv_asbool ("R2FRIDA_DEBUG");
 }
 
 static void resume(RIOFrida *rf) {
@@ -255,15 +249,7 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 }
 
 static bool user_wants_safe_io(void) {
-	bool do_want = false;
-	char *env = r_sys_getenv ("R2FRIDA_SAFE_IO");
-	if (env) {
-		if (*env) {
-			do_want = true;
-		}
-		free (env);
-	}
-	return do_want;
+	return r_sys_getenv_asbool ("R2FRIDA_SAFE_IO");
 }
 
 static bool __close(RIODesc *fd) {
