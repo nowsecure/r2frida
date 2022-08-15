@@ -94,6 +94,34 @@ extern RIOPlugin r_io_plugin_frida;
 static R_TH_LOCAL FridaDeviceManager *device_manager = NULL;
 static R_TH_LOCAL size_t device_manager_count = 0;
 
+static const char * const helpmsg = ""\
+	"r2 frida://[action]/[link]/[device]/[target]\n"
+	"* action = list | apps | attach | spawn | launch\n"
+	"* link   = local | usb | remote host:port\n"
+	"* device = '' | host:port | device-id\n"
+	"* target = pid | appname | process-name | program-in-path | abspath\n"
+	"Local:\n"
+	"* frida://?                        # show this help\n"
+	"* frida://                         # list local processes\n"
+	"* frida://0                        # attach to frida-helper (no spawn needed)\n"
+	"* frida:///usr/local/bin/rax2      # abspath to spawn\n"
+	"* frida://rax2                     # same as above, considering local/bin is in PATH\n"
+	"* frida://spawn/$(program)         # spawn a new process in the current system\n"
+	"* frida://attach/(target)          # attach to target PID in current host\n"
+	"USB:\n"
+	"* frida://list/usb//               # list processes in the first usb device\n"
+	"* frida://apps/usb//               # list apps in the first usb device\n"
+	"* frida://attach/usb//12345        # attach to given pid in the first usb device\n"
+	"* frida://spawn/usb//appname       # spawn an app in the first resolved usb device\n"
+	"* frida://launch/usb//appname      # spawn+resume an app in the first usb device\n"
+	"Remote:\n"
+	"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
+	"Environment: (Use the `%` command to change the environment at runtime)\n"
+	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
+	"  R2FRIDA_DEBUG=0|1                # Used to debug argument parsing behaviour\n"
+	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
+	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n";
+
 #define src__agent__js r_io_frida_agent_code
 
 static const gchar r_io_frida_agent_code[] = {
@@ -474,6 +502,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	if (R_STR_ISEMPTY (command)) {
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
+	} else if (r_str_startswith (command, "%")) {
+		eprintf ("%s\n", helpmsg);
+		return false;
 	} else if (r_str_startswith (command, "o/")) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
@@ -1249,32 +1280,6 @@ static bool resolve_target(const char *pathname, R2FridaLaunchOptions *lo, GCanc
 	// local, usb, remote
 	// attach, spawn, launch, list
 	if (!strcmp (first_field, "?")) {
-		const char * const helpmsg = "r2 frida://[action]/[link]/[device]/[target]\n"
-		"* action = list | apps | attach | spawn | launch\n"
-		"* link   = local | usb | remote host:port\n"
-		"* device = '' | host:port | device-id\n"
-		"* target = pid | appname | process-name | program-in-path | abspath\n"
-		"Local:\n"
-		"* frida://?                        # show this help\n"
-		"* frida://                         # list local processes\n"
-		"* frida://0                        # attach to frida-helper (no spawn needed)\n"
-		"* frida:///usr/local/bin/rax2      # abspath to spawn\n"
-		"* frida://rax2                     # same as above, considering local/bin is in PATH\n"
-		"* frida://spawn/$(program)         # spawn a new process in the current system\n"
-		"* frida://attach/(target)          # attach to target PID in current host\n"
-		"USB:\n"
-		"* frida://list/usb//               # list processes in the first usb device\n"
-		"* frida://apps/usb//               # list apps in the first usb device\n"
-		"* frida://attach/usb//12345        # attach to given pid in the first usb device\n"
-		"* frida://spawn/usb//appname       # spawn an app in the first resolved usb device\n"
-		"* frida://launch/usb//appname      # spawn+resume an app in the first usb device\n"
-		"Remote:\n"
-		"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
-		"Environment:\n"
-		"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
-		"  R2FRIDA_DEBUG=0|1                # Used to debug argument parsing behaviour\n"
-		"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the newfrida-compiler with typescript support\n"
-		"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n";
 		eprintf ("%s\n", helpmsg);
 		return false;
 	}
