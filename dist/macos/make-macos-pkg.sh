@@ -8,6 +8,16 @@
 
 SRC=/tmp/r2frida-macos
 PREFIX=/usr/local
+ARM64CHK=`echo "$CFLAGS $ARCHFLAGS" | grep arm64`
+if [ -n "$ARM64CHK" ]; then
+        # crossbuild arm64 build
+        ARCH=m1
+elif [ "`uname -m`" = arm64 ]; then
+        # local arm64 build
+        ARCH=m1
+else
+        ARCH=x64
+fi
 DST="$(pwd)/macos-pkg/r2frida.unpkg"
 if [ -n "$1" ]; then
 	VERSION="$1"
@@ -43,10 +53,10 @@ if [ -d "${SRC}" ]; then
 	)
 	mkbom ${SRC} "${DST}/Bom"
 	# Repackage
-	pkgutil --flatten "${DST}" "${DST}/../r2frida-${VERSION}.pkg"
+	pkgutil --flatten "${DST}" "${DST}/../r2frida-${VERSION}-${ARCH}.pkg"
 	mv dist/macos/macos-pkg/*.pkg dist/macos
 	cp -f dist/macos/*.pkg .
 else
-	echo "Failed install. DESTDIR is empty"
+	echo "Failed install. DESTDIR is empty" > /dev/stderr
 	exit 1
 fi

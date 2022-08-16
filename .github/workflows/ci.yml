@@ -168,8 +168,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-macos/r2frida-${{ steps.r2fv.outputs.branch }}-macos.pkg
-          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-macos.pkg
+          asset_path: dist/artifacts/build-macos/r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
+          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
           asset_content_type: application/octet-stream
       - name: Upload asset for Windows (w64)
         uses: actions/upload-release-asset@v1
