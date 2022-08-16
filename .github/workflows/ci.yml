@@ -180,12 +180,3 @@ jobs:
           asset_path: dist/artifacts/build-windows/r2frida-${{env.R2V}}-w64.zip
           asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-w64.zip
           asset_content_type: application/zip
-      - name: Upload asset for Sleigh files
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-linux/r2frida_sleigh-${{ steps.r2fv.outputs.branch }}.zip
-          asset_name: r2frida_sleigh-${{ steps.r2fv.outputs.branch }}.zip
-          asset_content_type: application/zip
