@@ -23,6 +23,9 @@
   },
   "semistandard": {
     "globals": [
+      "javaPerform",
+      "Runtime",
+      "VMStack",
       "DebugSymbol",
       "File",
       "Frida",
@@ -31,13 +34,16 @@
       "Interceptor",
       "Java",
       "Memory",
+      "getModuleByAddress",
       "Module",
       "NativeCallback",
       "NativeFunction",
+      "SystemFunction",
       "NativePointer",
       "NULL",
       "ObjC",
       "Process",
+      "Swift",
       "recv",
       "Script",
       "Socket",
@@ -46,7 +52,9 @@
       "ptr",
       "rpc",
       "send",
-      "uint64"
+      "uint64",
+      "UInt64",
+      "Int64"
     ]
   }
 }

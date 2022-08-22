@@ -238,6 +238,54 @@ function getStringValue (k) {
   return ck ? ('' + ck) : '';
 }
 
+function evalConfigR2 (args) {
+  return config.asR2Script();
+}
+
+function evalConfig (args) {
+  // list
+  if (args.length === 0) {
+    return config.asR2Script();
+  }
+  const argstr = args.join(' ');
+  const kv = argstr.split(/=/);
+  const [k, v] = kv;
+  if (kv.length === 2) {
+    if (config.get(k) !== undefined) {
+      // help
+      if (v === '?') {
+        return config.helpFor(kv[0]);
+      }
+      // set (and flatten case for variables except file.log)
+      /*
+      if (kv[0] !== 'file.log' && typeof kv[1] === 'string') {
+        config.set(kv[0], kv[1].toLowerCase());
+      } else {
+        config.set(kv[0], kv[1]);
+      }
+*/
+      config.set(kv[0], kv[1]);
+    } else {
+      console.error('unknown variable');
+    }
+    return '';
+  }
+  // get
+  return config.getString(argstr);
+}
+
+function evalConfigSearch (args) {
+  const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
+  const from = currentRange.base;
+  const to = from.add(currentRange.size);
+  return `e search.in=range
+e search.from=${from}
+e search.to=${to}
+e anal.in=range
+e anal.from=${from}
+e anal.to=${to}`;
+}
+
 module.exports = {
   values: config, // bad practice, dont expose
   set: set, // c(k, v) => config[k] = v,
@@ -245,5 +293,8 @@ module.exports = {
   getBoolean: (k) => isTrue(config[k]),
   getString: getStringValue,
   asR2Script: asR2Script,
-  helpFor: helpFor
+  helpFor: helpFor,
+  evalConfigR2,
+  evalConfig,
+  evalConfigSearch
 };
