@@ -8,9 +8,15 @@ const fs = require('./fs');
 const path = require('path');
 const config = require('./config');
 const io = require('./io');
-const isObjC = require('./isobjc');
+const darwin = require('./darwin/index');
+const swift = require('./darwin/swift');
+const java = require('./java/index');
+const android = require('./java/android');
+const search = require('./search');
 const strings = require('./strings');
 const utils = require('./utils');
+const log = require('./log');
+const r2 = require('./r2');
 const newBreakpoints = new Map();
 
 // r2->io->frida->r2pipe->r2
@@ -36,26 +42,13 @@ function initializePuts () {
 
 let Gcwd = '/';
 
-/* ObjC.available is buggy on non-objc apps, so override this */
-const SwiftAvailable = function () {
-  return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
-};
-const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-const JavaAvailable = Java && Java.available;
 
 /* globals */
 const pointerSize = Process.pointerSize;
-
 let suspended = false;
 const tracehooks = {};
-let logs = [];
-let traces = {};
-
 const allocPool = {};
-const pendingCmds = {};
-const pendingCmdSends = [];
-let sendingCommand = false;
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -63,26 +56,8 @@ function numEval (expr) {
     if (symbol && symbol.name) {
       return resolve(symbol.address);
     }
-    hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
+    r2.hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
   });
-}
-
-function javaUse (name) {
-  const initialLoader = Java.classFactory.loader;
-  let res = null;
-  javaPerform(function () {
-    for (const kl of Java.enumerateClassLoadersSync()) {
-      try {
-        Java.classFactory.loader = kl;
-        res = Java.use(name);
-        break;
-      } catch (e) {
-        // do nothing
-      }
-    }
-  });
-  Java.classFactory.loader = initialLoader;
-  return res;
 }
 
 function evalNum (args) {
@@ -93,41 +68,26 @@ function evalNum (args) {
   });
 }
 
-function javaTraceExample () {
-  javaPerform(function () {
-    const System = Java.use('java.lang.System');
-    System.loadLibrary.implementation = function (library) {
-      try {
-        traceEmit('System.loadLibrary ' + library);
-        const loaded = Runtime.getRuntime().loadLibrary0(VMStack.getCallingClassLoader(), library);
-        return loaded;
-      } catch (e) {
-        console.error(e);
-      }
-    };
-  });
-}
-
 const commandHandlers = {
   E: evalNum,
   '?e': echo,
   '?E': uiAlert,
-  '/': search,
-  '/i': searchInstances,
-  '/ij': searchInstancesJson,
-  '/j': searchJson,
-  '/x': searchHex,
-  '/xj': searchHexJson,
-  '/w': searchWide,
-  '/wj': searchWideJson,
-  '/v1': searchValueImpl(1),
-  '/v2': searchValueImpl(2),
-  '/v4': searchValueImpl(4),
-  '/v8': searchValueImpl(8),
-  '/v1j': searchValueImplJson(1),
-  '/v2j': searchValueImplJson(2),
-  '/v4j': searchValueImplJson(4),
-  '/v8j': searchValueImplJson(8),
+  '/': search.search,
+  '/i': search.searchInstances,
+  '/ij': search.searchInstancesJson,
+  '/j': search.searchJson,
+  '/x': search.searchHex,
+  '/xj': search.searchHexJson,
+  '/w': search.searchWide,
+  '/wj': search.searchWideJson,
+  '/v1': search.searchValueImpl(1),
+  '/v2': search.searchValueImpl(2),
+  '/v4': search.searchValueImpl(4),
+  '/v8': search.searchValueImpl(8),
+  '/v1j': search.searchValueImplJson(1),
+  '/v2j': search.searchValueImplJson(2),
+  '/v4j': search.searchValueImplJson(4),
+  '/v8j': search.searchValueImplJson(8),
   '?V': fridaVersion,
   // '.': // this is implemented in C
   i: dumpInfo,
@@ -254,7 +214,7 @@ const commandHandlers = {
   'dma-': removeAlloc,
   dp: getPid,
   dxc: dxCall,
-  dxo: dxObjc,
+  dxo: darwin.dxObjc,
   dxs: dxSyscall,
   dpj: getPidJson,
   dpt: listThreads,
@@ -423,7 +383,7 @@ function listAllocs (args) {
     .sort()
     .map((x) => {
       const bytes = Memory.readByteArray(x, 60);
-      const printables = _filterPrintable(bytes);
+      const printables = utils.filterPrintable(bytes);
       return `${x}\t"${printables}"`;
     })
     .join('\n') + '\n';
@@ -497,47 +457,6 @@ function autoType (args) {
     }
   }
   return [nfArgs, nfArgsData];
-}
-
-function dxObjc (args) {
-  if (!ObjCAvailable) {
-    return 'dxo requires the objc runtime to be available to work.';
-  }
-  if (args.length === 0) {
-    return 'Usage: dxo [klassname|instancepointer] [methodname] [args...]';
-  }
-  if (args.length === 1) {
-    return listClasses(args);
-  }
-  // Usage: "dxo instance-pointer [arg0 arg1]"
-  let instancePointer = null;
-  if (args[0].startsWith('0x')) {
-    instancePointer = new ObjC.Object(ptr(args[0]));
-  } else {
-    const klassName = args[0];
-    if (!ObjC.classes[klassName]) {
-      return 'Cannot find objc class ' + klassName;
-    }
-    const instances = ObjC.chooseSync(ObjC.classes[klassName]);
-    if (!instances) {
-      return 'Cannot find any instance for klass ' + klassName;
-    }
-    instancePointer = instances[0];
-  }
-  const methodName = args[1];
-  const [v, t] = autoType(args.slice(2));
-  try {
-    ObjC.schedule(ObjC.mainQueue, function () {
-      if (instancePointer.hasOwnProperty(methodName)) {
-        instancePointer[methodName](...t);
-      } else {
-        console.error('unknown method ' + methodName + ' for objc instance at ' + padPointer(ptr(instancePointer)));
-      }
-    });
-  } catch (e) {
-    console.error(e);
-  }
-  return '';
 }
 
 function dxCall (args) {
@@ -791,7 +710,7 @@ function radareSeek (args) {
   const cmdstr = 's ' + (addr || '' + args);
   return cmdstr;
   // XXX hangs
-  // return hostCmd(cmdstr);
+  // return r2.hostCmd(cmdstr);
 }
 
 function radareCommand (args) {
@@ -829,7 +748,7 @@ function breakpointContinueUntil (args) {
 function breakpointContinue (args) {
   if (suspended) {
     suspended = false;
-    return hostCmd(':dc');
+    return r2.hostCmd(':dc');
   }
   return 'Continue thread(s).';
 }
@@ -980,15 +899,6 @@ function chDir (args) {
   return '';
 }
 
-function waitForJava () {
-  javaPerform(function () {
-    const ActivityThread = Java.use('android.app.ActivityThread');
-    const app = ActivityThread.currentApplication();
-    const ctx = app.getApplicationContext();
-    console.log('Done: ' + ctx);
-  });
-}
-
 async function dumpInfoJson () {
   const res = {
     arch: getR2Arch(Process.arch),
@@ -996,11 +906,11 @@ async function dumpInfoJson () {
     os: Process.platform,
     pid: getPid(),
     uid: _getuid(),
-    objc: ObjCAvailable,
+    objc: darwin.ObjCAvailable,
     runtime: Script.runtime,
-    swift: SwiftAvailable(),
-    java: JavaAvailable,
-    mainLoop: hasMainLoop(),
+    swift: swift.SwiftAvailable(),
+    java: java.JavaAvailable,
+    mainLoop: darwin.hasMainLoop(),
     pageSize: Process.pageSize,
     pointerSize: Process.pointerSize,
     codeSigningPolicy: Process.codeSigningPolicy,
@@ -1008,7 +918,7 @@ async function dumpInfoJson () {
     cwd: getCwd(),
   };
 
-  if (ObjCAvailable && !suspended) {
+  if (darwin.ObjCAvailable && !suspended) {
     try {
       const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
       const id = mb ? mb.infoDictionary() : '';
@@ -1041,7 +951,7 @@ async function dumpInfoJson () {
       console.error(e);
     }
   }
-  if (JavaAvailable) {
+  if (java.JavaAvailable) {
     await performOnJavaVM(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
       const app = ActivityThread.currentApplication();
@@ -1484,7 +1394,7 @@ function listEntrypoint (args) {
 }
 
 function analFunctionSignature (args) {
-  if (!ObjCAvailable) {
+  if (!darwin.ObjCAvailable) {
     return 'Error: afs is only implemented for ObjC methods.';
   }
   if (args.length === 0) {
@@ -1606,16 +1516,16 @@ function listImportsJson (args) {
 }
 
 function listClassesLoadedJson (args) {
-  if (JavaAvailable) {
+  if (java.JavaAvailable) {
     return listClasses(args);
   }
-  if (ObjCAvailable) {
+  if (darwin.ObjCAvailable) {
     return JSON.stringify(ObjC.enumerateLoadedClassesSync());
   }
 }
 
 function listClassesLoaders (args) {
-  if (!JavaAvailable) {
+  if (!java.JavaAvailable) {
     return 'Error: icL is only available on Android targets.';
   }
   let res = '';
@@ -1653,10 +1563,10 @@ function listClassesLoaders (args) {
 }
 
 function listClassesLoaded (args) {
-  if (JavaAvailable) {
+  if (java.JavaAvailable) {
     return listClasses(args);
   }
-  if (ObjCAvailable) {
+  if (darwin.ObjCAvailable) {
     const results = ObjC.enumerateLoadedClassesSync();
     const loadedClasses = [];
     for (const module of Object.keys(results)) {
@@ -1732,7 +1642,7 @@ function listClassesHooks (args, mode) {
   }
   const moduleNames = {};
   const result = listClassesJson([]);
-  if (ObjCAvailable) {
+  if (darwin.ObjCAvailable) {
     const klasses = ObjC.classes;
     for (const k of result) {
       moduleNames[k] = ObjC.classes[k].$moduleName;
@@ -1761,7 +1671,7 @@ function listClassesWhere (args, mode) {
   if (args.length === 0) {
     const moduleNames = {};
     const result = listClassesJson([]);
-    if (ObjCAvailable) {
+    if (darwin.ObjCAvailable) {
       const klasses = ObjC.classes;
       for (const k of result) {
         moduleNames[k] = klasses[k].$moduleName;
@@ -1775,7 +1685,7 @@ function listClassesWhere (args, mode) {
   } else {
     const moduleNames = {};
     const result = listClassesJson([]);
-    if (ObjCAvailable) {
+    if (darwin.ObjCAvailable) {
       const klasses = ObjC.classes;
       for (const k of result) {
         moduleNames[k] = ObjC.classes[k].$moduleName;
@@ -1824,7 +1734,7 @@ function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
-    if (ObjCAvailable) {
+    if (darwin.ObjCAvailable) {
       for (const cn of Object.keys(ObjC.classes)) {
         if (classGlob(cn, args[0])) {
           methods += listClassesR2([cn]);
@@ -1933,10 +1843,10 @@ function listClassMethodsJson (args) {
 }
 
 function listClassesJson (args, mode) {
-  if (JavaAvailable) {
+  if (java.JavaAvailable) {
     return listJavaClassesJson(args, mode === 'methods');
   }
-  if (!ObjCAvailable) {
+  if (!darwin.ObjCAvailable) {
     return [];
   }
   if (args.length === 0) {
@@ -2083,7 +1993,7 @@ function listStrings (args) {
 }
 
 function listProtocolsJson (args) {
-  if (!ObjCAvailable) {
+  if (!darwin.ObjCAvailable) {
     return [];
   }
   if (args.length === 0) {
@@ -2756,7 +2666,7 @@ function dlopen (args) {
 }
 
 function loadFrameworkBundle (args) {
-  if (!ObjCAvailable) {
+  if (!darwin.ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
     return false;
   }
@@ -2772,7 +2682,7 @@ function loadFrameworkBundle (args) {
 }
 
 function unloadFrameworkBundle (args) {
-  if (!ObjCAvailable) {
+  if (!darwin.ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
     return false;
   }
@@ -2885,7 +2795,7 @@ function formatArgs (args, fmt) {
       case 'O':
         if (ObjC.available) {
           if (!arg.isNull()) {
-            if (isObjC(arg)) {
+            if (darwin.isObjC(arg)) {
               const o = new ObjC.Object(arg);
               if (o.$className === 'Foundation.__NSSwiftData') {
                 a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o, 4).toString()}"`);
@@ -3157,14 +3067,14 @@ function traceFormat (args) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
         if (config.getString('hook.output') === 'json') {
-          traceEmit(traceMessage);
+          log.traceEmit(traceMessage);
         } else {
           let msg = `[dtf onEnter][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}`;
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
           for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
-          traceEmit(msg);
+          log.traceEmit(msg);
         }
         if (useCmd.length > 0) {
           console.log('[r2cmd]' + useCmd);
@@ -3189,14 +3099,14 @@ function traceFormat (args) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
         }
         if (config.getString('hook.output') === 'json') {
-          traceEmit(traceMessage);
+          log.traceEmit(traceMessage);
         } else {
           let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${retval.toString()}`;
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
           for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
-          traceEmit(msg);
+          log.traceEmit(msg);
         }
         if (useCmd.length > 0) {
           console.log('[r2cmd]' + useCmd);
@@ -3233,18 +3143,18 @@ function traceNameFromAddress (address) {
 }
 
 function traceLogDumpQuiet () {
-  return logs.map(({ address, timestamp }) =>
+  return log.logs.map(({ address, timestamp }) =>
     [address, timestamp, traceCountFromAddress(address), traceNameFromAddress(address)].join(' '))
     .join('\n') + '\n';
 }
 
 function traceLogDumpJson () {
-  return JSON.stringify(logs);
+  return JSON.stringify(log.logs);
 }
 
 function traceLogDumpR2 () {
   let res = '';
-  for (const l of logs) {
+  for (const l of log.logs) {
     if (l.script) {
       res += l.script;
     }
@@ -3257,7 +3167,7 @@ function objectToString (o) {
   const r = Object.keys(o).map((k) => {
     try {
       const p = ptr(o[k]);
-      if (isObjC(p)) {
+      if (darwin.isObjC(p)) {
         const o = new ObjC.Object(p);
         return k + ': ' + o.toString();
       }
@@ -3283,7 +3193,7 @@ function tracelogToString (l) {
 }
 
 function traceLogDump () {
-  return logs.map(tracelogToString).join('\n') + '\n';
+  return log.logs.map(tracelogToString).join('\n') + '\n';
 }
 
 function traceLogClear (args) {
@@ -3293,34 +3203,12 @@ function traceLogClear (args) {
 }
 
 function traceLogClearAll () {
-  logs = [];
-  traces = {};
+  log.logs = [];
+  log.traces = {};
   return '';
 }
 
-function traceEmit (msg) {
-  const fileLog = config.getString('file.log');
-  if (fileLog.length > 0) {
-    send(wrapStanza('log-file', {
-      filename: fileLog,
-      message: msg
-    }));
-  } else {
-    traceLog(msg);
-  }
-  if (config.getBoolean('hook.logs')) {
-    logs.push(msg);
-  }
-  global.r2frida.logs = logs;
-}
 
-function traceLog (msg) {
-  if (config.getBoolean('hook.verbose')) {
-    send(wrapStanza('log', {
-      message: msg
-    }));
-  }
-}
 
 function haveTraceAt (address) {
   try {
@@ -3382,13 +3270,13 @@ function traceRegs (args) {
       traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
     }
     if (config.getString('hook.output') === 'json') {
-      traceEmit(traceMessage);
+      log.traceEmit(traceMessage);
     } else {
       let msg = `[dtr][${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
       if (config.getBoolean('hook.backtrace')) {
         msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
       }
-      traceEmit(msg);
+      log.traceEmit(msg);
     }
   }
   const traceListener = {
@@ -3468,7 +3356,7 @@ function traceSwift (klass, method) {
 
   const callback = function (args) {
     const msg = ['[SWIFT]', klass, method, JSON.stringify(args)];
-    traceEmit(msg.join(' '));
+    log.traceEmit(msg.join(' '));
   };
   Swift.Interceptor.Attach(target, callback);
 }
@@ -3492,13 +3380,13 @@ function traceJava (klass, method) {
         values: args
       };
       if (config.getString('hook.output') === 'json') {
-        traceEmit(traceMessage);
+        log.traceEmit(traceMessage);
       } else {
         let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
         if (config.getBoolean('hook.backtrace')) {
           msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
         }
-        traceEmit(msg);
+        log.traceEmit(msg);
       }
       return res;
     };
@@ -3822,9 +3710,9 @@ function traceReal (name, addressString) {
     };
     traceListener.hits++;
     if (config.getString('hook.output') === 'json') {
-      traceEmit(traceMessage);
+      log.traceEmit(traceMessage);
     } else {
-      traceEmit(`[dt][${traceMessage.timestamp}] ${address} - args: ${JSON.stringify(values)}`);
+      log.traceEmit(`[dt][${traceMessage.timestamp}] ${address} - args: ${JSON.stringify(values)}`);
     }
   });
   const traceListener = {
@@ -3880,7 +3768,7 @@ function interceptRetJava (klass, method, value) {
     targetClass[method].implementation = function (library) {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
-        traceEmit({
+        log.traceEmit({
           source: 'java',
           class: klass,
           method,
@@ -3888,7 +3776,7 @@ function interceptRetJava (klass, method, value) {
           timestamp
         });
       } else {
-        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
       }
       switch (value) {
         case 0: return false;
@@ -3907,7 +3795,7 @@ function interceptFunRetJava (className, methodName, value, paramTypes) {
     targetClass[methodName].overload(paramTypes).implementation = function (args) {
       const timestamp = new Date();
       if (config.getString('hook.output') === 'json') {
-        traceEmit({
+        log.traceEmit({
           source: 'java',
           class: className,
           methodName,
@@ -3915,7 +3803,7 @@ function interceptFunRetJava (className, methodName, value, paramTypes) {
           timestamp
         });
       } else {
-        traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
+        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
       }
       this[methodName](args);
       switch (value) {
@@ -4336,15 +4224,6 @@ function alignRight (text, width) {
   return result;
 }
 
-function padPointer (value) {
-  let result = value.toString(16);
-  const paddedLength = 2 * pointerSize;
-  while (result.length < paddedLength) {
-    result = '0' + result;
-  }
-  return '0x' + result;
-}
-
 const requestHandlers = {
   safeio: () => { r2frida.safeio = true; },
   unsafeio: () => { if (!NeedsSafeIo) { r2frida.safeio = false; } },
@@ -4448,9 +4327,9 @@ function normalizeValue (value) {
 function evaluate (params) {
   return new Promise(resolve => {
     let { code, ccode } = params;
-    const isObjcMainLoopRunning = ObjCAvailable && hasMainLoop();
+    const isObjcMainLoopRunning = darwin.ObjCAvailable && darwin.hasMainLoop();
 
-    if (ObjCAvailable && isObjcMainLoopRunning && !suspended) {
+    if (darwin.ObjCAvailable && isObjcMainLoopRunning && !suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
@@ -4480,35 +4359,6 @@ main();
   });
 }
 
-function hasMainLoop () {
-  const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
-  if (getMainPtr === null) {
-    return false;
-  }
-
-  const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
-  if (copyCurrentModePtr === null) {
-    return false;
-  }
-
-  const getMain = new NativeFunction(getMainPtr, 'pointer', []);
-  const copyCurrentMode = new NativeFunction(copyCurrentModePtr, 'pointer', ['pointer']);
-
-  const main = getMain();
-  if (main.isNull()) {
-    return false;
-  }
-
-  const mode = copyCurrentMode(main);
-  const hasLoop = !mode.isNull();
-
-  if (hasLoop) {
-    new ObjC.Object(mode).release();
-  }
-
-  return hasLoop;
-}
-
 Script.setGlobalAccessHandler({
   enumerate () {
     return [];
@@ -4522,200 +4372,19 @@ function fridaVersion () {
   return { version: Frida.version };
 }
 
-function uiAlertAndroid (args) {
-  if (args.length < 2) {
-    return 'Usage: ?E title message';
-  }
-  const title = args[0];
-  const message = args.slice(1).join(' ');
-  Java.perform(function () {
-    const System = Java.use('java.lang.System');
-    const ActivityThread = Java.use('android.app.ActivityThread');
-    const AlertDialogBuilder = Java.use('android.app.AlertDialog$Builder');
-    const DialogInterfaceOnClickListener = Java.use('android.content.DialogInterface$OnClickListener');
-
-    Java.use('android.app.Activity').onCreate.overload('android.os.Bundle').implementation = function (savedInstanceState) {
-      const currentActivity = this;
-
-      // Get Main Activity
-      const application = ActivityThread.currentApplication();
-      const launcherIntent = application.getPackageManager().getLaunchIntentForPackage(application.getPackageName());
-      const launchActivityInfo = launcherIntent.resolveActivityInfo(application.getPackageManager(), 0);
-
-      // Alert Will Only Execute On Main Package Activity Creation
-      if (launchActivityInfo.name.value === this.getComponentName().getClassName()) {
-        const alert = AlertDialogBuilder.$new(this);
-        alert.setMessage(title + message); // "What you want to do now?");
-
-        /*
-            alert.setPositiveButton("Dismiss", Java.registerClass({
-                name: 'il.co.realgame.OnClickListenerPositive',
-                implements: [DialogInterfaceOnClickListener],
-                methods: {
-                    getName: function() {
-                        return 'OnClickListenerPositive';
-                    },
-                    onClick: function(dialog, which) {
-                        // Dismiss
-                        dialog.dismiss();
-                    }
-                }
-            }).$new());
-
-            alert.setNegativeButton("Force Close!", Java.registerClass({
-                name: 'il.co.realgame.OnClickListenerNegative',
-                implements: [DialogInterfaceOnClickListener],
-                methods: {
-                    getName: function() {
-                        return 'OnClickListenerNegative';
-                    },
-                    onClick: function(dialog, which) {
-                        // Close Application
-                        currentActivity.finish();
-                        System.exit(0);
-                    }
-                }
-            }).$new());
-
-*/
-        // Create Alert
-        alert.create().show();
-      }
-      return this.onCreate.overload('android.os.Bundle').call(this, savedInstanceState);
-    };
-  });
-}
-
 function uiAlert (args) {
-  if (JavaAvailable) {
-    return uiAlertAndroid(args);
+  if (java.JavaAvailable) {
+    return android.uiAlert(args);
   }
-  if (!ObjCAvailable) {
-    return 'Error: ui-alert is not implemented for this platform';
+  if (darwin.ObjCAvailable) {
+    return darwin.uiAlert(args);
   }
-  if (args.length < 2) {
-    return 'Usage: ?E title message';
-  }
-  const title = args[0];
-  const message = args.slice(1).join(' ');
-  ObjC.schedule(ObjC.mainQueue, function () {
-    const UIAlertView = ObjC.classes.UIAlertView; /* iOS 7 */
-    const view = UIAlertView.alloc().initWithTitle_message_delegate_cancelButtonTitle_otherButtonTitles_(
-      title,
-      message,
-      NULL,
-      'OK',
-      NULL);
-    view.show();
-    view.release();
-  });
-}
-
-function search (args) {
-  return searchJson(args).then(hits => {
-    return _readableHits(hits);
-  });
+  return 'Error: ui-alert is not implemented for this platform';
 }
 
 function echo (args) {
   console.log(args.join(' '));
   return null;
-}
-
-function searchJson (args) {
-  const pattern = _toHexPairs(args.join(' '));
-  return _searchPatternJson(pattern).then(hits => {
-    hits.forEach(hit => {
-      try {
-        const bytes = io.read({
-          offset: hit.address,
-          count: 60
-        })[1];
-        hit.content = _filterPrintable(bytes);
-      } catch (e) {
-      }
-    });
-    return hits.filter(hit => hit.content !== undefined);
-  });
-}
-
-function searchInstancesJson (args) {
-  const className = args.join('');
-  if (ObjCAvailable) {
-    const results = JSON.parse(JSON.stringify(ObjC.chooseSync(ObjC.classes[className])));
-    return results.map(function (res) {
-      return { address: res.handle, content: className };
-    });
-  } else {
-    Java.performNow(function () {
-      const results = Java.choose(Java.classes[className]);
-      return results.map(function (res) {
-        return { address: res, content: className };
-      });
-    });
-  }
-}
-
-function searchInstances (args) {
-  return _readableHits(searchInstancesJson(args));
-}
-
-function searchHex (args) {
-  return searchHexJson(args).then(hits => {
-    return _readableHits(hits);
-  });
-}
-
-function searchHexJson (args) {
-  const pattern = _normHexPairs(args.join(''));
-  return _searchPatternJson(pattern).then(hits => {
-    hits.forEach(hit => {
-      const bytes = Memory.readByteArray(hit.address, hit.size);
-      hit.content = _byteArrayToHex(bytes);
-    });
-    return hits;
-  });
-}
-
-function searchWide (args) {
-  return searchWideJson(args).then(hits => {
-    return _readableHits(hits);
-  });
-}
-
-function searchWideJson (args) {
-  const pattern = _toWidePairs(args.join(' '));
-  return searchHexJson([pattern]);
-}
-
-function searchValueImpl (width) {
-  return function (args) {
-    return searchValueJson(args, width).then(hits => {
-      return _readableHits(hits);
-    });
-  };
-}
-
-function searchValueImplJson (width) {
-  return function (args) {
-    return searchValueJson(args, width);
-  };
-}
-
-function searchValueJson (args, width) {
-  let value;
-  try {
-    value = uint64(args.join(''));
-  } catch (e) {
-    return new Promise((resolve, reject) => reject(e));
-  }
-
-  return hostCmdj('ej')
-    .then((r2cfg) => {
-      const bigEndian = r2cfg['cfg.bigendian'];
-      const bytes = _renderEndian(value, bigEndian, width);
-      return searchHexJson([_toHexPairs(bytes)]);
-    });
 }
 
 function evalConfigSearch (args) {
@@ -4764,266 +4433,6 @@ function evalConfig (args) {
   }
   // get
   return config.getString(argstr);
-}
-
-function _renderEndian (value, bigEndian, width) {
-  const bytes = [];
-  for (let i = 0; i !== width; i++) {
-    if (bigEndian) {
-      bytes.push(value.shr((width - i - 1) * 8).and(0xff).toNumber());
-    } else {
-      bytes.push(value.shr(i * 8).and(0xff).toNumber());
-    }
-  }
-  return bytes;
-}
-
-function _byteArrayToHex (arr) {
-  const u8arr = new Uint8Array(arr);
-  const hexs = [];
-  for (let i = 0; i !== u8arr.length; i += 1) {
-    const h = u8arr[i].toString(16);
-    hexs.push((h.length === 2) ? h : `0${h}`);
-  }
-  return hexs.join('');
-}
-
-const minPrintable = ' '.charCodeAt(0);
-const maxPrintable = '~'.charCodeAt(0);
-
-function _filterPrintable (arr) {
-  const u8arr = new Uint8Array(arr);
-  const printable = [];
-  for (let i = 0; i !== u8arr.length; i += 1) {
-    const c = u8arr[i];
-    if (c === 0) {
-      break;
-    }
-    if (c >= minPrintable && c <= maxPrintable) {
-      printable.push(String.fromCharCode(c));
-    }
-  }
-  return printable.join('');
-}
-
-function _readableHits (hits) {
-  const output = hits.map(hit => {
-    if (typeof hit.flag === 'string') {
-      return `${hexPtr(hit.address)} ${hit.flag} ${hit.content}`;
-    }
-    return `${hexPtr(hit.address)} ${hit.content}`;
-  });
-  return output.join('\n') + '\n';
-}
-
-function hexPtr (p) {
-  if (p instanceof UInt64) {
-    return `0x${p.toString(16)}`;
-  }
-  return p.toString();
-}
-
-function _searchPatternJson (pattern) {
-  return hostCmdj('ej')
-    .then(r2cfg => {
-      const flags = r2cfg['search.flags'];
-      const prefix = r2cfg['search.prefix'] || 'hit';
-      const count = r2cfg['search.count'] || 0;
-      const kwidx = r2cfg['search.kwidx'] || 0;
-
-      const ranges = _getRanges(r2cfg['search.from'], r2cfg['search.to']);
-      const nBytes = pattern.split(' ').length;
-
-      qlog(`Searching ${nBytes} bytes: ${pattern}`);
-
-      let results = [];
-      const commands = [];
-      let idx = 0;
-      for (const range of ranges) {
-        if (range.size === 0) {
-          continue;
-        }
-
-        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
-        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
-        try {
-          const partial = _scanForPattern(range.address, range.size, pattern);
-
-          partial.forEach((hit) => {
-            if (flags) {
-              hit.flag = `${prefix}${kwidx}_${idx + count}`;
-              commands.push('fs+searches');
-              commands.push(`f ${hit.flag} ${hit.size} ${hexPtr(hit.address)}`);
-              commands.push('fs-');
-            }
-            idx += 1;
-          });
-
-          results = results.concat(partial);
-        } catch (e) {
-          console.error('Oops', e);
-        }
-      }
-
-      qlog(`hits: ${results.length}`);
-
-      commands.push(`e search.kwidx=${kwidx + 1}`);
-
-      return hostCmds(commands).then(() => {
-        return results;
-      });
-    });
-
-  function qlog (message) {
-    if (!config.getBoolean('search.quiet')) {
-      console.log(message);
-    }
-  }
-}
-
-function _scanForPattern (address, size, pattern) {
-  if (r2frida.hookedScan !== null) {
-    return r2frida.hookedScan(address, size, pattern);
-  }
-  return Memory.scanSync(address, size, pattern);
-}
-
-function _configParseSearchIn () {
-  const res = {
-    current: false,
-    perm: 'r--',
-    path: null,
-    heap: false
-  };
-
-  const c = config.getString('search.in');
-  const cSplit = c.split(':');
-  const [scope, param] = cSplit;
-
-  if (scope === 'current') {
-    res.current = true;
-  }
-  if (scope === 'heap') {
-    res.heap = true;
-  }
-  if (scope === 'perm') {
-    res.perm = param;
-  }
-  if (scope === 'path') {
-    cSplit.shift();
-    res.path = cSplit.join('');
-  }
-
-  return res;
-}
-
-function _getRanges (fromNum, toNum) {
-  const searchIn = _configParseSearchIn();
-
-  if (searchIn.heap) {
-    return Process.enumerateMallocRanges()
-      .map(_ => {
-        return {
-          address: _.base,
-          size: _.size
-        };
-      });
-  }
-  const ranges = _getMemoryRanges(searchIn.perm).filter(range => {
-    const start = range.base;
-    const end = start.add(range.size);
-    const offPtr = ptr(r2frida.offset);
-    if (searchIn.current) {
-      return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
-    }
-    if (searchIn.path !== null) {
-      if (range.file !== undefined) {
-        return range.file.path.indexOf(searchIn.path) >= 0;
-      }
-      return false;
-    }
-    return true;
-  });
-
-  if (ranges.length === 0) {
-    return [];
-  }
-
-  const first = ranges[0];
-  const last = ranges[ranges.length - 1];
-
-  const from = (fromNum === -1) ? first.base : ptr(fromNum);
-  const to = (toNum === -1) ? last.base.add(last.size) : ptr(toNum);
-
-  return ranges.filter(range => {
-    return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
-  }).map(range => {
-    const start = _ptrMax(range.base, from);
-    const end = _ptrMin(range.base.add(range.size), to);
-    return {
-      address: start,
-      size: uint64(end.sub(start).toString()).toNumber()
-    };
-  });
-}
-
-function _ptrMax (a, b) {
-  return a.compare(b) > 0 ? a : b;
-}
-
-function _ptrMin (a, b) {
-  return a.compare(b) < 0 ? a : b;
-}
-
-function _toHexPairs (raw) {
-  const isString = typeof raw === 'string';
-  const pairs = [];
-  for (let i = 0; i !== raw.length; i += 1) {
-    const code = (isString ? raw.charCodeAt(i) : raw[i]) & 0xff;
-    const h = code.toString(16);
-    pairs.push((h.length === 2) ? h : `0${h}`);
-  }
-  return pairs.join(' ');
-}
-
-function _toWidePairs (raw) {
-  const pairs = [];
-  for (let i = 0; i !== raw.length; i += 1) {
-    const code = raw.charCodeAt(i) & 0xff;
-    const h = code.toString(16);
-    pairs.push((h.length === 2) ? h : `0${h}`);
-    pairs.push('00');
-  }
-  return pairs.join(' ');
-}
-
-function _normHexPairs (raw) {
-  const norm = raw.replace(/ /g, '');
-  if (_isHex(norm)) {
-    return _toPairs(norm.replace(/\./g, '?'));
-  }
-  throw new Error('Invalid hex string');
-}
-
-function _toPairs (hex) {
-  if ((hex.length % 2) !== 0) {
-    throw new Error('Odd-length string');
-  }
-
-  const pairs = [];
-  for (let i = 0; i !== hex.length; i += 2) {
-    pairs.push(hex.substr(i, 2));
-  }
-  return pairs.join(' ').toLowerCase();
-}
-
-function _isHex (raw) {
-  const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
-  const inSet = new Set(Array.from(raw));
-  for (const h of hexSet) {
-    inSet.delete(h);
-  }
-  return inSet.size === 0;
 }
 
 function fsList (args) {
@@ -5081,123 +4490,33 @@ function onStanza (stanza, data) {
     try {
       const value = handler(stanza.payload, data);
       if (value === undefined) {
-        send(wrapStanza('reply', {}), []);
+        send(utils.wrapStanza('reply', {}), []);
       } else if (value instanceof Promise) {
         // handle async stuff in here
         value
           .then(([replyStanza, replyBytes]) => {
-            send(wrapStanza('reply', replyStanza), replyBytes);
+            send(utils.wrapStanza('reply', replyStanza), replyBytes);
           })
           .catch(e => {
-            send(wrapStanza('reply', {
+            send(utils.wrapStanza('reply', {
               error: e.message
             }), []);
           });
       } else {
         const [replyStanza, replyBytes] = value;
-        send(wrapStanza('reply', replyStanza), replyBytes);
+        send(utils.wrapStanza('reply', replyStanza), replyBytes);
       }
     } catch (e) {
-      send(wrapStanza('reply', { error: e.message }), []);
+      send(utils.wrapStanza('reply', { error: e.message }), []);
     }
   } else if (stanza.type === 'bp') {
     console.error('Breakpoint handler');
   } else if (stanza.type === 'cmd') {
-    onCmdResp(stanza.payload);
+    r2.onCmdResp(stanza.payload);
   } else {
     console.error('Unhandled stanza: ' + stanza.type);
   }
   recv(onStanza);
-}
-
-let cmdSerial = 0;
-
-function hostCmds (commands) {
-  let i = 0;
-  function sendOne () {
-    if (i < commands.length) {
-      return hostCmd(commands[i]).then(() => {
-        i += 1;
-        return sendOne();
-      });
-    } else {
-      return Promise.resolve();
-    }
-  }
-  return sendOne();
-}
-
-function hostCmdj (cmd) {
-  return hostCmd(cmd)
-    .then(output => {
-      return JSON.parse(output);
-    });
-}
-
-function hostCmd (cmd) {
-  return new Promise((resolve) => {
-    const serial = cmdSerial;
-    cmdSerial++;
-    pendingCmds[serial] = resolve;
-    sendCommand(cmd, serial);
-  });
-}
-
-global.r2frida.hostCmd = hostCmd;
-global.r2frida.hostCmdj = hostCmdj;
-global.r2frida.logs = logs;
-global.r2frida.log = traceLog;
-global.r2frida.emit = traceEmit;
-global.r2frida.safeio = NeedsSafeIo;
-global.r2frida.module = '';
-global.r2frida.puts = initializePuts();
-
-function sendCommand (cmd, serial) {
-  function sendIt () {
-    sendingCommand = true;
-    send(wrapStanza('cmd', {
-      cmd: cmd,
-      serial: serial
-    }));
-  }
-
-  if (sendingCommand) {
-    pendingCmdSends.push(sendIt);
-  } else {
-    sendIt();
-  }
-}
-
-function onCmdResp (params) {
-  const { serial, output } = params;
-
-  sendingCommand = false;
-
-  if (serial in pendingCmds) {
-    const onFinish = pendingCmds[serial];
-    delete pendingCmds[serial];
-    process.nextTick(() => onFinish(output));
-  } else {
-    throw new Error('Command response out of sync');
-  }
-
-  process.nextTick(() => {
-    if (!sendingCommand) {
-      const nextSend = pendingCmdSends.shift();
-      if (nextSend !== undefined) {
-        nextSend();
-      }
-    }
-  });
-
-  return [{}, null];
-}
-
-function wrapStanza (name, stanza) {
-  return {
-    name: name,
-    stanza: stanza
-  };
 }
 
 /* breakpoint handler */
@@ -5238,5 +4557,14 @@ Process.setExceptionHandler(({ address }) => {
 
   return true;
 });
+
+global.r2frida.hostCmd = r2.hostCmd;
+global.r2frida.hostCmdj = r2.hostCmdj;
+global.r2frida.logs = log.logs;
+global.r2frida.log = log.traceLog;
+global.r2frida.emit = log.traceEmit;
+global.r2frida.safeio = NeedsSafeIo;
+global.r2frida.module = '';
+global.r2frida.puts = initializePuts();
 
 recv(onStanza);
