@@ -23,6 +23,9 @@
   },
   "semistandard": {
     "globals": [
+      "javaPerform",
+      "Runtime",
+      "VMStack",
       "DebugSymbol",
       "File",
       "Frida",
@@ -46,7 +49,8 @@
       "ptr",
       "rpc",
       "send",
-      "uint64"
+      "uint64",
+      "UInt64"
     ]
   }
 }
