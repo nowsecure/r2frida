@@ -4,6 +4,7 @@
 // this cant be done from the agent-side
 
 const { stalkFunction, stalkEverything } = require('./stalker');
+const debug = require('./debug').default;
 const fs = require('./fs');
 const path = require('path');
 const config = require('./config');
@@ -17,13 +18,12 @@ const strings = require('./strings');
 const utils = require('./utils');
 const log = require('./log');
 const r2 = require('./r2');
-const newBreakpoints = new Map();
 
 // r2->io->frida->r2pipe->r2
 let _r2 = null;
-let _r_core_new = null;
-let _r_core_cmd_str = null;
-let _r_core_free = null;
+let _r_core_new = null; // eslint-disable-line camelcase
+let _r_core_cmd_str = null; // eslint-disable-line camelcase
+let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
 let _free = null;
 
 function initializePuts () {
@@ -47,7 +47,6 @@ const NeedsSafeIo = isLinuxArm32 || isIOS15;
 
 /* globals */
 const pointerSize = Process.pointerSize;
-let suspended = false;
 const tracehooks = {};
 const allocPool = {};
 
@@ -109,12 +108,12 @@ const commandHandlers = {
   e: evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
-  db: breakpointNative,
-  dbj: breakpointJson,
-  dbc: breakpointNativeCommand,
-  'db-': breakpointUnset,
-  dc: breakpointContinue,
-  dcu: breakpointContinueUntil,
+  db: debug.breakpointNative,
+  dbj: debug.breakpointJson,
+  dbc: debug.breakpointNativeCommand,
+  'db-': debug.breakpointUnset,
+  dc: debug.breakpointContinue,
+  dcu: debug.breakpointContinueUntil,
   dk: sendSignal,
 
   s: radareSeek,
@@ -752,135 +751,6 @@ function sendSignal (args) {
   return '';
 }
 
-function breakpointContinueUntil (args) {
-  breakpointNative(args);
-  breakpointContinue([]);
-  breakpointNative(['-' + args[0]]);
-}
-
-function breakpointContinue (args) {
-  if (suspended) {
-    suspended = false;
-    return r2.hostCmd(':dc');
-  }
-  return 'Continue thread(s).';
-}
-
-class CodePatch {
-  constructor (address) {
-    const insn = Instruction.parse(address);
-    this.address = address;
-    this.insn = insn;
-
-    const insnSize = insn.size;
-    this._newData = breakpointInstruction();
-    this._originalData = address.readByteArray(insnSize);
-    this._applied = false;
-  }
-
-  toggle () {
-    this._apply(this._applied ? this._originalData : this._newData);
-    this._applied = !this._applied;
-  }
-
-  enable () {
-    if (!this._applied) { this.toggle(); }
-  }
-
-  disable () {
-    if (this._applied) { this.toggle(); }
-  }
-
-  _apply (data) {
-    Memory.patchCode(this.address, data.byteLength, code => {
-      code.writeByteArray(data);
-    });
-  }
-}
-
-function breakpointInstruction () {
-  if (Process.arch === 'arm64') {
-    return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
-  }
-  return new Uint8Array([0xcc]).buffer;
-}
-
-function breakpointNativeCommand (args) {
-  if (args.length >= 2) {
-    const address = args[0];
-    const command = args.slice(1).join(' ');
-    for (const [bpaddr, bp] of newBreakpoints.entries()) {
-      if (bp.patches[0].address.equals(ptr(bpaddr))) {
-        if (bpaddr === address) {
-          bp.cmd = command;
-          break;
-        }
-      }
-    }
-  } else {
-    console.error('Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]');
-  }
-}
-
-function breakpointUnset (args) {
-  const addr = getPtr(args[0]).toString();
-  const bp = newBreakpoints.get(addr);
-  for (const p of bp.patches) {
-    p.disable();
-    newBreakpoints.delete(p.address.toString());
-  }
-}
-
-function breakpointList (args) {
-  for (const [address, bp] of newBreakpoints.entries()) {
-    if (bp.patches[0].address.equals(ptr(address))) {
-      console.log(address);
-    }
-  }
-}
-
-function breakpointSet (args) {
-  const ptrAddr = getPtr(args[0]);
-
-  const p1 = new CodePatch(ptrAddr);
-  const p2 = new CodePatch(p1.insn.next);
-
-  const bp = {
-    patches: [p1, p2]
-  };
-
-  newBreakpoints.set(p1.address.toString(), bp);
-  newBreakpoints.set(p2.address.toString(), bp);
-
-  p1.toggle();
-}
-
-function breakpointJson (args) {
-  const json = {};
-  for (const [address, bp] of newBreakpoints.entries()) {
-    if (bp.patches[0].address.equals(ptr(address))) {
-      const k = '' + bp.patches[0].address;
-      json[k] = {};
-      json[k].enabled = true;
-      if (bp.cmd) {
-        json[k].cmd = bp.cmd;
-      }
-    }
-  }
-  return JSON.stringify(json);
-}
-
-function breakpointNative (args) {
-  if (args.length === 0) {
-    breakpointList([]);
-  } else if (args[0].startsWith('-')) {
-    const addr = args[0].substring(1);
-    breakpointUnset([addr]);
-  } else {
-    breakpointSet(args);
-  }
-}
-
 function getCwd () {
   let _getcwd = 0;
   if (Process.platform === 'windows') {
@@ -931,7 +801,7 @@ async function dumpInfoJson () {
     cwd: getCwd(),
   };
 
-  if (darwin.ObjCAvailable && !suspended) {
+  if (darwin.ObjCAvailable && !debug.suspended) {
     try {
       const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
       const id = mb ? mb.infoDictionary() : '';
@@ -4249,7 +4119,7 @@ const requestHandlers = {
 
 function state (params, data) {
   r2frida.offset = params.offset;
-  suspended = params.suspended;
+  debug.suspended = params.suspended;
   return [{}, null];
 }
 
@@ -4342,7 +4212,7 @@ function evaluate (params) {
     let { code, ccode } = params;
     const isObjcMainLoopRunning = darwin.ObjCAvailable && darwin.hasMainLoop();
 
-    if (darwin.ObjCAvailable && isObjcMainLoopRunning && !suspended) {
+    if (darwin.ObjCAvailable && isObjcMainLoopRunning && !debug.suspended) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
@@ -4531,45 +4401,6 @@ function onStanza (stanza, data) {
   }
   recv(onStanza);
 }
-
-/* breakpoint handler */
-Process.setExceptionHandler(({ address }) => {
-  const bp = newBreakpoints.get(address.toString());
-  if (!bp) {
-    return false;
-  }
-
-  const index = bp.patches.findIndex(p => p.address.equals(address));
-  if (index === 0) {
-    send({ name: 'breakpoint-event', stanza: { cmd: bp.cmd } });
-
-    let state = 'stopped';
-    do {
-      const op = recv('breakpoint-action', ({ action }) => {
-        switch (action) {
-          case 'register-change':
-            console.log('TODO1');
-            break;
-          case 'resume':
-            state = 'running';
-            break;
-          default:
-            console.log('TODO2');
-            break;
-        }
-      });
-      op.wait();
-    } while (state === 'stopped');
-  }
-  const afterBp = newBreakpoints.get(address.toString());
-  if (afterBp) {
-    for (const p of bp.patches) {
-      p.toggle();
-    }
-  }
-
-  return true;
-});
 
 global.r2frida.hostCmd = r2.hostCmd;
 global.r2frida.hostCmdj = r2.hostCmdj;
