@@ -37,6 +37,7 @@
       "Module",
       "NativeCallback",
       "NativeFunction",
+      "SystemFunction",
       "NativePointer",
       "NULL",
       "ObjC",

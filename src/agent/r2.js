@@ -7,6 +7,17 @@ const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
 
+function getR2Arch (arch) {
+  switch (arch) {
+    case 'ia32':
+    case 'x64':
+      return 'x86';
+    case 'arm64':
+      return 'arm';
+  }
+  return arch;
+}
+
 function hostCmds (commands) {
   let i = 0;
   function sendOne () {
@@ -80,6 +91,7 @@ function _sendCommand (cmd, serial) {
 }
 
 module.exports = {
+  getR2Arch,
   hostCmds,
   hostCmd,
   hostCmdj,

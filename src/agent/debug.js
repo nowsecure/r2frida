@@ -1,6 +1,7 @@
 'use strict';
 
 const r2 = require('./r2');
+const sys = require('./sys');
 
 /* Globals */
 const newBreakpoints = new Map();
@@ -150,6 +151,21 @@ function breakpointContinueUntil (args) {
   breakpointNative(['-' + args[0]]);
 }
 
+function sendSignal (args) {
+  const argsLength = args.length;
+  console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
+  if (argsLength === 1) {
+    const sig = +args[0];
+    sys._kill(sys._getpid(), sig);
+  } else if (argsLength === 2) {
+    const [pid, sig] = args;
+    sys._kill(+pid, +sig);
+  } else {
+    return 'Usage: :dk ([pid]) [sig]';
+  }
+  return '';
+}
+
 function _breakpointList (args) {
   for (const [address, bp] of newBreakpoints.entries()) {
     if (bp.patches[0].address.equals(ptr(address))) {
@@ -181,5 +197,6 @@ module.exports = {
   breakpointNativeCommand,
   breakpointUnset,
   breakpointContinue,
-  breakpointContinueUntil
+  breakpointContinueUntil,
+  sendSignal
 };
