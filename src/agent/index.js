@@ -4,20 +4,22 @@
 // this cant be done from the agent-side
 
 const { stalkFunction, stalkEverything } = require('./stalker');
-const debug = require('./debug').default;
-const fs = require('./fs');
-const path = require('path');
 const config = require('./config');
+const debug = require('./debug');
+const fs = require('./fs');
+const info = require('./info');
 const io = require('./io');
+const log = require('./log');
 const darwin = require('./darwin/index');
 const swift = require('./darwin/swift');
 const java = require('./java/index');
 const android = require('./java/android');
+const path = require('path');
+const r2 = require('./r2');
 const search = require('./search');
 const strings = require('./strings');
+const sys = require('./sys');
 const utils = require('./utils');
-const log = require('./log');
-const r2 = require('./r2');
 
 // r2->io->frida->r2pipe->r2
 let _r2 = null;
@@ -44,23 +46,6 @@ let Gcwd = '/';
 
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
 // const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-
-/* globals */
-const pointerSize = Process.pointerSize;
-const tracehooks = {};
-const allocPool = {};
-
-function getIOSVersion () {
-  if (!ObjCAvailable) {
-    return '';
-  }
-  const processInfo = ObjC.classes.NSProcessInfo.processInfo();
-  const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
-  // E.g. "Version 13.5 (Build 17F75)"
-  const version = versionString.split(' ')[1];
-  // E.g. 13.5
-  return version;
-}
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {
@@ -102,9 +87,9 @@ const commandHandlers = {
   '/v8j': search.searchValueImplJson(8),
   '?V': fridaVersion,
   // '.': // this is implemented in C
-  i: dumpInfo,
-  'i*': dumpInfoR2,
-  ij: dumpInfoJson,
+  i: info.dumpInfo,
+  'i*': info.dumpInfoR2,
+  ij: info.dumpInfoJson,
   e: evalConfig,
   'e*': evalConfigR2,
   'e/': evalConfigSearch,
@@ -114,7 +99,7 @@ const commandHandlers = {
   'db-': debug.breakpointUnset,
   dc: debug.breakpointContinue,
   dcu: debug.breakpointContinueUntil,
-  dk: sendSignal,
+  dk: debug.sendSignal,
 
   s: radareSeek,
   r: radareCommand,
@@ -594,55 +579,6 @@ function disasm (addr, len, initialOldName) {
   return disco;
 }
 
-function sym (name, ret, arg) {
-  try {
-    return new NativeFunction(Module.getExportByName(null, name), ret, arg);
-  } catch (e) {
-    console.error(name, ':', e);
-  }
-}
-
-function symf (name, ret, arg) {
-  try {
-    return new SystemFunction(Module.getExportByName(null, name), ret, arg);
-  } catch (e) {
-    // console.error('Warning', name, ':', e);
-  }
-}
-
-let _getenv = 0;
-let _setenv = 0;
-let _getpid = 0;
-let _getuid = 0;
-let _dup2 = 0;
-let _readlink = 0;
-let _fstat = 0;
-let _close = 0;
-let _kill = 0;
-
-if (Process.platform === 'windows') {
-  _getenv = sym('getenv', 'pointer', ['pointer']);
-  _setenv = sym('SetEnvironmentVariableA', 'int', ['pointer', 'pointer']);
-  _getpid = sym('_getpid', 'int', []);
-  _getuid = getWindowsUserNameA;
-  _dup2 = sym('_dup2', 'int', ['int', 'int']);
-  _fstat = sym('_fstat', 'int', ['int', 'pointer']);
-  _close = sym('_close', 'int', ['int']);
-  _kill = sym('TerminateProcess', 'int', ['int', 'int']);
-} else {
-  _getenv = sym('getenv', 'pointer', ['pointer']);
-  _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
-  _getpid = sym('getpid', 'int', []);
-  _getuid = sym('getuid', 'int', []);
-  _dup2 = sym('dup2', 'int', ['int', 'int']);
-  _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
-  _fstat = Module.findExportByName(null, 'fstat')
-    ? sym('fstat', 'int', ['int', 'pointer'])
-    : sym('__fxstat', 'int', ['int', 'pointer']);
-  _close = sym('close', 'int', ['int']);
-  _kill = sym('kill', 'int', ['int', 'int']);
-}
-
 /* This is only available on Android/Linux */
 const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
@@ -656,36 +592,6 @@ if (Process.platform === 'darwin') {
 }
 
 const traceListeners = [];
-
-async function dumpInfo () {
-  const padding = (x) => ''.padStart(20 - x, ' ');
-  const properties = await dumpInfoJson();
-  return Object.keys(properties)
-    .map(k => k + padding(k.length) + properties[k])
-    .join('\n');
-}
-
-async function dumpInfoR2 () {
-  const properties = await dumpInfoJson();
-  const jnienv = properties.jniEnv !== undefined ? properties.jniEnv : '';
-  return [
-    'e asm.arch=' + properties.arch,
-    'e asm.bits=' + properties.bits,
-    'e asm.os=' + properties.os,
-    'f r2f.modulebase=' + properties.modulebase,
-  ].join('\n') + jnienv;
-}
-
-function getR2Arch (arch) {
-  switch (arch) {
-    case 'ia32':
-    case 'x64':
-      return 'x86';
-    case 'arm64':
-      return 'arm';
-  }
-  return arch;
-}
 
 function radareCommandInit () {
   if (_r2) {
@@ -736,21 +642,6 @@ function radareCommand (args) {
   return ':dl /tmp/libr.dylib';
 }
 
-function sendSignal (args) {
-  const argsLength = args.length;
-  console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
-  if (argsLength === 1) {
-    const sig = +args[0];
-    _kill(_getpid(), sig);
-  } else if (argsLength === 2) {
-    const [pid, sig] = args;
-    _kill(+pid, +sig);
-  } else {
-    return 'Usage: :dk ([pid]) [sig]';
-  }
-  return '';
-}
-
 function getCwd () {
   let _getcwd = 0;
   if (Process.platform === 'windows') {
@@ -780,104 +671,6 @@ function chDir (args) {
     getCwd(); // update Gcwd
   }
   return '';
-}
-
-async function dumpInfoJson () {
-  const res = {
-    arch: getR2Arch(Process.arch),
-    bits: pointerSize * 8,
-    os: Process.platform,
-    pid: getPid(),
-    uid: _getuid(),
-    objc: darwin.ObjCAvailable,
-    runtime: Script.runtime,
-    swift: swift.SwiftAvailable(),
-    java: java.JavaAvailable,
-    mainLoop: darwin.hasMainLoop(),
-    pageSize: Process.pageSize,
-    pointerSize: Process.pointerSize,
-    codeSigningPolicy: Process.codeSigningPolicy,
-    isDebuggerAttached: Process.isDebuggerAttached(),
-    cwd: getCwd(),
-  };
-
-  if (darwin.ObjCAvailable && !debug.suspended) {
-    try {
-      const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
-      const id = mb ? mb.infoDictionary() : '';
-      function get (k) {
-        const v = id ? id.objectForKey_(k) : '';
-        return v ? v.toString() : '';
-      }
-      const NSHomeDirectory = new NativeFunction(
-        Module.getExportByName(null, 'NSHomeDirectory'),
-        'pointer', []);
-      const NSTemporaryDirectory = new NativeFunction(
-        Module.getExportByName(null, 'NSTemporaryDirectory'),
-        'pointer', []);
-
-      const bundleIdentifier = get('CFBundleIdentifier');
-      if (bundleIdentifier) {
-        res.bundle = bundleIdentifier;
-        res.exename = get('CFBundleExecutable');
-        res.appname = get('CFBundleDisplayName');
-        res.appversion = get('CFBundleShortVersionString');
-        res.appnumversion = get('CFBundleNumericVersion');
-        res.minOS = get('MinimumOSVersion');
-      }
-      res.modulename = Process.enumerateModulesSync()[0].name;
-      res.modulebase = Process.enumerateModulesSync()[0].base;
-      res.homedir = (new ObjC.Object(NSHomeDirectory()).toString());
-      res.tmpdir = (new ObjC.Object(NSTemporaryDirectory()).toString());
-      res.bundledir = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  if (java.JavaAvailable) {
-    await performOnJavaVM(() => {
-      const ActivityThread = Java.use('android.app.ActivityThread');
-      const app = ActivityThread.currentApplication();
-      if (app !== null) {
-        const ctx = app.getApplicationContext();
-        if (ctx !== null) {
-          function tryTo (x) {
-            let r = '';
-            try {
-              r = x();
-            } catch (e) {
-              // ignored
-            }
-            return r;
-          }
-          res.dataDir = tryTo(() => ctx.getDataDir().getAbsolutePath());
-          res.codeCacheDir = tryTo(() => ctx.getCodeCacheDir().getAbsolutePath());
-          res.extCacheDir = tryTo(() => ctx.getExternalCacheDir().getAbsolutePath());
-          res.obbDir = tryTo(() => ctx.getObbDir().getAbsolutePath());
-          res.filesDir = tryTo(() => ctx.getFilesDir().getAbsolutePath());
-          res.noBackupDir = tryTo(() => ctx.getNoBackupFilesDir().getAbsolutePath());
-          res.codePath = tryTo(() => ctx.getPackageCodePath());
-          res.packageName = tryTo(() => ctx.getPackageName());
-        }
-
-        try {
-          function getContext () {
-            return Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getContentResolver();
-          }
-
-          res.androidId = Java.use('android.provider.Settings$Secure').getString(getContext(), 'android_id');
-        } catch (ignoredError) {
-        }
-      }
-      res.cacheDir = Java.classFactory.cacheDir;
-      const jniEnv = ptr(Java.vm.getEnv());
-      if (jniEnv) {
-        res.jniEnv = jniEnv.toString();
-      }
-    });
-  }
-
-  return res;
 }
 
 function listModules () {
@@ -2239,14 +2032,6 @@ async function changeMemoryProtection (args) {
   const mapsize = await numEval(size);
   Memory.protect(address, ptr(mapsize).toInt32(), protection);
   return '';
-}
-
-function getPidJson () {
-  return JSON.stringify({ pid: getPid() });
-}
-
-function getPid () {
-  return _getpid();
 }
 
 function listThreads () {
@@ -3805,23 +3590,11 @@ function interceptFunRet_1 (args) { // eslint-disable-line
 }
 
 function getenv (name) {
-  return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
+  return Memory.readUtf8String(sys._getenv(Memory.allocUtf8String(name)));
 }
 
 function setenv (name, value, overwrite) {
-  return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
-}
-
-function getWindowsUserNameA () {
-  const _GetUserNameA = sym('GetUserNameA', 'int', ['pointer', 'pointer']);
-  const PATH_MAX = 4096;
-  const buf = Memory.allocUtf8String('A'.repeat(PATH_MAX));
-  const char_out = Memory.allocUtf8String('A'.repeat(PATH_MAX));
-  const res = _GetUserNameA(buf, char_out);
-  if (res) {
-    return Memory.readCString(buf);
-  }
-  return '';
+  return sys._setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
 function stalkTraceFunction (args) {
