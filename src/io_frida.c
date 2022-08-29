@@ -88,7 +88,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable);
 static gint compareDevices(gconstpointer element_a, gconstpointer element_b);
 static gint compareProcesses(gconstpointer element_a, gconstpointer element_b);
 static gint computeDeviceScore(FridaDevice *device);
-static void printList(R2FridaListType type, GArray *items, gint num_items);
+static void print_list(R2FridaListType type, GArray *items, gint num_items);
 
 extern RIOPlugin r_io_plugin_frida;
 
@@ -124,7 +124,8 @@ static const char * const helpmsg = ""\
 	"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
 	"Environment: (Use the `%` command to change the environment at runtime)\n"
 	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
-	"  R2FRIDA_DEBUG=0|1                # Used to debug argument parsing behaviour\n"
+	"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
+	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
 	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
 	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n";
 
@@ -135,8 +136,8 @@ static const gchar r_io_frida_agent_code[] = {
 	, 0x00
 };
 
-static bool r2f_debug() {
-	return r_sys_getenv_asbool ("R2FRIDA_DEBUG");
+static bool r2f_debug_uri() {
+	return r_sys_getenv_asbool ("R2FRIDA_DEBUG_URI");
 }
 
 static bool r2f_compiler() {
@@ -294,6 +295,7 @@ static bool __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return false;
 	}
+	R_LOG_DEBUG ("close %d @ 0x%%08"PFMT64x, count, io->off);
 	RIOFrida *rf = fd->data;
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
@@ -308,9 +310,9 @@ static bool __close(RIODesc *fd) {
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	GBytes *bytes = NULL;
 	gsize n;
-
 	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
+	R_LOG_DEBUG ("read %d @ 0x%%08"PFMT64x, count, io->off);
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("read");
@@ -361,6 +363,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 }
 
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
+	R_LOG_DEBUG ("lseek %d @ 0x%%08"PFMT64x, whence, offset);
 	switch (whence) {
 	case SEEK_SET:
 		io->off = offset;
@@ -382,6 +385,7 @@ static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 		return -1;
 	}
 
+	R_LOG_DEBUG ("write %d @ 0x%%08"PFMT64x, io->off, count);
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("write");
@@ -733,7 +737,7 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	r_list_foreach (files, iter, file) {
 		if (r_str_endswith (file, ".js")) {
 			char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
-			if (r2f_debug()) {
+			if (r2f_debug_uri()) {
 				R_LOG_INFO ("Loading %s", file);
 			}
 			char * s = __system_continuation (core->io, fd, cmd);
@@ -791,7 +795,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			dumpProcesses (rf->device, rf->cancellable);
 		}
 	}
-	if (r2f_debug ()) {
+	R_LOG_DEBUG ("");
+	if (r2f_debug_uri ()) {
 		printf ("device: %s\n", r_str_get (lo->device_id));
 		printf ("pname: %s\n", r_str_get (lo->process_specifier));
 		printf ("pid: %d\n", lo->pid);
@@ -1008,9 +1013,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 error:
 	g_clear_error (&error);
-
 	r2frida_launchopt_free (lo);
-
 	r_io_frida_free (rf);
 
 	return NULL;
@@ -1018,7 +1021,7 @@ error:
 
 static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error) {
 #define D(x) if (debug) { printf ("%s\n", x); }
-	const bool debug = r2f_debug ();
+	const bool debug = r2f_debug_uri ();
 	FridaDevice *device = NULL;
 	if (R_STR_ISEMPTY (type)) {
 		type = "local";
@@ -1369,7 +1372,7 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 			dumpProcesses (device, cancellable);
 		}
 	}
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		return true;
 	}
 
@@ -1422,6 +1425,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	json_node_unref (root);
 	g_object_unref (builder);
 
+	R_LOG_DEBUG ("perform_request (%s)", message);
 	frida_script_post (rf->script, message, data);
 
 	g_free (message);
@@ -1467,7 +1471,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	}
 
 	if (json_object_has_member (reply_stanza, "error")) {
-		R_LOG_ERROR ("%s", json_object_get_string_member (reply_stanza, "error"));
+		R_LOG_ERROR ("error: %s", json_object_get_string_member (reply_stanza, "error"));
 		json_object_unref (reply_stanza);
 		g_bytes_unref (reply_bytes);
 		return NULL;
@@ -1479,6 +1483,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 		g_bytes_unref (reply_bytes);
 	}
 
+	R_LOG_ERROR ("request performend");
 	return reply_stanza;
 }
 
@@ -1725,7 +1730,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 }
 
 static void dumpDevices(GCancellable *cancellable) {
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		printf ("dump-devices\n");
 		return;
 	}
@@ -1752,7 +1757,7 @@ static void dumpDevices(GCancellable *cancellable) {
 	}
 	g_array_sort (devices, compareDevices);
 
-	printList(DEVICES, devices, num_devices);
+	print_list(DEVICES, devices, num_devices);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1764,7 +1769,7 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	GArray *applications;
 	gint num_applications, i;
 
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		printf ("resolve_package_name_by_process_name\n");
 		return NULL;
 	}
@@ -1806,7 +1811,7 @@ static char *resolve_process_name_by_package_name(FridaDevice *device, GCancella
 	gint num_applications, i;
 	GError *error;
 
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		printf ("resolve_process_name_by_package_name\n");
 		return NULL;
 	}
@@ -1846,7 +1851,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	gint num_applications, i;
 	GError *error;
 
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		printf ("dump-apps\n");
 		return 0;
 	}
@@ -1869,7 +1874,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	}
 	g_array_sort (applications, compareProcesses);
 
-	printList (APPLICATIONS, applications, num_applications);
+	print_list (APPLICATIONS, applications, num_applications);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1882,26 +1887,23 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 		R_LOG_ERROR ("no device selected");
 		return;
 	}
-	if (r2f_debug ()) {
+	if (r2f_debug_uri ()) {
 		printf ("dump-procs\n");
 		return;
 	}
-	FridaProcessList *list;
-	GArray *processes;
-	gint num_processes, i;
-	GError *error;
+	gint i;
+	GError *error = NULL;
 
-	error = NULL;
-	list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
+	FridaProcessList *list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
-	num_processes = frida_process_list_size (list);
+	gint num_processes = frida_process_list_size (list);
 
-	processes = g_array_sized_new (FALSE, FALSE, sizeof (FridaProcess *), num_processes);
+	GArray *processes = g_array_sized_new (FALSE, FALSE, sizeof (FridaProcess *), num_processes);
 	for (i = 0; i != num_processes; i++) {
 		FridaProcess *process = frida_process_list_get (list, i);
 		g_array_append_val (processes, process);
@@ -1909,7 +1911,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	}
 	g_array_sort (processes, compareProcesses);
 
-	printList(PROCESSES, processes, num_processes);
+	print_list (PROCESSES, processes, num_processes);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
@@ -1958,11 +1960,11 @@ static int atopid(const char *maybe_pid, bool *valid) {
 	return number;
 }
 
-static void printList(R2FridaListType type, GArray *items, gint num_items) {
+static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 	guint i;
 	GEnumClass *type_enum;
 
-	RTable *table = r_table_new ("printList");
+	RTable *table = r_table_new ("print_list");
 
 	switch (type) {
 	case APPLICATIONS:
