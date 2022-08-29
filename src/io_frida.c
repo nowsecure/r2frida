@@ -312,7 +312,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	gsize n;
 	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
-	R_LOG_DEBUG ("read %d @ 0x%%08"PFMT64x, count, io->off);
+	R_LOG_DEBUG ("read %d @ 0x%08"PFMT64x, count, io->off);
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("read");
@@ -363,7 +363,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 }
 
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
-	R_LOG_DEBUG ("lseek %d @ 0x%%08"PFMT64x, whence, offset);
+	R_LOG_DEBUG ("lseek %d @ 0x%08"PFMT64x, whence, offset);
 	switch (whence) {
 	case SEEK_SET:
 		io->off = offset;
@@ -385,7 +385,7 @@ static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 		return -1;
 	}
 
-	R_LOG_DEBUG ("write %d @ 0x%%08"PFMT64x, io->off, count);
+	R_LOG_DEBUG ("write %d @ 0x%08"PFMT64x, io->off, count);
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("write");
@@ -409,6 +409,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
 	const char *value;
+	R_LOG_DEBUG ("system_continuation (%s)", command);
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
 		// TODO: move this into the .js
@@ -510,6 +511,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	}
 
 	if (R_STR_ISEMPTY (command)) {
+		R_LOG_DEBUG ("empty command (.:i*)");
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
 	} else if (r_str_startswith (command, "%")) {
@@ -576,7 +578,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	} else if (!strncmp (command, "dl2", 3)) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
-			gchar *path = strdup (r_str_trim_head_ro (command + 3));
+			gchar *path = r_str_trim_dup (command + 3);
 			if (path) {
 				gchar *entry = strchr (path, ' ');
 				if (entry) {
@@ -1483,7 +1485,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 		g_bytes_unref (reply_bytes);
 	}
 
-	R_LOG_ERROR ("request performend");
+	R_LOG_DEBUG ("request performed");
 	return reply_stanza;
 }
 
