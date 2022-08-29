@@ -295,7 +295,7 @@ static bool __close(RIODesc *fd) {
 	if (!fd || !fd->data) {
 		return false;
 	}
-	R_LOG_DEBUG ("close %d @ 0x%%08"PFMT64x, count, io->off);
+	R_LOG_DEBUG ("close");
 	RIOFrida *rf = fd->data;
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
