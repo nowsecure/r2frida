@@ -287,8 +287,22 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
 }
 
-static bool user_wants_safe_io(void) {
-	return r_sys_getenv_asbool ("R2FRIDA_SAFE_IO");
+static bool user_wants_safe_io(FridaDevice *device) {
+	/* Requesting safe_io on iOS15 until https://github.com/frida/frida-gum/commit/72c5c84a424e40336489ee0624e46a7ff31807b8 */
+	bool isIOS15 = false;
+	GError *error = NULL;
+	GHashTable * params;
+	GVariant * os;
+	gchar * version;
+	params = frida_device_query_system_parameters_sync (device, NULL, &error);
+	if (!error) {
+		os = g_hash_table_lookup (params, "os");
+		g_variant_lookup (os, "version", "s", &version);
+		g_hash_table_unref (params);
+		isIOS15 = r_str_startswith(version, "15");
+		g_free (version);
+	}
+	return r_sys_getenv_asbool ("R2FRIDA_SAFE_IO") || isIOS15;
 }
 
 static bool __close(RIODesc *fd) {
@@ -1007,8 +1021,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
 	load_scripts (core, fd, homepath);
 	free (homepath);
-	if (!user_wants_safe_io ()) {
+	if (!user_wants_safe_io (rf->device)) {
 		request_safe_io (rf, false);
+	} else {
+		R_LOG_INFO("Using safe io mode.");
 	}
 	
 	return fd;
