@@ -42,6 +42,7 @@
       "NULL",
       "ObjC",
       "Process",
+      "Swift",
       "recv",
       "Script",
       "Socket",

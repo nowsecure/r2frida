@@ -1,12 +1,11 @@
 /* eslint-disable comma-dangle */
 'use strict';
-// TODO : implement tracelog eval var and dump trace info into this file
-// this cant be done from the agent-side
 
 const { stalkFunction, stalkEverything } = require('./stalker');
 const config = require('./config');
 const debug = require('./debug');
 const fs = require('./fs');
+const globals = require('./globals');
 const info = require('./info');
 const io = require('./io');
 const log = require('./log');
@@ -42,30 +41,9 @@ function initializePuts () {
   };
 }
 
-let Gcwd = '/';
-
-/* ObjC.available is buggy on non-objc apps, so override this */
-const SwiftAvailable = function () {
-  return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
-};
-const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const isIOS15 = getIOSVersion().startsWith('15');
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
-const JavaAvailable = Java && Java.available;
-
-/* globals */
-const pointerSize = Process.pointerSize;
-
-let suspended = false;
-const tracehooks = {};
-let logs = [];
-let traces = {};
-
-const allocPool = {};
-const pendingCmds = {};
-const pendingCmdSends = [];
-let sendingCommand = false;
 
 function getIOSVersion () {
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
@@ -685,7 +663,7 @@ function getCwd () {
     if (!buf.isNull()) {
       const ptr = _getcwd(buf, PATH_MAX);
       const str = Memory.readCString(ptr);
-      Gcwd = str;
+      globals.Gcwd = str;
       return str;
     }
   }
@@ -2613,7 +2591,7 @@ function getPtr (p) {
     return ptr(global.r2frida.offset);
   }
   if (p.startsWith('swift:')) {
-    if (!SwiftAvailable()) {
+    if (!swift.SwiftAvailable()) {
       return ptr(0);
     }
     // swift:CLASSNAME.method
@@ -3042,7 +3020,7 @@ function traceJavaConstructors (className) {
 }
 
 function traceSwift (klass, method) {
-  if (!SwiftAvailable()) {
+  if (!swift.SwiftAvailable()) {
     return;
   }
   const targetAddress = getPtr('swift:' + klass + '.' + method);
@@ -3124,7 +3102,7 @@ function traceJson (args) {
 
 function typesR2 (args) {
   let res = '';
-  if (SwiftAvailable()) {
+  if (swift.SwiftAvailable()) {
     switch (args.length) {
       case 0:
         for (const mod in Swift.modules) {
@@ -3186,14 +3164,14 @@ function typesR2 (args) {
 }
 
 function types (args) {
-  if (SwiftAvailable()) {
+  if (swift.SwiftAvailable()) {
     return swiftTypes(args);
   }
   return '';
 }
 
 function swiftTypes (args) {
-  if (!SwiftAvailable()) {
+  if (!swift.SwiftAvailable()) {
     if (config.getBoolean('want.swift')) {
       console.error('See :e want.swift=true');
     }
@@ -4121,7 +4099,7 @@ function evalConfig (args) {
 }
 
 function fsList (args) {
-  return fs.ls(args[0] || Gcwd);
+  return fs.ls(args[0] || globals.Gcwd);
 }
 
 function fsGet (args) {
@@ -4133,7 +4111,7 @@ function fsCat (args) {
 }
 
 function fsOpen (args) {
-  return fs.open(args[0] || Gcwd);
+  return fs.open(args[0] || globals.Gcwd);
 }
 
 function javaPerform (fn) {
