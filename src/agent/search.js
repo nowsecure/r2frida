@@ -3,7 +3,7 @@
 const config = require('./config');
 const darwin = require('./darwin');
 const io = require('./io');
-const r2 = require('./r2').default;
+const r2 = require('./r2');
 const utils = require('./utils');
 
 function search (args) {

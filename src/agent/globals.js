@@ -2,14 +2,13 @@
 
 /* globals */
 const pointerSize = Process.pointerSize;
+let Gcwd = '/';
 const tracehooks = {};
 const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
-let logs = [];
-let traces = {};
 let sendingCommand = false;
-let Gcwd = '/';
+
 
 module.exports = {
   pointerSize,
