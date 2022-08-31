@@ -1,12 +1,13 @@
 /* eslint-disable comma-dangle */
 'use strict';
 
-const { stalkFunction, stalkEverything } = require('./stalker');
+const { stalkFunction, stalkEverything } = require('./debug/stalker');
 const config = require('./config');
 const debug = require('./debug');
 const fs = require('./fs');
 const globals = require('./globals');
-const info = require('./info');
+const info = require('./info/index.js');
+const entrypoint = require('./info/entrypoint.js');
 const io = require('./io');
 const log = require('./log');
 const darwin = require('./darwin/index');
@@ -117,10 +118,10 @@ const commandHandlers = {
   s: radareSeek,
   r: radareCommand,
 
-  ie: listEntrypoint,
-  ieq: listEntrypointQuiet,
-  'ie*': listEntrypointR2,
-  iej: listEntrypointJson,
+  ie: entrypoint.listEntrypoint,
+  ieq: entrypoint.listEntrypointQuiet,
+  'ie*': entrypoint.listEntrypointR2,
+  iej: entrypoint.listEntrypointJson,
   afs: analFunctionSignature,
   ii: listImports,
   'ii*': listImportsR2,
@@ -1029,57 +1030,6 @@ function lookupSymbolJson (args) {
     }
 */
   }
-}
-
-function listEntrypointJson (args) {
-  function isEntrypoint (s) {
-    if (s.type === 'section') {
-      switch (s.name) {
-        case '_start':
-        case 'start':
-        case 'main':
-          return true;
-      }
-    }
-    return false;
-  }
-  if (Process.platform === 'linux') {
-    const at = DebugSymbol.fromName('main');
-    if (at) {
-      return [at];
-    }
-  }
-  const firstModule = Process.enumerateModules()[0];
-  return Module.enumerateSymbols(firstModule.name)
-    .filter((symbol) => {
-      return isEntrypoint(symbol);
-    }).map((symbol) => {
-      symbol.moduleName = getModuleByAddress(symbol.address).name;
-      return symbol;
-    });
-}
-
-function listEntrypointR2 (args) {
-  let n = 0;
-  return listEntrypointJson()
-    .map((entry) => {
-      return 'f entry' + (n++) + ' = ' + entry.address;
-    }).join('\n');
-}
-
-function listEntrypointQuiet (args) {
-  return listEntrypointJson()
-    .map((entry) => {
-      return entry.address;
-    }).join('\n');
-}
-
-function listEntrypoint (args) {
-  const n = 0;
-  return listEntrypointJson()
-    .map((entry) => {
-      return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
-    }).join('\n');
 }
 
 function analFunctionSignature (args) {
@@ -4125,19 +4075,6 @@ function javaPerform (fn) {
     return Java.perform(fn);
   }
   return Java.performNow(fn);
-}
-
-function performOnJavaVM (fn) {
-  return new Promise((resolve, reject) => {
-    javaPerform(function () {
-      try {
-        const result = fn();
-        resolve(result);
-      } catch (e) {
-        reject(e);
-      }
-    });
-  });
 }
 
 function getModuleAt (addr) {

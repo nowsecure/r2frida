@@ -46,9 +46,23 @@ function waitForJava () {
   });
 }
 
+function performOnJavaVM (fn) {
+  return new Promise((resolve, reject) => {
+    javaPerform(function () {
+      try {
+        const result = fn();
+        resolve(result);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
 module.exports = {
   JavaAvailable,
   javaUse,
   javaTraceExample,
+  performOnJavaVM,
   waitForJava
 };

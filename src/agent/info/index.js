@@ -1,12 +1,12 @@
 'use strict';
 
 const debug = require('./debug');
-const globals = require('./globals');
-const darwin = require('./darwin/index');
-const swift = require('./darwin/swift');
-const java = require('./java/index');
-const sys = require('./sys');
-const r2 = require('./r2').default;
+const globals = require('../globals');
+const darwin = require('../darwin/index');
+const swift = require('../darwin/swift');
+const java = require('../java/index');
+const sys = require('../sys');
+const r2 = require('../r2');
 
 async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');

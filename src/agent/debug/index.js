@@ -1,6 +1,6 @@
 'use strict';
 
-const r2 = require('./r2').default;
+const r2 = require('./r2');
 const sys = require('./sys');
 
 /* Globals */
