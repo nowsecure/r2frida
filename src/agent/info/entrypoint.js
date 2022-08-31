@@ -31,24 +31,23 @@ function listEntrypointJson (args) {
 function listEntrypointR2 (args) {
   let n = 0;
   return listEntrypointJson()
-  .map((entry) => {
-    return 'f entry' + (n++) + ' = ' + entry.address;
-  }).join('\n');
+    .map((entry) => {
+      return 'f entry' + (n++) + ' = ' + entry.address;
+    }).join('\n');
 }
 
 function listEntrypointQuiet (args) {
   return listEntrypointJson()
-  .map((entry) => {
-    return entry.address;
-  }).join('\n');
+    .map((entry) => {
+      return entry.address;
+    }).join('\n');
 }
 
 function listEntrypoint (args) {
-  const n = 0;
   return listEntrypointJson()
-  .map((entry) => {
-    return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
-  }).join('\n');
+    .map((entry) => {
+      return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
+    }).join('\n');
 }
 
 module.exports = {
