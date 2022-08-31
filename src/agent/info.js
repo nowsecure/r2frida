@@ -6,7 +6,7 @@ const darwin = require('./darwin/index');
 const swift = require('./darwin/swift');
 const java = require('./java/index');
 const sys = require('./sys');
-const r2 = require('./r2');
+const r2 = require('./r2').default;
 
 async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');

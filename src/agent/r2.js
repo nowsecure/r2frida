@@ -3,9 +3,6 @@
 const utils = require('./utils');
 
 let cmdSerial = 0;
-const pendingCmds = {};
-const pendingCmdSends = [];
-let sendingCommand = false;
 
 function getR2Arch (arch) {
   switch (arch) {
