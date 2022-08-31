@@ -44,7 +44,37 @@ function initializePuts () {
 
 let Gcwd = '/';
 
-const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
+/* ObjC.available is buggy on non-objc apps, so override this */
+const SwiftAvailable = function () {
+  return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
+};
+const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
+const isIOS15 = getIOSVersion().startsWith('15');
+const NeedsSafeIo = isLinuxArm32 || isIOS15;
+const JavaAvailable = Java && Java.available;
+
+/* globals */
+const pointerSize = Process.pointerSize;
+
+let suspended = false;
+const tracehooks = {};
+let logs = [];
+let traces = {};
+
+const allocPool = {};
+const pendingCmds = {};
+const pendingCmdSends = [];
+let sendingCommand = false;
+
+function getIOSVersion () {
+  const processInfo = ObjC.classes.NSProcessInfo.processInfo();
+  const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
+  // E.g. "Version 13.5 (Build 17F75)"
+  const version = versionString.split(' ')[1];
+  // E.g. 13.5
+  return version;
+}
 
 function numEval (expr) {
   return new Promise((resolve, reject) => {

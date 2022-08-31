@@ -1,5 +1,5 @@
-// run '\. plugin.js' inside an 'r2 frida://' session to load it
-// run '\.-test' to unload it and '\.' to list hem all
+// run ':. plugin.js' inside an 'r2 frida://' session to load it
+// run ':.-test' to unload it and ':.' to list hem all
 
 
 function sym(name, ret, arg) {

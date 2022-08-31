@@ -1,7 +1,7 @@
 name: ci
 
 env:
-  R2V: 5.7.2
+  R2V: 5.7.4
 
 on:
   push:
@@ -23,14 +23,27 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v2
       with:
-        name: r2frida-${{env.R2V}}_amd64.deb
+        name: build-linux
         path: dist/debian/*.deb
+  build-agent:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Building Radare2
+      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && sys/install.sh )
+    - name: Building r2frida
+      run: ./configure && make -j && sudo make install
+    - name: Pub
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-agent
+        path: src/_agent.js
   build-macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
     - name: Building Radare2
-      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh )
+      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && sys/install.sh )
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Packaging
@@ -39,7 +52,7 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         if-no-files-found: error
-        name: r2frida-${{env.R2V}}.pkg
+        name: build-macos
         path: dist/macos/r2frida-*.pkg
   build-windows:
     runs-on: windows-latest
@@ -78,5 +91,92 @@ jobs:
     - uses: actions/upload-artifact@v2
       with:
         if-no-files-found: error
-        name: r2frida-${{env.R2V}}-w64.zip
+        name: build-windows
         path: r2frida-${{env.R2V}}-w64.zip
+
+
+  check_release:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    outputs:
+      is_release: ${{ steps.release.outputs.is }}
+      tag_name: ${{ steps.release.outputs.tag }}
+    needs:
+      - build-linux
+      - build-macos
+      - build-windows
+      - build-agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Download all git history and tags
+      - name: Check if is a release
+        run: git describe --exact-match --tags ${{ github.sha }} | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "::set-output name=is::"r;print "::set-output name=tag::"tag}'
+        id: release
+  release:
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check_release.outputs.is_release == 'yes' }}
+    needs:
+      - check_release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Download all git history and tags
+      - name: Extract r2f version
+        run: echo "##[set-output name=branch;]$( ./configure -qV )"
+        id: r2fv
+      - name: Prepare release notes
+        run: echo Release > ./RELEASE_NOTES.md
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: dist/artifacts
+      - name: Create GitHub release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.check_release.outputs.tag_name }}
+          release_name: ${{ steps.r2fv.outputs.branch }}
+          body_path: ./RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+      - name: Upload asset for Linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/artifacts/build-linux/r2frida_${{ steps.r2fv.outputs.branch }}_amd64.deb
+          asset_name: r2frida_${{ steps.r2fv.outputs.branch }}_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+      - name: Upload precompiled agent script
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/artifacts/build-agent/_agent.js
+          asset_name: _agent.js
+          asset_content_type: application/javascript
+      - name: Upload asset for macOS
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/artifacts/build-macos/r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
+          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
+          asset_content_type: application/octet-stream
+      - name: Upload asset for Windows (w64)
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/artifacts/build-windows/r2frida-${{env.R2V}}-w64.zip
+          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-w64.zip
+          asset_content_type: application/zip

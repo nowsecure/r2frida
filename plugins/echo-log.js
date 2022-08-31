@@ -1,7 +1,7 @@
-// run '\. echo-log.js' inside an 'r2 frida://' session to load it
-// run '\e file.log=/tmp/log.txt'
-// run '\echo hello world' 
-// run '\e-echo' 
+// run ':. echo-log.js' inside an 'r2 frida://' session to load it
+// run ':e file.log=/tmp/log.txt'
+// run ':echo hello world'
+// run ':e-echo'
 
 r2frida.pluginRegister('echo', function(name) {
   if (name === 'echo') {
