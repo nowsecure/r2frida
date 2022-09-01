@@ -23,7 +23,7 @@ async function dumpInfoR2 () {
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
     'e asm.os=' + properties.os,
-    'f r2f.modulebase=' + properties.modulebase,
+    'f r2f.modulebase=' + properties.modulebase
   ].join('\n') + jnienv;
 }
 
