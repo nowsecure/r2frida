@@ -4348,6 +4348,11 @@ function alignRight (text, width) {
 }
 
 function padPointer (value) {
+  if (typeof (value) === 'object') {
+    value = new Uint8Array (value)
+        .map (b => b.toString (16).padStart (2, "0"))
+        .join ("");
+  }
   let result = value.toString(16);
   const paddedLength = 2 * pointerSize;
   while (result.length < paddedLength) {
