@@ -902,7 +902,7 @@ function breakpointNativeCommand (args) {
 }
 
 function breakpointUnset (args) {
-  const addr = args[0];
+  const addr = getPtr(args[0]).toString();
   const bp = newBreakpoints.get(addr);
   for (const p of bp.patches) {
     p.disable();
@@ -919,7 +919,7 @@ function breakpointList (args) {
 }
 
 function breakpointSet (args) {
-  const ptrAddr = ptr(args[0]);
+  const ptrAddr = getPtr(args[0]);
 
   const p1 = new CodePatch(ptrAddr);
   const p2 = new CodePatch(p1.insn.next);
