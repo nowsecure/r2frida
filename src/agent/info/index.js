@@ -1,5 +1,6 @@
 'use strict';
 
+const config = require('./config');
 const debug = require('./debug');
 const darwin = require('../darwin/index');
 const globals = require('../globals');
@@ -367,6 +368,79 @@ function listSectionsJson (args) {
   return darwin.listMachoSections(baseAddr);
 }
 
+function listAllSymbolsJson (args) {
+  const argName = args[0];
+  const modules = Process.enumerateModules().map(m => m.path);
+  let res = [];
+  for (const module of modules) {
+    const symbols = Module.enumerateSymbols(module)
+      .filter((r) => r.address.compare(ptr('0')) > 0 && r.name);
+    if (argName) {
+      res.push(...symbols.filter((s) => s.name.indexOf(argName) !== -1));
+    } else {
+      res.push(...symbols);
+    }
+    if (res.length > 100000) {
+      res.forEach((r) => {
+        console.error([r.address, r.moduleName, r.name].join(' '));
+      });
+      res = [];
+    }
+  }
+  return res;
+}
+
+function listAllSymbols (args) {
+  return listAllSymbolsJson(args)
+    .map(({ type, name, address }) => {
+      return [address, type[0], name].join(' ');
+    }).join('\n');
+}
+
+function listAllSymbolsR2 (args) {
+  return listAllSymbolsJson(args)
+    .map(({ type, name, address }) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
+    }).join('\n');
+}
+
+function listSymbols (args) {
+  return listSymbolsJson(args)
+    .map(({ type, name, address }) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listSymbolsR2 (args) {
+  return listSymbolsJson(args)
+    .filter(({ address }) => !address.isNull())
+    .map(({ name, address }) => {
+      return ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listSymbolsJson (args) {
+  const currentModule = (args.length > 0)
+    ? Process.getModuleByName(args[0])
+    : getModuleByAddress(global.r2frida.offset);
+  const symbols = Module.enumerateSymbols(currentModule.name);
+  return symbols.map(sym => {
+    if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
+      const dbgSym = DebugSymbol.fromAddress(sym.address);
+      if (dbgSym !== null) {
+        sym.name = dbgSym.name;
+      }
+    }
+    return sym;
+  });
+}
+
+function listAllHelp (args) {
+  return 'See :ia? for more information. Those commands may take a while to run.';
+}
+
 module.exports = {
   dumpInfo,
   dumpInfoR2,
@@ -392,5 +466,12 @@ module.exports = {
   listSectionsHere,
   listSectionsR2,
   listSections,
-  listSectionsJson
+  listSectionsJson,
+  listAllSymbolsJson,
+  listAllSymbols,
+  listAllSymbolsR2,
+  listSymbols,
+  listSymbolsR2,
+  listSymbolsJson,
+  listAllHelp
 };
