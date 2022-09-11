@@ -3,6 +3,7 @@
 
 const { stalkFunction, stalkEverything } = require('./debug/stalker');
 const android = require('./java/android');
+const classes = require('./info/classes');
 const config = require('./config');
 const darwin = require('./darwin/index');
 const debug = require('./debug');
@@ -131,7 +132,7 @@ const commandHandlers = {
   iAs: info.listAllSymbols, // SLOW
   iAsj: info.listAllSymbolsJson,
   'iAs*': info.listAllSymbolsR2,
-  iAn: listAllClassesNatives,
+  iAn: classes.listAllClassesNatives,
 
   is: info.listSymbols,
   'is.': lookup.lookupSymbolHere,
@@ -178,22 +179,22 @@ const commandHandlers = {
   'fd.': lookup.lookupAddress,
   'fd*': lookup.lookupAddressR2,
   fdj: lookup.lookupAddressJson,
-  ic: listClasses,
-  ich: listClassesHooks,
-  icw: listClassesWhere,
-  icv: listClassVariables,
-  ics: listClassSuperMethods,
-  ica: listClassesAllMethods,
-  icn: listClassesNatives,
-  icL: listClassesLoaders,
-  icl: listClassesLoaded,
-  iclj: listClassesLoadedJson,
-  'ic*': listClassesR2,
-  icj: listClassesJson,
-  icm: listClassMethods,
-  icmj: listClassMethodsJson,
-  ip: listProtocols,
-  ipj: listProtocolsJson,
+  ic: classes.listClasses,
+  ich: classes.listClassesHooks,
+  icw: classes.listClassesWhere,
+  icv: classes.listClassVariables,
+  ics: classes.listClassSuperMethods,
+  ica: classes.listClassesAllMethods,
+  icn: classes.listClassesNatives,
+  icL: classes.listClassesLoaders,
+  icl: classes.listClassesLoaded,
+  iclj: classes.listClassesLoadedJson,
+  'ic*': classes.listClassesR2,
+  icj: classes.listClassesJson,
+  icm: classes.listClassMethods,
+  icmj: classes.listClassMethodsJson,
+  ip: classes.listProtocols,
+  ipj: classes.listProtocolsJson,
   iz: listStrings,
   izj: listStringsJson,
   dd: listFileDescriptors,
@@ -693,8 +694,6 @@ function getModuleByAddress (addr) {
   }
 }
 
-
-
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
     return 'Error: afs is only implemented for ObjC methods.';
@@ -703,7 +702,7 @@ function analFunctionSignature (args) {
     return 'Usage: afs [class] [method]';
   }
   if (args.length === 1) {
-    return listClasses(args);
+    return classes.listClasses(args);
   }
   if (args.length > 1) {
     const klassName = args[0];
@@ -731,388 +730,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function listClassesLoadedJson (args) {
-  if (java.JavaAvailable) {
-    return listClasses(args);
-  }
-  if (darwin.ObjCAvailable) {
-    return JSON.stringify(ObjC.enumerateLoadedClassesSync());
-  }
-}
-
-function listClassesLoaders (args) {
-  if (!java.JavaAvailable) {
-    return 'Error: icL is only available on Android targets.';
-  }
-  let res = '';
-  javaPerform(function () {
-    function s2o (s) {
-      let indent = 0;
-      let res = '';
-      for (const ch of s.toString()) {
-        switch (ch) {
-          case '[':
-            indent++;
-            res += '[\n' + Array(indent + 1).join(' ');
-            break;
-          case ']':
-            indent--;
-            res += ']\n' + Array(indent + 1).join(' ');
-            break;
-          case ',':
-            res += ',\n' + Array(indent + 1).join(' ');
-            break;
-          default:
-            res += ch;
-            break;
-        }
-      }
-      return res;
-    }
-    const c = Java.enumerateClassLoadersSync();
-    for (const cl in c) {
-      const cs = s2o(c[cl].toString());
-      res += cs;
-    }
-  });
-  return res;
-}
-
-function listClassesLoaded (args) {
-  if (java.JavaAvailable) {
-    return listClasses(args);
-  }
-  if (darwin.ObjCAvailable) {
-    const results = ObjC.enumerateLoadedClassesSync();
-    const loadedClasses = [];
-    for (const module of Object.keys(results)) {
-      loadedClasses.push(...results[module]);
-    }
-    return loadedClasses.join('\n');
-  }
-  return [];
-}
-
-// only for java
-function listAllClassesNatives (args) {
-  return listClassesNatives(['.']);
-}
-
-function listClassesNatives (args) {
-  const natives = [];
-  const vkn = args[0] || 'com';
-  javaPerform(function () {
-    const klasses = listClassesJson([]);
-    for (let kn of klasses) {
-      kn = kn.toString();
-      // if (kn.indexOf('android') !== -1) { continue; }
-      if (kn.indexOf(vkn) === -1) {
-        continue;
-      }
-      try {
-        const handle = javaUse(kn);
-        const klass = handle.class;
-        const klassNatives = klass.getMethods().map(_ => _.toString()).filter(_ => _.indexOf('static native') !== -1);
-        if (klassNatives.length > 0) {
-          const kns = klassNatives.map((n) => {
-            const p = n.indexOf('(');
-            let sn = '';
-            if (p !== -1) {
-              const s = n.substring(0, p);
-              const w = s.split(' ');
-              sn = w[w.length - 1];
-              return sn;
-            }
-            return n; // { name: sn, fullname: n };
-          });
-          console.error(kns.join('\n'));
-          for (const tkn of kns) {
-            if (natives.indexOf(tkn) === -1) {
-              natives.push(tkn);
-            }
-          }
-        }
-      } catch (ignoreError) {
-      }
-    }
-  });
-  return natives;
-}
-
-function listClassesAllMethods (args) {
-  return listClassesJson(args, 'all').join('\n');
-}
-
-function listClassSuperMethods (args) {
-  return listClassesJson(args, 'super').join('\n');
-}
-
-function listClassVariables (args) {
-  return listClassesJson(args, 'ivars').join('\n');
-}
-
-function listClassesHooks (args, mode) {
-  let out = '';
-  if (args.length === 0) {
-    return 'Usage: :ich [kw]';
-  }
-  const moduleNames = {};
-  const result = listClassesJson([]);
-  if (darwin.ObjCAvailable) {
-    const klasses = ObjC.classes;
-    for (const k of result) {
-      moduleNames[k] = ObjC.classes[k].$moduleName;
-    }
-  }
-  for (const k of result) {
-    const modName = moduleNames[k];
-    if (k.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
-      const ins = searchInstancesJson([k]);
-      const inss = ins.map((x) => { return x.address; }).join(' ');
-      const a = 'OOO';
-      const klass = ObjC.classes[k];
-      if (klass) {
-        for (const m of klass.$ownMethods) {
-          // TODO: use instance.argumentTypes to generate the 'OOO'
-          out += ':dtf objc:' + k + '.' + m + ' ' + a + '\n';
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function listClassesWhere (args, mode) {
-  let out = '';
-  if (args.length === 0) {
-    const moduleNames = {};
-    const result = listClassesJson([]);
-    if (darwin.ObjCAvailable) {
-      const klasses = ObjC.classes;
-      for (const k of result) {
-        moduleNames[k] = klasses[k].$moduleName;
-      }
-    }
-    for (const klass of result) {
-      const modName = moduleNames[klass];
-      out += [modName, klass].join(' ') + '\n';
-    }
-    return out;
-  } else {
-    const moduleNames = {};
-    const result = listClassesJson([]);
-    if (darwin.ObjCAvailable) {
-      const klasses = ObjC.classes;
-      for (const k of result) {
-        moduleNames[k] = ObjC.classes[k].$moduleName;
-      }
-    }
-    for (const k of result) {
-      const modName = moduleNames[k];
-      if (modName && modName.indexOf(args[0]) !== -1) {
-        const ins = searchInstancesJson([k]);
-        const inss = ins.map((x) => { return x.address; }).join(' ');
-        out += k + ' # ' + inss + '\n';
-        if (mode === 'ivars') {
-          for (const a of ins) {
-            out += 'instance ' + padPointer(a.address) + '\n';
-            const i = new ObjC.Object(ptr(a.address));
-            out += (JSON.stringify(i.$ivars)) + '\n';
-          }
-        }
-      }
-    }
-    return out;
-  }
-}
-
-function listClasses (args) {
-  const result = listClassesJson(args);
-  if (result instanceof Array) {
-    return result.join('\n');
-  }
-  return Object.keys(result)
-    .map(methodName => {
-      const address = result[methodName];
-      return [padPointer(address), methodName].join(' ');
-    })
-    .join('\n');
-}
-
-function classGlob (k, v) {
-  if (!k || !v) {
-    return true;
-  }
-  return k.indexOf(v.replace(/\*/g, '')) !== -1;
-}
-
-function listClassesR2 (args) {
-  const className = args[0];
-  if (args.length === 0 || args[0].indexOf('*') !== -1) {
-    let methods = '';
-    if (darwin.ObjCAvailable) {
-      for (const cn of Object.keys(ObjC.classes)) {
-        if (classGlob(cn, args[0])) {
-          methods += listClassesR2([cn]);
-        }
-      }
-    }
-    return methods;
-  }
-  const result = listClassesJson(args);
-  return Object.keys(result)
-    .map(methodName => {
-      const address = result[methodName];
-      return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
-    })
-    .join('\n') + '\n';
-
-  function flagName (m) {
-    return 'sym.objc.' +
-      (className + '.' + m)
-        .replace(':', '')
-        .replace(' ', '')
-        .replace('-', '')
-        .replace('+', '');
-  }
-}
-
-/* this ugly sync mehtod with while+settimeout is needed because
-  returning a promise is not properly handled yet and makes r2
-  lose track of the output of the command so you cant grep on it */
-function listJavaClassesJsonSync (args) {
-  if (args.length === 1) {
-    let methods;
-    /* list methods */
-    javaPerform(function () {
-      const obj = javaUse(args[0]);
-      methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
-      // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
-    });
-    // eslint-disable-next-line
-    while (methods === undefined) {
-      /* wait here */
-      setTimeout(null, 0);
-    }
-    return methods;
-  }
-  let classes;
-  javaPerform(function () {
-    try {
-      classes = Java.enumerateLoadedClassesSync();
-    } catch (e) {
-      classes = null;
-    }
-  });
-  return classes;
-}
-
-// eslint-disable-next-line
-function listJavaClassesJson (args, classMethodsOnly) {
-  let res = [];
-  if (args.length === 1) {
-    javaPerform(function () {
-      try {
-        const arg = args[0];
-        const handle = javaUse(arg);
-        if (handle === null || !handle.class) {
-          throw new Error('Cannot find a classloader for this class');
-        }
-        const klass = handle.class;
-        try {
-          if (classMethodsOnly) {
-            klass.getMethods().filter(x => x.toString().indexOf(arg) !== -1).map(_ => res.push(_.toString()));
-          } else {
-            klass.getMethods().map(_ => res.push(_.toString()));
-          }
-          klass.getFields().map(_ => res.push(_.toString()));
-          try {
-            klass.getConstructors().map(_ => res.push(_.toString()));
-          } catch (ignore) {
-          }
-        } catch (e) {
-          console.error(e.message);
-          console.error(Object.keys(klass), JSON.stringify(klass), klass);
-        }
-      } catch (e) {
-        console.error(e.message);
-      }
-    });
-  } else {
-    javaPerform(function () {
-      try {
-        res = Java.enumerateLoadedClassesSync();
-      } catch (e) {
-        console.error(e);
-      }
-    });
-  }
-  return res;
-}
-
-function listClassMethods (args) {
-  return listClassesJson(args, 'methods').join('\n');
-}
-
-function listClassMethodsJson (args) {
-  return listClassesJson(args, 'methods');
-}
-
-function listClassesJson (args, mode) {
-  if (java.JavaAvailable) {
-    return listJavaClassesJson(args, mode === 'methods');
-  }
-  if (!darwin.ObjCAvailable) {
-    return [];
-  }
-  if (args.length === 0) {
-    return Object.keys(ObjC.classes);
-  }
-  const klassName = args[0];
-  const klass = ObjC.classes[klassName];
-  if (klass === undefined) {
-    throw new Error('Class ' + klassName + ' not found');
-  }
-  let out = '';
-  if (mode === 'ivars') {
-    const ins = searchInstancesJson([klassName]);
-    out += klassName + ': ';
-    for (const i of ins) {
-      out += 'instance ' + padPointer(ptr(i.address)) + ': ';
-      const ii = new ObjC.Object(ptr(i.address));
-      out += JSON.stringify(ii.$ivars, null, '  ');
-    }
-    return [out];
-  }
-  const methods =
-(mode === 'methods')
-  ? klass.$ownMethods
-  : (mode === 'super')
-      ? klass.$super.$ownMethods
-      : (mode === 'all')
-          ? klass.$methods
-          : klass.$ownMethods;
-  const getImpl = ObjC.api.method_getImplementation;
-  try {
-    return methods
-      .reduce((result, methodName) => {
-        try {
-          result[methodName] = getImpl(klass[methodName].handle);
-        } catch (_) {
-          console.error('warning: unsupported method \'' + methodName + '\' in ' + klassName);
-        }
-        return result;
-      }, {});
-  } catch (e) {
-    return methods;
-  }
-}
-
-function listProtocols (args) {
-  return listProtocolsJson(args)
-    .join('\n');
 }
 
 function closeFileDescriptors (args) {
@@ -1208,21 +825,6 @@ function listStrings (args) {
   }
   const base = ptr(args[0]);
   return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
-}
-
-function listProtocolsJson (args) {
-  if (!darwin.ObjCAvailable) {
-    return [];
-  }
-  if (args.length === 0) {
-    return Object.keys(ObjC.protocols);
-  } else {
-    const protocol = ObjC.protocols[args[0]];
-    if (protocol === undefined) {
-      throw new Error('Protocol not found');
-    }
-    return Object.keys(protocol.methods);
-  }
 }
 
 function listMallocMaps (args) {
