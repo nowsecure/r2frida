@@ -2,22 +2,23 @@
 'use strict';
 
 const { stalkFunction, stalkEverything } = require('./debug/stalker');
+const android = require('./java/android');
 const config = require('./config');
+const darwin = require('./darwin/index');
 const debug = require('./debug');
 const fs = require('./fs');
 const globals = require('./globals');
 const info = require('./info/index');
 const io = require('./io');
-const log = require('./log');
-const darwin = require('./darwin/index');
-const swift = require('./darwin/swift');
 const java = require('./java/index');
-const android = require('./java/android');
+const log = require('./log');
+const lookup = require('./lookup');
 const path = require('path');
 const r2 = require('./r2');
 const search = require('./search');
 const strings = require('./strings');
 const sys = require('./sys');
+const swift = require('./darwin/swift');
 const utils = require('./utils');
 
 // r2->io->frida->r2pipe->r2
@@ -125,58 +126,58 @@ const commandHandlers = {
   ilq: info.listModulesQuiet,
   ilj: info.listModulesJson,
 
-  ia: listAllHelp,
+  ia: info.listAllHelp,
 
-  iAs: listAllSymbols, // SLOW
-  iAsj: listAllSymbolsJson,
-  'iAs*': listAllSymbolsR2,
+  iAs: info.listAllSymbols, // SLOW
+  iAsj: info.listAllSymbolsJson,
+  'iAs*': info.listAllSymbolsR2,
   iAn: listAllClassesNatives,
 
-  is: listSymbols,
-  'is.': lookupSymbolHere,
-  isj: listSymbolsJson,
-  'is*': listSymbolsR2,
+  is: info.listSymbols,
+  'is.': lookup.lookupSymbolHere,
+  isj: info.listSymbolsJson,
+  'is*': info.listSymbolsR2,
 
-  iS: listSections,
-  'iS.': listSectionsHere,
-  'iS*': listSectionsR2,
-  iSj: listSectionsJson,
+  iS: info.listSections,
+  'iS.': info.listSectionsHere,
+  'iS*': info.listSectionsR2,
+  iSj: info.listSectionsJson,
 
-  ias: lookupSymbol,
-  'ias*': lookupSymbolR2,
-  iasj: lookupSymbolJson,
-  isa: lookupSymbol,
-  'isa*': lookupSymbolR2,
-  isaj: lookupSymbolJson,
+  ias: lookup.lookupSymbol,
+  'ias*': lookup.lookupSymbolR2,
+  iasj: lookup.lookupSymbolJson,
+  isa: lookup.lookupSymbol,
+  'isa*': lookup.lookupSymbolR2,
+  isaj: lookup.lookupSymbolJson,
   // many symbols
-  isam: lookupSymbolMany,
-  isamj: lookupSymbolManyJson,
-  'isam*': lookupSymbolManyR2,
+  isam: lookup.lookupSymbolMany,
+  isamj: lookup.lookupSymbolManyJson,
+  'isam*': lookup.lookupSymbolManyR2,
 
-  iE: listExports,
-  'iE.': lookupSymbolHere,
-  iEj: listExportsJson,
-  'iE*': listExportsR2,
-  iaE: lookupExport,
-  iaEj: lookupExportJson,
-  'iaE*': lookupExportR2,
+  iE: info.listExports,
+  'iE.': lookup.lookupSymbolHere,
+  iEj: info.listExportsJson,
+  'iE*': info.listExportsR2,
+  iaE: lookup.lookupExport,
+  iaEj: lookup.lookupExportJson,
+  'iaE*': lookup.lookupExportR2,
 
-  iEa: lookupExport,
-  'iEa*': lookupExportR2,
-  iEaj: lookupExportJson,
+  iEa: lookup.lookupExport,
+  'iEa*': lookup.lookupExportR2,
+  iEaj: lookup.lookupExportJson,
 
   // maybe dupped
-  iAE: listAllExports,
-  iAEj: listAllExportsJson,
-  'iAE*': listAllExportsR2,
+  iAE: info.listAllExports,
+  iAEj: info.listAllExportsJson,
+  'iAE*': info.listAllExportsR2,
 
   init: initBasicInfoFromTarget,
 
-  fD: lookupDebugInfo,
-  fd: lookupAddress,
-  'fd.': lookupAddress,
-  'fd*': lookupAddressR2,
-  fdj: lookupAddressJson,
+  fD: lookup.lookupDebugInfo,
+  fd: lookup.lookupAddress,
+  'fd.': lookup.lookupAddress,
+  'fd*': lookup.lookupAddressR2,
+  fdj: lookup.lookupAddressJson,
   ic: listClasses,
   ich: listClassesHooks,
   icw: listClassesWhere,
@@ -680,48 +681,6 @@ function chDir (args) {
   return '';
 }
 
-function listAllSymbolsJson (args) {
-  const argName = args[0];
-  const modules = Process.enumerateModules().map(m => m.path);
-  let res = [];
-  for (const module of modules) {
-    const symbols = Module.enumerateSymbols(module)
-      .filter((r) => r.address.compare(ptr('0')) > 0 && r.name);
-    if (argName) {
-      res.push(...symbols.filter((s) => s.name.indexOf(argName) !== -1));
-    } else {
-      res.push(...symbols);
-    }
-    if (res.length > 100000) {
-      res.forEach((r) => {
-        console.error([r.address, r.moduleName, r.name].join(' '));
-      });
-      res = [];
-    }
-  }
-  return res;
-}
-
-function listAllHelp (args) {
-  return 'See :ia? for more information. Those commands may take a while to run.';
-}
-
-function listAllSymbols (args) {
-  return listAllSymbolsJson(args)
-    .map(({ type, name, address }) => {
-      return [address, type[0], name].join(' ');
-    })
-    .join('\n');
-}
-
-function listAllSymbolsR2 (args) {
-  return listAllSymbolsJson(args)
-    .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
-    })
-    .join('\n');
-}
-
 function getModuleByAddress (addr) {
   const m = config.getString('symbols.module');
   if (m !== '') {
@@ -730,226 +689,11 @@ function getModuleByAddress (addr) {
   try {
     return Process.getModuleByAddress(addr);
   } catch (e) {
-    return Process.getModuleByAddress(ptr(r2frida.offset));
+    return Process.getModuleByAddress(ptr(global.r2frida.offset));
   }
 }
 
-function listSymbols (args) {
-  return listSymbolsJson(args)
-    .map(({ type, name, address }) => {
-      return [address, type[0], name].join(' ');
-    })
-    .join('\n');
-}
 
-function listSymbolsR2 (args) {
-  return listSymbolsJson(args)
-    .filter(({ address }) => !address.isNull())
-    .map(({ name, address }) => {
-      return ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' ');
-    })
-    .join('\n');
-}
-
-function listSymbolsJson (args) {
-  const currentModule = (args.length > 0)
-    ? Process.getModuleByName(args[0])
-    : getModuleByAddress(r2frida.offset);
-  const symbols = Module.enumerateSymbols(currentModule.name);
-  return symbols.map(sym => {
-    if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
-      const dbgSym = DebugSymbol.fromAddress(sym.address);
-      if (dbgSym !== null) {
-        sym.name = dbgSym.name;
-      }
-    }
-    return sym;
-  });
-}
-
-function lookupDebugInfo (args) {
-  const o = DebugSymbol.fromAddress(ptr('' + args));
-  console.log(o);
-}
-
-function lookupAddress (args) {
-  if (args.length === 0) {
-    args = [ptr(r2frida.offset)];
-  }
-  return lookupAddressJson(args)
-    .map(({ type, name, address }) => [type, name, address].join(' '))
-    .join('\n');
-}
-
-function lookupAddressR2 (args) {
-  return lookupAddressJson(args)
-    .map(({ type, name, address }) =>
-      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-    .join('\n');
-}
-
-function lookupAddressJson (args) {
-  const exportAddress = ptr(args[0]);
-  const result = [];
-  const modules = Process.enumerateModules().map(m => m.path);
-  return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateExports(moduleName));
-  }, [])
-    .reduce((type, obj) => {
-      if (ptr(obj.address).compare(exportAddress) === 0) {
-        result.push({
-          type: obj.type,
-          name: obj.name,
-          address: obj.address
-        });
-      }
-      return result;
-    }, []);
-}
-
-function lookupSymbolHere (args) {
-  return lookupAddress([ptr(r2frida.offset)]);
-}
-
-function lookupExport (args) {
-  return lookupExportJson(args)
-  // .map(({library, name, address}) => [library, name, address].join(' '))
-    .map(({ address }) => '' + address)
-    .join('\n');
-}
-
-function lookupExportR2 (args) {
-  return lookupExportJson(args)
-    .map(({ name, address }) =>
-      ['f', 'sym.' + name, '=', address].join(' '))
-    .join('\n');
-}
-
-function lookupExportJson (args) {
-  if (args.length === 2) {
-    const [moduleName, exportName] = args;
-    const address = Module.findExportByName(moduleName, exportName);
-    if (address === null) {
-      return [];
-    }
-    const m = getModuleByAddress(address);
-    return [{
-      library: m.name,
-      name: exportName,
-      address: address
-    }];
-  } else {
-    const exportName = args[0];
-    let prevAddress = null;
-    return Process.enumerateModules()
-      .reduce((result, m) => {
-        const address = Module.findExportByName(m.path, exportName);
-        if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
-          result.push({
-            library: m.name,
-            name: exportName,
-            address: address
-          });
-          prevAddress = address;
-        }
-        return result;
-      }, []);
-  }
-}
-
-// lookup symbols
-
-function lookupSymbol (args) {
-  return lookupSymbolJson(args)
-  // .map(({library, name, address}) => [library, name, address].join(' '))
-    .map(({ address }) => '' + address)
-    .join('\n');
-}
-
-function lookupSymbolR2 (args) {
-  return lookupSymbolJson(args)
-    .map(({ name, address }) =>
-      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-    .join('\n');
-}
-
-function lookupSymbolManyJson (args) {
-  const res = [];
-  for (const arg of args) {
-    res.push({ name: arg, address: lookupSymbol([arg]) });
-  }
-  return res;
-}
-
-function lookupSymbolMany (args) {
-  return lookupSymbolManyJson(args).map(({ address }) => address).join('\n');
-}
-
-function lookupSymbolManyR2 (args) {
-  return lookupSymbolManyJson(args)
-    .map(({ name, address }) =>
-      ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-    .join('\n');
-}
-
-function lookupSymbolJson (args) {
-  if (args.length === 0) {
-    return [];
-  }
-  if (args.length === 2) {
-    let [moduleName, symbolName] = args;
-    try {
-      const m = Process.getModuleByName(moduleName);
-      // unused, this needs to be rewritten
-    } catch (e) {
-      const res = Process.enumerateModules().filter(function (x) {
-        return x.name.indexOf(moduleName) !== -1;
-      });
-      if (res.length !== 1) {
-        return [];
-      }
-      moduleName = res[0].name;
-    }
-    let address = 0;
-    Module.enumerateSymbols(moduleName).filter(function (s) {
-      if (s.name === symbolName) {
-        address = s.address;
-      }
-    });
-    return [{
-      library: moduleName,
-      name: symbolName,
-      address: address
-    }];
-  } else {
-    const [symbolName] = args;
-    const res = getPtr(symbolName);
-    const mod = getModuleAt(res);
-    if (res) {
-      return [{
-        library: mod ? mod.name : 'unknown',
-        name: symbolName,
-        address: res
-      }];
-    }
-    const fcns = DebugSymbol.findFunctionsNamed(symbolName);
-    if (fcns) {
-      return fcns.map((f) => { return { name: symbolName, address: f }; });
-    }
-    return [];
-
-    /*
-    var at = DebugSymbol.fromName(symbolName);
-    if (at.name) {
-      return [{
-        library: at.moduleName,
-        name: symbolName,
-        address: at.address
-      }];
-    }
-*/
-  }
-}
 
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
@@ -2228,102 +1972,6 @@ function traceList () {
 
 function traceListJson () {
   return traceListeners.map(_ => JSON.stringify(_)).join('\n') + '\n';
-}
-
-function getPtr (p) {
-  if (typeof p === 'string') {
-    p = p.trim();
-  }
-  if (!p || p === '$$') {
-    return ptr(global.r2frida.offset);
-  }
-  if (p.startsWith('swift:')) {
-    if (!swift.SwiftAvailable()) {
-      return ptr(0);
-    }
-    // swift:CLASSNAME.method
-    const km = p.substring(6).split('.');
-    if (km.length !== 2) {
-      return ptr(0);
-    }
-    const klass = km[0];
-    const method = km[1];
-    if (!Swift.classes[klass]) {
-      console.error('Missing class ' + klass);
-      return;
-    }
-    const klassDefinition = Swift.classes[klass];
-    let targetAddress = ptr(0);
-    for (const kd of klassDefinition.$methods) {
-      if (method === kd.name) {
-        targetAddress = kd.address;
-      }
-    }
-    return p;
-  }
-  if (p.startsWith('java:')) {
-    return p;
-  }
-  if (p.startsWith('objc:')) {
-    const hatSign = p.indexOf('^') !== -1;
-    if (hatSign !== -1) {
-      p = p.replace('^', '');
-    }
-    const endsWith = p.endsWith('$');
-    if (endsWith) {
-      p = p.substring(0, p.length - 1);
-    }
-    p = p.substring(5);
-    let dot = p.indexOf('.');
-    if (dot === -1) {
-      dot = p.indexOf(':');
-      if (dot === -1) {
-        throw new Error('r2frida\'s ObjC class syntax is: objc:CLASSNAME.METHOD');
-      }
-    }
-    const kv0 = p.substring(0, dot);
-    const kv1 = p.substring(dot + 1);
-    const klass = ObjC.classes[kv0];
-    if (klass === undefined) {
-      throw new Error('Class ' + kv0 + ' not found');
-    }
-    let found = null;
-    let firstFail = false;
-    let oldMethodName = null;
-    for (const methodName of klass.$ownMethods) {
-      const method = klass[methodName];
-      if (methodName.indexOf(kv1) !== -1) {
-        if (hatSign && !methodName.substring(2).startsWith(kv1)) {
-          continue;
-        }
-        if (endsWith && !methodName.endsWith(kv1)) {
-          continue;
-        }
-        if (found) {
-          if (!firstFail) {
-            console.error(found.implementation, oldMethodName);
-            firstFail = true;
-          }
-          console.error(method.implementation, methodName);
-        }
-        found = method;
-        oldMethodName = methodName;
-      }
-    }
-    if (firstFail) {
-      return ptr(0);
-    }
-    return found ? found.implementation : ptr(0);
-  }
-  try {
-    if (p.substring(0, 2) === '0x') {
-      return ptr(p);
-    }
-  } catch (e) {
-    // console.error(e);
-  }
-  // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
-  return Module.findExportByName(null, p);
 }
 
 function traceHook (args) {
@@ -3766,19 +3414,6 @@ function javaPerform (fn) {
     return Java.perform(fn);
   }
   return Java.performNow(fn);
-}
-
-function getModuleAt (addr) {
-  if (addr === null) {
-    return null;
-  }
-  const modules = Process.enumerateModules()
-    .filter((m) => {
-      const a = m.base;
-      const b = m.base.add(m.size);
-      return addr.compare(a) >= 0 && addr.compare(b) < 0;
-    });
-  return modules.length > 0 ? modules[0] : null;
 }
 
 function onStanza (stanza, data) {
