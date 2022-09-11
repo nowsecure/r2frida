@@ -139,7 +139,7 @@ function _searchPatternJson (pattern) {
           continue;
         }
 
-        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        const rangeStr = `[${utils.padPointer(range.address)}-${utils.padPointer(range.address.add(range.size))}]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
           const partial = _scanForPattern(range.address, range.size, pattern);
@@ -177,8 +177,8 @@ function _searchPatternJson (pattern) {
 }
 
 function _scanForPattern (address, size, pattern) {
-  if (r2frida.hookedScan !== null) {
-    return r2frida.hookedScan(address, size, pattern);
+  if (global.r2frida.hookedScan !== null) {
+    return global.r2frida.hookedScan(address, size, pattern);
   }
   return Memory.scanSync(address, size, pattern);
 }
@@ -198,7 +198,7 @@ function _getRanges (fromNum, toNum) {
   const ranges = _getMemoryRanges(searchIn.perm).filter(range => {
     const start = range.base;
     const end = start.add(range.size);
-    const offPtr = ptr(r2frida.offset);
+    const offPtr = ptr(global.r2frida.offset);
     if (searchIn.current) {
       return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
     }
