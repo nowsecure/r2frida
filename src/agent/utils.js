@@ -1,6 +1,7 @@
 'use strict';
 
 const globals = require('./globals');
+const swift = require('./darwin/swift');
 
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
@@ -146,6 +147,102 @@ function rwxint (x) {
   return ops.indexOf([x]);
 }
 
+function getPtr (p) {
+  if (typeof p === 'string') {
+    p = p.trim();
+  }
+  if (!p || p === '$$') {
+    return ptr(global.r2frida.offset);
+  }
+  if (p.startsWith('swift:')) {
+    if (!swift.SwiftAvailable()) {
+      return ptr(0);
+    }
+    // swift:CLASSNAME.method
+    const km = p.substring(6).split('.');
+    if (km.length !== 2) {
+      return ptr(0);
+    }
+    const klass = km[0];
+    const method = km[1];
+    if (!Swift.classes[klass]) {
+      console.error('Missing class ' + klass);
+      return;
+    }
+    const klassDefinition = Swift.classes[klass];
+    let targetAddress = ptr(0);
+    for (const kd of klassDefinition.$methods) {
+      if (method === kd.name) {
+        targetAddress = kd.address;
+      }
+    }
+    return p;
+  }
+  if (p.startsWith('java:')) {
+    return p;
+  }
+  if (p.startsWith('objc:')) {
+    const hatSign = p.indexOf('^') !== -1;
+    if (hatSign !== -1) {
+      p = p.replace('^', '');
+    }
+    const endsWith = p.endsWith('$');
+    if (endsWith) {
+      p = p.substring(0, p.length - 1);
+    }
+    p = p.substring(5);
+    let dot = p.indexOf('.');
+    if (dot === -1) {
+      dot = p.indexOf(':');
+      if (dot === -1) {
+        throw new Error('r2frida\'s ObjC class syntax is: objc:CLASSNAME.METHOD');
+      }
+    }
+    const kv0 = p.substring(0, dot);
+    const kv1 = p.substring(dot + 1);
+    const klass = ObjC.classes[kv0];
+    if (klass === undefined) {
+      throw new Error('Class ' + kv0 + ' not found');
+    }
+    let found = null;
+    let firstFail = false;
+    let oldMethodName = null;
+    for (const methodName of klass.$ownMethods) {
+      const method = klass[methodName];
+      if (methodName.indexOf(kv1) !== -1) {
+        if (hatSign && !methodName.substring(2).startsWith(kv1)) {
+          continue;
+        }
+        if (endsWith && !methodName.endsWith(kv1)) {
+          continue;
+        }
+        if (found) {
+          if (!firstFail) {
+            console.error(found.implementation, oldMethodName);
+            firstFail = true;
+          }
+          console.error(method.implementation, methodName);
+        }
+        found = method;
+        oldMethodName = methodName;
+      }
+    }
+    if (firstFail) {
+      return ptr(0);
+    }
+    return found ? found.implementation : ptr(0);
+  }
+  try {
+    if (p.substring(0, 2) === '0x') {
+      return ptr(p);
+    }
+  } catch (e) {
+    // console.error(e);
+  }
+  // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
+  return Module.findExportByName(null, p);
+}
+
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -161,5 +258,6 @@ module.exports = {
   padPointer,
   trunc4k,
   rwxstr,
-  rwxint
+  rwxint,
+  getPtr
 };
