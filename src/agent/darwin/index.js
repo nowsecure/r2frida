@@ -131,10 +131,108 @@ function uiAlert (args) {
   });
 }
 
+function listMachoSections (baseAddr) {
+  const result = [];
+  if (!_isMachoHeaderAtOffset(baseAddr)) {
+    throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
+  }
+  const machoHeader = parseMachoHeader(baseAddr);
+  if (machoHeader !== undefined) {
+    const segments = getSegments(baseAddr, machoHeader.ncmds);
+    segments
+      .filter((segment) => segment.name === '__TEXT' || segment.name === '__DATA')
+      .forEach((segment) => {
+        result.push(...getSections(segment));
+      });
+  }
+  return result;
+}
+
+function parseMachoHeader (offset) {
+  const header = {
+    magic: offset.readU32(),
+    cputype: offset.add(0x4).readU32(),
+    cpusubtype: offset.add(0x8).readU32(),
+    filetype: offset.add(0x0c).readU32(),
+    ncmds: offset.add(0x10).readU32(),
+    sizeofcmds: offset.add(0x14).readU32(),
+    flags: offset.add(0x18).readU32(),
+  };
+  if (header.cputype === 0x0100000c) {
+    // arm64
+    return header;
+  }
+  if (header.cputype === 0x01000007) {
+    // x86-64
+    return header;
+  }
+  throw new Error('Only support for 64-bit apps');
+}
+
+function _isMachoHeaderAtOffset (offset) {
+  const cursor = trunc4k(offset);
+  if (cursor.readU32() === 0xfeedfacf) {
+    return true;
+  }
+  return false;
+}
+
+function getSections (segment) {
+  let { name, nsects, sectionsPtr, slide } = segment;
+  const sects = [];
+  while (nsects--) {
+    sects.push({
+      name: `${name}.${sectionsPtr.readUtf8String()}`,
+      vmaddr: sectionsPtr.add(32).readPointer().add(slide),
+      vmsize: sectionsPtr.add(40).readU64()
+    });
+    sectionsPtr = sectionsPtr.add(80);
+  }
+  return sects;
+}
+
+function getSegments (baseAddr, ncmds) {
+  const LC_SEGMENT_64 = 0x19;
+  let cursor = baseAddr.add(0x20);
+  const segments = [];
+  let slide = 0;
+  while (ncmds-- > 0) {
+    const command = cursor.readU32();
+    const cmdSize = cursor.add(4).readU32();
+    if (command !== LC_SEGMENT_64) {
+      cursor = cursor.add(cmdSize);
+      continue;
+    }
+    const segment = {
+      name: cursor.add(0x8).readUtf8String(),
+      vmaddr: cursor.add(0x18).readPointer(),
+      vmsize: cursor.add(0x18).add(8).readPointer(),
+      nsects: cursor.add(64).readU32(),
+      sectionsPtr: cursor.add(72)
+    };
+    if (segment.name === '__TEXT') {
+      slide = baseAddr.sub(segment.vmaddr);
+    }
+    cursor = cursor.add(cmdSize);
+    segments.push(segment);
+  }
+  segments
+    .filter(seg => seg.name !== '__PAGEZERO')
+    .forEach((seg) => {
+      seg.vmaddr = seg.vmaddr.add(slide);
+      seg.slide = slide;
+    });
+  return segments;
+}
+
 module.exports = {
   isObjC,
   ObjCAvailable,
   hasMainLoop,
   dxObjc,
-  uiAlert
+  uiAlert,
+  listMachoSections,
+  parseMachoHeader,
+  getSections,
+  getSegments
 };
