@@ -1,5 +1,7 @@
 'use strict';
 
+const globals = require('./globals');
+
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
 
@@ -99,7 +101,7 @@ function renderEndian (value, bigEndian, width) {
 
 function padPointer (value) {
   let result = value.toString(16);
-  const paddedLength = 2 * pointerSize;
+  const paddedLength = 2 * globals.pointerSize;
   while (result.length < paddedLength) {
     result = '0' + result;
   }
@@ -127,6 +129,23 @@ function _isHex (raw) {
   return inSet.size === 0;
 }
 
+function trunc4k (x) {
+  return x.and(ptr('0xfff').not());
+}
+
+function rwxstr (x) {
+  let str = '';
+  str += (x & 1) ? 'r' : '-';
+  str += (x & 2) ? 'w' : '-';
+  str += (x & 4) ? 'x' : '-';
+  return str;
+}
+
+function rwxint (x) {
+  const ops = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
+  return ops.indexOf([x]);
+}
+
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -139,5 +158,8 @@ module.exports = {
   filterPrintable,
   byteArrayToHex,
   renderEndian,
-  padPointer
+  padPointer,
+  trunc4k,
+  rwxstr,
+  rwxint
 };
