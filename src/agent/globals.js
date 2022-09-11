@@ -9,13 +9,10 @@ const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
 
-
 module.exports = {
   pointerSize,
   tracehooks,
   allocPool,
-  logs,
-  traces,
   pendingCmds,
   pendingCmdSends,
   sendingCommand,

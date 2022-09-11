@@ -6,8 +6,7 @@ const config = require('./config');
 const debug = require('./debug');
 const fs = require('./fs');
 const globals = require('./globals');
-const info = require('./info/index.js');
-const entrypoint = require('./info/entrypoint.js');
+const info = require('./info/index');
 const io = require('./io');
 const log = require('./log');
 const darwin = require('./darwin/index');
@@ -118,19 +117,19 @@ const commandHandlers = {
   s: radareSeek,
   r: radareCommand,
 
-  ie: entrypoint.listEntrypoint,
-  ieq: entrypoint.listEntrypointQuiet,
-  'ie*': entrypoint.listEntrypointR2,
-  iej: entrypoint.listEntrypointJson,
+  ie: info.listEntrypoint,
+  ieq: info.listEntrypointQuiet,
+  'ie*': info.listEntrypointR2,
+  iej: info.listEntrypointJson,
   afs: analFunctionSignature,
-  ii: listImports,
-  'ii*': listImportsR2,
-  iij: listImportsJson,
-  il: listModules,
-  'il.': listModulesHere,
-  'il*': listModulesR2,
-  ilq: listModulesQuiet,
-  ilj: listModulesJson,
+  ii: info.listImports,
+  'ii*': info.listImportsR2,
+  iij: info.listImportsJson,
+  il: info.listModules,
+  'il.': info.listModulesHere,
+  'il*': info.listModulesR2,
+  ilq: info.listModulesQuiet,
+  ilj: info.listModulesJson,
 
   ia: listAllHelp,
 
@@ -687,73 +686,6 @@ function chDir (args) {
   return '';
 }
 
-function listModules () {
-  return Process.enumerateModules()
-    .map(m => [padPointer(m.base), padPointer(m.base.add(m.size)), m.name].join(' '))
-    .join('\n');
-}
-
-function listModulesQuiet () {
-  return Process.enumerateModules().map(m => m.name).join('\n');
-}
-
-function listModulesR2 () {
-  return Process.enumerateModules()
-    .map(m => 'f lib.' + utils.sanitizeString(m.name) + ' = ' + padPointer(m.base))
-    .join('\n');
-}
-
-function listModulesJson () {
-  return Process.enumerateModules();
-}
-
-function listModulesHere () {
-  const here = ptr(r2frida.offset);
-  return Process.enumerateModules()
-    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
-    .map(m => padPointer(m.base) + ' ' + m.name)
-    .join('\n');
-}
-
-function listExports (args) {
-  return listExportsJson(args)
-    .map(({ type, name, address }) => {
-      return [address, type[0], name].join(' ');
-    })
-    .join('\n');
-}
-
-function listExportsR2 (args) {
-  return listExportsJson(args)
-    .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
-    })
-    .join('\n');
-}
-
-function listAllExportsJson (args) {
-  const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
-  return modules.reduce((result, moduleName) => {
-    return result.concat(Module.enumerateExports(moduleName));
-  }, []);
-}
-
-function listAllExports (args) {
-  return listAllExportsJson(args)
-    .map(({ type, name, address }) => {
-      return [address, type[0], name].join(' ');
-    })
-    .join('\n');
-}
-
-function listAllExportsR2 (args) {
-  return listAllExportsJson(args)
-    .map(({ type, name, address }) => {
-      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
-    })
-    .join('\n');
-}
-
 function listAllSymbolsJson (args) {
   const argName = args[0];
   const modules = Process.enumerateModules().map(m => m.path);
@@ -794,13 +726,6 @@ function listAllSymbolsR2 (args) {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     })
     .join('\n');
-}
-
-function listExportsJson (args) {
-  const currentModule = (args.length > 0)
-    ? Process.getModuleByName(args[0])
-    : getModuleByAddress(ptr(r2frida.offset));
-  return Module.enumerateExports(currentModule.name);
 }
 
 function getModuleByAddress (addr) {
@@ -1068,90 +993,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function listImports (args) {
-  return listImportsJson(args)
-    .map(({ type, name, module, address }) => [address, type ? type[0] : ' ', name, module].join(' '))
-    .join('\n');
-}
-
-function listImportsR2 (args) {
-  const seen = new Set();
-  let stubAddress = 0;
-  const stubSize = Process.arch === 'x64' ? 6 : 8;
-  if (Process.platform === 'darwin') {
-    try {
-      const baseAddr = Process.enumerateModules()[0].base;
-      const machoHeader = parseMachoHeader(baseAddr);
-      const segments = getSegments(baseAddr, machoHeader.ncmds);
-      for (const seg of segments) {
-        if (seg.name === '__TEXT') {
-          for (const sec of getSections(seg)) {
-            if (sec.name === '__TEXT.__stubs') {
-              stubAddress = sec.vmaddr;
-              break;
-            }
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      // ignore
-    }
-  }
-  return listImportsJson(args).map((x) => {
-    const flags = [];
-    if (!seen.has(x.address)) {
-      seen.add(x.address);
-      flags.push('f sym.' + utils.sanitizeString(x.name) + ` = ${x.address}`);
-    }
-    if (x.slot !== undefined) {
-      const tm = x.targetModuleName ? x.targetModuleName + '.' : '';
-      const fn = utils.sanitizeString(`reloc.${tm}${x.name}`); // _${x.index}`);
-      flags.push(`f ${fn} = ${x.slot}`);
-    }
-    if (stubAddress) {
-      if (x.index > 0) {
-        const pltaddr = ptr(stubAddress).add(stubSize * (x.index - 1));
-        flags.push('f sym.imp.' + utils.sanitizeString(x.name) + ` = ${pltaddr}`);
-      }
-    }
-    return flags.join('\n');
-  }).join('\n');
-}
-
-function listImportsJson (args) {
-  const alen = args.length;
-  let result = [];
-  let moduleName = null;
-  if (alen === 2) {
-    moduleName = args[0];
-    const importName = args[1];
-    const imports = Module.enumerateImports(moduleName);
-    if (imports !== null) {
-      result = imports.filter((x, i) => {
-        x.index = i;
-        return x.name === importName;
-      });
-    }
-  } else if (alen === 1) {
-    moduleName = args[0];
-    result = Module.enumerateImports(moduleName) || [];
-  } else {
-    const currentModule = getModuleByAddress(r2frida.offset);
-    if (currentModule) {
-      result = Module.enumerateImports(currentModule.name) || [];
-    }
-  }
-  result.forEach((x, i) => {
-    if (x.index === undefined) {
-      x.index = i;
-    }
-    x.targetModuleName = moduleName;
-  });
-  return result;
 }
 
 function listClassesLoadedJson (args) {
@@ -1727,150 +1568,6 @@ function listMemoryRangesHere (args) {
     .join('\n') + '\n';
 }
 
-function listSectionsHere () {
-  const here = ptr(r2frida.offset);
-  const moduleAddr = Process.enumerateModules()
-    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
-    .map(m => m.base);
-  return listSections(moduleAddr);
-}
-
-function listSectionsR2 (args) {
-  let i = 0;
-  return listSectionsJson(args)
-    .map(({ vmaddr, vmsize, name }) => {
-      return [`f section.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
-    })
-    .join('\n');
-}
-
-function listSections (args) {
-  return listSectionsJson(args)
-    .map(({ vmaddr, vmsize, name }) => {
-      return [vmaddr, vmsize, name].join(' ');
-    })
-    .join('\n');
-}
-
-function listSectionsJson (args) {
-  if (Process.platform !== 'darwin') {
-    return 'Only iOS supported.';
-  }
-  const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
-  return listMachoSections(baseAddr);
-}
-
-function listMachoSections (baseAddr) {
-  const result = [];
-  if (!isMachoHeaderAtOffset(baseAddr)) {
-    throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
-  }
-  const machoHeader = parseMachoHeader(baseAddr);
-  if (machoHeader !== undefined) {
-    const segments = getSegments(baseAddr, machoHeader.ncmds);
-    segments
-      .filter((segment) => segment.name === '__TEXT' || segment.name === '__DATA')
-      .forEach((segment) => {
-        result.push(...getSections(segment));
-      });
-  }
-  return result;
-}
-
-function parseMachoHeader (offset) {
-  const header = {
-    magic: offset.readU32(),
-    cputype: offset.add(0x4).readU32(),
-    cpusubtype: offset.add(0x8).readU32(),
-    filetype: offset.add(0x0c).readU32(),
-    ncmds: offset.add(0x10).readU32(),
-    sizeofcmds: offset.add(0x14).readU32(),
-    flags: offset.add(0x18).readU32(),
-  };
-  if (header.cputype === 0x0100000c) {
-    // arm64
-    return header;
-  }
-  if (header.cputype === 0x01000007) {
-    // x86-64
-    return header;
-  }
-  throw new Error('Only support for 64-bit apps');
-}
-
-function getSegments (baseAddr, ncmds) {
-  const LC_SEGMENT_64 = 0x19;
-  let cursor = baseAddr.add(0x20);
-  const segments = [];
-  let slide = 0;
-  while (ncmds-- > 0) {
-    const command = cursor.readU32();
-    const cmdSize = cursor.add(4).readU32();
-    if (command !== LC_SEGMENT_64) {
-      cursor = cursor.add(cmdSize);
-      continue;
-    }
-    const segment = {
-      name: cursor.add(0x8).readUtf8String(),
-      vmaddr: cursor.add(0x18).readPointer(),
-      vmsize: cursor.add(0x18).add(8).readPointer(),
-      nsects: cursor.add(64).readU32(),
-      sectionsPtr: cursor.add(72)
-    };
-    if (segment.name === '__TEXT') {
-      slide = baseAddr.sub(segment.vmaddr);
-    }
-    cursor = cursor.add(cmdSize);
-    segments.push(segment);
-  }
-  segments
-    .filter(seg => seg.name !== '__PAGEZERO')
-    .forEach((seg) => {
-      seg.vmaddr = seg.vmaddr.add(slide);
-      seg.slide = slide;
-    });
-  return segments;
-}
-
-function getSections (segment) {
-  let { name, nsects, sectionsPtr, slide } = segment;
-  const sects = [];
-  while (nsects--) {
-    sects.push({
-      name: `${name}.${sectionsPtr.readUtf8String()}`,
-      vmaddr: sectionsPtr.add(32).readPointer().add(slide),
-      vmsize: sectionsPtr.add(40).readU64()
-    });
-    sectionsPtr = sectionsPtr.add(80);
-  }
-  return sects;
-}
-
-function isMachoHeaderAtOffset (offset) {
-  const cursor = trunc4k(offset);
-  if (cursor.readU32() === 0xfeedfacf) {
-    return true;
-  }
-  return false;
-}
-
-function trunc4k (x) {
-  return x.and(ptr('0xfff').not());
-}
-
-function rwxstr (x) {
-  let str = '';
-  str += (x & 1) ? 'r' : '-';
-  str += (x & 2) ? 'w' : '-';
-  str += (x & 4) ? 'x' : '-';
-  return str;
-}
-
-function rwxint (x) {
-  const ops = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
-  return ops.indexOf([x]);
-}
-
 function squashRanges (ranges) {
   const res = [];
   let begin = ptr(0);
@@ -1878,7 +1575,7 @@ function squashRanges (ranges) {
   let lastPerm = 0;
   let lastFile = '';
   for (const r of ranges) {
-    lastPerm |= rwxint(r.protection);
+    lastPerm |= utils.rwxint(r.protection);
     // console.log("-", r.base, range.base.add(range.size));
     if (r.base.equals(end)) {
       // enlarge segment
@@ -1894,7 +1591,7 @@ function squashRanges (ranges) {
         res.push({
           base: begin,
           size: end.sub(begin),
-          protection: rwxstr(lastPerm),
+          protection: utils.rwxstr(lastPerm),
           file: lastFile
         });
         end = ptr(0);

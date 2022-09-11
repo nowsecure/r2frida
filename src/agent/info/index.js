@@ -1,12 +1,13 @@
 'use strict';
 
 const debug = require('./debug');
-const globals = require('../globals');
 const darwin = require('../darwin/index');
-const swift = require('../darwin/swift');
+const globals = require('../globals');
 const java = require('../java/index');
-const sys = require('../sys');
 const r2 = require('../r2');
+const sys = require('../sys');
+const swift = require('../darwin/swift');
+const utils = require('./utils');
 
 async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');
@@ -80,7 +81,7 @@ async function dumpInfoJson () {
     }
   }
   if (java.JavaAvailable) {
-    await performOnJavaVM(() => {
+    await java.performOnJavaVM(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
       const app = ActivityThread.currentApplication();
       if (app !== null) {
@@ -125,8 +126,271 @@ async function dumpInfoJson () {
   return res;
 }
 
+function listEntrypointJson (args) {
+  function isEntrypoint (s) {
+    if (s.type === 'section') {
+      switch (s.name) {
+        case '_start':
+        case 'start':
+        case 'main':
+          return true;
+      }
+    }
+    return false;
+  }
+  if (Process.platform === 'linux') {
+    const at = DebugSymbol.fromName('main');
+    if (at) {
+      return [at];
+    }
+  }
+  const firstModule = Process.enumerateModules()[0];
+  return Module.enumerateSymbols(firstModule.name)
+    .filter((symbol) => {
+      return isEntrypoint(symbol);
+    }).map((symbol) => {
+      symbol.moduleName = getModuleByAddress(symbol.address).name;
+      return symbol;
+    });
+}
+
+function listEntrypointR2 (args) {
+  let n = 0;
+  return listEntrypointJson()
+    .map((entry) => {
+      return 'f entry' + (n++) + ' = ' + entry.address;
+    }).join('\n');
+}
+
+function listEntrypointQuiet (args) {
+  return listEntrypointJson()
+    .map((entry) => {
+      return entry.address;
+    }).join('\n');
+}
+
+function listEntrypoint (args) {
+  return listEntrypointJson()
+    .map((entry) => {
+      return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
+    }).join('\n');
+}
+
+function listImports (args) {
+  return listImportsJson(args)
+    .map(({ type, name, module, address }) => [address, type ? type[0] : ' ', name, module].join(' '))
+    .join('\n');
+}
+
+function listImportsR2 (args) {
+  const seen = new Set();
+  let stubAddress = 0;
+  const stubSize = Process.arch === 'x64' ? 6 : 8;
+  if (Process.platform === 'darwin') {
+    try {
+      const baseAddr = Process.enumerateModules()[0].base;
+      const machoHeader = darwin.parseMachoHeader(baseAddr);
+      const segments = darwin.getSegments(baseAddr, machoHeader.ncmds);
+      for (const seg of segments) {
+        if (seg.name === '__TEXT') {
+          for (const sec of darwin.getSections(seg)) {
+            if (sec.name === '__TEXT.__stubs') {
+              stubAddress = sec.vmaddr;
+              break;
+            }
+          }
+          break;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      // ignore
+    }
+  }
+  return listImportsJson(args).map((x) => {
+    const flags = [];
+    if (!seen.has(x.address)) {
+      seen.add(x.address);
+      flags.push('f sym.' + utils.sanitizeString(x.name) + ` = ${x.address}`);
+    }
+    if (x.slot !== undefined) {
+      const tm = x.targetModuleName ? x.targetModuleName + '.' : '';
+      const fn = utils.sanitizeString(`reloc.${tm}${x.name}`); // _${x.index}`);
+      flags.push(`f ${fn} = ${x.slot}`);
+    }
+    if (stubAddress) {
+      if (x.index > 0) {
+        const pltaddr = ptr(stubAddress).add(stubSize * (x.index - 1));
+        flags.push('f sym.imp.' + utils.sanitizeString(x.name) + ` = ${pltaddr}`);
+      }
+    }
+    return flags.join('\n');
+  }).join('\n');
+}
+
+function listImportsJson (args) {
+  const alen = args.length;
+  let result = [];
+  let moduleName = null;
+  if (alen === 2) {
+    moduleName = args[0];
+    const importName = args[1];
+    const imports = Module.enumerateImports(moduleName);
+    if (imports !== null) {
+      result = imports.filter((x, i) => {
+        x.index = i;
+        return x.name === importName;
+      });
+    }
+  } else if (alen === 1) {
+    moduleName = args[0];
+    result = Module.enumerateImports(moduleName) || [];
+  } else {
+    const currentModule = getModuleByAddress(global.r2frida.offset);
+    if (currentModule) {
+      result = Module.enumerateImports(currentModule.name) || [];
+    }
+  }
+  result.forEach((x, i) => {
+    if (x.index === undefined) {
+      x.index = i;
+    }
+    x.targetModuleName = moduleName;
+  });
+  return result;
+}
+
+function listModules () {
+  return Process.enumerateModules()
+    .map(m => [utils.padPointer(m.base), utils.padPointer(m.base.add(m.size)), m.name].join(' '))
+    .join('\n');
+}
+
+function listModulesQuiet () {
+  return Process.enumerateModules().map(m => m.name).join('\n');
+}
+
+function listModulesR2 () {
+  return Process.enumerateModules()
+    .map(m => 'f lib.' + utils.sanitizeString(m.name) + ' = ' + utils.padPointer(m.base))
+    .join('\n');
+}
+
+function listModulesJson () {
+  return Process.enumerateModules();
+}
+
+function listModulesHere () {
+  const here = ptr(global.r2frida.offset);
+  return Process.enumerateModules()
+    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+    .map(m => utils.padPointer(m.base) + ' ' + m.name)
+    .join('\n');
+}
+
+function listExports (args) {
+  return listExportsJson(args)
+    .map(({ type, name, address }) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listExportsR2 (args) {
+  return listExportsJson(args)
+    .map(({ type, name, address }) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllExportsJson (args) {
+  const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
+  return modules.reduce((result, moduleName) => {
+    return result.concat(Module.enumerateExports(moduleName));
+  }, []);
+}
+
+function listAllExports (args) {
+  return listAllExportsJson(args)
+    .map(({ type, name, address }) => {
+      return [address, type[0], name].join(' ');
+    })
+    .join('\n');
+}
+
+function listAllExportsR2 (args) {
+  return listAllExportsJson(args)
+    .map(({ type, name, address }) => {
+      return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
+    })
+    .join('\n');
+}
+
+function listExportsJson (args) {
+  const currentModule = (args.length > 0)
+    ? Process.getModuleByName(args[0])
+    : getModuleByAddress(ptr(global.r2frida.offset));
+  return Module.enumerateExports(currentModule.name);
+}
+
+function listSectionsHere () {
+  const here = ptr(global.r2frida.offset);
+  const moduleAddr = Process.enumerateModules()
+    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+    .map(m => m.base);
+  return listSections(moduleAddr);
+}
+
+function listSectionsR2 (args) {
+  let i = 0;
+  return listSectionsJson(args)
+    .map(({ vmaddr, vmsize, name }) => {
+      return [`f section.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
+    })
+    .join('\n');
+}
+
+function listSections (args) {
+  return listSectionsJson(args)
+    .map(({ vmaddr, vmsize, name }) => {
+      return [vmaddr, vmsize, name].join(' ');
+    })
+    .join('\n');
+}
+
+function listSectionsJson (args) {
+  if (Process.platform !== 'darwin') {
+    return 'Only darwin-based systems supported.';
+  }
+  const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
+  return darwin.listMachoSections(baseAddr);
+}
+
 module.exports = {
   dumpInfo,
   dumpInfoR2,
-  dumpInfoJson
+  dumpInfoJson,
+  listEntrypointJson,
+  listEntrypointR2,
+  listEntrypointQuiet,
+  listEntrypoint,
+  listImports,
+  listImportsR2,
+  listImportsJson,
+  listModules,
+  listModulesQuiet,
+  listModulesR2,
+  listModulesJson,
+  listModulesHere,
+  listExports,
+  listExportsR2,
+  listAllExportsJson,
+  listAllExports,
+  listAllExportsR2,
+  listExportsJson,
+  listSectionsHere,
+  listSectionsR2,
+  listSections,
+  listSectionsJson
 };
