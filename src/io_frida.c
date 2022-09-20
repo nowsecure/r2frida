@@ -1991,7 +1991,7 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 		for (i = 0; i < num_items; i++) {
 			FridaApplication *application = g_array_index (items, FridaApplication*, i);
 			guint pid = frida_application_get_pid (application);
-			char *arg = pid? sdb_itoa(pid, buf, 10) : "-";
+			char *arg = pid? r_str_newf ("%d", pid): strdup ("-");
 			r_table_add_rowf (table, "sss",
 				arg,
 				frida_application_get_name (application),
