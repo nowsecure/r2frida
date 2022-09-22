@@ -40,7 +40,7 @@ let Gcwd = '/';
 const SwiftAvailable = function () {
   return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 };
-const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const isIOS15 = getIOSVersion().startsWith('15');
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
@@ -60,6 +60,9 @@ const pendingCmdSends = [];
 let sendingCommand = false;
 
 function getIOSVersion () {
+  if (!ObjCAvailable) {
+    return '';
+  }
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
   // E.g. "Version 13.5 (Build 17F75)"
