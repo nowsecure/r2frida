@@ -1,11 +1,30 @@
 'use strict';
 
+<<<<<<< HEAD:src/agent/lib/fs.js
 const darwin = require('./darwin');
+=======
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
 const { toByteArray } = require('base64-js');
 const { normalize } = require('path');
 const path = require('path');
 const { platform, pointerSize } = Process;
+<<<<<<< HEAD:src/agent/lib/fs.js
 const { sym, _readlink, getPid, _fstat, _dup2, _close } = require('./sys');
+=======
+const sys = require('./sys');
+
+function debase (a) {
+  if (a.startsWith('base64:')) {
+    try {
+      const data = toByteArray(a.slice(7));
+      a = String.fromCharCode.apply(null, data);
+    } catch (e) {
+      // invalid base64
+    }
+  }
+  return normalize(a);
+}
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
 
 let fs = null;
 let Gcwd = '/';
@@ -576,13 +595,22 @@ function listFileDescriptors (args) {
 function listFileDescriptorsJson (args) {
   const PATH_MAX = 4096;
   function getFdName (fd) {
+<<<<<<< HEAD:src/agent/lib/fs.js
     if (_readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
+=======
+    if (sys._readlink && Process.platform === 'linux') {
+      const fdPath = path.join('proc', '' + sys.getPid(), 'fd', '' + fd);
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
       const buffer = Memory.alloc(PATH_MAX);
       const source = Memory.alloc(PATH_MAX);
       source.writeUtf8String(fdPath);
       buffer.writeUtf8String('');
+<<<<<<< HEAD:src/agent/lib/fs.js
       if (_readlink(source, buffer, PATH_MAX) !== -1) {
+=======
+      if (sys._readlink(source, buffer, PATH_MAX) !== -1) {
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
         return buffer.readUtf8String();
       }
       return undefined;
@@ -603,7 +631,11 @@ function listFileDescriptorsJson (args) {
     const statBuf = Memory.alloc(128);
     const fds = [];
     for (let i = 0; i < 1024; i++) {
+<<<<<<< HEAD:src/agent/lib/fs.js
       if (_fstat(i, statBuf) === 0) {
+=======
+      if (sys._fstat(i, statBuf) === 0) {
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
         fds.push(i);
       }
     }
@@ -611,7 +643,11 @@ function listFileDescriptorsJson (args) {
       return [fd, getFdName(fd)];
     });
   } else {
+<<<<<<< HEAD:src/agent/lib/fs.js
     const rc = _dup2(+args[0], +args[1]);
+=======
+    const rc = sys._dup2(+args[0], +args[1]);
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
     return rc;
   }
 }
@@ -620,6 +656,7 @@ function closeFileDescriptors (args) {
   if (args.length === 0) {
     return 'Please, provide a file descriptor';
   }
+<<<<<<< HEAD:src/agent/lib/fs.js
   return _close(+args[0]);
 }
 
@@ -651,4 +688,18 @@ module.exports = {
   VirtualEnt,
   flatify,
   nsArrayMap
+=======
+  return sys._close(+args[0]);
+}
+
+module.exports = {
+  listFileDescriptors,
+  listFileDescriptorsJson,
+  closeFileDescriptors,
+  ls,
+  cat,
+  open,
+  transformVirtualPath,
+  exist
+>>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
 };
