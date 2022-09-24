@@ -8,12 +8,12 @@ const config = require('./config');
 const darwin = require('./darwin/index');
 const debug = require('./debug');
 const fs = require('./fs');
-const globals = require('./globals');
 const info = require('./info/index');
 const io = require('./io');
 const java = require('./java/index');
 const log = require('./log');
 const lookup = require('./lookup');
+const memory = require('./memory');
 const r2 = require('./r2');
 const search = require('./search');
 const sys = require('./sys');
@@ -201,32 +201,32 @@ const commandHandlers = {
   ipj: classes.listProtocolsJson,
   iz: info.listStrings,
   izj: info.listStringsJson,
-  dd: listFileDescriptors,
-  ddj: listFileDescriptorsJson,
-  'dd-': closeFileDescriptors,
-  dm: listMemoryRanges,
-  'dm*': listMemoryRangesR2,
-  dmj: listMemoryRangesJson,
-  dmp: changeMemoryProtection,
-  'dm.': listMemoryRangesHere,
-  dmm: listMemoryMaps,
-  'dmm*': listMemoryMapsR2,
-  'dmm.': listMemoryMapsHere, // alias for 'dm.'
-  dmh: listMallocRanges,
-  'dmh*': listMallocRangesR2,
-  dmhj: listMallocRangesJson,
-  dmhm: listMallocMaps,
-  dma: allocSize,
-  dmas: allocString,
-  dmaw: allocWstring,
-  dmad: allocDup,
-  dmal: listAllocs,
-  'dma-': removeAlloc,
-  dp: getPid,
+  dd: fs.listFileDescriptors,
+  ddj: fs.listFileDescriptorsJson,
+  'dd-': fs.closeFileDescriptors,
+  dm: memory.listMemoryRanges,
+  'dm*': memory.listMemoryRangesR2,
+  dmj: memory.listMemoryRangesJson,
+  dmp: memory.changeMemoryProtection,
+  'dm.': memory.listMemoryRangesHere,
+  dmm: memory.listMemoryMaps,
+  'dmm*': memory.listMemoryMapsR2,
+  'dmm.': memory.listMemoryMapsHere, // alias for 'dm.'
+  dmh: memory.listMallocRanges,
+  'dmh*': memory.listMallocRangesR2,
+  dmhj: memory.listMallocRangesJson,
+  dmhm: memory.listMallocMaps,
+  dma: memory.allocSize,
+  dmas: memory.allocString,
+  dmaw: memory.allocWstring,
+  dmad: memory.allocDup,
+  dmal: memory.listAllocs,
+  'dma-': memory.removeAlloc,
+  dp: sys.getPid,
   dxc: dxCall,
   dxo: darwin.dxObjc,
   dxs: dxSyscall,
-  dpj: getPidJson,
+  dpj: sys.getPidJson,
   dpt: listThreads,
   dptj: listThreadsJson,
   dr: dumpRegisters,
@@ -335,85 +335,6 @@ function nameFromAddress (address) {
     }
   }
   return address.toString();
-}
-
-function allocSize (args) {
-  const size = +args[0];
-  if (size > 0) {
-    const a = Memory.alloc(size);
-    return _addAlloc(a);
-  }
-  return 0;
-}
-
-function allocString (args) {
-  const theString = args.join(' ');
-  if (theString.length > 0) {
-    const a = Memory.allocUtf8String(theString);
-    return _addAlloc(a);
-  }
-  throw new Error('Usage: dmas [string]');
-}
-
-function allocWstring (args) {
-  const theString = args.join(' ');
-  if (theString.length > 0) {
-    const a = Memory.allocUtf16String(theString);
-    return _addAlloc(a);
-  }
-  throw new Error('Usage: dmaw [string]');
-}
-
-function allocDup (args) {
-  if (args.length < 2) {
-    throw new Error('Missing argument');
-  }
-  const addr = +args[0];
-  const size = +args[1];
-  if (addr > 0 && size > 0) {
-    const a = Memory.dup(ptr(addr), size);
-    return _addAlloc(a);
-  }
-  return 0;
-}
-
-function removeAlloc (args) {
-  if (args.length === 0) {
-    _clearAllocs();
-  } else {
-    for (const addr of args) {
-      _delAlloc(addr);
-    }
-  }
-  return '';
-}
-
-function listAllocs (args) {
-  return Object.values(allocPool)
-    .sort()
-    .map((x) => {
-      const bytes = Memory.readByteArray(x, 60);
-      const printables = utils.filterPrintable(bytes);
-      return `${x}\t"${printables}"`;
-    })
-    .join('\n') + '\n';
-}
-
-function _delAlloc (addr) {
-  delete allocPool[addr];
-}
-
-function _clearAllocs () {
-  Object.keys(allocPool)
-    .forEach(addr => delete allocPool[addr]);
-}
-
-function _addAlloc (allocPtr) {
-  const key = allocPtr.toString();
-  if (!allocPtr.isNull()) {
-    allocPool[key] = allocPtr;
-  }
-  return key;
 }
 
 function resolveSyscallNumber (name) {
@@ -736,87 +657,6 @@ function analFunctionSignature (args) {
   return 'Usage: afs [klassName] [methodName]';
 }
 
-function listMallocMaps (args) {
-  const heaps = squashRanges(listMallocRangesJson(args));
-  function inRange (x) {
-    for (const heap of heaps) {
-      if (x.base.compare(heap.base) >= 0 &&
-      x.base.add(x.size).compare(heap.base.add(heap.size))) {
-        return true;
-      }
-    }
-    return false;
-  }
-  return squashRanges(listMemoryRangesJson())
-    .filter(inRange)
-    .map(({ base, size, protection, file }) =>
-      [
-        padPointer(base),
-        '-',
-        padPointer(base.add(size)),
-        protection,
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
-function listMallocRangesJson (args) {
-  return Process.enumerateMallocRanges();
-}
-
-function listMallocRangesR2 (args) {
-  const chunks = listMallocRangesJson(args)
-    .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
-  return chunks + squashRanges(listMallocRangesJson(args))
-    .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
-}
-
-function listMallocRanges (args) {
-  return squashRanges(listMallocRangesJson(args))
-    .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
-}
-
-function listMemoryMapsHere (args) {
-  if (args.length !== 1) {
-    args = [ptr(r2frida.offset)];
-  }
-  const addr = ptr(args[0]);
-  return squashRanges(listMemoryRangesJson())
-    .filter(({ base, size }) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
-    .map(({ base, size, protection, file }) => {
-      return [
-        padPointer(base),
-        '-',
-        padPointer(base.add(size)),
-        protection,
-        file.path
-      ].join(' ');
-    })
-    .join('\n') + '\n';
-}
-
-function listMemoryRangesHere (args) {
-  if (args.length !== 1) {
-    args = [ptr(r2frida.offset)];
-  }
-  const addr = ptr(args[0]);
-  return listMemoryRangesJson()
-    .filter(({ base, size }) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
-    .map(({ base, size, protection, file }) =>
-      [
-        padPointer(base),
-        '-',
-        padPointer(base.add(size)),
-        protection,
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
 function squashRanges (ranges) {
   const res = [];
   let begin = ptr(0);
@@ -857,90 +697,6 @@ function squashRanges (ranges) {
     res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
   }
   return res;
-}
-
-function listMemoryMapsR2 () {
-  return squashRanges(listMemoryRangesJson())
-    .filter(_ => _.file)
-    .map(({ base, size, protection, file }) =>
-      [
-        'f',
-        'dmm.' + utils.sanitizeString(file.path),
-        '=',
-        padPointer(base),
-      ]
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
-function listMemoryMaps () {
-  return squashRanges(listMemoryRangesJson())
-    .filter(_ => _.file)
-    .map(({ base, size, protection, file }) =>
-      [
-        padPointer(base),
-        '-',
-        padPointer(base.add(size)),
-        protection,
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
-function listMemoryRangesR2 () {
-  return listMemoryRangesJson()
-    .map(({ base, size, protection, file }) =>
-      [
-        'f', 'map.' + padPointer(base) + '.' + protection.replace(/-/g, '_'), size, base,
-        '#', protection,
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
-function listMemoryRanges () {
-  return listMemoryRangesJson()
-    .map(({ base, size, protection, file }) =>
-      [
-        padPointer(base),
-        '-',
-        padPointer(base.add(size)),
-        protection,
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
-    .join('\n') + '\n';
-}
-
-function listMemoryRangesJson () {
-  return _getMemoryRanges('---');
-}
-
-function _getMemoryRanges (protection) {
-  if (r2frida.hookedRanges !== null) {
-    return r2frida.hookedRanges(protection);
-  }
-  return Process.enumerateRangesSync({
-    protection,
-    coalesce: false
-  });
-}
-
-async function changeMemoryProtection (args) {
-  const [addr, size, protection] = args;
-  if (args.length !== 3 || protection.length > 3) {
-    return 'Usage: :dmp [address] [size] [rwx]';
-  }
-  const address = getPtr(addr);
-  const mapsize = await numEval(size);
-  Memory.protect(address, ptr(mapsize).toInt32(), protection);
-  return '';
 }
 
 function listThreads () {
