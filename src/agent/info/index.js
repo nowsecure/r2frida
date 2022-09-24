@@ -8,6 +8,7 @@ const java = require('../java/index');
 const r2 = require('../r2');
 const sys = require('../sys');
 const swift = require('../darwin/swift');
+const strings = require('./strings');
 const utils = require('./utils');
 
 async function dumpInfo () {
@@ -441,6 +442,44 @@ function listAllHelp (args) {
   return 'See :ia? for more information. Those commands may take a while to run.';
 }
 
+function listStringsJson (args) {
+  if (!args || args.length !== 1) {
+    args = [global.r2frida.offset];
+  }
+  const base = ptr(args[0]);
+  const currentRange = Process.findRangeByAddress(base);
+  if (currentRange) {
+    const options = { base: base }; // filter for urls?
+    const length = Math.min(currentRange.size, 1024 * 1024 * 128);
+    const block = 1024 * 1024; // 512KB
+    if (length !== currentRange.size) {
+      const curSize = currentRange.size / (1024 * 1024);
+      console.error('Warning: this range is too big (' + curSize + 'MB), truncated to ' + length / (1024 * 1024) + 'MB');
+    }
+    try {
+      const res = [];
+      console.log('Reading ' + (length / (1024 * 1024)) + 'MB ...');
+      for (let i = 0; i < length; i += block) {
+        const addr = currentRange.base.add(i);
+        const bytes = addr.readCString(block);
+        const blockResults = strings(bytes.split('').map(_ => _.charCodeAt(0)), options);
+        res.push(...blockResults);
+      }
+      return res;
+    } catch (e) {
+      console.log(e.message);
+    }
+  }
+  throw new Error('Memory not mapped here');
+}
+
+function listStrings (args) {
+  if (!args || args.length !== 1) {
+    args = [ptr(global.r2frida.offset)];
+  }
+  return listStringsJson(args).map(({ base, text }) => utils.padPointer(base) + `  "${text}"`).join('\n');
+}
+
 module.exports = {
   dumpInfo,
   dumpInfoR2,
@@ -473,5 +512,7 @@ module.exports = {
   listSymbols,
   listSymbolsR2,
   listSymbolsJson,
-  listAllHelp
+  listAllHelp,
+  listStringsJson,
+  listStrings
 };
