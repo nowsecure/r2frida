@@ -14,7 +14,6 @@ const io = require('./io');
 const java = require('./java/index');
 const log = require('./log');
 const lookup = require('./lookup');
-const path = require('path');
 const r2 = require('./r2');
 const search = require('./search');
 const sys = require('./sys');
@@ -729,62 +728,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function closeFileDescriptors (args) {
-  if (args.length === 0) {
-    return 'Please, provide a file descriptor';
-  }
-  return _close(+args[0]);
-}
-
-function listFileDescriptors (args) {
-  return listFileDescriptorsJson(args).map(([fd, name]) => {
-    return fd + ' ' + name;
-  }).join('\n');
-}
-
-function listFileDescriptorsJson (args) {
-  const PATH_MAX = 4096;
-  function getFdName (fd) {
-    if (_readlink && Process.platform === 'linux') {
-      const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
-      const buffer = Memory.alloc(PATH_MAX);
-      const source = Memory.alloc(PATH_MAX);
-      source.writeUtf8String(fdPath);
-      buffer.writeUtf8String('');
-      if (_readlink(source, buffer, PATH_MAX) !== -1) {
-        return buffer.readUtf8String();
-      }
-      return undefined;
-    }
-    try {
-      // TODO: port this to iOS
-      const F_GETPATH = 50; // on macOS
-      const buffer = Memory.alloc(PATH_MAX);
-      const addr = Module.getExportByName(null, 'fcntl');
-      const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
-      fcntl(fd, F_GETPATH, buffer);
-      return buffer.readCString();
-    } catch (e) {
-      return '';
-    }
-  }
-  if (args.length === 0) {
-    const statBuf = Memory.alloc(128);
-    const fds = [];
-    for (let i = 0; i < 1024; i++) {
-      if (_fstat(i, statBuf) === 0) {
-        fds.push(i);
-      }
-    }
-    return fds.map((fd) => {
-      return [fd, getFdName(fd)];
-    });
-  } else {
-    const rc = _dup2(+args[0], +args[1]);
-    return rc;
-  }
 }
 
 function listMallocMaps (args) {
