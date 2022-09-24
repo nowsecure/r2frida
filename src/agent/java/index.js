@@ -147,5 +147,6 @@ module.exports = {
   performOnJavaVM,
   waitForJava,
   listJavaClassesJson,
+  listJavaClassesJsonSync,
   javaPerform
 };

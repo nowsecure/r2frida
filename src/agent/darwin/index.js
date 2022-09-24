@@ -1,5 +1,7 @@
 'use strict';
 
+const utils = require('./utils');
+
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
@@ -170,7 +172,7 @@ function parseMachoHeader (offset) {
 }
 
 function _isMachoHeaderAtOffset (offset) {
-  const cursor = trunc4k(offset);
+  const cursor = utils.trunc4k(offset);
   if (cursor.readU32() === 0xfeedfacf) {
     return true;
   }
