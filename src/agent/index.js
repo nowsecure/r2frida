@@ -17,7 +17,6 @@ const lookup = require('./lookup');
 const path = require('path');
 const r2 = require('./r2');
 const search = require('./search');
-const strings = require('./strings');
 const sys = require('./sys');
 const swift = require('./darwin/swift');
 const utils = require('./utils');
@@ -201,8 +200,8 @@ const commandHandlers = {
   icmj: classes.listClassMethodsJson,
   ip: classes.listProtocols,
   ipj: classes.listProtocolsJson,
-  iz: listStrings,
-  izj: listStringsJson,
+  iz: info.listStrings,
+  izj: info.listStringsJson,
   dd: listFileDescriptors,
   ddj: listFileDescriptorsJson,
   'dd-': closeFileDescriptors,
@@ -792,45 +791,6 @@ function listFileDescriptorsJson (args) {
     const rc = _dup2(+args[0], +args[1]);
     return rc;
   }
-}
-
-function listStringsJson (args) {
-  if (!args || args.length !== 1) {
-    args = [r2frida.offset];
-  }
-  const base = ptr(args[0]);
-  const currentRange = Process.findRangeByAddress(base);
-  if (currentRange) {
-    const options = { base: base }; // filter for urls?
-    const length = Math.min(currentRange.size, 1024 * 1024 * 128);
-    const block = 1024 * 1024; // 512KB
-    if (length !== currentRange.size) {
-      const curSize = currentRange.size / (1024 * 1024);
-      console.error('Warning: this range is too big (' + curSize + 'MB), truncated to ' + length / (1024 * 1024) + 'MB');
-    }
-    try {
-      const res = [];
-      console.log('Reading ' + (length / (1024 * 1024)) + 'MB ...');
-      for (let i = 0; i < length; i += block) {
-        const addr = currentRange.base.add(i);
-        const bytes = addr.readCString(block);
-        const blockResults = strings(bytes.split('').map(_ => _.charCodeAt(0)), options);
-        res.push(...blockResults);
-      }
-      return res;
-    } catch (e) {
-      console.log(e.message);
-    }
-  }
-  throw new Error('Memory not mapped here');
-}
-
-function listStrings (args) {
-  if (!args || args.length !== 1) {
-    args = [ptr(r2frida.offset)];
-  }
-  const base = ptr(args[0]);
-  return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
 }
 
 function listMallocMaps (args) {
@@ -2791,8 +2751,8 @@ function alignRight (text, width) {
 }
 
 const requestHandlers = {
-  safeio: () => { r2frida.safeio = true; },
-  unsafeio: () => { if (!NeedsSafeIo) { r2frida.safeio = false; } },
+  safeio: () => { global.r2frida.safeio = true; },
+  unsafeio: () => { if (!NeedsSafeIo) { global.r2frida.safeio = false; } },
   read: io.read,
   write: io.write,
   state: state,
@@ -2801,7 +2761,7 @@ const requestHandlers = {
 };
 
 function state (params, data) {
-  r2frida.offset = params.offset;
+  global.r2frida.offset = params.offset;
   debug.suspended = params.suspended;
   return [{}, null];
 }
@@ -3015,13 +2975,6 @@ function fsCat (args) {
 
 function fsOpen (args) {
   return fs.open(args[0] || globals.Gcwd);
-}
-
-function javaPerform (fn) {
-  if (config.getBoolean('java.wait')) {
-    return Java.perform(fn);
-  }
-  return Java.performNow(fn);
 }
 
 function onStanza (stanza, data) {
