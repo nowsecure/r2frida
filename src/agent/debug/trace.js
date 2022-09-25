@@ -1,5 +1,6 @@
 'use strict';
 
+const expr = require('./expr');
 const log = require('./log');
 const config = require('./config');
 const debug = require('./debug');
@@ -177,7 +178,7 @@ function traceJson (args) {
         traceReal(arg, narg);
         pull();
       } else {
-        numEval(arg).then(function (at) {
+        expr.numEval(arg).then(function (at) {
           console.error(traceReal(arg, at));
           pull();
         }).catch(reject);

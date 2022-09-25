@@ -7,6 +7,7 @@ const classes = require('./info/classes');
 const config = require('./config');
 const darwin = require('./darwin/index');
 const debug = require('./debug');
+const eval = require('./eval');
 const fs = require('./fs');
 const info = require('./info/index');
 const io = require('./io');
@@ -55,26 +56,8 @@ function getIOSVersion () {
   return version;
 }
 
-function numEval (expr) {
-  return new Promise((resolve, reject) => {
-    const symbol = DebugSymbol.fromName(expr);
-    if (symbol && symbol.name) {
-      return resolve(symbol.address);
-    }
-    r2.hostCmd('?v ' + expr).then(_ => resolve(_.trim())).catch(reject);
-  });
-}
-
-function evalNum (args) {
-  return new Promise((resolve, reject) => {
-    numEval(args.join(' ')).then(res => {
-      resolve(res);
-    });
-  });
-}
-
 const commandHandlers = {
-  E: evalNum,
+  E: eval.evalNum,
   '?e': echo,
   '?E': uiAlert,
   '/': search.search,
