@@ -243,6 +243,38 @@ function getPtr (p) {
   return Module.findExportByName(null, p);
 }
 
+function autoType (args) {
+  const nfArgs = [];
+  const nfArgsData = [];
+  // push arguments
+  for (let i = 0; i < args.length; i++) {
+    if (args[i].substring(0, 2) === '0x') {
+      nfArgs.push('pointer');
+      nfArgsData.push(ptr(args[i]));
+    } else if (args[i][0] === '"') {
+      // string.. join args
+      nfArgs.push('pointer');
+      const str = args[i].substring(1, args[i].length - 1);
+      const buf = Memory.allocUtf8String(str.replace(/\\n/g, '\n'));
+      nfArgsData.push(buf);
+    } else if (args[i].endsWith('f')) {
+      nfArgs.push('float');
+      nfArgsData.push(0.0 + args[i]);
+    } else if (args[i].endsWith('F')) {
+      nfArgs.push('double');
+      nfArgsData.push(0.0 + args[i]);
+    } else if (+args[i] > 0 || args[i] === '0') {
+      nfArgs.push('int');
+      nfArgsData.push(+args[i]);
+    } else {
+      nfArgs.push('pointer');
+      const address = Module.getExportByName(null, args[i]);
+      nfArgsData.push(address);
+    }
+  }
+  return [nfArgs, nfArgsData];
+}
+
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -259,5 +291,6 @@ module.exports = {
   trunc4k,
   rwxstr,
   rwxint,
-  getPtr
+  getPtr,
+  autoType
 };
