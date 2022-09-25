@@ -217,18 +217,18 @@ const commandHandlers = {
   dmal: memory.listAllocs,
   'dma-': memory.removeAlloc,
   dp: sys.getPid,
-  dxc: dxCall,
+  dxc: debug.dxCall,
   dxo: darwin.dxObjc,
-  dxs: dxSyscall,
+  dxs: debug.dxSyscall,
   dpj: sys.getPidJson,
-  dpt: listThreads,
-  dptj: listThreadsJson,
-  dr: dumpRegisters,
-  'dr*': dumpRegistersR2,
-  drr: dumpRegistersRecursively,
-  drp: dumpRegisterProfile,
-  dr8: dumpRegisterArena,
-  drj: dumpRegistersJson,
+  dpt: debug.listThreads,
+  dptj: debug.listThreadsJson,
+  dr: debug.dumpRegisters,
+  'dr*': debug.dumpRegistersR2,
+  drr: debug.dumpRegistersRecursively,
+  drp: debug.dumpRegisterProfile,
+  dr8: debug.dumpRegisterArena,
+  drj: debug.dumpRegistersJson,
   env: getOrSetEnv,
   envj: getOrSetEnvJson,
   dl: dlopen,
@@ -329,79 +329,6 @@ function nameFromAddress (address) {
     }
   }
   return address.toString();
-}
-
-function resolveSyscallNumber (name) {
-  const ios = Process.arch === 'arm64';
-  switch (name) {
-    case 'read':
-      return ios ? 3 : 0x2000003;
-    case 'write':
-      return ios ? 4 : 0x2000004;
-    case 'exit':
-      return ios ? 1 : 0x2000001;
-  }
-  return '' + name;
-}
-
-function dxSyscall (args) {
-  if (args.length === 0) {
-    return 'Usage dxs [syscallname] [args ...]';
-  }
-  const syscallNumber = '' + resolveSyscallNumber(args[0]);
-  return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
-}
-
-function autoType (args) {
-  const nfArgs = [];
-  const nfArgsData = [];
-  // push arguments
-  for (let i = 0; i < args.length; i++) {
-    if (args[i].substring(0, 2) === '0x') {
-      nfArgs.push('pointer');
-      nfArgsData.push(ptr(args[i]));
-    } else if (args[i][0] === '"') {
-      // string.. join args
-      nfArgs.push('pointer');
-      const str = args[i].substring(1, args[i].length - 1);
-      const buf = Memory.allocUtf8String(str.replace(/\\n/g, '\n'));
-      nfArgsData.push(buf);
-    } else if (args[i].endsWith('f')) {
-      nfArgs.push('float');
-      nfArgsData.push(0.0 + args[i]);
-    } else if (args[i].endsWith('F')) {
-      nfArgs.push('double');
-      nfArgsData.push(0.0 + args[i]);
-    } else if (+args[i] > 0 || args[i] === '0') {
-      nfArgs.push('int');
-      nfArgsData.push(+args[i]);
-    } else {
-      nfArgs.push('pointer');
-      const address = Module.getExportByName(null, args[i]);
-      nfArgsData.push(address);
-    }
-  }
-  return [nfArgs, nfArgsData];
-}
-
-function dxCall (args) {
-  if (args.length === 0) {
-    return `
-Usage: dxc [funcptr] [arg0 arg1..]
-For example:
- :dxc write 1 "hello\\n" 6
- :dxc read 0 \`?v rsp\` 10
-`;
-  }
-  const address = (args[0].substring(0, 2) === '0x')
-    ? ptr(args[0])
-    : Module.getExportByName(null, args[0]);
-  const [nfArgs, nfArgsData] = autoType(args.slice(1));
-  const fun = new NativeFunction(address, 'pointer', nfArgs);
-  if (nfArgs.length === 0) {
-    return fun();
-  }
-  return fun(...nfArgsData);
 }
 
 function evalCode (args) {
@@ -651,81 +578,6 @@ function analFunctionSignature (args) {
   return 'Usage: afs [klassName] [methodName]';
 }
 
-function squashRanges (ranges) {
-  const res = [];
-  let begin = ptr(0);
-  let end = ptr(0);
-  let lastPerm = 0;
-  let lastFile = '';
-  for (const r of ranges) {
-    lastPerm |= utils.rwxint(r.protection);
-    // console.log("-", r.base, range.base.add(range.size));
-    if (r.base.equals(end)) {
-      // enlarge segment
-      end = end.add(r.size);
-      // console.log("enlarge", begin, end);
-    } else {
-      if (begin.equals(ptr(0))) {
-        begin = r.base;
-        end = begin.add(r.size);
-        // console.log("  set", begin, end);
-      } else {
-        // console.log("  append", begin, end);
-        res.push({
-          base: begin,
-          size: end.sub(begin),
-          protection: utils.rwxstr(lastPerm),
-          file: lastFile
-        });
-        end = ptr(0);
-        begin = ptr(0);
-        lastPerm = 0;
-        lastFile = '';
-      }
-    }
-    if (r.file) {
-      lastFile = r.file;
-    }
-  }
-  if (!begin.equals(ptr(0))) {
-    res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
-  }
-  return res;
-}
-
-function listThreads () {
-  let canGetThreadName = false;
-  try {
-    const addr = Module.getExportByName(null, 'pthread_getname_np');
-    var pthreadGetnameNp = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
-    const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
-    var pthreadFromMachThreadNp = new NativeFunction(addr2, 'pointer', ['uint']);
-    canGetThreadName = true;
-  } catch (e) {
-    // do nothing
-  }
-
-  function getThreadName (tid) {
-    if (!canGetThreadName) {
-      return '';
-    }
-    const buffer = Memory.alloc(4096);
-    const p = pthreadFromMachThreadNp(tid);
-    pthreadGetnameNp(p, buffer, 4096);
-    return buffer.readCString();
-  }
-
-  return Process.enumerateThreads().map((thread) => {
-    const threadName = getThreadName(thread.id);
-    return [thread.id, threadName].join(' ');
-  }).join('\n') + '\n';
-}
-
-function listThreadsJson () {
-  return Process.enumerateThreads()
-    .map(thread => thread.id);
-}
-
 function regProfileAliasFor (arch) {
   switch (arch) {
     case 'arm64':
@@ -910,27 +762,6 @@ function dumpRegistersR2 (args) {
       return `ar ${name} = ${value}\n`;
     });
   return values.join('');
-}
-
-function dumpRegisters (args) {
-  const [tid] = args;
-  return Process.enumerateThreads()
-    .filter(thread => !tid || thread.id === tid)
-    .map(thread => {
-      const { id, state, context } = thread;
-      const heading = `tid ${id} ${state}`;
-      const names = Object.keys(JSON.parse(JSON.stringify(context)));
-      names.sort(compareRegisterNames);
-      const values = names
-        .map((name, index) => alignRight(name, 3) + ' : ' + padPointer(context[name]))
-        .map(indent);
-      return heading + '\n' + values.join('');
-    })
-    .join('\n\n') + '\n';
-}
-
-function dumpRegistersJson () {
-  return Process.enumerateThreads();
 }
 
 function getOrSetEnv (args) {
