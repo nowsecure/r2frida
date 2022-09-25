@@ -7,7 +7,7 @@ const classes = require('./info/classes');
 const config = require('./config');
 const darwin = require('./darwin/index');
 const debug = require('./debug');
-const eval = require('./eval');
+const expr = require('./expr');
 const fs = require('./fs');
 const info = require('./info/index');
 const io = require('./io');
@@ -63,7 +63,7 @@ function getIOSVersion () {
 */
 
 const commandHandlers = {
-  E: eval.evalNum,
+  E: expr.evalNum,
   '?e': echo,
   '?E': uiAlert,
   '/': search.search,
@@ -87,9 +87,9 @@ const commandHandlers = {
   i: info.dumpInfo,
   'i*': info.dumpInfoR2,
   ij: info.dumpInfoJson,
-  e: evalConfig,
-  'e*': evalConfigR2,
-  'e/': evalConfigSearch,
+  e: config.evalConfig,
+  'e*': config.evalConfigR2,
+  'e/': config.evalConfigSearch,
   db: debug.breakpointNative,
   dbj: debug.breakpointJson,
   dbc: debug.breakpointNativeCommand,
@@ -1313,53 +1313,7 @@ function echo (args) {
   return null;
 }
 
-function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
-  const from = currentRange.base;
-  const to = from.add(currentRange.size);
-  return `e search.in=range
-e search.from=${from}
-e search.to=${to}
-e anal.in=range
-e anal.from=${from}
-e anal.to=${to}`;
-}
 
-function evalConfigR2 (args) {
-  return config.asR2Script();
-}
-
-function evalConfig (args) {
-  // list
-  if (args.length === 0) {
-    return config.asR2Script();
-  }
-  const argstr = args.join(' ');
-  const kv = argstr.split(/=/);
-  const [k, v] = kv;
-  if (kv.length === 2) {
-    if (config.get(k) !== undefined) {
-      // help
-      if (v === '?') {
-        return config.helpFor(kv[0]);
-      }
-      // set (and flatten case for variables except file.log)
-      /*
-      if (kv[0] !== 'file.log' && typeof kv[1] === 'string') {
-        config.set(kv[0], kv[1].toLowerCase());
-      } else {
-        config.set(kv[0], kv[1]);
-      }
-*/
-      config.set(kv[0], kv[1]);
-    } else {
-      console.error('unknown variable');
-    }
-    return '';
-  }
-  // get
-  return config.getString(argstr);
-}
 
 function fsList (args) {
   return fs.ls(args[0] || globals.Gcwd);
