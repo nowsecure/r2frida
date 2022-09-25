@@ -1,5 +1,6 @@
 'use strict';
 
+const expr = require('./expr');
 const globals = require('./globals');
 const utils = require('./utils');
 
@@ -36,7 +37,7 @@ async function changeMemoryProtection (args) {
     return 'Usage: :dmp [address] [size] [rwx]';
   }
   const address = utils.getPtr(addr);
-  const mapsize = await numEval(size);
+  const mapsize = await expr.numEval(size);
   Memory.protect(address, ptr(mapsize).toInt32(), protection);
   return '';
 }
