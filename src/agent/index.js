@@ -232,8 +232,8 @@ const commandHandlers = {
   env: sys.getOrSetEnv,
   envj: sys.getOrSetEnvJson,
   dl: sys.dlopen,
-  dlf: loadFrameworkBundle,
-  'dlf-': unloadFrameworkBundle,
+  dlf: darwin.loadFrameworkBundle,
+  'dlf-': darwin.unloadFrameworkBundle,
   dtf: traceFormat,
   dth: traceHook,
   t: types,
@@ -552,38 +552,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function loadFrameworkBundle (args) {
-  if (!darwin.ObjCAvailable) {
-    console.log('dlf: This command requires the objc runtime');
-    return false;
-  }
-  const path = args[0];
-  const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
-  const full_path = app_path.stringByAppendingPathComponent_(path);
-  const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
-  if (bundle.isLoaded()) {
-    console.log('Bundle already loaded');
-    return false;
-  }
-  return bundle.load();
-}
-
-function unloadFrameworkBundle (args) {
-  if (!darwin.ObjCAvailable) {
-    console.log('dlf: This command requires the objc runtime');
-    return false;
-  }
-  const path = args[0];
-  const app_path = ObjC.classes.NSBundle.mainBundle().bundlePath();
-  const full_path = app_path.stringByAppendingPathComponent_(path);
-  const bundle = ObjC.classes.NSBundle.bundleWithPath_(full_path);
-  if (!bundle.isLoaded()) {
-    console.log('Bundle already unloaded');
-    return false;
-  }
-  return bundle.unload();
 }
 
 function changeSelinuxContext (args) {
