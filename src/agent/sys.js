@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('./fs');
+
 let _getenv = 0;
 let _setenv = 0;
 let _getpid = 0;
@@ -67,11 +69,76 @@ function getPid () {
   return _getpid();
 }
 
+function getOrSetEnv (args) {
+  if (args.length === 0) {
+    return getEnv().join('\n') + '\n';
+  }
+  const { key, value } = getOrSetEnvJson(args);
+  return key + '=' + value;
+}
+
+function getOrSetEnvJson (args) {
+  if (args.length === 0) {
+    return getEnvJson();
+  }
+  const kv = args.join('');
+  const eq = kv.indexOf('=');
+  if (eq !== -1) {
+    const k = kv.substring(0, eq);
+    const v = kv.substring(eq + 1);
+    setenv(k, v, true);
+    return {
+      key: k,
+      value: v
+    };
+  } else {
+    return {
+      key: kv,
+      value: getenv(kv)
+    };
+  }
+}
+
+function getEnv () {
+  const result = [];
+  let envp = Memory.readPointer(Module.findExportByName(null, 'environ'));
+  let env;
+  while (!envp.isNull() && !(env = envp.readPointer()).isNull()) {
+    result.push(env.readCString());
+    envp = envp.add(Process.pointerSize);
+  }
+  return result;
+}
+
+function getEnvJson () {
+  return getEnv().map(kv => {
+    const eq = kv.indexOf('=');
+    return {
+      key: kv.substring(0, eq),
+      value: kv.substring(eq + 1)
+    };
+  });
+}
+
+function dlopen (args) {
+  const path = fs.transformVirtualPath(args[0]);
+  if (fs.exist(path)) {
+    return Module.load(path);
+  }
+  return Module.load(args[0]);
+}
+
+function getenv (name) {
+  return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
+}
+
+function setenv (name, value, overwrite) {
+  return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
+}
+
 module.exports = {
   sym,
   symf,
-  _getenv,
-  _setenv,
   _getpid,
   _getuid,
   _dup2,
@@ -80,5 +147,8 @@ module.exports = {
   _close,
   _kill,
   getPid,
-  getPidJson
+  getPidJson,
+  getOrSetEnv,
+  getOrSetEnvJson,
+  dlopen
 };

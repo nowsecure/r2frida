@@ -229,9 +229,9 @@ const commandHandlers = {
   drp: debug.dumpRegisterProfile,
   dr8: debug.dumpRegisterArena,
   drj: debug.dumpRegistersJson,
-  env: getOrSetEnv,
-  envj: getOrSetEnvJson,
-  dl: dlopen,
+  env: sys.getOrSetEnv,
+  envj: sys.getOrSetEnvJson,
+  dl: sys.dlopen,
   dlf: loadFrameworkBundle,
   'dlf-': unloadFrameworkBundle,
   dtf: traceFormat,
@@ -305,30 +305,6 @@ m /r2f io 0
 s entry0 2> /dev/null
  `;
   return str;
-}
-
-function nameFromAddress (address) {
-  const at = DebugSymbol.fromAddress(ptr(address));
-  if (at) {
-    return at.name;
-  }
-  const module = Process.findModuleByAddress(address);
-  if (module === null) {
-    return null;
-  }
-  const imports = Module.enumerateImports(module.name);
-  for (const imp of imports) {
-    if (imp.address.equals(address)) {
-      return imp.name;
-    }
-  }
-  const exports = Module.enumerateExports(module.name);
-  for (const exp of exports) {
-    if (exp.address.equals(address)) {
-      return exp.name;
-    }
-  }
-  return address.toString();
 }
 
 function evalCode (args) {
@@ -576,251 +552,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function regProfileAliasFor (arch) {
-  switch (arch) {
-    case 'arm64':
-      return `=PC pc
-=SP sp
-=BP x29
-=A0 x0
-=A1 x1
-=A2 x2
-=A3 x3
-=ZF zf
-=SF nf
-=OF vf
-=CF cf
-=SN x8
-`;
-    case 'arm':
-      return `=PC r15
-=LR r14
-=SP sp
-=BP fp
-=A0 r0
-=A1 r1
-=A2 r2
-=A3 r3
-=ZF zf
-=SF nf
-=OF vf
-=CF cf
-=SN r7
-`;
-    case 'ia64':
-    case 'x64':
-      return `=PC rip
-=SP rsp
-=BP rbp
-=A0 rdi
-=A1 rsi
-=A2 rdx
-=A3 rcx
-=A4 r8
-=A5 r9
-=SN rax
-`;
-    case 'ia32':
-    case 'x86':
-      return `=PC eip
-=SP esp
-=BP ebp
-=A0 eax
-=A1 ebx
-=A2 ecx
-=A3 edx
-=A4 esi
-=A5 edi
-=SN eax
-`;
-  }
-  return '';
-}
-
-function dumpRegisterProfile (args) {
-  const threads = Process.enumerateThreads();
-  const context = threads[0].context;
-  const names = Object.keys(JSON.parse(JSON.stringify(context)))
-    .filter(_ => _ !== 'pc' && _ !== 'sp');
-  names.sort(compareRegisterNames);
-  let off = 0;
-  const inc = Process.pointerSize;
-  let profile = regProfileAliasFor(Process.arch);
-  for (const reg of names) {
-    profile += `gpr\t${reg}\t${inc}\t${off}\t0\n`;
-    off += inc;
-  }
-  return profile;
-}
-
-function dumpRegisterArena (args) {
-  const threads = Process.enumerateThreads();
-  let [tidx] = args;
-  if (!tidx) {
-    tidx = 0;
-  }
-  if (tidx < 0 || tidx >= threads.length) {
-    return '';
-  }
-  const context = threads[tidx].context;
-  const names = Object.keys(JSON.parse(JSON.stringify(context)))
-    .filter(_ => _ !== 'pc' && _ !== 'sp');
-  names.sort(compareRegisterNames);
-  let off = 0;
-  const inc = Process.pointerSize;
-  const buf = Buffer.alloc(inc * names.length);
-  for (const reg of names) {
-    const r = context[reg];
-    const b = [r.and(0xff),
-      r.shr(8).and(0xff),
-      r.shr(16).and(0xff),
-      r.shr(24).and(0xff),
-      r.shr(32).and(0xff),
-      r.shr(40).and(0xff),
-      r.shr(48).and(0xff),
-      r.shr(56).and(0xff)];
-    for (let i = 0; i < inc; i++) {
-      buf.writeUInt8(b[i], off + i);
-    }
-    off += inc;
-  }
-  return buf.toString('hex');
-}
-
-function regcursive (regname, regvalue) {
-  const data = [regvalue];
-  try {
-    const str = Memory.readCString(regvalue, 32);
-    if (str && str.length > 3) {
-      const printableString = str.replace(/[^\x20-\x7E]/g, '');
-      data.push('\'' + printableString + '\'');
-    }
-    const ptr = regvalue.readPointer();
-    data.push('=>');
-    data.push(regcursive(regname, ptr));
-  } catch (e) {
-  }
-  if (regvalue === 0) {
-    data.push('NULL');
-  } else if (regvalue === 0xffffffff) {
-    data.push(-1);
-  } else if (regvalue > ' ' && regvalue < 127) {
-    data.push('\'' + String.fromCharCode(regvalue) + '\'');
-  }
-  try {
-    const module = Process.findModuleByAddress(regvalue);
-    if (module) {
-      data.push(module.name);
-    }
-  } catch (e) {
-  }
-  try {
-    const name = nameFromAddress(regvalue);
-    if (name) {
-      data.push(name);
-    }
-  } catch (e) {
-  }
-  return data.join(' ');
-}
-
-function dumpRegistersRecursively (args) {
-  const [tid] = args;
-  Process.enumerateThreads()
-    .filter(thread => !tid || tid === thread.id)
-    .map(thread => {
-      const { id, state, context } = thread;
-      const res = ['# thread ' + id + ' ' + state];
-      for (const reg of Object.keys(context)) {
-        try {
-          const data = regcursive(reg, context[reg]);
-          res.push(reg + ': ' + data);
-        } catch (e) {
-          res.push(reg);
-        }
-      }
-      console.log(res.join('\n'));
-    });
-  return ''; // nothing to see here
-}
-
-function dumpRegistersR2 (args) {
-  const threads = Process.enumerateThreads();
-  const [tid] = args;
-  const context = tid ? threads.filter(th => th.id === tid) : threads[0].context;
-  if (!context) {
-    return '';
-  }
-  const names = Object.keys(JSON.parse(JSON.stringify(context)));
-  names.sort(compareRegisterNames);
-  const values = names
-    .map((name, index) => {
-      if (name === 'pc' || name === 'sp') return '';
-      const value = context[name] || 0;
-      return `ar ${name} = ${value}\n`;
-    });
-  return values.join('');
-}
-
-function getOrSetEnv (args) {
-  if (args.length === 0) {
-    return getEnv().join('\n') + '\n';
-  }
-  const { key, value } = getOrSetEnvJson(args);
-  return key + '=' + value;
-}
-
-function getOrSetEnvJson (args) {
-  if (args.length === 0) {
-    return getEnvJson();
-  }
-  const kv = args.join('');
-  const eq = kv.indexOf('=');
-  if (eq !== -1) {
-    const k = kv.substring(0, eq);
-    const v = kv.substring(eq + 1);
-    setenv(k, v, true);
-    return {
-      key: k,
-      value: v
-    };
-  } else {
-    return {
-      key: kv,
-      value: getenv(kv)
-    };
-  }
-}
-
-function getEnv () {
-  const result = [];
-  let envp = Memory.readPointer(Module.findExportByName(null, 'environ'));
-  let env;
-  while (!envp.isNull() && !(env = envp.readPointer()).isNull()) {
-    result.push(env.readCString());
-    envp = envp.add(Process.pointerSize);
-  }
-  return result;
-}
-
-function getEnvJson () {
-  return getEnv().map(kv => {
-    const eq = kv.indexOf('=');
-    return {
-      key: kv.substring(0, eq),
-      value: kv.substring(eq + 1)
-    };
-  });
-}
-
-function dlopen (args) {
-  const path = fs.transformVirtualPath(args[0]);
-  if (fs.exist(path)) {
-    return Module.load(path);
-  }
-  return Module.load(args[0]);
 }
 
 function loadFrameworkBundle (args) {
@@ -1983,14 +1714,6 @@ function interceptFunRet_1 (args) { // eslint-disable-line
   return interceptFunRet(target, -1, paramTypes);
 }
 
-function getenv (name) {
-  return Memory.readUtf8String(sys._getenv(Memory.allocUtf8String(name)));
-}
-
-function setenv (name, value, overwrite) {
-  return sys._setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
-}
-
 function stalkTraceFunction (args) {
   return _stalkTraceSomething(_stalkFunctionAndGetEvents, args);
 }
@@ -2218,61 +1941,7 @@ function _tolerantInstructionParse (address) {
   return [instr, cursor];
 }
 
-function compareRegisterNames (lhs, rhs) {
-  const lhsIndex = parseRegisterIndex(lhs);
-  const rhsIndex = parseRegisterIndex(rhs);
 
-  const lhsHasIndex = lhsIndex !== null;
-  const rhsHasIndex = rhsIndex !== null;
-
-  if (lhsHasIndex && rhsHasIndex) {
-    return lhsIndex - rhsIndex;
-  }
-  if (lhsHasIndex === rhsHasIndex) {
-    const lhsLength = lhs.length;
-    const rhsLength = rhs.length;
-    if (lhsLength === rhsLength) {
-      return lhs.localeCompare(rhs);
-    }
-    if (lhsLength > rhsLength) {
-      return 1;
-    }
-    return -1;
-  }
-  if (lhsHasIndex) {
-    return 1;
-  }
-  return -1;
-}
-
-function parseRegisterIndex (name) {
-  const length = name.length;
-  for (let index = 1; index < length; index++) {
-    const value = parseInt(name.substr(index));
-    if (!isNaN(value)) {
-      return value;
-    }
-  }
-  return null;
-}
-
-function indent (message, index) {
-  if (index === 0) {
-    return message;
-  }
-  if ((index % 3) === 0) {
-    return '\n' + message;
-  }
-  return '\t' + message;
-}
-
-function alignRight (text, width) {
-  let result = text;
-  while (result.length < width) {
-    result = ' ' + result;
-  }
-  return result;
-}
 
 const requestHandlers = {
   safeio: () => { global.r2frida.safeio = true; },
