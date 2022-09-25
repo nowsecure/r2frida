@@ -140,6 +140,38 @@ function javaPerform (fn) {
   return Java.performNow(fn);
 }
 
+function traceJava (klass, method) {
+  javaPerform(function () {
+    const Throwable = Java.use('java.lang.Throwable');
+    const k = javaUse(klass);
+    k[method].implementation = function (args) {
+      const res = this[method]();
+      const bt = config.getBoolean('hook.backtrace')
+        ? Throwable.$new().getStackTrace().map(_ => _.toString())
+        : [];
+      const traceMessage = {
+        source: 'dt',
+        klass: klass,
+        method: method,
+        backtrace: bt,
+        timestamp: new Date(),
+        result: res,
+        values: args
+      };
+      if (config.getString('hook.output') === 'json') {
+        log.traceEmit(traceMessage);
+      } else {
+        let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
+        if (config.getBoolean('hook.backtrace')) {
+          msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
+        }
+        log.traceEmit(msg);
+      }
+      return res;
+    };
+  });
+}
+
 module.exports = {
   JavaAvailable,
   javaUse,
@@ -148,5 +180,6 @@ module.exports = {
   waitForJava,
   listJavaClassesJson,
   listJavaClassesJsonSync,
-  javaPerform
+  javaPerform,
+  traceJava
 };
