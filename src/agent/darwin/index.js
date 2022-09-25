@@ -225,6 +225,38 @@ function getSegments (baseAddr, ncmds) {
   return segments;
 }
 
+function loadFrameworkBundle (args) {
+  if (!ObjCAvailable) {
+    console.log('dlf: This command requires the objc runtime');
+    return false;
+  }
+  const path = args[0];
+  const appPath = ObjC.classes.NSBundle.mainBundle().bundlePath();
+  const fullPath = appPath.stringByAppendingPathComponent_(path);
+  const bundle = ObjC.classes.NSBundle.bundleWithPath_(fullPath);
+  if (bundle.isLoaded()) {
+    console.log('Bundle already loaded');
+    return false;
+  }
+  return bundle.load();
+}
+
+function unloadFrameworkBundle (args) {
+  if (!ObjCAvailable) {
+    console.log('dlf: This command requires the objc runtime');
+    return false;
+  }
+  const path = args[0];
+  const appPath = ObjC.classes.NSBundle.mainBundle().bundlePath();
+  const fullPath = appPath.stringByAppendingPathComponent_(path);
+  const bundle = ObjC.classes.NSBundle.bundleWithPath_(fullPath);
+  if (!bundle.isLoaded()) {
+    console.log('Bundle already unloaded');
+    return false;
+  }
+  return bundle.unload();
+}
+
 module.exports = {
   isObjC,
   ObjCAvailable,
@@ -234,5 +266,7 @@ module.exports = {
   listMachoSections,
   parseMachoHeader,
   getSections,
-  getSegments
+  getSegments,
+  loadFrameworkBundle,
+  unloadFrameworkBundle
 };
