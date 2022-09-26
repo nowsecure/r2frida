@@ -275,6 +275,19 @@ function autoType (args) {
   return [nfArgs, nfArgsData];
 }
 
+function requireFridaVersion (major, minor, patch) {
+  const required = [major, minor, patch];
+  const actual = Frida.version.split('.');
+  for (let i = 0; i < actual.length; i++) {
+    if (actual[i] > required[i]) {
+      return;
+    }
+    if (actual[i] < required[i]) {
+      throw new Error(`Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`);
+    }
+  }
+}
+
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -292,5 +305,6 @@ module.exports = {
   rwxstr,
   rwxint,
   getPtr,
-  autoType
+  autoType,
+  requireFridaVersion
 };
