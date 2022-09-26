@@ -1,7 +1,7 @@
 /* eslint-disable comma-dangle */
 'use strict';
 
-const { stalkFunction, stalkEverything } = require('./debug/stalker');
+const stalker = require('./debug/stalker');
 const android = require('./java/android');
 const classes = require('./info/classes');
 const config = require('./config');
@@ -236,13 +236,13 @@ const commandHandlers = {
   dtlj: trace.traceLogDumpJson,
   'dtl-': trace.traceLogClear,
   'dtl-*': trace.traceLogClearAll,
-  dts: stalkTraceEverything,
-  'dts?': stalkTraceEverythingHelp,
-  dtsj: stalkTraceEverythingJson,
-  'dts*': stalkTraceEverythingR2,
-  dtsf: stalkTraceFunction,
-  dtsfj: stalkTraceFunctionJson,
-  'dtsf*': stalkTraceFunctionR2,
+  dts: stalker.stalkTraceEverything,
+  'dts?': stalker.stalkTraceEverythingHelp,
+  dtsj: stalker.stalkTraceEverythingJson,
+  'dts*': stalker.stalkTraceEverythingR2,
+  dtsf: stalker.stalkTraceFunction,
+  dtsfj: stalker.stalkTraceFunctionJson,
+  'dtsf*': stalker.stalkTraceFunctionR2,
   di: interceptHelp,
   dif: interceptFunHelp,
   // intercept ret function and dont call the function
@@ -267,9 +267,9 @@ const commandHandlers = {
   md: fsList,
   mg: fsGet,
   m: fsOpen,
-  pd: disasmCode,
-  px: printHexdump,
-  x: printHexdump,
+  pd: print.disasmCode,
+  px: print.printHexdump,
+  x: print.printHexdump,
   eval: evalCode,
   chcon: changeSelinuxContext,
 };
@@ -306,93 +306,7 @@ function printHexdump (lenstr) {
   }
 }
 
-function disasmCode (lenstr) {
-  const len = +lenstr || 32;
-  return disasm(r2frida.offset, len);
-}
 
-function disasm (addr, len, initialOldName) {
-  len = len || 32;
-  if (typeof addr === 'string') {
-    try {
-      addr = Module.findExportByName(null, addr);
-      if (!addr) {
-        throw new Error();
-      }
-    } catch (e) {
-      addr = ptr(r2frida.offset);
-    }
-  }
-  let oldName = initialOldName !== undefined ? initialOldName : null;
-  let lastAt = null;
-  let disco = '';
-  for (let i = 0; i < len; i++) {
-    const [op, next] = _tolerantInstructionParse(addr);
-    const vaddr = padPointer(addr);
-    if (op === null) {
-      disco += `${vaddr}\tinvalid\n`;
-      addr = next;
-      continue;
-    }
-    const ds = DebugSymbol.fromAddress(addr);
-    let dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
-    let moduleName = ds.moduleName;
-    if (!ds.moduleName) {
-      moduleName = '';
-    }
-    if (!dsName) {
-      dsName = '';
-    }
-    if ((moduleName || dsName) && dsName !== oldName) {
-      disco += ';;; ' + (moduleName || dsName) + '\n';
-      oldName = dsName;
-    }
-    let comment = '';
-    const id = op.opStr.indexOf('#0x');
-    if (id !== -1) {
-      try {
-        const at = op.opStr.substring(id + 1).split(' ')[0].split(',')[0].split(']')[0];
-        if (op.opStr.indexOf(']') !== -1) {
-          try {
-            const p = Memory.readPointer(ptr(lastAt).add(at));
-            const str = Memory.readCString(p);
-            // console.log(';  str:', str);
-            disco += ';  str:' + str + '\n';
-          } catch (e) {
-            const p2 = Memory.readPointer(ptr(at));
-            const str2 = Memory.readCString(p2);
-            // console.log(';  str2:', str2);
-            disco += ';  str2:' + str2 + '\n';
-            console.log(e);
-          }
-        }
-        lastAt = at;
-        const di = DebugSymbol.fromAddress(ptr(at));
-        if (di.name !== null) {
-          comment = '\t; ' + (di.moduleName || '') + ' ' + di.name;
-        } else {
-          const op2 = Instruction.parse(ptr(at));
-          const id2 = op2.opStr.indexOf('#0x');
-          const at2 = op2.opStr.substring(id2 + 1).split(' ')[0].split(',')[0].split(']')[0];
-          const di2 = DebugSymbol.fromAddress(ptr(at2));
-          if (di2.name !== null) {
-            comment = '\t; -> ' + (di2.moduleName || '') + ' ' + di2.name;
-          }
-        }
-      } catch (e) {
-        // console.log(e);
-      }
-    }
-    // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
-    disco += [padPointer(op.address), op.mnemonic, op.opStr, comment].join('\t') + '\n';
-    if (op.size < 1) {
-      // break; // continue after invalid
-      op.size = 1;
-    }
-    addr = addr.add(op.size);
-  }
-  return disco;
-}
 
 /* This is only available on Android/Linux */
 const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
@@ -915,235 +829,6 @@ function interceptFunRet_1 (args) { // eslint-disable-line
   return interceptFunRet(target, -1, paramTypes);
 }
 
-function stalkTraceFunction (args) {
-  return _stalkTraceSomething(_stalkFunctionAndGetEvents, args);
-}
-
-function stalkTraceFunctionR2 (args) {
-  return _stalkTraceSomethingR2(_stalkFunctionAndGetEvents, args);
-}
-
-function stalkTraceFunctionJson (args) {
-  return _stalkTraceSomethingJson(_stalkFunctionAndGetEvents, args);
-}
-
-function stalkTraceEverything (args) {
-  if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dts [symbol]';
-  }
-  return _stalkTraceSomething(_stalkEverythingAndGetEvents, args);
-}
-
-function stalkTraceEverythingR2 (args) {
-  if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dts* [symbol]';
-  }
-  return _stalkTraceSomethingR2(_stalkEverythingAndGetEvents, args);
-}
-
-function stalkTraceEverythingJson (args) {
-  if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dtsj [symbol]';
-  }
-  return _stalkTraceSomethingJson(_stalkEverythingAndGetEvents, args);
-}
-
-function _stalkTraceSomething (getEvents, args) {
-  return getEvents(args, (isBlock, events) => {
-    let previousSymbolName;
-    const result = [];
-    const threads = Object.keys(events);
-
-    for (const threadId of threads) {
-      result.push(`; --- thread ${threadId} --- ;`);
-      if (isBlock) {
-        result.push(..._mapBlockEvents(events[threadId], (address) => {
-          const pd = disasmOne(address, previousSymbolName);
-          previousSymbolName = getSymbolName(address);
-          return pd;
-        }, (begin, end) => {
-          previousSymbolName = null;
-          return '';
-        }));
-      } else {
-        result.push(...events[threadId].map((event) => {
-          const address = event[0];
-          const target = event[1];
-          const pd = disasmOne(address, previousSymbolName, target);
-          previousSymbolName = getSymbolName(address);
-          return pd;
-        }));
-      }
-    }
-    return result.join('\n') + '\n';
-  });
-
-  function disasmOne (address, previousSymbolName, target) {
-    let pd = disasm(address, 1, previousSymbolName);
-    if (pd.endsWith('\n')) {
-      pd = pd.slice(0, -1);
-    }
-    if (target) {
-      pd += ` ; ${target} ${getSymbolName(target)}`;
-    }
-    return pd;
-  }
-}
-
-function _stalkTraceSomethingR2 (getEvents, args) {
-  return getEvents(args, (isBlock, events) => {
-    const result = [];
-    const threads = Object.keys(events);
-
-    for (const threadId of threads) {
-      if (isBlock) {
-        result.push(..._mapBlockEvents(events[threadId], (address) => {
-          return `dt+ ${address} 1`;
-        }));
-      } else {
-        result.push(...events[threadId].map((event) => {
-          const commands = [];
-
-          const location = event[0];
-          commands.push(`dt+ ${location} 1`);
-
-          const target = event[1];
-          if (target) {
-            commands.push(`CC ${target} ${getSymbolName(target)} @ ${location}`);
-          }
-          return commands.join('\n') + '\n';
-        }));
-      }
-    }
-
-    return result.join('\n') + '\n';
-  });
-}
-
-function _stalkTraceSomethingJson (getEvents, args) {
-  return getEvents(args, (isBlock, events) => {
-    const result = {
-      event: config.get('stalker.event'),
-      threads: events
-    };
-
-    return result;
-  });
-}
-
-function _stalkFunctionAndGetEvents (args, eventsHandler) {
-  _requireFridaVersion(10, 3, 13);
-
-  const at = getPtr(args[0]);
-  const conf = {
-    event: config.get('stalker.event'),
-    timeout: config.get('stalker.timeout'),
-    stalkin: config.get('stalker.in')
-  };
-  const isBlock = conf.event === 'block' || conf.event === 'compile';
-
-  const operation = stalkFunction(conf, at)
-    .then((events) => {
-      return eventsHandler(isBlock, events);
-    });
-
-  breakpointContinue([]);
-  return operation;
-}
-
-function _stalkEverythingAndGetEvents (args, eventsHandler) {
-  _requireFridaVersion(10, 3, 13);
-
-  const timeout = (args.length > 0) ? +args[0] : null;
-  const conf = {
-    event: config.get('stalker.event'),
-    timeout: config.get('stalker.timeout'),
-    stalkin: config.get('stalker.in')
-  };
-  const isBlock = conf.event === 'block' || conf.event === 'compile';
-
-  const operation = stalkEverything(conf, timeout)
-    .then((events) => {
-      return eventsHandler(isBlock, events);
-    });
-
-  breakpointContinue([]);
-  return operation;
-}
-
-function getSymbolName (address) {
-  const ds = DebugSymbol.fromAddress(address);
-  return (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
-}
-
-function _requireFridaVersion (major, minor, patch) {
-  const required = [major, minor, patch];
-  const actual = Frida.version.split('.');
-  for (let i = 0; i < actual.length; i++) {
-    if (actual[i] > required[i]) {
-      return;
-    }
-    if (actual[i] < required[i]) {
-      throw new Error(`Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`);
-    }
-  }
-}
-
-function _mapBlockEvents (events, onInstruction, onBlock) {
-  const result = [];
-
-  events.forEach(([begin, end]) => {
-    if (typeof onBlock === 'function') {
-      result.push(onBlock(begin, end));
-    }
-    let cursor = begin;
-    while (cursor < end) {
-      const [instr, next] = _tolerantInstructionParse(cursor);
-      if (instr !== null) {
-        result.push(onInstruction(cursor));
-      }
-      cursor = next;
-    }
-  });
-
-  return result;
-}
-
-function _tolerantInstructionParse (address) {
-  let instr = null;
-  let cursor = address;
-  try {
-    instr = Instruction.parse(cursor);
-    cursor = instr.next;
-  } catch (e) {
-    if (e.message !== 'invalid instruction' &&
-        e.message !== `access violation accessing ${cursor}`) {
-      throw e;
-    }
-    if (e.message.indexOf('access violation') !== -1) {
-      // cannot access the memory
-    } else {
-      // console.log(`warning: error parsing instruction at ${cursor}`);
-    }
-    // skip invalid instructions
-    switch (Process.arch) {
-      case 'arm64':
-        cursor = cursor.add(4);
-        break;
-      case 'arm':
-        cursor = cursor.add(2);
-        break;
-      default:
-        cursor = cursor.add(1);
-        break;
-    }
-  }
-
-  return [instr, cursor];
-}
-
-
-
 const requestHandlers = {
   safeio: () => { global.r2frida.safeio = true; },
   unsafeio: () => { if (!NeedsSafeIo) { global.r2frida.safeio = false; } },
@@ -1162,13 +847,6 @@ function state (params, data) {
 
 function isPromise (value) {
   return value !== null && typeof value === 'object' && typeof value.then === 'function';
-}
-
-function stalkTraceEverythingHelp () {
-  return `Usage: dts[j*] [symbol|address] - Trace given symbol using the Frida Stalker
-dtsf[*j] [sym|addr]        Trace address or symbol using the stalker
-dts[*j] seconds            Trace all threads for given seconds using the stalker
-`;
 }
 
 function getHelpMessage (prefix) {
