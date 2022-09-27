@@ -101,6 +101,9 @@ function renderEndian (value, bigEndian, width) {
 }
 
 function padPointer (value) {
+  if (value.toString().indexOf('ArrayBuffer') !== -1) {
+    value = arrayBufferToHex(value);
+  }
   let result = value.toString(16);
   const paddedLength = 2 * globals.pointerSize;
   while (result.length < paddedLength) {
@@ -288,6 +291,23 @@ function requireFridaVersion (major, minor, patch) {
   }
 }
 
+function arrayBufferToHex (arrayBuffer) {
+  if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
+    throw new TypeError('Expected input to be an ArrayBuffer');
+  }
+
+  const view = new Uint8Array(arrayBuffer);
+  let result = '';
+  let value;
+
+  for (let i = 0; i < view.length; i++) {
+    value = view[i].toString(16);
+    result += (value.length === 1 ? '0' + value : value);
+  }
+
+  return result;
+}
+
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -306,5 +326,6 @@ module.exports = {
   rwxint,
   getPtr,
   autoType,
-  requireFridaVersion
+  requireFridaVersion,
+  arrayBufferToHex
 };
