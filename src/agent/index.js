@@ -7,6 +7,7 @@ const classes = require('./info/classes');
 const config = require('./config');
 const darwin = require('./darwin/index');
 const debug = require('./debug');
+const disasm = require('./disasm');
 const expr = require('./expr');
 const fs = require('./fs');
 const info = require('./info/index');
@@ -15,6 +16,7 @@ const java = require('./java/index');
 const log = require('./log');
 const lookup = require('./lookup');
 const memory = require('./memory');
+const dump = require('./dump');
 const r2 = require('./r2');
 const search = require('./search');
 const sys = require('./sys');
@@ -273,9 +275,9 @@ const commandHandlers = {
   md: fsList,
   mg: fsGet,
   m: fsOpen,
-  pd: print.disasmCode,
-  px: print.printHexdump,
-  x: print.printHexdump,
+  pd: disasm.disasmCode,
+  px: dump.Hexdump,
+  x: dump.Hexdump,
   eval: evalCode,
   chcon: changeSelinuxContext,
 };
@@ -302,17 +304,6 @@ function evalCode (args) {
   const result = eval(code); // eslint-disable-line
   return (result !== undefined) ? result : '';
 }
-
-function printHexdump (lenstr) {
-  const len = +lenstr || 32;
-  try {
-    return hexdump(ptr(r2frida.offset), len) || '';
-  } catch (e) {
-    return 'Cannot read memory.';
-  }
-}
-
-
 
 /* This is only available on Android/Linux */
 const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
