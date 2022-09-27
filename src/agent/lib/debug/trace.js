@@ -1,13 +1,13 @@
 'use strict';
 
-const expr = require('./expr');
-const log = require('./log');
-const config = require('./config');
-const debug = require('./debug');
-const darwin = require('./darwin');
-const swift = require('./darwin/swift');
-const java = require('./java/index');
-const utils = require('./utils');
+const expr = require('../expr');
+const log = require('../../log');
+const config = require('../../config');
+const debug = require('../debug');
+const darwin = require('../darwin');
+const swift = require('../darwin/swift');
+const java = require('../java');
+const utils = require('../utils');
 
 const traceListeners = [];
 const tracehooks = {};

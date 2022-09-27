@@ -1,7 +1,7 @@
 'use strict';
 
-const config = require('./config');
-const log = require('./log');
+const config = require('../../config');
+const log = require('../../log');
 
 const JavaAvailable = Java && Java.available;
 

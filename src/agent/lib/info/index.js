@@ -1,15 +1,15 @@
 'use strict';
 
-const config = require('./config');
-const debug = require('./debug');
-const darwin = require('../darwin/index');
+const config = require('../../config');
+const debug = require('../debug');
+const darwin = require('../darwin');
 const globals = require('../globals');
 const java = require('../java/index');
 const r2 = require('../r2');
 const sys = require('../sys');
 const swift = require('../darwin/swift');
-const strings = require('./strings');
-const utils = require('./utils');
+const strings = require('../strings');
+const utils = require('../utils');
 
 async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');

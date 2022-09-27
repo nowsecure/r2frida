@@ -1,10 +1,9 @@
 'use strict';
 
-const darwin = require('./darwin/index');
-const java = require('./java/index');
-const search = require('./search');
-const swift = require('./darwin/swift');
-const utils = require('./utils');
+const darwin = require('../darwin');
+const java = require('../java');
+const search = require('../search');
+const utils = require('../utils');
 
 function listClassesLoadedJson (args) {
   if (java.JavaAvailable) {

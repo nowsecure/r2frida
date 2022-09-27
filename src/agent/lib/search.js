@@ -1,8 +1,8 @@
 'use strict';
 
-const config = require('./config');
+const config = require('../config');
 const darwin = require('./darwin');
-const io = require('./io');
+const io = require('../io');
 const r2 = require('./r2');
 const utils = require('./utils');
 
