@@ -12,7 +12,7 @@ const expr = require('./expr');
 const fs = require('./fs');
 const info = require('./info');
 const io = require('./io');
-const interceptor = require('./interceptor');
+const interceptor = require('./debug/interceptor');
 const java = require('./java');
 const log = require('./log');
 const lookup = require('./lookup');
@@ -455,37 +455,6 @@ function changeSelinuxContext (args) {
 
   const rv = _setfilecon(path, con);
   return JSON.stringify({ ret: rv.value, errno: rv.errno });
-}
-
-function dumpJavaArguments (args) {
-  let res = '';
-  try {
-    for (const a of args) {
-      try {
-        res += a.toString() + ' ';
-      } catch (ee) {
-      }
-    }
-  } catch (e) {
-  }
-  return res;
-}
-
-function traceJavaConstructors (className) {
-  javaPerform(function () {
-    const foo = Java.use(className).$init.overloads;
-    foo.forEach((over) => {
-      over.implementation = function () {
-        console.log('dt', className, '(', dumpJavaArguments(arguments), ')');
-        if (config.getBoolean('hook.backtrace')) {
-          const Throwable = Java.use('java.lang.Throwable');
-          const bt = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n- ') + '\n';
-          console.log('-', bt);
-        }
-        return over.apply(this, arguments);
-      };
-    });
-  });
 }
 
 function typesR2 (args) {
