@@ -368,7 +368,7 @@ function tracehook (address, args) {
             const addr = ptr(args[a]);
             const size = +args[l];
             // const buf = Memory.readByteArray(addr, size);
-            // console.log('buf', arrayBufferToHex(buf));
+            // console.log('buf', utils.arrayBufferToHex(buf));
             // console.log('string', Memory.readCString(addr, size));
             fmtarg.push(Memory.readCString(addr, size));
           }
@@ -382,7 +382,7 @@ function tracehook (address, args) {
             const [a, l] = v.split(',');
             const addr = ptr(args[a]);
             const buf = Memory.readByteArray(addr, +args[l]);
-            fmtarg.push(_arrayBufferToHex(buf));
+            fmtarg.push(utils.arrayBufferToHex(buf));
           }
           break;
       }
@@ -610,23 +610,6 @@ function _hexdumpUntrusted (addr, len) {
   } catch (e) {
     return `hexdump at ${addr} failed: ${e}`;
   }
-}
-
-function _arrayBufferToHex (arrayBuffer) {
-  if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
-    throw new TypeError('Expected input to be an ArrayBuffer');
-  }
-
-  const view = new Uint8Array(arrayBuffer);
-  let result = '';
-  let value;
-
-  for (let i = 0; i < view.length; i++) {
-    value = view[i].toString(16);
-    result += (value.length === 1 ? '0' + value : value);
-  }
-
-  return result;
 }
 
 function _tracelogToString (l) {
