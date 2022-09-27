@@ -1,10 +1,16 @@
 'use strict';
 
 const expr = require('../expr');
+<<<<<<< HEAD
 const utils = require('../utils');
 
 const allocPool = {};
 
+=======
+const globals = require('../globals');
+const utils = require('../utils');
+
+>>>>>>> cd7ce71 (Move modules to lib folder)
 function listMemoryRanges () {
   return listMemoryRangesJson()
     .map(({ base, size, protection, file }) =>
@@ -186,7 +192,11 @@ function allocDup (args) {
 }
 
 function listAllocs (args) {
+<<<<<<< HEAD
   return Object.values(allocPool)
+=======
+  return Object.values(globals.allocPool)
+>>>>>>> cd7ce71 (Move modules to lib folder)
     .sort()
     .map((x) => {
       const bytes = Memory.readByteArray(x, 60);
@@ -218,18 +228,31 @@ function _getMemoryRanges (protection) {
 }
 
 function _delAlloc (addr) {
+<<<<<<< HEAD
   delete allocPool[addr];
 }
 
 function _clearAllocs () {
   Object.keys(allocPool)
     .forEach(addr => delete allocPool[addr]);
+=======
+  delete globals.allocPool[addr];
+}
+
+function _clearAllocs () {
+  Object.keys(globals.allocPool)
+    .forEach(addr => delete globals.allocPool[addr]);
+>>>>>>> cd7ce71 (Move modules to lib folder)
 }
 
 function _addAlloc (allocPtr) {
   const key = allocPtr.toString();
   if (!allocPtr.isNull()) {
+<<<<<<< HEAD
     allocPool[key] = allocPtr;
+=======
+    globals.allocPool[key] = allocPtr;
+>>>>>>> cd7ce71 (Move modules to lib folder)
   }
   return key;
 }

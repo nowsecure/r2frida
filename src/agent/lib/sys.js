@@ -136,6 +136,7 @@ function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
+<<<<<<< HEAD
 function changeSelinuxContext (args) {
   if (Process.platform !== 'linux') {
     console.error('This is only available on Android/Linux');
@@ -156,6 +157,8 @@ function changeSelinuxContext (args) {
   return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
 
+=======
+>>>>>>> cd7ce71 (Move modules to lib folder)
 module.exports = {
   sym,
   symf,
@@ -170,6 +173,10 @@ module.exports = {
   getPidJson,
   getOrSetEnv,
   getOrSetEnvJson,
+<<<<<<< HEAD
   dlopen,
   changeSelinuxContext
+=======
+  dlopen
+>>>>>>> cd7ce71 (Move modules to lib folder)
 };

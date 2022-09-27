@@ -1,13 +1,24 @@
 'use strict';
 
+<<<<<<< HEAD
 const config = require('../../config');
 const log = require('../../log');
 const utils = require('../utils');
+=======
+<<<<<<<< HEAD:src/agent/lib/darwin/swift.js
+const config = require('../../config');
+const log = require('../../log');
+const utils = require('../utils');
+========
+const config = require('./config');
+>>>>>>>> cd7ce71 (Move modules to lib folder):src/agent/darwin/swift.js
+>>>>>>> cd7ce71 (Move modules to lib folder)
 
 const SwiftAvailable = function () {
   return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 };
 
+<<<<<<< HEAD
 function traceSwift (klass, method) {
   if (!SwiftAvailable()) {
     return;
@@ -184,4 +195,8 @@ module.exports = {
   traceSwift,
   swiftTypesR2,
   swiftTypes
+=======
+module.exports = {
+  SwiftAvailable
+>>>>>>> cd7ce71 (Move modules to lib folder)
 };

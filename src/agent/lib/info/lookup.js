@@ -1,6 +1,9 @@
 'use strict';
 
+<<<<<<< HEAD
 const config = require('../../config');
+=======
+>>>>>>> cd7ce71 (Move modules to lib folder)
 const utils = require('../utils');
 
 function lookupDebugInfo (args) {
@@ -196,6 +199,7 @@ function _getModuleAt (addr) {
   return modules.length > 0 ? modules[0] : null;
 }
 
+<<<<<<< HEAD
 function getModuleByAddress (addr) {
   const m = config.getString('symbols.module');
   if (m !== '') {
@@ -208,6 +212,8 @@ function getModuleByAddress (addr) {
   }
 }
 
+=======
+>>>>>>> cd7ce71 (Move modules to lib folder)
 module.exports = {
   lookupSymbol,
   lookupSymbolR2,
@@ -222,6 +228,10 @@ module.exports = {
   lookupExportR2,
   lookupDebugInfo,
   lookupAddress,
+<<<<<<< HEAD
   lookupAddressR2,
   getModuleByAddress
+=======
+  lookupAddressR2
+>>>>>>> cd7ce71 (Move modules to lib folder)
 };

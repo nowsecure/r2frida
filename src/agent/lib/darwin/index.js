@@ -1,15 +1,24 @@
 'use strict';
 
+<<<<<<< HEAD
 const { listClasses } = require('../info/classes');
 const utils = require('../utils');
 const { PathTransform, VirtualEnt, flatify, nsArrayMap } = require('../fs');
 
+=======
+<<<<<<<< HEAD:src/agent/lib/darwin/index.js
+const utils = require('../utils');
+
+========
+>>>>>>>> cd7ce71 (Move modules to lib folder):src/agent/darwin/index.js
+>>>>>>> cd7ce71 (Move modules to lib folder)
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
 const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
+<<<<<<< HEAD
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
 function initFoundation () {
@@ -35,6 +44,9 @@ function isiOS () {
     Process.arch.indexOf('arm') === 0 &&
     ObjC.available;
 }
+=======
+const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+>>>>>>> cd7ce71 (Move modules to lib folder)
 
 function isObjC (p) {
   const klass = getObjCClassPtr(p);
@@ -96,7 +108,11 @@ function dxObjc (args) {
     instancePointer = instances[0];
   }
   const methodName = args[1];
+<<<<<<< HEAD
   const [v, t] = utils.autoType(args.slice(2));
+=======
+  const [v, t] = autoType(args.slice(2));
+>>>>>>> cd7ce71 (Move modules to lib folder)
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
       if (instancePointer.hasOwnProperty(methodName)) {
@@ -184,7 +200,11 @@ function parseMachoHeader (offset) {
     filetype: offset.add(0x0c).readU32(),
     ncmds: offset.add(0x10).readU32(),
     sizeofcmds: offset.add(0x14).readU32(),
+<<<<<<< HEAD
     flags: offset.add(0x18).readU32()
+=======
+    flags: offset.add(0x18).readU32(),
+>>>>>>> cd7ce71 (Move modules to lib folder)
   };
   if (header.cputype === 0x0100000c) {
     // arm64
@@ -198,7 +218,11 @@ function parseMachoHeader (offset) {
 }
 
 function _isMachoHeaderAtOffset (offset) {
+<<<<<<< HEAD
   const cursor = utils.trunc4k(offset);
+=======
+  const cursor = trunc4k(offset);
+>>>>>>> cd7ce71 (Move modules to lib folder)
   if (cursor.readU32() === 0xfeedfacf) {
     return true;
   }
@@ -285,6 +309,7 @@ function unloadFrameworkBundle (args) {
   return bundle.unload();
 }
 
+<<<<<<< HEAD
 class IOSPathTransform extends PathTransform {
   constructor () {
     super();
@@ -383,6 +408,9 @@ module.exports = {
   initFoundation,
   getIOSVersion,
   isiOS,
+=======
+module.exports = {
+>>>>>>> cd7ce71 (Move modules to lib folder)
   isObjC,
   ObjCAvailable,
   hasMainLoop,
@@ -393,6 +421,10 @@ module.exports = {
   getSections,
   getSegments,
   loadFrameworkBundle,
+<<<<<<< HEAD
   unloadFrameworkBundle,
   IOSPathTransform
+=======
+  unloadFrameworkBundle
+>>>>>>> cd7ce71 (Move modules to lib folder)
 };

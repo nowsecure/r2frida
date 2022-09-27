@@ -1,5 +1,9 @@
 'use strict';
 
+<<<<<<< HEAD
+=======
+const globals = require('./globals');
+>>>>>>> cd7ce71 (Move modules to lib folder)
 const swift = require('./darwin/swift');
 
 const minPrintable = ' '.charCodeAt(0);
@@ -100,11 +104,16 @@ function renderEndian (value, bigEndian, width) {
 }
 
 function padPointer (value) {
+<<<<<<< HEAD
   if (value.toString().indexOf('ArrayBuffer') !== -1) {
     value = arrayBufferToHex(value);
   }
   let result = value.toString(16);
   const paddedLength = 2 * Process.pointerSize;
+=======
+  let result = value.toString(16);
+  const paddedLength = 2 * globals.pointerSize;
+>>>>>>> cd7ce71 (Move modules to lib folder)
   while (result.length < paddedLength) {
     result = '0' + result;
   }
@@ -277,6 +286,7 @@ function autoType (args) {
   return [nfArgs, nfArgsData];
 }
 
+<<<<<<< HEAD
 function requireFridaVersion (major, minor, patch) {
   const required = [major, minor, patch];
   const actual = Frida.version.split('.');
@@ -307,6 +317,8 @@ function arrayBufferToHex (arrayBuffer) {
   return result;
 }
 
+=======
+>>>>>>> cd7ce71 (Move modules to lib folder)
 module.exports = {
   sanitizeString,
   wrapStanza,
@@ -324,7 +336,11 @@ module.exports = {
   rwxstr,
   rwxint,
   getPtr,
+<<<<<<< HEAD
   autoType,
   requireFridaVersion,
   arrayBufferToHex
+=======
+  autoType
+>>>>>>> cd7ce71 (Move modules to lib folder)
 };

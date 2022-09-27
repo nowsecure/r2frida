@@ -2,7 +2,10 @@
 
 const expr = require('../expr');
 const log = require('../../log');
+<<<<<<< HEAD
 const { getModuleByAddress } = require('../info/lookup');
+=======
+>>>>>>> cd7ce71 (Move modules to lib folder)
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
@@ -369,7 +372,11 @@ function tracehook (address, args) {
             const addr = ptr(args[a]);
             const size = +args[l];
             // const buf = Memory.readByteArray(addr, size);
+<<<<<<< HEAD
             // console.log('buf', utils.arrayBufferToHex(buf));
+=======
+            // console.log('buf', arrayBufferToHex(buf));
+>>>>>>> cd7ce71 (Move modules to lib folder)
             // console.log('string', Memory.readCString(addr, size));
             fmtarg.push(Memory.readCString(addr, size));
           }
@@ -383,7 +390,11 @@ function tracehook (address, args) {
             const [a, l] = v.split(',');
             const addr = ptr(args[a]);
             const buf = Memory.readByteArray(addr, +args[l]);
+<<<<<<< HEAD
             fmtarg.push(utils.arrayBufferToHex(buf));
+=======
+            fmtarg.push(_arrayBufferToHex(buf));
+>>>>>>> cd7ce71 (Move modules to lib folder)
           }
           break;
       }
@@ -613,6 +624,26 @@ function _hexdumpUntrusted (addr, len) {
   }
 }
 
+<<<<<<< HEAD
+=======
+function _arrayBufferToHex (arrayBuffer) {
+  if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
+    throw new TypeError('Expected input to be an ArrayBuffer');
+  }
+
+  const view = new Uint8Array(arrayBuffer);
+  let result = '';
+  let value;
+
+  for (let i = 0; i < view.length; i++) {
+    value = view[i].toString(16);
+    result += (value.length === 1 ? '0' + value : value);
+  }
+
+  return result;
+}
+
+>>>>>>> cd7ce71 (Move modules to lib folder)
 function _tracelogToString (l) {
   const line = [l.source, l.name || l.address, _objectToString(l.values)].join('\t');
   const bt = (!l.backtrace)
