@@ -1,8 +1,8 @@
 'use strict';
 
-const config = require('./config');
-const java = require('./java');
-const utils = require('./utils');
+const config = require('../../config');
+const java = require('../java');
+const utils = require('../utils');
 
 function interceptHelp (args) {
   return 'Usage: di[0,1,-1,s,v] [addr] : intercepts function method and replace the return value.\n' /

@@ -1,10 +1,10 @@
 /* eslint-disable comma-dangle */
 'use strict';
 
-const config = require('./config');
-const disasm = require('./disasm');
-const debug = require('./debug');
-const utils = require('./utils');
+const config = require('../../config');
+const disasm = require('../disasm');
+const debug = require('../debug');
+const utils = require('../utils');
 
 const eventsByThread = {};
 const inModules = [];

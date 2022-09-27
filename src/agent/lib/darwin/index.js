@@ -1,6 +1,6 @@
 'use strict';
 
-const utils = require('./utils');
+const utils = require('../utils');
 
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');

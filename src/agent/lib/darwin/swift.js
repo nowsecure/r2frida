@@ -1,8 +1,8 @@
 'use strict';
 
-const config = require('./config');
-const log = require('./log');
-const utils = require('./utils');
+const config = require('../../config');
+const log = require('../../log');
+const utils = require('../utils');
 
 const SwiftAvailable = function () {
   return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
