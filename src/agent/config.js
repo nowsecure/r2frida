@@ -275,7 +275,7 @@ function evalConfig (args) {
 }
 
 function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
+  const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
   const from = currentRange.base;
   const to = from.add(currentRange.size);
   return `e search.in=range

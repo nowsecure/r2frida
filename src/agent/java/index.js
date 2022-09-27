@@ -172,6 +172,102 @@ function traceJava (klass, method) {
   });
 }
 
+function parseTargetJavaExpression (target) {
+  let klass = target.substring('java:'.length);
+  const lastDot = klass.lastIndexOf('.');
+  if (lastDot !== -1) {
+    const method = klass.substring(lastDot + 1);
+    klass = klass.substring(0, lastDot);
+    return [klass, method];
+  }
+  throw new Error('Error: Wrong java method syntax');
+}
+
+function interceptRetJava (klass, method, value) {
+  javaPerform(function () {
+    const targetClass = javaUse(klass);
+    targetClass[method].implementation = function (library) {
+      const timestamp = new Date();
+      if (config.getString('hook.output') === 'json') {
+        log.traceEmit({
+          source: 'java',
+          class: klass,
+          method,
+          returnValue: value,
+          timestamp
+        });
+      } else {
+        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+      }
+      switch (value) {
+        case 0: return false;
+        case 1: return true;
+        case -1: return -1; // TODO should throw an error?
+        case null: return;
+      }
+      return value;
+    };
+  });
+}
+
+function interceptFunRetJava (className, methodName, value, paramTypes) {
+  javaPerform(function () {
+    const targetClass = javaUse(className);
+    targetClass[methodName].overload(paramTypes).implementation = function (args) {
+      const timestamp = new Date();
+      if (config.getString('hook.output') === 'json') {
+        log.traceEmit({
+          source: 'java',
+          class: className,
+          methodName,
+          returnValue: value,
+          timestamp
+        });
+      } else {
+        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
+      }
+      this[methodName](args);
+      switch (value) {
+        case 0: return false;
+        case 1: return true;
+        case -1: return -1; // TODO should throw an error?
+      }
+      return value;
+    };
+  });
+}
+
+function traceJavaConstructors (className) {
+  javaPerform(function () {
+    const foo = Java.use(className).$init.overloads;
+    foo.forEach((over) => {
+      over.implementation = function () {
+        console.log('dt', className, '(', _dumpJavaArguments(arguments), ')');
+        if (config.getBoolean('hook.backtrace')) {
+          const Throwable = Java.use('java.lang.Throwable');
+          const bt = Throwable.$new().getStackTrace().map(_ => _.toString()).join('\n- ') + '\n';
+          console.log('-', bt);
+        }
+        return over.apply(this, arguments);
+      };
+    });
+  });
+}
+
+function _dumpJavaArguments (args) {
+  let res = '';
+  try {
+    for (const a of args) {
+      try {
+        res += a.toString() + ' ';
+      } catch (ee) {
+      }
+    }
+  } catch (e) {
+  }
+  return res;
+}
+
 module.exports = {
   JavaAvailable,
   javaUse,
@@ -181,5 +277,9 @@ module.exports = {
   listJavaClassesJson,
   listJavaClassesJsonSync,
   javaPerform,
-  traceJava
+  traceJava,
+  parseTargetJavaExpression,
+  interceptRetJava,
+  interceptFunRetJava,
+  traceJavaConstructors
 };

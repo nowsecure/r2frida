@@ -5,14 +5,15 @@ const stalker = require('./debug/stalker');
 const android = require('./java/android');
 const classes = require('./info/classes');
 const config = require('./config');
-const darwin = require('./darwin/index');
+const darwin = require('./darwin');
 const debug = require('./debug');
 const disasm = require('./disasm');
 const expr = require('./expr');
 const fs = require('./fs');
-const info = require('./info/index');
+const info = require('./info');
 const io = require('./io');
-const java = require('./java/index');
+const interceptor = require('./interceptor');
+const java = require('./java');
 const log = require('./log');
 const lookup = require('./lookup');
 const memory = require('./memory');
@@ -245,21 +246,21 @@ const commandHandlers = {
   dtsf: stalker.stalkTraceFunction,
   dtsfj: stalker.stalkTraceFunctionJson,
   'dtsf*': stalker.stalkTraceFunctionR2,
-  di: interceptHelp,
-  dif: interceptFunHelp,
+  di: interceptor.interceptHelp,
+  dif: interceptor.interceptFunHelp,
   // intercept ret function and dont call the function
-  dis: interceptRetString,
-  di0: interceptRet0,
-  di1: interceptRet1,
-  dii: interceptRetInt,
-  'di-1': interceptRet_1,
-  div: interceptRetVoid,
+  dis: interceptor.interceptRetString,
+  di0: interceptor.interceptRet0,
+  di1: interceptor.interceptRet1,
+  dii: interceptor.interceptRetInt,
+  'di-1': interceptor.interceptRet_1,
+  div: interceptor.interceptRetVoid,
   // intercept ret after calling the function
-  difs: interceptFunRetString,
-  dif0: interceptFunRet0,
-  dif1: interceptFunRet1,
-  difi: interceptFunRetInt,
-  'dif-1': interceptFunRet_1,
+  difs: interceptor.interceptFunRetString,
+  dif0: interceptor.interceptFunRet0,
+  dif1: interceptor.interceptFunRet1,
+  difi: interceptor.interceptFunRetInt,
+  'dif-1': interceptor.interceptFunRet_1,
   // unix compat
   pwd: getCwd,
   cd: chDir,
@@ -648,178 +649,6 @@ function swiftTypes (args) {
   return res;
 }
 
-function interceptHelp (args) {
-  return 'Usage: di[0,1,-1,s,v] [addr] : intercepts function method and replace the return value.\n';
-  'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n';
-  'div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n';
-}
-
-function interceptFunHelp (args) {
-  return 'Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n';
-  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n';
-  'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n';
-  'dis 0x808080 str  #.\n';
-}
-
-function interceptRetJava (klass, method, value) {
-  javaPerform(function () {
-    const targetClass = javaUse(klass);
-    targetClass[method].implementation = function (library) {
-      const timestamp = new Date();
-      if (config.getString('hook.output') === 'json') {
-        log.traceEmit({
-          source: 'java',
-          class: klass,
-          method,
-          returnValue: value,
-          timestamp
-        });
-      } else {
-        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
-      }
-      switch (value) {
-        case 0: return false;
-        case 1: return true;
-        case -1: return -1; // TODO should throw an error?
-        case null: return;
-      }
-      return value;
-    };
-  });
-}
-
-function interceptFunRetJava (className, methodName, value, paramTypes) {
-  javaPerform(function () {
-    const targetClass = javaUse(className);
-    targetClass[methodName].overload(paramTypes).implementation = function (args) {
-      const timestamp = new Date();
-      if (config.getString('hook.output') === 'json') {
-        log.traceEmit({
-          source: 'java',
-          class: className,
-          methodName,
-          returnValue: value,
-          timestamp
-        });
-      } else {
-        log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
-      }
-      this[methodName](args);
-      switch (value) {
-        case 0: return false;
-        case 1: return true;
-        case -1: return -1; // TODO should throw an error?
-      }
-      return value;
-    };
-  });
-}
-
-function parseTargetJavaExpression (target) {
-  let klass = target.substring('java:'.length);
-  const lastDot = klass.lastIndexOf('.');
-  if (lastDot !== -1) {
-    const method = klass.substring(lastDot + 1);
-    klass = klass.substring(0, lastDot);
-    return [klass, method];
-  }
-  throw new Error('Error: Wrong java method syntax');
-}
-
-/* Intercepts function call and modify the return value without calling the original function code */
-function interceptRet (target, value) {
-  if (target.startsWith('java:')) {
-    try {
-      const java_target = parseTargetJavaExpression(target, value);
-      return interceptRetJava(java_target[0], java_target[1], value);
-    } catch (e) {
-      return e.message;
-    }
-  }
-  const funcPtr = getPtr(target);
-  const useCmd = config.getString('hook.usecmd');
-  Interceptor.replace(funcPtr, new NativeCallback(function () {
-    if (useCmd.length > 0) {
-      console.log('[r2cmd]' + useCmd);
-    }
-    return ptr(value);
-  }, 'pointer', ['pointer']));
-}
-
-function interceptRet0 (args) {
-  const target = args[0];
-  return interceptRet(target, 0);
-}
-
-function interceptRetString (args) {
-  const target = args[0];
-  return interceptRet(target, args[1]);
-}
-
-function interceptRetInt (args) {
-  const target = args[0];
-  return interceptRet(target, args[1]);
-}
-
-function interceptRet1 (args) {
-  const target = args[0];
-  return interceptRet(target, 1);
-}
-
-function interceptRet_1 (args) { // eslint-disable-line
-  const target = args[0];
-  return interceptRet(target, -1);
-}
-
-function interceptRetVoid (args) { // eslint-disable-line
-  const target = args[0];
-  return interceptRet(target, null);
-}
-
-/* Intercept function calls and modify return value after calling the original function code */
-function interceptFunRet (target, value, paramTypes) {
-  if (target.startsWith('java:')) {
-    const javaTarget = parseTargetJavaExpression(target, value);
-    return interceptFunRetJava(javaTarget[0], javaTarget[1], value, paramTypes);
-  }
-  const p = getPtr(target);
-  Interceptor.attach(p, {
-    onLeave (retval) {
-      retval.replace(ptr(value));
-    }
-  });
-}
-
-function interceptFunRet0 (args) {
-  const target = args[0];
-  const paramTypes = args[1];
-  return interceptFunRet(target, 0, paramTypes);
-}
-
-function interceptFunRetString (args) {
-  const target = args[0];
-  const paramTypes = args[2];
-  return interceptFunRet(target, args[1], paramTypes);
-}
-
-function interceptFunRetInt (args) {
-  const target = args[0];
-  const paramTypes = args[2];
-  return interceptFunRet(target, args[1], paramTypes);
-}
-
-function interceptFunRet1 (args) {
-  const target = args[0];
-  const paramTypes = args[1];
-  return interceptFunRet(target, 1, paramTypes);
-}
-
-function interceptFunRet_1 (args) { // eslint-disable-line
-  const target = args[0];
-  const paramTypes = args[1];
-  return interceptFunRet(target, -1, paramTypes);
-}
-
 const requestHandlers = {
   safeio: () => { global.r2frida.safeio = true; },
   unsafeio: () => { if (!NeedsSafeIo) { global.r2frida.safeio = false; } },
@@ -975,8 +804,6 @@ function echo (args) {
   console.log(args.join(' '));
   return null;
 }
-
-
 
 function fsList (args) {
   return fs.ls(args[0] || globals.Gcwd);
