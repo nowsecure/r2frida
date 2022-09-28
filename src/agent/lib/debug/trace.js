@@ -3,9 +3,13 @@
 const expr = require('../expr');
 const log = require('../../log');
 <<<<<<< HEAD
+<<<<<<< HEAD
 const { getModuleByAddress } = require('../info/lookup');
 =======
 >>>>>>> cd7ce71 (Move modules to lib folder)
+=======
+const { getModuleByAddress } = require('../info/lookup');
+>>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');

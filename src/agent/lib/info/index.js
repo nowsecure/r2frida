@@ -1,11 +1,15 @@
 'use strict';
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const { getModuleByAddress } = require('./lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
 =======
+=======
+const { getModuleByAddress } = require('lookup');
+>>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
