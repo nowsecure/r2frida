@@ -270,12 +270,12 @@ const commandHandlers = {
   // unix compat
   pwd: getCwd,
   cd: chDir,
-  cat: fsCat,
-  ls: fsList,
+  cat: fs.fsCat,
+  ls: fs.fsList,
   // required for m-io
-  md: fsList,
-  mg: fsGet,
-  m: fsOpen,
+  md: fs.fsList,
+  mg: fs.fsGet,
+  m: fs.fsOpen,
   pd: disasm.disasmCode,
   px: dump.Hexdump,
   x: dump.Hexdump,
@@ -365,37 +365,6 @@ function radareCommand (args) {
     return radareCommandString(cmd);
   }
   return ':dl /tmp/libr.dylib';
-}
-
-function getCwd () {
-  let _getcwd = 0;
-  if (Process.platform === 'windows') {
-    _getcwd = sym('_getcwd', 'pointer', ['pointer', 'int']);
-  } else {
-    _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
-  }
-
-  if (_getcwd) {
-    const PATH_MAX = 4096;
-    const buf = Memory.alloc(PATH_MAX);
-    if (!buf.isNull()) {
-      const ptr = _getcwd(buf, PATH_MAX);
-      const str = Memory.readCString(ptr);
-      globals.Gcwd = str;
-      return str;
-    }
-  }
-  return '';
-}
-
-function chDir (args) {
-  const _chdir = sym('chdir', 'int', ['pointer']);
-  if (_chdir && args) {
-    const arg = Memory.allocUtf8String(args[0]);
-    _chdir(arg);
-    getCwd(); // update Gcwd
-  }
-  return '';
 }
 
 function getModuleByAddress (addr) {
@@ -778,22 +747,6 @@ function uiAlert (args) {
 function echo (args) {
   console.log(args.join(' '));
   return null;
-}
-
-function fsList (args) {
-  return fs.ls(args[0] || globals.Gcwd);
-}
-
-function fsGet (args) {
-  return fs.cat(args[0] || '', '*', args[1] || 0, args[2] || null);
-}
-
-function fsCat (args) {
-  return fs.cat(args[0] || '');
-}
-
-function fsOpen (args) {
-  return fs.open(args[0] || globals.Gcwd);
 }
 
 function onStanza (stanza, data) {
