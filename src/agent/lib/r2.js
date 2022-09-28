@@ -1,8 +1,11 @@
 'use strict';
 
-const globals = require('./globals');
 const { sym } = require('./sys');
 const utils = require('./utils');
+
+const pendingCmds = {};
+const pendingCmdSends = [];
+let sendingCommand = false;
 
 let cmdSerial = 0;
 
@@ -43,7 +46,7 @@ function hostCmd (cmd) {
   return new Promise((resolve) => {
     const serial = cmdSerial;
     cmdSerial++;
-    globals.pendingCmds[serial] = resolve;
+    pendingCmds[serial] = resolve;
     _sendCommand(cmd, serial);
   });
 }
@@ -58,19 +61,19 @@ function hostCmdj (cmd) {
 function onCmdResp (params) {
   const { serial, output } = params;
 
-  globals.sendingCommand = false;
+  sendingCommand = false;
 
-  if (serial in globals.pendingCmds) {
-    const onFinish = globals.pendingCmds[serial];
-    delete globals.pendingCmds[serial];
+  if (serial in pendingCmds) {
+    const onFinish = pendingCmds[serial];
+    delete pendingCmds[serial];
     process.nextTick(() => onFinish(output));
   } else {
     throw new Error('Command response out of sync');
   }
 
   process.nextTick(() => {
-    if (!globals.sendingCommand) {
-      const nextSend = globals.pendingCmdSends.shift();
+    if (!sendingCommand) {
+      const nextSend = pendingCmdSends.shift();
       if (nextSend !== undefined) {
         nextSend();
       }
@@ -82,15 +85,15 @@ function onCmdResp (params) {
 
 function _sendCommand (cmd, serial) {
   function sendIt () {
-    globals.sendingCommand = true;
+    sendingCommand = true;
     send(utils.wrapStanza('cmd', {
       cmd: cmd,
       serial: serial
     }));
   }
 
-  if (globals.sendingCommand) {
-    globals.pendingCmdSends.push(sendIt);
+  if (sendingCommand) {
+    pendingCmdSends.push(sendIt);
   } else {
     sendIt();
   }
