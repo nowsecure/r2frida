@@ -2,7 +2,6 @@
 
 /* globals */
 const pointerSize = Process.pointerSize;
-let Gcwd = '/';
 const allocPool = {};
 const pendingCmds = {};
 const pendingCmdSends = [];
@@ -13,6 +12,5 @@ module.exports = {
   allocPool,
   pendingCmds,
   pendingCmdSends,
-  sendingCommand,
-  Gcwd
+  sendingCommand
 };

@@ -1,13 +1,18 @@
 'use strict';
 
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
 const darwin = require('./darwin');
 =======
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+const darwin = require('./darwin');
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 const { toByteArray } = require('base64-js');
 const { normalize } = require('path');
 const path = require('path');
 const { platform, pointerSize } = Process;
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
 const { sym, _readlink, getPid, _fstat, _dup2, _close } = require('./sys');
 =======
@@ -25,6 +30,9 @@ function debase (a) {
   return normalize(a);
 }
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+const { sym, _readlink, getPid, _fstat, _dup2, _close } = require('./sys');
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 
 let fs = null;
 let Gcwd = '/';
@@ -595,6 +603,7 @@ function listFileDescriptors (args) {
 function listFileDescriptorsJson (args) {
   const PATH_MAX = 4096;
   function getFdName (fd) {
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
     if (_readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
@@ -602,15 +611,23 @@ function listFileDescriptorsJson (args) {
     if (sys._readlink && Process.platform === 'linux') {
       const fdPath = path.join('proc', '' + sys.getPid(), 'fd', '' + fd);
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+    if (_readlink && Process.platform === 'linux') {
+      const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
       const buffer = Memory.alloc(PATH_MAX);
       const source = Memory.alloc(PATH_MAX);
       source.writeUtf8String(fdPath);
       buffer.writeUtf8String('');
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
       if (_readlink(source, buffer, PATH_MAX) !== -1) {
 =======
       if (sys._readlink(source, buffer, PATH_MAX) !== -1) {
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+      if (_readlink(source, buffer, PATH_MAX) !== -1) {
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
         return buffer.readUtf8String();
       }
       return undefined;
@@ -631,11 +648,15 @@ function listFileDescriptorsJson (args) {
     const statBuf = Memory.alloc(128);
     const fds = [];
     for (let i = 0; i < 1024; i++) {
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
       if (_fstat(i, statBuf) === 0) {
 =======
       if (sys._fstat(i, statBuf) === 0) {
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+      if (_fstat(i, statBuf) === 0) {
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
         fds.push(i);
       }
     }
@@ -643,11 +664,15 @@ function listFileDescriptorsJson (args) {
       return [fd, getFdName(fd)];
     });
   } else {
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
     const rc = _dup2(+args[0], +args[1]);
 =======
     const rc = sys._dup2(+args[0], +args[1]);
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+    const rc = _dup2(+args[0], +args[1]);
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
     return rc;
   }
 }
@@ -656,7 +681,10 @@ function closeFileDescriptors (args) {
   if (args.length === 0) {
     return 'Please, provide a file descriptor';
   }
+<<<<<<< HEAD
 <<<<<<< HEAD:src/agent/lib/fs.js
+=======
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
   return _close(+args[0]);
 }
 
@@ -670,6 +698,7 @@ function _debase (a) {
     }
   }
   return normalize(a);
+<<<<<<< HEAD
 }
 
 module.exports = {
@@ -690,16 +719,29 @@ module.exports = {
   nsArrayMap
 =======
   return sys._close(+args[0]);
+=======
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 }
 
 module.exports = {
+  fsList,
+  fsGet,
+  fsCat,
+  fsOpen,
+  chDir,
+  getCwd,
   listFileDescriptors,
   listFileDescriptorsJson,
   closeFileDescriptors,
-  ls,
-  cat,
-  open,
   transformVirtualPath,
+<<<<<<< HEAD
   exist
 >>>>>>> 4c0fc85 (Migrate File Descriptor cmds to fs module):src/agent/fs.js
+=======
+  exist,
+  PathTransform,
+  VirtualEnt,
+  flatify,
+  nsArrayMap
+>>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 };
