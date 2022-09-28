@@ -1,7 +1,7 @@
 'use strict';
 
-const classes = require('./lib/info/classes');
-const darwin = require('./lib/darwin');
+const classes = require('./info/classes');
+const darwin = require('./darwin');
 
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
