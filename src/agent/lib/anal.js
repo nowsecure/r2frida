@@ -1,7 +1,12 @@
 'use strict';
 
+<<<<<<< HEAD
 const classes = require('./info/classes');
 const darwin = require('./darwin');
+=======
+const classes = require('./lib/info/classes');
+const darwin = require('./lib/darwin');
+>>>>>>> 304ebef (move analFunctionSignature to anal)
 
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
