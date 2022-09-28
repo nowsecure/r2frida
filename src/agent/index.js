@@ -52,7 +52,7 @@ const NeedsSafeIo = isLinuxArm32 || isIOS15;
 // const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 /*
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-const isIOS15 = getIOSVersion().startsWith('15');
+const isIOS15 = darwin.getIOSVersion().startsWith('15');
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
 
 function getIOSVersion () {
@@ -279,7 +279,7 @@ const commandHandlers = {
   pd: disasm.disasmCode,
   px: dump.Hexdump,
   x: dump.Hexdump,
-  eval: evalCode,
+  eval: expr.evalCode,
   chcon: changeSelinuxContext,
 };
 
@@ -299,15 +299,6 @@ s entry0 2> /dev/null
  `;
   return str;
 }
-
-function evalCode (args) {
-  const code = args.join(' ');
-  const result = eval(code); // eslint-disable-line
-  return (result !== undefined) ? result : '';
-}
-
-/* This is only available on Android/Linux */
-const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
 
 if (Process.platform === 'darwin') {
   // required for early instrumentation
@@ -415,21 +406,6 @@ function analFunctionSignature (args) {
     return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
   }
   return 'Usage: afs [klassName] [methodName]';
-}
-
-function changeSelinuxContext (args) {
-  if (_setfilecon === null) {
-    return 'Error: cannot find setfilecon symbol';
-  }
-  // TODO This doesnt run yet because permissions
-  // TODO If it runs as root, then file might be checked
-  const file = args[0];
-
-  const con = Memory.allocUtf8String('u:object_r:frida_file:s0');
-  const path = Memory.allocUtf8String(file);
-
-  const rv = _setfilecon(path, con);
-  return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
 
 const requestHandlers = {
