@@ -26,6 +26,9 @@ const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.availabl
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function initFoundation () {
   // required for early instrumentation
   try {
@@ -35,8 +38,11 @@ function initFoundation () {
   }
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> c8ee053 (Migrate getIOSVersion to darwin module)
+=======
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function getIOSVersion () {
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();

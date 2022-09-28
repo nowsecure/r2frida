@@ -19,11 +19,22 @@ let _free = null;
 
 =======
 const globals = require('./globals');
+const { sym } = require('./sys');
 const utils = require('./utils');
 
 let cmdSerial = 0;
 
+<<<<<<< HEAD
 >>>>>>> cd7ce71 (Move modules to lib folder)
+=======
+// r2->io->frida->r2pipe->r2
+let _r2 = null;
+let _r_core_new = null; // eslint-disable-line camelcase
+let _r_core_cmd_str = null; // eslint-disable-line camelcase
+let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
+let _free = null;
+
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function getR2Arch (arch) {
   switch (arch) {
     case 'ia32':
@@ -134,6 +145,9 @@ function _sendCommand (cmd, serial) {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function radareSeek (args) {
   const addr = utils.getPtr('' + args);
   const cmdstr = 's ' + (addr || '' + args);
@@ -183,13 +197,17 @@ function _radareCommandString (cmd) {
   return '';
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> cd7ce71 (Move modules to lib folder)
+=======
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 module.exports = {
   getR2Arch,
   hostCmds,
   hostCmd,
   hostCmdj,
+<<<<<<< HEAD
 <<<<<<< HEAD
   onCmdResp,
   radareSeek,
@@ -197,4 +215,9 @@ module.exports = {
 =======
   onCmdResp
 >>>>>>> cd7ce71 (Move modules to lib folder)
+=======
+  onCmdResp,
+  radareSeek,
+  radareCommand
+>>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 };
