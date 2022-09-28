@@ -2,6 +2,7 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 const { getModuleByAddress } = require('./lookup');
 const config = require('../../config');
 const debug = require('../debug');
@@ -10,6 +11,9 @@ const darwin = require('../darwin');
 =======
 const { getModuleByAddress } = require('lookup');
 >>>>>>> 012de33 (Move getModuleByAddress to lookup module)
+=======
+const { getModuleByAddress } = require('./lookup');
+>>>>>>> 1ace902 (Fix some references)
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
