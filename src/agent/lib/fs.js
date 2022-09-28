@@ -1,24 +1,14 @@
 'use strict';
 
+const darwin = require('./darwin');
 const { toByteArray } = require('base64-js');
 const { normalize } = require('path');
 const path = require('path');
 const { platform, pointerSize } = Process;
-const sys = require('./sys');
-
-function debase (a) {
-  if (a.startsWith('base64:')) {
-    try {
-      const data = toByteArray(a.slice(7));
-      a = String.fromCharCode.apply(null, data);
-    } catch (e) {
-      // invalid base64
-    }
-  }
-  return normalize(a);
-}
+const { sym, _readlink, getPid, _fstat, _dup2, _close } = require('./sys');
 
 let fs = null;
+let Gcwd = '/';
 
 const direntSpecs = {
   'linux-32': {
@@ -73,27 +63,74 @@ const direntSpec = direntSpecs[`${platform}-${pointerSize * 8}`];
 const statSpec = statSpecs[`${platform}-${pointerSize * 8}`] || null;
 const statxSpec = statxSpecs[`${platform}-${pointerSize * 8}`] || null;
 
-function ls (path) {
-  if (fs === null) {
-    fs = new FridaFS();
-  }
-  return fs.ls(debase(path));
+function fsList (args) {
+  return _ls(args[0] || Gcwd);
 }
 
-function cat (path, mode, offset, size) {
-  if (fs === null) {
-    fs = new FridaFS();
-  }
-
-  return fs.cat(debase(path), mode, offset, size);
+function fsGet (args) {
+  return _cat(args[0] || '', '*', args[1] || 0, args[2] || null);
 }
 
-function open (path) {
+function fsCat (args) {
+  return _cat(args[0] || '');
+}
+
+function fsOpen (args) {
+  return _open(args[0] || Gcwd);
+}
+
+function chDir (args) {
+  const _chdir = sym('chdir', 'int', ['pointer']);
+  if (_chdir && args) {
+    const arg = Memory.allocUtf8String(args[0]);
+    _chdir(arg);
+    getCwd(); // update Gcwd
+  }
+  return '';
+}
+
+function getCwd () {
+  let _getcwd = 0;
+  if (Process.platform === 'windows') {
+    _getcwd = sym('_getcwd', 'pointer', ['pointer', 'int']);
+  } else {
+    _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
+  }
+
+  if (_getcwd) {
+    const PATH_MAX = 4096;
+    const buf = Memory.alloc(PATH_MAX);
+    if (!buf.isNull()) {
+      const ptr = _getcwd(buf, PATH_MAX);
+      const str = Memory.readCString(ptr);
+      Gcwd = str;
+      return str;
+    }
+  }
+  return '';
+}
+
+function _ls (path) {
+  if (fs === null) {
+    fs = new FridaFS();
+  }
+  return fs.ls(_debase(path));
+}
+
+function _cat (path, mode, offset, size) {
   if (fs === null) {
     fs = new FridaFS();
   }
 
-  return fs.open(debase(path));
+  return fs.cat(_debase(path), mode, offset, size);
+}
+
+function _open (path) {
+  if (fs === null) {
+    fs = new FridaFS();
+  }
+
+  return fs.open(_debase(path));
 }
 
 function transformVirtualPath (path) {
@@ -107,7 +144,7 @@ function exist (path) {
   if (fs === null) {
     fs = new FridaFS();
   }
-  return fs.exist(debase(path));
+  return fs.exist(_debase(path));
 }
 
 class FridaFS {
@@ -227,8 +264,8 @@ class FridaFS {
 
   get transform () {
     if (this._transform === null) {
-      if (isiOS()) {
-        this._transform = new iOSPathTransform();
+      if (darwin.isiOS()) {
+        this._transform = new darwin.IOSPathTransform();
       } else {
         this._transform = new NULLTransform();
       }
@@ -314,100 +351,6 @@ class VirtualEnt {
   }
 }
 
-class iOSPathTransform extends PathTransform {
-  constructor () {
-    super();
-    this._api = null;
-    this._fillVirtualDirs();
-  }
-
-  _fillVirtualDirs () {
-    const pool = this.api.NSAutoreleasePool.alloc().init();
-
-    const appHome = new ObjC.Object(this.api.NSHomeDirectory()).toString();
-    const appBundle = this.api.NSBundle.mainBundle().bundlePath().toString();
-
-    const root = new VirtualEnt('/');
-    root.addSub(new VirtualEnt('AppHome', appHome));
-    root.addSub(new VirtualEnt('AppBundle', appBundle));
-
-    const groupNames = this._getAppGroupNames();
-    if (groupNames.length > 0) {
-      const fileManager = this.api.NSFileManager.defaultManager();
-      const appGroups = new VirtualEnt('AppGroups');
-      root.addSub(appGroups);
-      for (const groupName of groupNames) {
-        const groupUrl = fileManager.containerURLForSecurityApplicationGroupIdentifier_(groupName);
-        if (groupUrl !== null) {
-          appGroups.addSub(new VirtualEnt(groupName, groupUrl.path().toString()));
-        }
-      }
-    }
-
-    root.addSub(new VirtualEnt('Device', '/'));
-
-    flatify(this._virtualDirs, root);
-
-    this._mappedPrefixes = Object.keys(this._virtualDirs)
-      .filter(key => typeof this._virtualDirs[key] === 'string')
-      .sort((x, y) => x.length - y.length);
-
-    pool.release();
-  }
-
-  _getAppGroupNames () {
-    const task = this.api.SecTaskCreateFromSelf(NULL);
-    if (task.isNull()) {
-      return [];
-    }
-
-    const key = this.api.NSString.stringWithString_('com.apple.security.application-groups');
-    const ids = this.api.SecTaskCopyValueForEntitlement(task, key, NULL);
-    if (ids.isNull()) {
-      this.api.CFRelease(task);
-      return [];
-    }
-
-    const idsObj = new ObjC.Object(ids).autorelease();
-    const names = nsArrayMap(idsObj, group => {
-      return group.toString();
-    });
-
-    this.api.CFRelease(task);
-
-    return names;
-  }
-
-  get api () {
-    if (this._api === null) {
-      this._api = {
-        NSAutoreleasePool: ObjC.classes.NSAutoreleasePool,
-        NSBundle: ObjC.classes.NSBundle,
-        NSFileManager: ObjC.classes.NSFileManager,
-        NSHomeDirectory: new NativeFunction(
-          Module.findExportByName(null, 'NSHomeDirectory'),
-          'pointer', []
-        ),
-        NSString: ObjC.classes.NSString,
-        SecTaskCreateFromSelf: new NativeFunction(
-          Module.findExportByName(null, 'SecTaskCreateFromSelf'),
-          'pointer', ['pointer']
-        ),
-        SecTaskCopyValueForEntitlement: new NativeFunction(
-          Module.findExportByName(null, 'SecTaskCopyValueForEntitlement'),
-          'pointer', ['pointer', 'pointer', 'pointer']
-        ),
-        CFRelease: new NativeFunction(
-          Module.findExportByName(null, 'CFRelease'),
-          'void', ['pointer']
-        )
-      };
-    }
-
-    return this._api;
-  }
-}
-
 class PosixFSApi {
   constructor () {
     this._api = null;
@@ -455,7 +398,7 @@ class PosixFSApi {
   }
 
   readdir (dir, entryBuf, resultPtr) {
-    const success = this.api.readdir(dir, entryBuf, resultPtr);
+    this.api.readdir(dir, entryBuf, resultPtr);
     const result = resultPtr.readPointer();
     if (result.isNull()) {
       return null;
@@ -604,12 +547,6 @@ function nsArrayMap (array, callback) {
   return result;
 }
 
-function isiOS () {
-  return platform === 'darwin' &&
-    Process.arch.indexOf('arm') === 0 &&
-    ObjC.available;
-}
-
 function encodeBuf (buf, size, encoding) {
   if (encoding !== 'hex') {
     return Memory.readCString(buf);
@@ -639,13 +576,13 @@ function listFileDescriptors (args) {
 function listFileDescriptorsJson (args) {
   const PATH_MAX = 4096;
   function getFdName (fd) {
-    if (sys._readlink && Process.platform === 'linux') {
-      const fdPath = path.join('proc', '' + sys.getPid(), 'fd', '' + fd);
+    if (_readlink && Process.platform === 'linux') {
+      const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
       const buffer = Memory.alloc(PATH_MAX);
       const source = Memory.alloc(PATH_MAX);
       source.writeUtf8String(fdPath);
       buffer.writeUtf8String('');
-      if (sys._readlink(source, buffer, PATH_MAX) !== -1) {
+      if (_readlink(source, buffer, PATH_MAX) !== -1) {
         return buffer.readUtf8String();
       }
       return undefined;
@@ -666,7 +603,7 @@ function listFileDescriptorsJson (args) {
     const statBuf = Memory.alloc(128);
     const fds = [];
     for (let i = 0; i < 1024; i++) {
-      if (sys._fstat(i, statBuf) === 0) {
+      if (_fstat(i, statBuf) === 0) {
         fds.push(i);
       }
     }
@@ -674,7 +611,7 @@ function listFileDescriptorsJson (args) {
       return [fd, getFdName(fd)];
     });
   } else {
-    const rc = sys._dup2(+args[0], +args[1]);
+    const rc = _dup2(+args[0], +args[1]);
     return rc;
   }
 }
@@ -683,16 +620,35 @@ function closeFileDescriptors (args) {
   if (args.length === 0) {
     return 'Please, provide a file descriptor';
   }
-  return sys._close(+args[0]);
+  return _close(+args[0]);
+}
+
+function _debase (a) {
+  if (a.startsWith('base64:')) {
+    try {
+      const data = toByteArray(a.slice(7));
+      a = String.fromCharCode.apply(null, data);
+    } catch (e) {
+      // invalid base64
+    }
+  }
+  return normalize(a);
 }
 
 module.exports = {
+  fsList,
+  fsGet,
+  fsCat,
+  fsOpen,
+  chDir,
+  getCwd,
   listFileDescriptors,
   listFileDescriptorsJson,
   closeFileDescriptors,
-  ls,
-  cat,
-  open,
   transformVirtualPath,
-  exist
+  exist,
+  PathTransform,
+  VirtualEnt,
+  flatify,
+  nsArrayMap
 };

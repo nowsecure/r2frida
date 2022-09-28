@@ -1,6 +1,8 @@
 'use strict';
 
+const { listClasses } = require('../info/classes');
 const utils = require('../utils');
+const { PathTransform, VirtualEnt, flatify, nsArrayMap } = require('../fs');
 
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
@@ -9,6 +11,12 @@ const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+
+function isiOS () {
+  return Process.platform === 'darwin' &&
+    Process.arch.indexOf('arm') === 0 &&
+    ObjC.available;
+}
 
 function isObjC (p) {
   const klass = getObjCClassPtr(p);
@@ -70,7 +78,7 @@ function dxObjc (args) {
     instancePointer = instances[0];
   }
   const methodName = args[1];
-  const [v, t] = autoType(args.slice(2));
+  const [v, t] = utils.autoType(args.slice(2));
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
       if (instancePointer.hasOwnProperty(methodName)) {
@@ -158,7 +166,7 @@ function parseMachoHeader (offset) {
     filetype: offset.add(0x0c).readU32(),
     ncmds: offset.add(0x10).readU32(),
     sizeofcmds: offset.add(0x14).readU32(),
-    flags: offset.add(0x18).readU32(),
+    flags: offset.add(0x18).readU32()
   };
   if (header.cputype === 0x0100000c) {
     // arm64
@@ -259,7 +267,102 @@ function unloadFrameworkBundle (args) {
   return bundle.unload();
 }
 
+class IOSPathTransform extends PathTransform {
+  constructor () {
+    super();
+    this._api = null;
+    this._fillVirtualDirs();
+  }
+
+  _fillVirtualDirs () {
+    const pool = this.api.NSAutoreleasePool.alloc().init();
+
+    const appHome = new ObjC.Object(this.api.NSHomeDirectory()).toString();
+    const appBundle = this.api.NSBundle.mainBundle().bundlePath().toString();
+
+    const root = new VirtualEnt('/');
+    root.addSub(new VirtualEnt('AppHome', appHome));
+    root.addSub(new VirtualEnt('AppBundle', appBundle));
+
+    const groupNames = this._getAppGroupNames();
+    if (groupNames.length > 0) {
+      const fileManager = this.api.NSFileManager.defaultManager();
+      const appGroups = new VirtualEnt('AppGroups');
+      root.addSub(appGroups);
+      for (const groupName of groupNames) {
+        const groupUrl = fileManager.containerURLForSecurityApplicationGroupIdentifier_(groupName);
+        if (groupUrl !== null) {
+          appGroups.addSub(new VirtualEnt(groupName, groupUrl.path().toString()));
+        }
+      }
+    }
+
+    root.addSub(new VirtualEnt('Device', '/'));
+
+    flatify(this._virtualDirs, root);
+
+    this._mappedPrefixes = Object.keys(this._virtualDirs)
+      .filter(key => typeof this._virtualDirs[key] === 'string')
+      .sort((x, y) => x.length - y.length);
+
+    pool.release();
+  }
+
+  _getAppGroupNames () {
+    const task = this.api.SecTaskCreateFromSelf(NULL);
+    if (task.isNull()) {
+      return [];
+    }
+
+    const key = this.api.NSString.stringWithString_('com.apple.security.application-groups');
+    const ids = this.api.SecTaskCopyValueForEntitlement(task, key, NULL);
+    if (ids.isNull()) {
+      this.api.CFRelease(task);
+      return [];
+    }
+
+    const idsObj = new ObjC.Object(ids).autorelease();
+    const names = nsArrayMap(idsObj, group => {
+      return group.toString();
+    });
+
+    this.api.CFRelease(task);
+
+    return names;
+  }
+
+  get api () {
+    if (this._api === null) {
+      this._api = {
+        NSAutoreleasePool: ObjC.classes.NSAutoreleasePool,
+        NSBundle: ObjC.classes.NSBundle,
+        NSFileManager: ObjC.classes.NSFileManager,
+        NSHomeDirectory: new NativeFunction(
+          Module.findExportByName(null, 'NSHomeDirectory'),
+          'pointer', []
+        ),
+        NSString: ObjC.classes.NSString,
+        SecTaskCreateFromSelf: new NativeFunction(
+          Module.findExportByName(null, 'SecTaskCreateFromSelf'),
+          'pointer', ['pointer']
+        ),
+        SecTaskCopyValueForEntitlement: new NativeFunction(
+          Module.findExportByName(null, 'SecTaskCopyValueForEntitlement'),
+          'pointer', ['pointer', 'pointer', 'pointer']
+        ),
+        CFRelease: new NativeFunction(
+          Module.findExportByName(null, 'CFRelease'),
+          'void', ['pointer']
+        )
+      };
+    }
+
+    return this._api;
+  }
+}
+
 module.exports = {
+  isiOS,
   isObjC,
   ObjCAvailable,
   hasMainLoop,
@@ -270,5 +373,6 @@ module.exports = {
   getSections,
   getSegments,
   loadFrameworkBundle,
-  unloadFrameworkBundle
+  unloadFrameworkBundle,
+  IOSPathTransform
 };

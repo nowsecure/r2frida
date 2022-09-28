@@ -53,7 +53,8 @@
       "rpc",
       "send",
       "uint64",
-      "UInt64"
+      "UInt64",
+      "Int64"
     ]
   }
 }
