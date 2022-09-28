@@ -186,7 +186,7 @@ function allocDup (args) {
 }
 
 function listAllocs (args) {
-  return Object.values(globals.allocPool)
+  return Object.values(allocPool)
     .sort()
     .map((x) => {
       const bytes = Memory.readByteArray(x, 60);
@@ -218,18 +218,18 @@ function _getMemoryRanges (protection) {
 }
 
 function _delAlloc (addr) {
-  delete globals.allocPool[addr];
+  delete allocPool[addr];
 }
 
 function _clearAllocs () {
-  Object.keys(globals.allocPool)
-    .forEach(addr => delete globals.allocPool[addr]);
+  Object.keys(allocPool)
+    .forEach(addr => delete allocPool[addr]);
 }
 
 function _addAlloc (allocPtr) {
   const key = allocPtr.toString();
   if (!allocPtr.isNull()) {
-    globals.allocPool[key] = allocPtr;
+    allocPool[key] = allocPtr;
   }
   return key;
 }

@@ -1,6 +1,5 @@
 'use strict';
 
-const globals = require('./globals');
 const swift = require('./darwin/swift');
 
 const minPrintable = ' '.charCodeAt(0);
@@ -105,7 +104,7 @@ function padPointer (value) {
     value = arrayBufferToHex(value);
   }
   let result = value.toString(16);
-  const paddedLength = 2 * globals.pointerSize;
+  const paddedLength = 2 * Process.pointerSize;
   while (result.length < paddedLength) {
     result = '0' + result;
   }
