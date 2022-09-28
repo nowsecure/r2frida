@@ -2,6 +2,7 @@
 
 const expr = require('../expr');
 const log = require('../../log');
+const { getModuleByAddress } = require('../info/lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');

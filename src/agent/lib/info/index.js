@@ -1,5 +1,6 @@
 'use strict';
 
+const { getModuleByAddress } = require('lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');

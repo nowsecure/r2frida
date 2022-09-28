@@ -1,5 +1,6 @@
 'use strict';
 
+const config = require('../../config');
 const utils = require('../utils');
 
 function lookupDebugInfo (args) {
@@ -195,6 +196,18 @@ function _getModuleAt (addr) {
   return modules.length > 0 ? modules[0] : null;
 }
 
+function getModuleByAddress (addr) {
+  const m = config.getString('symbols.module');
+  if (m !== '') {
+    return Process.getModuleByName(m);
+  }
+  try {
+    return Process.getModuleByAddress(addr);
+  } catch (e) {
+    return Process.getModuleByAddress(ptr(global.r2frida.offset));
+  }
+}
+
 module.exports = {
   lookupSymbol,
   lookupSymbolR2,
@@ -209,5 +222,6 @@ module.exports = {
   lookupExportR2,
   lookupDebugInfo,
   lookupAddress,
-  lookupAddressR2
+  lookupAddressR2,
+  getModuleByAddress
 };
