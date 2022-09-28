@@ -1,8 +1,9 @@
 'use strict';
 
 const expr = require('../expr');
-const globals = require('../globals');
 const utils = require('../utils');
+
+const allocPool = {};
 
 function listMemoryRanges () {
   return listMemoryRangesJson()

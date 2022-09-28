@@ -4,7 +4,6 @@ const { getModuleByAddress } = require('lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
-const globals = require('../globals');
 const java = require('../java/index');
 const r2 = require('../r2');
 const sys = require('../sys');
@@ -34,7 +33,7 @@ async function dumpInfoR2 () {
 async function dumpInfoJson () {
   const res = {
     arch: r2.getR2Arch(Process.arch),
-    bits: globals.pointerSize * 8,
+    bits: Process.pointerSize * 8,
     os: Process.platform,
     pid: sys.getPid(),
     uid: sys._getuid(),
