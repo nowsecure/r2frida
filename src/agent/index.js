@@ -268,8 +268,8 @@ const commandHandlers = {
   difi: interceptor.interceptFunRetInt,
   'dif-1': interceptor.interceptFunRet_1,
   // unix compat
-  pwd: getCwd,
-  cd: chDir,
+  pwd: fs.getCwd,
+  cd: fs.chDir,
   cat: fs.fsCat,
   ls: fs.fsList,
   // required for m-io
