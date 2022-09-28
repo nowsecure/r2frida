@@ -20,7 +20,14 @@ function evalNum (args) {
   });
 }
 
+function evalCode (args) {
+  const code = args.join(' ');
+  const result = eval(code); // eslint-disable-line
+  return (result !== undefined) ? result : '';
+}
+
 module.exports = {
   numEval,
-  evalNum
+  evalNum,
+  evalCode
 };
