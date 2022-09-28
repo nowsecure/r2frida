@@ -195,8 +195,11 @@ module.exports = {
   traceSwift,
   swiftTypesR2,
   swiftTypes
+<<<<<<< HEAD
 =======
 module.exports = {
   SwiftAvailable
 >>>>>>> cd7ce71 (Move modules to lib folder)
+=======
+>>>>>>> e692a70 (Move swift types cmds to Swift module)
 };
