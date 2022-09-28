@@ -265,6 +265,7 @@ s entry0 2> /dev/null
   return str;
 }
 
+
 if (Process.platform === 'darwin') {
   darwin.initFoundation();
 }
