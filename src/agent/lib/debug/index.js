@@ -4,7 +4,6 @@ const r2 = require('../r2');
 const sys = require('../sys');
 const utils = require('../utils');
 
-/* Globals */
 const newBreakpoints = new Map();
 let suspended = false;
 
