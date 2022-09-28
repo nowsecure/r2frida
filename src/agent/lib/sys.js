@@ -136,6 +136,26 @@ function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
 
+function changeSelinuxContext (args) {
+  if (Process.platform !== 'linux') {
+    console.error('This is only available on Android/Linux');
+    return '';
+  }
+  const _setfilecon = symf('setfilecon', 'int', ['pointer', 'pointer']);
+  if (_setfilecon === null) {
+    return 'Error: cannot find setfilecon symbol';
+  }
+  // TODO This doesnt run yet because permissions
+  // TODO If it runs as root, then file might be checked
+  const file = args[0];
+
+  const con = Memory.allocUtf8String('u:object_r:frida_file:s0');
+  const path = Memory.allocUtf8String(file);
+
+  const rv = _setfilecon(path, con);
+  return JSON.stringify({ ret: rv.value, errno: rv.errno });
+}
+
 module.exports = {
   sym,
   symf,
@@ -150,5 +170,6 @@ module.exports = {
   getPidJson,
   getOrSetEnv,
   getOrSetEnvJson,
-  dlopen
+  dlopen,
+  changeSelinuxContext
 };
