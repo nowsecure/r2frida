@@ -12,6 +12,15 @@ const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
+function initFoundation () {
+  // required for early instrumentation
+  try {
+    Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
+  } catch (e) {
+    // ignored
+  }
+}
+
 function getIOSVersion () {
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
@@ -371,6 +380,7 @@ class IOSPathTransform extends PathTransform {
 }
 
 module.exports = {
+  initFoundation,
   getIOSVersion,
   isiOS,
   isObjC,
