@@ -25,6 +25,7 @@ const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 function initFoundation () {
   // required for early instrumentation
   try {
@@ -34,6 +35,8 @@ function initFoundation () {
   }
 }
 
+=======
+>>>>>>> c8ee053 (Migrate getIOSVersion to darwin module)
 function getIOSVersion () {
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
@@ -43,8 +46,11 @@ function getIOSVersion () {
   return version;
 }
 
+<<<<<<< HEAD
 =======
 >>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
+=======
+>>>>>>> c8ee053 (Migrate getIOSVersion to darwin module)
 function isiOS () {
   return Process.platform === 'darwin' &&
     Process.arch.indexOf('arm') === 0 &&
@@ -434,6 +440,7 @@ module.exports = {
 >>>>>>> cd7ce71 (Move modules to lib folder)
 =======
 module.exports = {
+  getIOSVersion,
   isiOS,
 >>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
   isObjC,
