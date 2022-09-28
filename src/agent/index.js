@@ -265,7 +265,7 @@ const commandHandlers = {
   px: dump.Hexdump,
   x: dump.Hexdump,
   eval: expr.evalCode,
-  chcon: changeSelinuxContext,
+  chcon: sys.changeSelinuxContext,
 };
 
 async function initBasicInfoFromTarget (args) {
@@ -286,12 +286,7 @@ s entry0 2> /dev/null
 }
 
 if (Process.platform === 'darwin') {
-  // required for early instrumentation
-  try {
-    Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
-  } catch (e) {
-    // ignored
-  }
+  darwin.initFoundation();
 }
 
 function radareCommandInit () {
