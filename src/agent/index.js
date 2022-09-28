@@ -1,6 +1,7 @@
 /* eslint-disable comma-dangle */
 'use strict';
 
+const anal = require('./lib/anal');
 const android = require('./lib/java/android');
 const classes = require('./lib/info/classes');
 const config = require('./config');
@@ -24,20 +25,6 @@ const sys = require('./lib/sys');
 const swift = require('./lib/darwin/swift');
 const trace = require('./lib/debug/trace');
 const utils = require('./lib/utils');
-
-function initializePuts () {
-  const putsAddress = Module.findExportByName(null, 'puts');
-  const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
-
-  return function (s) {
-    if (putsFunction) {
-      const a = Memory.allocUtf8String(s);
-      putsFunction(a);
-    } else {
-      console.error(s);
-    }
-  };
-}
 
 let Gcwd = '/';
 
@@ -101,7 +88,7 @@ const commandHandlers = {
   ieq: info.listEntrypointQuiet,
   'ie*': info.listEntrypointR2,
   iej: info.listEntrypointJson,
-  afs: analFunctionSignature,
+  afs: anal.analFunctionSignature,
   ii: info.listImports,
   'ii*': info.listImportsR2,
   iij: info.listImportsJson,
@@ -297,44 +284,6 @@ if (Process.platform === 'darwin') {
   darwin.initFoundation();
 }
 
-function analFunctionSignature (args) {
-  if (!darwin.ObjCAvailable) {
-    return 'Error: afs is only implemented for ObjC methods.';
-  }
-  if (args.length === 0) {
-    return 'Usage: afs [class] [method]';
-  }
-  if (args.length === 1) {
-    return classes.listClasses(args);
-  }
-  if (args.length > 1) {
-    const klassName = args[0];
-    const methodName = args[1].replace(/:/g, '_');
-    const klass = ObjC.classes[klassName];
-    if (!klass) {
-      // try to resolve from DebugSymbol
-      const at = klassName.startsWith('0x')
-        ? DebugSymbol.fromAddress(ptr(klassName))
-        : DebugSymbol.fromName(klassName);
-      if (at) {
-        return JSON.stringify(at);
-      }
-      return 'Cannot find class named ' + klassName;
-    }
-    // const instance = ObjC.chooseSync(ObjC.classes[klassName])[0];
-    const instance = ObjC.chooseSync(klass)[0];
-    if (!instance) {
-      return 'Cannot find any instance for ' + klassName;
-    }
-    const method = instance[methodName];
-    if (!method) {
-      return 'Cannot find method ' + methodName + ' for class ' + klassName;
-    }
-    return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
-  }
-  return 'Usage: afs [klassName] [methodName]';
-}
-
 const requestHandlers = {
   safeio: () => { global.r2frida.safeio = true; },
   unsafeio: () => { if (!NeedsSafeIo) { global.r2frida.safeio = false; } },
@@ -377,14 +326,14 @@ function perform (params) {
   if (typeof name === 'undefined') {
     const value = getHelpMessage('');
     return [{
-      value: normalizeValue(value)
+      value: _normalizeValue(value)
     }, null];
   }
   if (name.length > 0 && name.endsWith('?') && !commandHandlers[name]) {
     const prefix = name.substring(0, name.length - 1);
     const value = getHelpMessage(prefix);
     return [{
-      value: normalizeValue(value)
+      value: _normalizeValue(value)
     }, null];
   }
   const userHandler = global.r2frida.commandHandler(name);
@@ -403,29 +352,16 @@ function perform (params) {
     return new Promise((resolve, reject) => {
       return value.then(output => {
         resolve([{
-          value: normalizeValue(output)
+          value: _normalizeValue(output)
         }, null]);
       }).catch(reject);
     });
   }
-  const nv = normalizeValue(value);
+  const nv = _normalizeValue(value);
   if (nv === '' || nv === 'null' || nv === undefined || nv === null) {
     return [{}, null];
   }
   return [{ value: nv }, null];
-}
-
-function normalizeValue (value) {
-  if (typeof value === null || typeof value === undefined) {
-    return null;
-  }
-  if (typeof value === 'undefined') {
-    return 'undefined';
-  }
-  if (typeof value === 'string') {
-    return value;
-  }
-  return JSON.stringify(value);
 }
 
 function evaluate (params) {
@@ -524,6 +460,33 @@ function onStanza (stanza, data) {
     console.error('Unhandled stanza: ' + stanza.type);
   }
   recv(onStanza);
+}
+
+function initializePuts () {
+  const putsAddress = Module.findExportByName(null, 'puts');
+  const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
+
+  return function (s) {
+    if (putsFunction) {
+      const a = Memory.allocUtf8String(s);
+      putsFunction(a);
+    } else {
+      console.error(s);
+    }
+  };
+}
+
+function _normalizeValue (value) {
+  if (typeof value === null || typeof value === undefined) {
+    return null;
+  }
+  if (typeof value === 'undefined') {
+    return 'undefined';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return JSON.stringify(value);
 }
 
 global.r2frida.hostCmd = r2.hostCmd;
