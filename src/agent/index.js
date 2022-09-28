@@ -25,13 +25,6 @@ const swift = require('./lib/darwin/swift');
 const trace = require('./lib/debug/trace');
 const utils = require('./lib/utils');
 
-// r2->io->frida->r2pipe->r2
-let _r2 = null;
-let _r_core_new = null; // eslint-disable-line camelcase
-let _r_core_cmd_str = null; // eslint-disable-line camelcase
-let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
-let _free = null;
-
 function initializePuts () {
   const putsAddress = Module.findExportByName(null, 'puts');
   const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
@@ -86,8 +79,8 @@ const commandHandlers = {
   dcu: debug.breakpointContinueUntil,
   dk: debug.sendSignal,
 
-  s: radareSeek,
-  r: radareCommand,
+  s: r2.radareSeek,
+  r: r2.radareCommand,
 
   ie: info.listEntrypoint,
   ieq: info.listEntrypointQuiet,
@@ -287,67 +280,6 @@ s entry0 2> /dev/null
 
 if (Process.platform === 'darwin') {
   darwin.initFoundation();
-}
-
-function radareCommandInit () {
-  if (_r2) {
-    return true;
-  }
-  if (!_r_core_new) {
-    _r_core_new = sym('r_core_new', 'pointer', []);
-    if (!_r_core_new) {
-      console.error('ERROR: Cannot find r_core_new. Do :dl /tmp/libr.dylib');
-      return false;
-    }
-    _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
-    _r_core_free = sym('r_core_free', 'void', ['pointer']);
-    _free = sym('free', 'void', ['pointer']);
-    _r2 = _r_core_new();
-  }
-  return true;
-}
-
-function radareCommandString (cmd) {
-  if (_r2) {
-    const aCmd = Memory.allocUtf8String(cmd);
-    const ptr = _r_core_cmd_str(_r2, aCmd);
-    const str = Memory.readCString(ptr);
-    _free(ptr);
-    return str;
-  }
-  console.error('Warning: not calling back r2');
-  return '';
-}
-
-function radareSeek (args) {
-  const addr = getPtr('' + args);
-  const cmdstr = 's ' + (addr || '' + args);
-  return cmdstr;
-  // XXX hangs
-  // return r2.hostCmd(cmdstr);
-}
-
-function radareCommand (args) {
-  const cmd = args.join(' ');
-  if (cmd.length === 0) {
-    return 'Usage: :r [cmd]';
-  }
-  if (radareCommandInit()) {
-    return radareCommandString(cmd);
-  }
-  return ':dl /tmp/libr.dylib';
-}
-
-function getModuleByAddress (addr) {
-  const m = config.getString('symbols.module');
-  if (m !== '') {
-    return Process.getModuleByName(m);
-  }
-  try {
-    return Process.getModuleByAddress(addr);
-  } catch (e) {
-    return Process.getModuleByAddress(ptr(global.r2frida.offset));
-  }
 }
 
 function analFunctionSignature (args) {
