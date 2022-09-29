@@ -4,6 +4,7 @@ const { getModuleByAddress } = require('./lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
+const fs = require('../fs');
 const java = require('../java/index');
 const r2 = require('../r2');
 const sys = require('../sys');
@@ -46,7 +47,7 @@ async function dumpInfoJson () {
     pointerSize: Process.pointerSize,
     codeSigningPolicy: Process.codeSigningPolicy,
     isDebuggerAttached: Process.isDebuggerAttached(),
-    cwd: sys.getCwd()
+    cwd: fs.getCwd()
   };
 
   if (darwin.ObjCAvailable && !debug.suspended) {
