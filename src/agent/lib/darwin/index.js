@@ -22,6 +22,9 @@ function initFoundation () {
 }
 
 function getIOSVersion () {
+  if (!ObjCAvailable) {
+    return '?';
+  }
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
   // E.g. "Version 13.5 (Build 17F75)"

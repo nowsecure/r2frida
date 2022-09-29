@@ -28,22 +28,9 @@ const utils = require('./lib/utils');
 
 let Gcwd = '/';
 
-const NeedsSafeIo = isLinuxArm32 || isIOS15;
-// const NeedsSafeIo = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-/*
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const isIOS15 = darwin.getIOSVersion().startsWith('15');
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
-
-function getIOSVersion () {
-  const processInfo = ObjC.classes.NSProcessInfo.processInfo();
-  const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
-  // E.g. "Version 13.5 (Build 17F75)"
-  const version = versionString.split(' ')[1];
-  // E.g. 13.5
-  return version;
-}
-*/
 
 const commandHandlers = {
   E: expr.evalNum,
