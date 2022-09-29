@@ -2,8 +2,6 @@
 
 const classes = require('./info/classes');
 const darwin = require('./darwin');
-const classes = require('./info/classes');
-const darwin = require('./darwin');
 
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
