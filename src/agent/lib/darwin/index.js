@@ -102,10 +102,10 @@ function dxObjc (args) {
   const [v, t] = utils.autoType(args.slice(2));
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
-      if (instancePointer.hasOwnProperty(methodName)) {
+      if (Object.prototype.hasOwnProperty.call(instancePointer, methodName)) {
         instancePointer[methodName](...t);
       } else {
-        console.error('unknown method ' + methodName + ' for objc instance at ' + padPointer(ptr(instancePointer)));
+        console.error('unknown method ' + methodName + ' for objc instance at ' + utils.padPointer(ptr(instancePointer)));
       }
     });
   } catch (e) {
