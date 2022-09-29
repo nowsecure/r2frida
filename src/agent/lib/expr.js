@@ -20,7 +20,6 @@ function evalNum (args) {
   });
 }
 
-<<<<<<< HEAD
 function evalCode (args) {
   const code = args.join(' ');
   const result = eval(code); // eslint-disable-line
@@ -31,9 +30,4 @@ module.exports = {
   numEval,
   evalNum,
   evalCode
-=======
-module.exports = {
-  numEval,
-  evalNum
->>>>>>> cd7ce71 (Move modules to lib folder)
 };

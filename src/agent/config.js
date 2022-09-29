@@ -275,15 +275,7 @@ function evalConfig (args) {
 }
 
 function evalConfigSearch (args) {
-<<<<<<< HEAD
-<<<<<<< HEAD
   const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
-=======
-  const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
->>>>>>> 1f1e57c (Migrate eval cfgs commands to config module)
-=======
-  const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
->>>>>>> 4a727c3 (Move intercept cmds to interceptor module)
   const from = currentRange.base;
   const to = from.add(currentRange.size);
   return `e search.in=range

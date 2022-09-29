@@ -1,34 +1,19 @@
 'use strict';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 const { listClasses } = require('../info/classes');
 const utils = require('../utils');
 const { PathTransform, VirtualEnt, flatify, nsArrayMap } = require('../fs');
 
-=======
-<<<<<<<< HEAD:src/agent/lib/darwin/index.js
 const utils = require('../utils');
 
-========
->>>>>>>> cd7ce71 (Move modules to lib folder):src/agent/darwin/index.js
->>>>>>> cd7ce71 (Move modules to lib folder)
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
 const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 
 /* ObjC.available is buggy on non-objc apps, so override this */
-<<<<<<< HEAD
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function initFoundation () {
   // required for early instrumentation
   try {
@@ -38,11 +23,6 @@ function initFoundation () {
   }
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> c8ee053 (Migrate getIOSVersion to darwin module)
-=======
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function getIOSVersion () {
   const processInfo = ObjC.classes.NSProcessInfo.processInfo();
   const versionString = processInfo.operatingSystemVersionString().UTF8String().toString();
@@ -52,22 +32,11 @@ function getIOSVersion () {
   return version;
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
-=======
->>>>>>> c8ee053 (Migrate getIOSVersion to darwin module)
 function isiOS () {
   return Process.platform === 'darwin' &&
     Process.arch.indexOf('arm') === 0 &&
     ObjC.available;
 }
-<<<<<<< HEAD
-=======
-const ObjCAvailable = (Process.platform === 'darwin') && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 
 function isObjC (p) {
   const klass = getObjCClassPtr(p);
@@ -129,15 +98,7 @@ function dxObjc (args) {
     instancePointer = instances[0];
   }
   const methodName = args[1];
-<<<<<<< HEAD
-<<<<<<< HEAD
   const [v, t] = utils.autoType(args.slice(2));
-=======
-  const [v, t] = autoType(args.slice(2));
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-  const [v, t] = utils.autoType(args.slice(2));
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
       if (instancePointer.hasOwnProperty(methodName)) {
@@ -225,15 +186,7 @@ function parseMachoHeader (offset) {
     filetype: offset.add(0x0c).readU32(),
     ncmds: offset.add(0x10).readU32(),
     sizeofcmds: offset.add(0x14).readU32(),
-<<<<<<< HEAD
-<<<<<<< HEAD
     flags: offset.add(0x18).readU32()
-=======
-    flags: offset.add(0x18).readU32(),
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-    flags: offset.add(0x18).readU32()
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
   };
   if (header.cputype === 0x0100000c) {
     // arm64
@@ -247,11 +200,7 @@ function parseMachoHeader (offset) {
 }
 
 function _isMachoHeaderAtOffset (offset) {
-<<<<<<< HEAD
   const cursor = utils.trunc4k(offset);
-=======
-  const cursor = trunc4k(offset);
->>>>>>> cd7ce71 (Move modules to lib folder)
   if (cursor.readU32() === 0xfeedfacf) {
     return true;
   }
@@ -338,10 +287,6 @@ function unloadFrameworkBundle (args) {
   return bundle.unload();
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 class IOSPathTransform extends PathTransform {
   constructor () {
     super();
@@ -436,19 +381,10 @@ class IOSPathTransform extends PathTransform {
   }
 }
 
-<<<<<<< HEAD
 module.exports = {
   initFoundation,
   getIOSVersion,
   isiOS,
-=======
-module.exports = {
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-module.exports = {
-  getIOSVersion,
-  isiOS,
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
   isObjC,
   ObjCAvailable,
   hasMainLoop,
@@ -459,15 +395,6 @@ module.exports = {
   getSections,
   getSegments,
   loadFrameworkBundle,
-<<<<<<< HEAD
-<<<<<<< HEAD
   unloadFrameworkBundle,
   IOSPathTransform
-=======
-  unloadFrameworkBundle
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-  unloadFrameworkBundle,
-  IOSPathTransform
->>>>>>> 282644a (Move fs commands to fs module and migrate iOS cmds to darwin module)
 };

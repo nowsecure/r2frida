@@ -1,6 +1,5 @@
 'use strict';
 
-<<<<<<< HEAD
 const { sym } = require('./sys');
 const utils = require('./utils');
 
@@ -17,24 +16,6 @@ let _r_core_cmd_str = null; // eslint-disable-line camelcase
 let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
 let _free = null;
 
-=======
-const globals = require('./globals');
-const { sym } = require('./sys');
-const utils = require('./utils');
-
-let cmdSerial = 0;
-
-<<<<<<< HEAD
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-// r2->io->frida->r2pipe->r2
-let _r2 = null;
-let _r_core_new = null; // eslint-disable-line camelcase
-let _r_core_cmd_str = null; // eslint-disable-line camelcase
-let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
-let _free = null;
-
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function getR2Arch (arch) {
   switch (arch) {
     case 'ia32':
@@ -65,11 +46,7 @@ function hostCmd (cmd) {
   return new Promise((resolve) => {
     const serial = cmdSerial;
     cmdSerial++;
-<<<<<<< HEAD
     pendingCmds[serial] = resolve;
-=======
-    globals.pendingCmds[serial] = resolve;
->>>>>>> cd7ce71 (Move modules to lib folder)
     _sendCommand(cmd, serial);
   });
 }
@@ -84,32 +61,19 @@ function hostCmdj (cmd) {
 function onCmdResp (params) {
   const { serial, output } = params;
 
-<<<<<<< HEAD
   sendingCommand = false;
 
   if (serial in pendingCmds) {
     const onFinish = pendingCmds[serial];
     delete pendingCmds[serial];
-=======
-  globals.sendingCommand = false;
-
-  if (serial in globals.pendingCmds) {
-    const onFinish = globals.pendingCmds[serial];
-    delete globals.pendingCmds[serial];
->>>>>>> cd7ce71 (Move modules to lib folder)
     process.nextTick(() => onFinish(output));
   } else {
     throw new Error('Command response out of sync');
   }
 
   process.nextTick(() => {
-<<<<<<< HEAD
     if (!sendingCommand) {
       const nextSend = pendingCmdSends.shift();
-=======
-    if (!globals.sendingCommand) {
-      const nextSend = globals.pendingCmdSends.shift();
->>>>>>> cd7ce71 (Move modules to lib folder)
       if (nextSend !== undefined) {
         nextSend();
       }
@@ -121,33 +85,20 @@ function onCmdResp (params) {
 
 function _sendCommand (cmd, serial) {
   function sendIt () {
-<<<<<<< HEAD
     sendingCommand = true;
-=======
-    globals.sendingCommand = true;
->>>>>>> cd7ce71 (Move modules to lib folder)
     send(utils.wrapStanza('cmd', {
       cmd: cmd,
       serial: serial
     }));
   }
 
-<<<<<<< HEAD
   if (sendingCommand) {
     pendingCmdSends.push(sendIt);
-=======
-  if (globals.sendingCommand) {
-    globals.pendingCmdSends.push(sendIt);
->>>>>>> cd7ce71 (Move modules to lib folder)
   } else {
     sendIt();
   }
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 function radareSeek (args) {
   const addr = utils.getPtr('' + args);
   const cmdstr = 's ' + (addr || '' + args);
@@ -197,27 +148,12 @@ function _radareCommandString (cmd) {
   return '';
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 module.exports = {
   getR2Arch,
   hostCmds,
   hostCmd,
   hostCmdj,
-<<<<<<< HEAD
-<<<<<<< HEAD
   onCmdResp,
   radareSeek,
   radareCommand
-=======
-  onCmdResp
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-  onCmdResp,
-  radareSeek,
-  radareCommand
->>>>>>> 6acc98c (Migrate r2 cmds to r2 module)
 };

@@ -1,25 +1,14 @@
 'use strict';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 const { getModuleByAddress } = require('./lookup');
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
-=======
-=======
-const { getModuleByAddress } = require('lookup');
->>>>>>> 012de33 (Move getModuleByAddress to lookup module)
-=======
 const { getModuleByAddress } = require('./lookup');
->>>>>>> 1ace902 (Fix some references)
 const config = require('../../config');
 const debug = require('../debug');
 const darwin = require('../darwin');
-const globals = require('../globals');
->>>>>>> cd7ce71 (Move modules to lib folder)
-const java = require('../java/index');
+const java = require('../java');
 const r2 = require('../r2');
 const sys = require('../sys');
 const swift = require('../darwin/swift');
@@ -41,22 +30,14 @@ async function dumpInfoR2 () {
     'e asm.arch=' + properties.arch,
     'e asm.bits=' + properties.bits,
     'e asm.os=' + properties.os,
-<<<<<<< HEAD
     'f r2f.modulebase=' + properties.modulebase
-=======
-    'f r2f.modulebase=' + properties.modulebase,
->>>>>>> cd7ce71 (Move modules to lib folder)
   ].join('\n') + jnienv;
 }
 
 async function dumpInfoJson () {
   const res = {
     arch: r2.getR2Arch(Process.arch),
-<<<<<<< HEAD
     bits: Process.pointerSize * 8,
-=======
-    bits: globals.pointerSize * 8,
->>>>>>> cd7ce71 (Move modules to lib folder)
     os: Process.platform,
     pid: sys.getPid(),
     uid: sys._getuid(),

@@ -4,10 +4,6 @@ const r2 = require('../r2');
 const sys = require('../sys');
 const utils = require('../utils');
 
-<<<<<<< HEAD
-=======
-/* Globals */
->>>>>>> cd7ce71 (Move modules to lib folder)
 const newBreakpoints = new Map();
 let suspended = false;
 
@@ -133,11 +129,7 @@ function breakpointNativeCommand (args) {
 }
 
 function breakpointUnset (args) {
-<<<<<<< HEAD
   const addr = utils.getPtr(args[0]).toString();
-=======
-  const addr = args[0];
->>>>>>> cd7ce71 (Move modules to lib folder)
   const bp = newBreakpoints.get(addr);
   for (const p of bp.patches) {
     p.disable();
@@ -183,11 +175,7 @@ function _breakpointList (args) {
 }
 
 function _breakpointSet (args) {
-<<<<<<< HEAD
   const ptrAddr = utils.getPtr(args[0]);
-=======
-  const ptrAddr = ptr(args[0]);
->>>>>>> cd7ce71 (Move modules to lib folder)
 
   const p1 = new CodePatch(ptrAddr);
   const p2 = new CodePatch(p1.insn.next);

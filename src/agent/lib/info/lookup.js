@@ -1,13 +1,6 @@
 'use strict';
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 const config = require('../../config');
-=======
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-const config = require('../../config');
->>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 const utils = require('../utils');
 
 function lookupDebugInfo (args) {
@@ -203,10 +196,6 @@ function _getModuleAt (addr) {
   return modules.length > 0 ? modules[0] : null;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 function getModuleByAddress (addr) {
   const m = config.getString('symbols.module');
   if (m !== '') {
@@ -219,11 +208,6 @@ function getModuleByAddress (addr) {
   }
 }
 
-<<<<<<< HEAD
-=======
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
->>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 module.exports = {
   lookupSymbol,
   lookupSymbolR2,
@@ -238,15 +222,6 @@ module.exports = {
   lookupExportR2,
   lookupDebugInfo,
   lookupAddress,
-<<<<<<< HEAD
-<<<<<<< HEAD
   lookupAddressR2,
   getModuleByAddress
-=======
-  lookupAddressR2
->>>>>>> cd7ce71 (Move modules to lib folder)
-=======
-  lookupAddressR2,
-  getModuleByAddress
->>>>>>> 012de33 (Move getModuleByAddress to lookup module)
 };
