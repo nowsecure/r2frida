@@ -93,7 +93,7 @@ function dxObjc (args) {
       return 'Cannot find objc class ' + klassName;
     }
     const instances = ObjC.chooseSync(ObjC.classes[klassName]);
-    if (!instances) {
+    if (!instances || instances[0] === undefined) {
       return 'Cannot find any instance for klass ' + klassName;
     }
     instancePointer = instances[0];
