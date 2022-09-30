@@ -99,11 +99,18 @@ function dxObjc (args) {
     instancePointer = instances[0];
   }
   const methodName = args[1];
-  const [v, t] = utils.autoType(args.slice(2));
+  const [v, t] = utils.autoType(args.slice(2)); // eslint-disable-line no-unused-vars
   try {
     ObjC.schedule(ObjC.mainQueue, function () {
       if (Object.prototype.hasOwnProperty.call(instancePointer, methodName)) {
-        instancePointer[methodName](...t);
+        const retval = instancePointer[methodName](...t);
+        if (retval !== undefined) {
+          if (retval.class !== undefined) {
+            console.log(ObjC.Object(retval).toString());
+          } else {
+            console.log(retval);
+          }
+        }
       } else {
         console.error('unknown method ' + methodName + ' for objc instance at ' + utils.padPointer(ptr(instancePointer)));
       }
