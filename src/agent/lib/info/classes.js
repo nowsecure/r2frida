@@ -1,6 +1,6 @@
 'use strict';
 
-const darwin = require('../darwin');
+const { ObjCAvailable } = require('../darwin');
 const java = require('../java');
 const search = require('../search');
 const utils = require('../utils');
@@ -9,7 +9,7 @@ function listClassesLoadedJson (args) {
   if (java.JavaAvailable) {
     return java.listClasses(args);
   }
-  if (darwin.ObjCAvailable) {
+  if (ObjCAvailable) {
     return JSON.stringify(ObjC.enumerateLoadedClassesSync());
   }
 }
@@ -56,7 +56,7 @@ function listClassesLoaded (args) {
   if (java.JavaAvailable) {
     return listClasses(args);
   }
-  if (darwin.ObjCAvailable) {
+  if (ObjCAvailable) {
     const results = ObjC.enumerateLoadedClassesSync();
     const loadedClasses = [];
     for (const module of Object.keys(results)) {
@@ -132,7 +132,7 @@ function listClassesHooks (args, mode) {
   }
   const moduleNames = {};
   const result = listClassesJson([]);
-  if (darwin.ObjCAvailable) {
+  if (ObjCAvailable) {
     const klasses = ObjC.classes;
     for (const k of result) {
       moduleNames[k] = ObjC.classes[k].$moduleName;
@@ -161,7 +161,7 @@ function listClassesWhere (args, mode) {
   if (args.length === 0) {
     const moduleNames = {};
     const result = listClassesJson([]);
-    if (darwin.ObjCAvailable) {
+    if (ObjCAvailable) {
       const klasses = ObjC.classes;
       for (const k of result) {
         moduleNames[k] = klasses[k].$moduleName;
@@ -175,7 +175,7 @@ function listClassesWhere (args, mode) {
   } else {
     const moduleNames = {};
     const result = listClassesJson([]);
-    if (darwin.ObjCAvailable) {
+    if (ObjCAvailable) {
       const klasses = ObjC.classes;
       for (const k of result) {
         moduleNames[k] = ObjC.classes[k].$moduleName;
@@ -217,7 +217,7 @@ function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
-    if (darwin.ObjCAvailable) {
+    if (ObjCAvailable) {
       for (const cn of Object.keys(ObjC.classes)) {
         if (_classGlob(cn, args[0])) {
           methods += listClassesR2([cn]);
@@ -256,7 +256,7 @@ function listClassesJson (args, mode) {
   if (java.JavaAvailable) {
     return java.listJavaClassesJson(args, mode === 'methods');
   }
-  if (!darwin.ObjCAvailable) {
+  if (!ObjCAvailable) {
     return [];
   }
   if (args.length === 0) {
@@ -308,7 +308,7 @@ function listProtocols (args) {
 }
 
 function listProtocolsJson (args) {
-  if (!darwin.ObjCAvailable) {
+  if (!ObjCAvailable) {
     return [];
   }
   if (args.length === 0) {
