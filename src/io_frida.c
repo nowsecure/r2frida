@@ -1015,10 +1015,13 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	/* load scripts */
 	RCore *core = rf->r2core;
-	const char *path = DATADIR R_SYS_DIR "r2frida" R_SYS_DIR "scripts";
-	load_scripts (core, fd, path);
+	load_scripts (core, fd, R2_DATDIR "/r2frida/scripts");
 
+#if R2_VERSION_NUMBER < 50709
 	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
+#else
+	char *homepath = r_xdg_datadir ("r2frida/scripts");
+#endif
 	load_scripts (core, fd, homepath);
 	free (homepath);
 	if (!user_wants_safe_io (rf->device)) {

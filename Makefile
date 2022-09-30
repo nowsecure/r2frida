@@ -159,12 +159,12 @@ ext/frida: $(FRIDA_SDK)
 	[ "`readlink ext/frida`" = frida-$(frida_os)-$(frida_version) ] || \
 		(cd ext && rm -f frida ; ln -fs frida-$(frida_os)-$(frida_version) frida)
 
-config.mk:
+config.mk config.h:
 	./configure
 
 io_frida.$(SO_EXT): src/io_frida.o
 	pkg-config --cflags r_core
-	$(CXX) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
