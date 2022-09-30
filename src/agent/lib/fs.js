@@ -1,6 +1,5 @@
 'use strict';
 
-const darwin = require('./darwin');
 const { toByteArray } = require('base64-js');
 const { normalize } = require('path');
 const path = require('path');
@@ -264,8 +263,9 @@ class FridaFS {
 
   get transform () {
     if (this._transform === null) {
-      if (darwin.isiOS()) {
-        this._transform = new darwin.IOSPathTransform();
+      const { isiOS, IOSPathTransform } = require('./darwin');
+      if (isiOS()) {
+        this._transform = new IOSPathTransform();
       } else {
         this._transform = new NULLTransform();
       }
