@@ -1,6 +1,5 @@
 'use strict';
 
-const { listClasses } = require('../info/classes');
 const utils = require('../utils');
 const { PathTransform, VirtualEnt, flatify, nsArrayMap } = require('../fs');
 
@@ -81,6 +80,7 @@ function dxObjc (args) {
     return 'Usage: dxo [klassname|instancepointer] [methodname] [args...]';
   }
   if (args.length === 1) {
+    const { listClasses } = require('../info/classes');
     return listClasses(args);
   }
   // Usage: "dxo instance-pointer [arg0 arg1]"
