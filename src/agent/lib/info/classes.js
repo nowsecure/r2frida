@@ -292,8 +292,8 @@ function listClassesJson (args, mode) {
       .reduce((result, methodName) => {
         try {
           result[methodName] = getImpl(klass[methodName].handle);
-        } catch (_) {
-          console.error('warning: unsupported method \'' + methodName + '\' in ' + klassName);
+        } catch (e) {
+          console.error(e, ' in \'' + methodName + '\' of ' + klassName);
         }
         return result;
       }, {});
