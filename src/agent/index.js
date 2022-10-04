@@ -1,10 +1,10 @@
 /* eslint-disable comma-dangle */
 'use strict';
 
+const config = require('./config');
 const anal = require('./lib/anal');
 const android = require('./lib/java/android');
 const classes = require('./lib/info/classes');
-const config = require('./config');
 const darwin = require('./lib/darwin');
 const debug = require('./lib/debug');
 const disasm = require('./lib/disasm');
