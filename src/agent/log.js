@@ -1,15 +1,15 @@
 'use strict';
 
 const config = require('./config');
-const utils = require('./lib/utils');
 
 const logs = [];
 const traces = {};
 
 function traceEmit (msg) {
+  const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
   const fileLog = config.getString('file.log');
   if (fileLog.length > 0) {
-    send(utils.wrapStanza('log-file', {
+    send(wrapStanza('log-file', {
       filename: fileLog,
       message: msg
     }));
@@ -23,8 +23,9 @@ function traceEmit (msg) {
 }
 
 function traceLog (msg) {
+  const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
   if (config.getBoolean('hook.verbose')) {
-    send(utils.wrapStanza('log', {
+    send(wrapStanza('log', {
       message: msg
     }));
   }
