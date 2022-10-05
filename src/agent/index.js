@@ -462,7 +462,7 @@ function initializePuts () {
 }
 
 function _normalizeValue (value) {
-  if (typeof value === null || typeof value === undefined) {
+  if (value === null) {
     return null;
   }
   if (typeof value === 'undefined') {

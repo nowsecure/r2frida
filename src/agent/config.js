@@ -240,9 +240,9 @@ function evalConfig (args) {
   if (argstr.endsWith('.')) {
     // list k=v of all the keys starting with argstr
     let s = '';
-    for (let k of Object.keys(config)) {
+    for (const k of Object.keys(config)) {
       if (k.startsWith(argstr)) {
-        s += ':e ' + k + ' = ' + config[k] + '\n'
+        s += ':e ' + k + ' = ' + config[k] + '\n';
       }
     }
     return s;
