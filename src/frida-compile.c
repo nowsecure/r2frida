@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include "frida-core.h"
 
 static int on_compiler_diagnostics (void) {
@@ -11,7 +12,7 @@ int main(int argc, char **argv) {
 	GError *error = NULL;
 	const char *filename = "index.ts";
 	if (argc < 2) {
-		printf ("Usage: frida-compile [file.{js,ts}] ...\n");
+		printf ("Usage: frida-compile [-] [file.{js,ts}] ...\n");
 		return 1;
 	}
 
@@ -26,6 +27,7 @@ int main(int argc, char **argv) {
 		printf ("Cannot open local frida device\n");
 		return 1;
 	}
+	char buf[1024];
 	FridaCompiler *compiler = frida_compiler_new (device_manager);
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
 	FridaBuildOptions * fbo = frida_build_options_new ();
@@ -35,8 +37,26 @@ int main(int argc, char **argv) {
 	//frida_compiler_options_set_project_root (fco, "../src/agent/"); // ".");
 
 	int i;
-	for (i = 1; i < argc; i++) {
+	bool stdin_mode = false;
+	for (i = 1; stdin_mode || i < argc; i = stdin_mode? i: i+1) {
 		char *filename = strdup (argv[i]);
+		if (stdin_mode) {
+			fflush (stdin);
+			fgets (buf, sizeof (buf), stdin);
+			buf[sizeof (buf) -1] = 0;
+			free (filename);
+			int len = strlen (buf);
+			if (len > 0) {
+				buf[len - 1] = 0;
+			}
+			filename = strdup (buf);
+		} else {
+			if (!strcmp (filename, "-")) {
+				// enter stdin mode
+				stdin_mode = true;
+				continue;
+			}
+		}
 		// compile_file (argv[i]);
 		char *slash = strrchr (filename, '/');
 		if (slash) {
