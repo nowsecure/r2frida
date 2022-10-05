@@ -162,7 +162,7 @@ ext/frida: $(FRIDA_SDK)
 config.mk config.h:
 	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o
+io_frida.$(SO_EXT): src/io_frida.o src/frida-compile
 	pkg-config --cflags r_core
 	$(CC) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
@@ -290,6 +290,9 @@ indent fix: node_modules
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
+
+src/frida-compile:
+	$(CC) -g $(FRIDA_CFLAGS) $(FRIDA_LIBS) -Iext/frida src/frida-compile.c -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
