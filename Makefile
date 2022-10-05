@@ -1,10 +1,10 @@
 include config.mk
 
 R2V=$(VERSION)
-R2V=5.7.8
+R2V=5.7.2
 frida_version=15.2.2
 R2FRIDA_PRECOMPILED_AGENT?=0
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.6/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.4/_agent.js
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 
@@ -121,6 +121,7 @@ LDFLAGS+=-Wl,--gc-sections
 endif
 
 all: .git/modules/ext ext/frida
+	$(MAKE) src/frida-compile
 	$(MAKE) io_frida.$(SO_EXT)
 
 deb:
@@ -162,7 +163,7 @@ ext/frida: $(FRIDA_SDK)
 config.mk config.h:
 	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o src/frida-compile
+io_frida.$(SO_EXT): src/io_frida.o
 	pkg-config --cflags r_core
 	$(CC) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
@@ -292,7 +293,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/frida-compile:
-	$(CC) -g $(FRIDA_CFLAGS) $(FRIDA_LIBS) -Iext/frida src/frida-compile.c -o src/frida-compile
+	$(CC) src/frida-compile.c -g $(FRIDA_CPPFLAGS) $(shell pkg-config --libs r_util) $(FRIDA_LIBS) -Iext/frida -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)

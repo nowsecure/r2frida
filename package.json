@@ -16,7 +16,7 @@
     "frida-compile": "10.2.5"
   },
   "engines": {
-    "node": ">=12"
+    "node": ">=14.16"
   },
   "devDependencies": {
     "semistandard": "16.0.1"
