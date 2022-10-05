@@ -81,7 +81,7 @@ CFLAGS+=-DWANT_SESSION_DEBUGGER=$(WANT_SESSION_DEBUGGER)
 # FRIDA
 FRIDA_SDK=ext/frida-$(frida_os)-$(frida_version)/libfrida-core.a
 FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/frida-core-devkit-$(frida_version)-$(frida_os_arch).tar.xz
-FRIDA_CPPFLAGS+=-Iext/frida
+FRIDA_CFLAGS+=-Iext/frida
 FRIDA_CORE_LIBS=ext/frida/libfrida-core.a
 #FRIDA_CORE_LIBS=$(shell find /tmp/lib/*.a)
 ifneq ($(frida_os),android)
@@ -121,7 +121,7 @@ LDFLAGS+=-Wl,--gc-sections
 endif
 
 all: .git/modules/ext ext/frida
-	$(MAKE) src/frida-compile
+	# $(MAKE) src/frida-compile
 	$(MAKE) io_frida.$(SO_EXT)
 
 deb:
@@ -168,7 +168,7 @@ io_frida.$(SO_EXT): src/io_frida.o
 	$(CC) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
-	$(CC) -c $(CFLAGS) $(FRIDA_CPPFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
 .git/modules/ext:
 	git submodule update --init
@@ -292,8 +292,8 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-src/frida-compile:
-	$(CC) src/frida-compile.c -g $(FRIDA_CPPFLAGS) $(shell pkg-config --libs r_util) $(FRIDA_LIBS) -Iext/frida -o src/frida-compile
+src/frida-compile: src/frida-compile.c
+	$(CC) src/frida-compile.c -g $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) -Iext/frida -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
