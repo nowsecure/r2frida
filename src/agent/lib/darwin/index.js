@@ -15,6 +15,7 @@ function initFoundation () {
   // required for early instrumentation
   try {
     Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
+    Module.load('/System/Library/PrivateFrameworks/AppSSOCore.framework/AppSSOCore');
   } catch (e) {
     // ignored
   }
