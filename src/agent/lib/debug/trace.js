@@ -88,9 +88,10 @@ function traceFormat (args) {
     },
     onLeave: function (retval) {
       if (!traceOnEnter) {
-        const fa = _formatArgs(this.keepArgs, format);
-        this.myArgs = fa.args;
-        this.myDumps = fa.dumps;
+        const fmtArgs = _formatArgs(this.keepArgs, format);
+        const fmtRet = _formatRetval(retval, format);
+        this.myArgs = fmtArgs.args;
+        this.myDumps = fmtArgs.dumps;
 
         const traceMessage = {
           source: 'dtf',
@@ -98,7 +99,7 @@ function traceFormat (args) {
           address: address,
           timestamp: new Date(),
           values: this.myArgs,
-          retval
+          retval: fmtRet
         };
         if (config.getBoolean('hook.backtrace')) {
           traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
@@ -106,7 +107,7 @@ function traceFormat (args) {
         if (config.getString('hook.output') === 'json') {
           log.traceEmit(traceMessage);
         } else {
-          let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${retval.toString()}`;
+          let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${fmtRet}`;
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
@@ -459,8 +460,17 @@ function _cloneArgs (args, fmt) {
   return a;
 }
 
+function _formatRetval (retval, fmt) {
+  if (retval !== undefined && !retval.isNull()) {
+    const retToken = fmt.indexOf('%');
+    if (retToken !== -1) {
+      return fmt[retToken + 1] !== undefined ? _format(retval, fmt[retToken + 1]) : retval;
+    }
+  }
+}
+
 function _formatArgs (args, fmt) {
-  const a = [];
+  const fmtArgs = [];
   const dumps = [];
   let arg; let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
@@ -469,101 +479,105 @@ function _formatArgs (args, fmt) {
     } catch (err) {
       console.error('invalid format', i);
     }
-    switch (fmt[i]) {
-      case '+':
-      case '^':
-        j--;
-        break;
-      case 'h': {
-        // hexdump pointer target, default length 128
-        // customize length with h<length>, f.e. h16 to dump 16 bytes
-        let dumpLen = 128;
-        const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
-        if (optionalNumStr.length > 0) {
-          i += optionalNumStr.length;
-          dumpLen = +optionalNumStr;
-        }
-        dumps.push(_hexdumpUntrusted(arg, dumpLen));
-        a.push(`dump:${dumps.length} (len=${dumpLen})`);
+    if (fmt[i] === '+' || fmt[i] === '^') {
+      j--;
+    } else if (fmt[i] === '%') {
+      break;
+    } else if (fmt[i] === 'Z') {
+      fmtArgs.push(`${JSON.stringify(_readUntrustedUtf8(arg, +args[j + 1]))}`);
+    } else if (fmt[i] === 'h') {
+      // hexdump pointer target, default length 128
+      // customize length with h<length>, f.e. h16 to dump 16 bytes
+      let dumpLen = 128;
+      const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
+      if (optionalNumStr.length > 0) {
+        i += optionalNumStr.length;
+        dumpLen = +optionalNumStr;
       }
-        break;
-      case 'H': {
-        // hexdump pointer target, default length 128
-        // use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
-        let dumpLen = 128;
-        const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
-        if (optionalNumStr.length > 0) {
-          i += optionalNumStr.length;
-          const posLenArg = +optionalNumStr;
-          if (posLenArg !== j) {
-            // only adjust dump length, if the length param isn't the dump address itself
-            dumpLen = +args[posLenArg];
-          }
+      fmtArgs.push(`dump:${dumps.length} (len=${dumpLen})`);
+      dumps.push(_hexdumpUntrusted(arg, dumpLen));
+    } else if (fmt[i] === 'H') {
+      // hexdump pointer target, default length 128
+      // use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
+      let dumpLen = 128;
+      const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
+      if (optionalNumStr.length > 0) {
+        i += optionalNumStr.length;
+        const posLenArg = +optionalNumStr;
+        if (posLenArg !== j) {
+          // only adjust dump length, if the length param isn't the dump address itself
+          dumpLen = +args[posLenArg];
         }
-        // limit dumpLen, to avoid oversized dumps, caused by  accidentally parsing pointer agrs as length
-        // set length limit to 64K for now
-        const lenLimit = 0x10000;
-        dumpLen = dumpLen > lenLimit ? lenLimit : dumpLen;
-        dumps.push(_hexdumpUntrusted(arg, dumpLen));
-        a.push(`dump:${dumps.length} (len=${dumpLen})`);
       }
-        break;
-      case 'x':
-        a.push('' + ptr(arg));
-        break;
-      case 'c':
-        a.push("'" + arg + "'");
-        break;
-      case 'i':
-        a.push(+arg);
-        break;
-      case 'z': // *s
-        a.push(JSON.stringify(_readUntrustedUtf8(arg)));
-        break;
-      case 'w': // *s
-        a.push(JSON.stringify(_readUntrustedUtf16(arg)));
-        break;
-      case 'a': // *s
-        a.push(JSON.stringify(_readUntrustedAnsi(arg)));
-        break;
-      case 'Z': // *s[i]
-        a.push(JSON.stringify(_readUntrustedUtf8(arg, +args[j + 1])));
-        break;
-      case 'S': // **s
-        a.push(JSON.stringify(_readUntrustedUtf8(Memory.readPointer(arg))));
-        break;
-      case 'o':
-      case 'O':
-        if (ObjC.available) {
-          if (!arg.isNull()) {
-            if (darwin.isObjC(arg)) {
-              const o = new ObjC.Object(arg);
-              if (o.$className === 'Foundation.__NSSwiftData') {
-                a.push(`${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o, 4).toString()}"`);
-              } else {
-                a.push(`${o.$className}: "${o.toString()}"`);
-              }
-            } else {
-              const str = Memory.readCString(arg);
-              if (str.length > 2) {
-                a.push(str);
-              } else {
-                a.push('' + arg);
-              }
-            }
-          } else {
-            a.push('nil');
-          }
-        } else {
-          a.push(arg);
-        }
-        break;
-      default:
-        a.push(arg);
-        break;
+      // limit dumpLen, to avoid oversized dumps, caused by  accidentally parsing pointer agrs as length
+      // set length limit to 64K for now
+      const lenLimit = 0x10000;
+      dumpLen = dumpLen > lenLimit ? lenLimit : dumpLen;
+      fmtArgs.push(`dump:${dumps.length} (len=${dumpLen})`);
+      dumps.push(_hexdumpUntrusted(arg, dumpLen));
+    } else {
+      fmtArgs.push(_format(arg, fmt[i]));
     }
   }
-  return { args: a, dumps: dumps };
+  return { args: fmtArgs, dumps: dumps };
+}
+
+function _format (addr, fmt) {
+  let result;
+  switch (fmt) {
+    case 'x': {
+      result = `${ptr(addr)}`;
+      break;
+    }
+    case 'c':
+      result = `'${addr}'`;
+      break;
+    case 'i':
+      result = `${+addr}`;
+      break;
+    case 'z': // *s
+      result = JSON.stringify(_readUntrustedUtf8(addr));
+      break;
+    case 'w': // *s
+      result = JSON.stringify(_readUntrustedUtf16(addr));
+      break;
+    case 'a': // *s
+      result = JSON.stringify(_readUntrustedAnsi(addr));
+      break;
+    case 'S': // **s
+      result = JSON.stringify(_readUntrustedUtf8(Memory.readPointer(addr)));
+      break;
+    case 'o':
+    case 'O':
+      if (ObjC.available) {
+        if (!addr.isNull()) {
+          if (darwin.isObjC(addr)) {
+            const o = new ObjC.Object(addr);
+            if (o.$className === 'Foundation.__NSSwiftData') {
+              result = `${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o, 4).toString()}"`;
+            } else {
+              result = `${o.$className}: "${o.toString()}"`;
+            }
+          } else {
+            const str = Memory.readCString(addr);
+            if (str.length > 2) {
+              result = `${str}`;
+            } else {
+              result = `${addr}`;
+            }
+          }
+        } else {
+          result = 'nil';
+        }
+      } else {
+        result = `${addr}`;
+      }
+      break;
+    default:
+      result = `${addr}`;
+      break;
+  }
+  return result;
 }
 
 function _tracehookSet (name, format, callback) {
