@@ -397,9 +397,17 @@ function traceLogDump () {
   return log.logs.map(_tracelogToString).join('\n') + '\n';
 }
 
+const { fromByteArray } = require ('base64-js');
+
 function traceLogDumpR2 () {
   let res = '';
   for (const l of log.logs) {
+    const s = '' + _traceNameFromAddress(l.address) + ': ';
+    const input = JSON.stringify (l);
+    const binput = Uint8Array.from(input.split('').map((x)=>{return x.charCodeAt(0);}))
+    const bytes = Uint8Array.from(binput);
+    const data = fromByteArray(bytes);
+    res += "T base64:" + data + "\n";
     if (l.script) {
       res += l.script;
     }
