@@ -22,7 +22,7 @@ export function listMemoryRangesR2 () {
 export function listMemoryRangesJson () {
   return getMemoryRanges('---');
 }
-async function changeMemoryProtection (args) {
+export async function changeMemoryProtection (args) {
   const [addr, size, protection] = args;
   if (args.length !== 3 || protection.length > 3) {
     return 'Usage: :dmp [address] [size] [rwx]';
@@ -254,6 +254,7 @@ export default {
   allocSize,
   allocString,
   allocWstring,
+  changeMemoryProtection,
   allocDup,
   listAllocs,
   removeAlloc,

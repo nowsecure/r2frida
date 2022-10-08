@@ -337,3 +337,15 @@ function _getSymbolName (address) {
   const ds = DebugSymbol.fromAddress(address);
   return (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
 }
+
+export default {
+  stalkFunction,
+  stalkEverything,
+  stalkTraceEverything,
+  stalkTraceEverythingHelp,
+  stalkTraceEverythingJson,
+  stalkTraceEverythingR2,
+  stalkTraceFunction,
+  stalkTraceFunctionJson,
+  stalkTraceFunctionR2
+};

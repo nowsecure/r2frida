@@ -469,5 +469,8 @@ export default {
   listSymbolsJson,
   listAllHelp,
   listStringsJson,
-  listStrings
+  listStrings,
+  dumpInfo,
+  dumpInfoR2,
+  dumpInfoJson
 };

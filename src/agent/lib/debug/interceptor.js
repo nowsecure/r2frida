@@ -92,3 +92,19 @@ function _interceptFunRet (target, value, paramTypes) {
     }
   });
 }
+
+export default {
+  interceptHelp,
+  interceptFunHelp,
+  interceptRetString,
+  interceptRet0,
+  interceptRet1,
+  interceptRetInt,
+  interceptRet_1,
+  interceptRetVoid,
+  interceptFunRetString,
+  interceptFunRet0,
+  interceptFunRet1,
+  interceptFunRetInt,
+  interceptFunRet_1
+};

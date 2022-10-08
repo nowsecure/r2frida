@@ -139,7 +139,7 @@ export function lookupSymbolJson (args) {
   } else {
     const [symbolName] = args;
     const res = utils.getPtr(symbolName);
-    const mod = _getModuleAt(res);
+    const mod = getModuleAt(res);
     if (res) {
       return [{
         library: mod ? mod.name : 'unknown',
@@ -164,7 +164,7 @@ export function lookupSymbolJson (args) {
         */
   }
 }
-export function _getModuleAt (addr) {
+function getModuleAt (addr) {
   if (addr === null) {
     return null;
   }
@@ -187,3 +187,21 @@ export function getModuleByAddress (addr) {
     return Process.getModuleByAddress(ptr(global.r2frida.offset));
   }
 }
+
+export default {
+  lookupDebugInfo,
+  lookupAddress,
+  lookupAddressR2,
+  lookupAddressJson,
+  lookupSymbolHere,
+  lookupExport,
+  lookupExportR2,
+  lookupExportJson,
+  lookupSymbol,
+  lookupSymbolR2,
+  lookupSymbolManyJson,
+  lookupSymbolMany,
+  lookupSymbolManyR2,
+  lookupSymbolJson,
+  getModuleByAddress
+};

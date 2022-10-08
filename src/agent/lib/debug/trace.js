@@ -668,3 +668,25 @@ function _readUntrustedAnsi (address, length) {
     return '(invalid Ansi)';
   }
 }
+
+export default {
+  trace,
+  traceFormat,
+  traceHook,
+  traceHere,
+  traceJson,
+  traceQuiet,
+  traceR2,
+  clearTrace,
+  clearAllTrace,
+  traceRegs,
+  traceReal,
+  tracehook,
+  traceLogDump,
+  traceLogDumpR2,
+  traceLogDumpQuiet,
+  traceLogDumpJson,
+  traceLogClear,
+  traceLogClearAll,
+  haveTraceAt
+};

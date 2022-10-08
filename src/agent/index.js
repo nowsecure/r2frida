@@ -5,6 +5,7 @@ import anal from './lib/anal.js';
 import android from './lib/java/android.js';
 import classes from './lib/info/classes.js';
 import darwin from './lib/darwin/index.js';
+import plugin from './plugin.js';
 import debug from './lib/debug/index.js';
 import disasm from './lib/disasm.js';
 import dump from './lib/dump.js';
@@ -50,6 +51,7 @@ const commandHandlers = {
   '?V': fridaVersion,
   // '.': // this is implemented in C
   i: info.dumpInfo,
+  'info': info.dumpInfo,
   'i*': info.dumpInfoR2,
   ij: info.dumpInfoJson,
   e: config.evalConfig,
@@ -302,9 +304,8 @@ function perform (params) {
       value: _normalizeValue(value)
     }, null];
   }
-  const userHandler = global.r2frida.commandHandler(name);
-  const handler = userHandler !== undefined
-    ? userHandler
+  const userHandler = plugin.commandHandler(name);
+  const handler = userHandler ? userHandler
     : commandHandlers[name];
   if (handler === undefined) {
     throw new Error('Unhandled command: ' + name);

@@ -3,7 +3,7 @@ import config from './config.js';
 let cachedRanges = [];
 export function read (params) {
   const { offset, count, fast } = params;
-  if (r2frida.hookedRead !== null) {
+  if (typeof r2frida.hookedRead === 'function') {
     return r2frida.hookedRead(offset, count);
   }
   if (r2frida.safeio) {
@@ -78,3 +78,5 @@ export function write (params, data) {
   }
   return [{}, null];
 }
+
+export default { read,write};

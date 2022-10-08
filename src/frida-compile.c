@@ -2,10 +2,16 @@
 #include <stdbool.h>
 #include "frida-core.h"
 #include <r_util.h>
+#include <r_util/r_print.h>
 
 
-static int on_compiler_diagnostics (void) {
-	eprintf ("DIAGNOSTICS!\n");
+static int on_compiler_diagnostics (void *user, GVariant *diagnostics) {
+	gchar *str = g_variant_print (diagnostics, TRUE);
+	str = r_str_replace (str, "int64", "int64:", true);
+	char *json = r_print_json_indent (str, true, "  ", NULL);
+	eprintf ("%s\n", json);
+	free (json);
+	g_free (str);
 	return 0;
 }
 

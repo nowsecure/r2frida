@@ -117,3 +117,7 @@ export function tolerantInstructionParse (address) {
   }
   return [instr, cursor];
 }
+
+export default {
+	disasmCode, tolerantInstructionParse
+};

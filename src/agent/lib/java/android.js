@@ -56,3 +56,4 @@ export function uiAlert (args) {
     };
   });
 }
+export default { uiAlert };

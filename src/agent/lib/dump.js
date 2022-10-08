@@ -6,3 +6,7 @@ export function Hexdump (lenstr) {
     return 'Cannot read memory.';
   }
 }
+
+export default {
+	Hexdump
+};

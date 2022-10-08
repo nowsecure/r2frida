@@ -512,3 +512,24 @@ function _alignRight (text, width) {
   }
   return result;
 }
+export default {
+  suspended,
+  breakpointNative,
+  breakpointJson,
+  breakpointNativeCommand,
+  breakpointUnset,
+  breakpointContinue,
+  breakpointContinueUntil,
+  sendSignal,
+  dxCall,
+  dxSyscall,
+  listThreads,
+  listThreadsJson,
+  dumpRegisters,
+  dumpRegistersJson,
+  dumpRegistersR2,
+  dumpRegistersRecursively,
+  dumpRegisterProfile,
+  dumpRegisterArena,
+  nameFromAddress
+};

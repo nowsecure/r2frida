@@ -36,3 +36,5 @@ export function analFunctionSignature (args) {
   }
   return 'Usage: afs [klassName] [methodName]';
 }
+export default {
+	analFunctionSignature };
