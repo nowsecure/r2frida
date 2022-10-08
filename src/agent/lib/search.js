@@ -1,4 +1,4 @@
-import * as config from '../config.js';
+import config from '../config.js';
 import darwin from './darwin/index.js';
 import memory from './debug/memory.js';
 import * as io from '../io.js';

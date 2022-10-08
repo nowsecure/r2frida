@@ -1,4 +1,4 @@
-import * as config from '../../config.js';
+import config from '../../config.js';
 import disasm from '../disasm.js';
 import debug from './index.js';
 import utils from '../utils.js';

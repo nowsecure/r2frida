@@ -1,4 +1,4 @@
-import * as config from '../../config.js';
+import config from '../../config.js';
 import log from '../../log.js';
 import utils from '../utils.js';
 export const SwiftAvailable = function () {

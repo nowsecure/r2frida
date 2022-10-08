@@ -1,7 +1,7 @@
 import expr from '../expr.js';
 import log from '../../log.js';
 import { getModuleByAddress } from '../info/lookup.js';
-import * as config from '../../config.js';
+import config from '../../config.js';
 import debug from './index.js';
 import darwin from '../darwin/index.js';
 import swift from '../darwin/swift.js';

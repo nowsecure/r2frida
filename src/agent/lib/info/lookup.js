@@ -1,4 +1,4 @@
-import * as config from '../../config.js';
+import config from '../../config.js';
 import utils from '../utils.js';
 export function lookupDebugInfo (args) {
   const o = DebugSymbol.fromAddress(ptr('' + args));
