@@ -1,38 +1,29 @@
-'use strict';
-
-const swift = require('./darwin/swift');
-
+import swift from './darwin/swift.js';
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
-
-function sanitizeString (str) {
-  const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
+export function sanitizeString (str) {
+  const specialChars = '/\\`+-${}~|*,;:"\'#@&<> ()[]!?%';
   return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
 }
-
-function wrapStanza (name, stanza) {
+export function wrapStanza (name, stanza) {
   return {
     name: name,
     stanza: stanza
   };
 }
-
-function hexPtr (p) {
+export function hexPtr (p) {
   if (p instanceof UInt64) {
     return `0x${p.toString(16)}`;
   }
   return p.toString();
 }
-
-function ptrMax (a, b) {
+export function ptrMax (a, b) {
   return a.compare(b) > 0 ? a : b;
 }
-
-function ptrMin (a, b) {
+export function ptrMin (a, b) {
   return a.compare(b) < 0 ? a : b;
 }
-
-function toHexPairs (raw) {
+export function toHexPairs (raw) {
   const isString = typeof raw === 'string';
   const pairs = [];
   for (let i = 0; i !== raw.length; i += 1) {
@@ -42,8 +33,7 @@ function toHexPairs (raw) {
   }
   return pairs.join(' ');
 }
-
-function toWidePairs (raw) {
+export function toWidePairs (raw) {
   const pairs = [];
   for (let i = 0; i !== raw.length; i += 1) {
     const code = raw.charCodeAt(i) & 0xff;
@@ -53,16 +43,14 @@ function toWidePairs (raw) {
   }
   return pairs.join(' ');
 }
-
-function normHexPairs (raw) {
+export function normHexPairs (raw) {
   const norm = raw.replace(/ /g, '');
   if (_isHex(norm)) {
     return _toPairs(norm.replace(/\./g, '?'));
   }
   throw new Error('Invalid hex string');
 }
-
-function filterPrintable (arr) {
+export function filterPrintable (arr) {
   const u8arr = new Uint8Array(arr);
   const printable = [];
   for (let i = 0; i !== u8arr.length; i += 1) {
@@ -76,8 +64,7 @@ function filterPrintable (arr) {
   }
   return printable.join('');
 }
-
-function byteArrayToHex (arr) {
+export function byteArrayToHex (arr) {
   const u8arr = new Uint8Array(arr);
   const hexs = [];
   for (let i = 0; i !== u8arr.length; i += 1) {
@@ -86,8 +73,7 @@ function byteArrayToHex (arr) {
   }
   return hexs.join('');
 }
-
-function renderEndian (value, bigEndian, width) {
+export function renderEndian (value, bigEndian, width) {
   const bytes = [];
   for (let i = 0; i !== width; i++) {
     if (bigEndian) {
@@ -98,8 +84,7 @@ function renderEndian (value, bigEndian, width) {
   }
   return bytes;
 }
-
-function padPointer (value) {
+export function padPointer (value) {
   if (value.toString().indexOf('ArrayBuffer') !== -1) {
     value = arrayBufferToHex(value);
   }
@@ -110,19 +95,16 @@ function padPointer (value) {
   }
   return '0x' + result;
 }
-
 function _toPairs (hex) {
   if ((hex.length % 2) !== 0) {
     throw new Error('Odd-length string');
   }
-
   const pairs = [];
   for (let i = 0; i !== hex.length; i += 2) {
     pairs.push(hex.substr(i, 2));
   }
   return pairs.join(' ').toLowerCase();
 }
-
 function _isHex (raw) {
   const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
   const inSet = new Set(Array.from(raw));
@@ -131,25 +113,21 @@ function _isHex (raw) {
   }
   return inSet.size === 0;
 }
-
-function trunc4k (x) {
+export function trunc4k (x) {
   return x.and(ptr('0xfff').not());
 }
-
-function rwxstr (x) {
+export function rwxstr (x) {
   let str = '';
   str += (x & 1) ? 'r' : '-';
   str += (x & 2) ? 'w' : '-';
   str += (x & 4) ? 'x' : '-';
   return str;
 }
-
-function rwxint (x) {
+export function rwxint (x) {
   const ops = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
   return ops.indexOf([x]);
 }
-
-function getPtr (p) {
+export function getPtr (p) {
   if (typeof p === 'string') {
     p = p.trim();
   }
@@ -178,7 +156,7 @@ function getPtr (p) {
         targetAddress = kd.address;
       }
     }
-    return p;
+    return targetAddress;
   }
   if (p.startsWith('java:')) {
     return p;
@@ -244,8 +222,7 @@ function getPtr (p) {
   // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
   return Module.findExportByName(null, p);
 }
-
-function autoType (args) {
+export function autoType (args) {
   const nfArgs = [];
   const nfArgsData = [];
   // push arguments
@@ -276,8 +253,7 @@ function autoType (args) {
   }
   return [nfArgs, nfArgsData];
 }
-
-function requireFridaVersion (major, minor, patch) {
+export function requireFridaVersion (major, minor, patch) {
   const required = [major, minor, patch];
   const actual = Frida.version.split('.');
   for (let i = 0; i < actual.length; i++) {
@@ -289,25 +265,21 @@ function requireFridaVersion (major, minor, patch) {
     }
   }
 }
-
-function arrayBufferToHex (arrayBuffer) {
+export function arrayBufferToHex (arrayBuffer) {
   if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
     throw new TypeError('Expected input to be an ArrayBuffer');
   }
-
   const view = new Uint8Array(arrayBuffer);
   let result = '';
   let value;
-
   for (let i = 0; i < view.length; i++) {
     value = view[i].toString(16);
     result += (value.length === 1 ? '0' + value : value);
   }
-
   return result;
 }
 
-module.exports = {
+export default {
   sanitizeString,
   wrapStanza,
   hexPtr,

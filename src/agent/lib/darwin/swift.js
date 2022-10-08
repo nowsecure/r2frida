@@ -1,14 +1,10 @@
-'use strict';
-
-const config = require('../../config');
-const log = require('../../log');
-const utils = require('../utils');
-
-const SwiftAvailable = function () {
+import config from '../../config.js';
+import log from '../../log.js';
+import utils from '../utils.js';
+export const SwiftAvailable = function () {
   return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 };
-
-function traceSwift (klass, method) {
+export function traceSwift (klass, method) {
   if (!SwiftAvailable()) {
     return;
   }
@@ -17,15 +13,13 @@ function traceSwift (klass, method) {
     console.error('Missing method ' + method + ' in class ' + klass);
     return;
   }
-
   const callback = function (args) {
     const msg = ['[SWIFT]', klass, method, JSON.stringify(args)];
     log.traceEmit(msg.join(' '));
   };
   Swift.Interceptor.Attach(targetAddress, callback);
 }
-
-function swiftTypesR2 (args) {
+export function swiftTypesR2 (args) {
   let res = '';
   if (SwiftAvailable()) {
     switch (args.length) {
@@ -87,8 +81,7 @@ function swiftTypesR2 (args) {
   }
   return res;
 }
-
-function swiftTypes (args) {
+export function swiftTypes (args) {
   if (!SwiftAvailable()) {
     if (config.getBoolean('want.swift')) {
       console.error('See :e want.swift=true');
@@ -178,8 +171,7 @@ function swiftTypes (args) {
   }
   return res;
 }
-
-module.exports = {
+export default {
   SwiftAvailable,
   traceSwift,
   swiftTypesR2,

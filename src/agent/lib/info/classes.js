@@ -1,11 +1,8 @@
-'use strict';
-
-const { ObjCAvailable } = require('../darwin');
-const java = require('../java');
-const search = require('../search');
-const utils = require('../utils');
-
-function listClassesLoadedJson (args) {
+import { ObjCAvailable } from '../darwin/index.js';
+import java from '../java/index.js';
+import search from '../search.js';
+import utils from '../utils.js';
+export function listClassesLoadedJson (args) {
   if (java.JavaAvailable) {
     return java.listClasses(args);
   }
@@ -13,8 +10,7 @@ function listClassesLoadedJson (args) {
     return JSON.stringify(ObjC.enumerateLoadedClassesSync());
   }
 }
-
-function listClassesLoaders (args) {
+export function listClassesLoaders (args) {
   if (!java.JavaAvailable) {
     return 'Error: icL is only available on Android targets.';
   }
@@ -51,8 +47,7 @@ function listClassesLoaders (args) {
   });
   return res;
 }
-
-function listClassesLoaded (args) {
+export function listClassesLoaded (args) {
   if (java.JavaAvailable) {
     return listClasses(args);
   }
@@ -66,13 +61,11 @@ function listClassesLoaded (args) {
   }
   return [];
 }
-
 // only for java
-function listAllClassesNatives (args) {
+export function listAllClassesNatives (args) {
   return listClassesNatives(['.']);
 }
-
-function listClassesNatives (args) {
+export function listClassesNatives (args) {
   const natives = [];
   const vkn = args[0] || 'com';
   javaPerform(function () {
@@ -112,75 +105,46 @@ function listClassesNatives (args) {
   });
   return natives;
 }
-
-function listClassesAllMethods (args) {
+export function listClassesAllMethods (args) {
   return listClassesJson(args, 'all').join('\n');
 }
-
-function listClassSuperMethods (args) {
+export function listClassSuperMethods (args) {
   return listClassesJson(args, 'super').join('\n');
 }
-
-function listClassVariables (args) {
+export function listClassVariables (args) {
   return listClassesJson(args, 'ivars').join('\n');
 }
-
-function listClassesHooks (args, mode) {
-  if (!ObjCAvailable) {
-    return 'ich only available on Objective-C environments.';
-  }
+export function listClassesHooks (args, mode) {
+  let out = '';
   if (args.length === 0) {
-    return 'Usage: :ich [className|moduleName]';
+    return 'Usage: :ich [kw]';
   }
   const moduleNames = {};
   const result = listClassesJson([]);
   if (ObjCAvailable) {
+    const klasses = ObjC.classes;
     for (const k of result) {
-      moduleNames[k] = ObjC.classes[k].$moduleName;
+      moduleNames[k] = klasses[k].$moduleName;
     }
   }
-  let out = '';
-  for (const klassname of result) {
-    const modName = moduleNames[klassname];
-    if (klassname.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
-      const klass = ObjC.classes[klassname];
+  for (const k of result) {
+    const modName = moduleNames[k];
+    if (k.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
+      // const ins = search.searchInstancesJson([k]);
+      // const inss = ins.map((x) => { return x.address; }).join(' ');
+      const a = 'OOO';
+      const klass = ObjC.classes[k];
       if (klass) {
-        for (const methodName of klass.$ownMethods) {
+        for (const m of klass.$ownMethods) {
           // TODO: use instance.argumentTypes to generate the 'OOO'
-          const normalizeMethodName = _normalizeToFridaMethod(methodName);
-          const method = klass[methodName];
-          if (method !== undefined) {
-            let format = '';
-            for (const arg of method.argumentTypes) {
-              switch (arg) {
-                case 'pointer': // We return an hex pointer until a good type information is exposed by frida-objc-bridge 
-                  format += 'x';
-                  break;
-                case 'uint64':
-                  format += 'i';
-                  break;
-                case 'bool': // TODO: Implement bool formatting at dtf
-                  format += 'i';
-                  break;
-                default:
-                  format += 'x';
-                  break;
-              }
-            }
-            out += `:dtf objc:${klassname}.^${normalizeMethodName}$ ${format}\n`;
-          }
+          out += ':dtf objc:' + k + '.' + m + ' ' + a + '\n';
         }
       }
     }
   }
   return out;
 }
-
-function _normalizeToFridaMethod (methodName) {
-  return methodName.replace('- ', '').replace('+ ', '');
-}
-
-function listClassesWhere (args, mode) {
+export function listClassesWhere (args, mode) {
   let out = '';
   if (args.length === 0) {
     const moduleNames = {};
@@ -202,7 +166,7 @@ function listClassesWhere (args, mode) {
     if (ObjCAvailable) {
       const klasses = ObjC.classes;
       for (const k of result) {
-        moduleNames[k] = ObjC.classes[k].$moduleName;
+        moduleNames[k] = klasses[k].$moduleName;
       }
     }
     for (const k of result) {
@@ -223,8 +187,7 @@ function listClassesWhere (args, mode) {
     return out;
   }
 }
-
-function listClasses (args) {
+export function listClasses (args) {
   const result = listClassesJson(args);
   if (result instanceof Array) {
     return result.join('\n');
@@ -236,8 +199,7 @@ function listClasses (args) {
     })
     .join('\n');
 }
-
-function listClassesR2 (args) {
+export function listClassesR2 (args) {
   const className = args[0];
   if (args.length === 0 || args[0].indexOf('*') !== -1) {
     let methods = '';
@@ -257,26 +219,22 @@ function listClassesR2 (args) {
       return ['f', flagName(methodName), '=', utils.padPointer(address)].join(' ');
     })
     .join('\n') + '\n';
-
   function flagName (m) {
     return 'sym.objc.' +
-      (className + '.' + m)
-        .replace(':', '')
-        .replace(' ', '')
-        .replace('-', '')
-        .replace('+', '');
+            (className + '.' + m)
+              .replace(':', '')
+              .replace(' ', '')
+              .replace('-', '')
+              .replace('+', '');
   }
 }
-
-function listClassMethods (args) {
+export function listClassMethods (args) {
   return listClassesJson(args, 'methods').join('\n');
 }
-
-function listClassMethodsJson (args) {
+export function listClassMethodsJson (args) {
   return listClassesJson(args, 'methods');
 }
-
-function listClassesJson (args, mode) {
+export function listClassesJson (args, mode) {
   if (java.JavaAvailable) {
     return java.listJavaClassesJson(args, mode === 'methods');
   }
@@ -302,14 +260,13 @@ function listClassesJson (args, mode) {
     }
     return [out];
   }
-  const methods =
-(mode === 'methods')
-  ? klass.$ownMethods
-  : (mode === 'super')
-      ? klass.$super.$ownMethods
-      : (mode === 'all')
-          ? klass.$methods
-          : klass.$ownMethods;
+  const methods = (mode === 'methods')
+    ? klass.$ownMethods
+    : (mode === 'super')
+        ? klass.$super.$ownMethods
+        : (mode === 'all')
+            ? klass.$methods
+            : klass.$ownMethods;
   const getImpl = ObjC.api.method_getImplementation;
   try {
     return methods
@@ -325,13 +282,11 @@ function listClassesJson (args, mode) {
     return methods;
   }
 }
-
-function listProtocols (args) {
+export function listProtocols (args) {
   return listProtocolsJson(args)
     .join('\n');
 }
-
-function listProtocolsJson (args) {
+export function listProtocolsJson (args) {
   if (!ObjCAvailable) {
     return [];
   }
@@ -345,7 +300,6 @@ function listProtocolsJson (args) {
     return Object.keys(protocol.methods);
   }
 }
-
 function _classGlob (k, v) {
   if (!k || !v) {
     return true;
@@ -353,7 +307,7 @@ function _classGlob (k, v) {
   return k.indexOf(v.replace(/\*/g, '')) !== -1;
 }
 
-module.exports = {
+export default {
   listClassesLoadedJson,
   listClassesLoaders,
   listClassesLoaded,

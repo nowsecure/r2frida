@@ -1,82 +1,67 @@
-'use strict';
+import * as config from '../../config.js';
+import java from '../java/index.js';
+import utils from '../utils.js';
 
-const config = require('../../config');
-const java = require('../java');
-const utils = require('../utils');
-
-function interceptHelp (args) {
+export function interceptHelp (args) {
   return 'Usage: di[0,1,-1,s,v] [addr] : intercepts function method and replace the return value.\n' /
-  'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n' /
-  'div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n';
+        'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n' /
+        'div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n';
 }
-
-function interceptFunHelp (args) {
+export function interceptFunHelp (args) {
   return 'Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n' /
-  'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n' /
-  'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n' /
-  'dis 0x808080 str  #.\n';
+        'dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n' /
+        'dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n' /
+        'dis 0x808080 str  #.\n';
 }
-
-function interceptRetString (args) {
+export function interceptRetString (args) {
   const target = args[0];
   return _interceptRet(target, args[1]);
 }
-
-function interceptRet0 (args) {
+export function interceptRet0 (args) {
   const target = args[0];
   return _interceptRet(target, 0);
 }
-
-function interceptRet1 (args) {
+export function interceptRet1 (args) {
   const target = args[0];
   return _interceptRet(target, 1);
 }
-
-function interceptRetInt (args) {
+export function interceptRetInt (args) {
   const target = args[0];
   return _interceptRet(target, args[1]);
 }
-
-function interceptRet_1 (args) { // eslint-disable-line
+export function interceptRet_1 (args) {
   const target = args[0];
   return _interceptRet(target, -1);
 }
-
-function interceptRetVoid (args) { // eslint-disable-line
+export function interceptRetVoid (args) {
   const target = args[0];
   return _interceptRet(target, null);
 }
-
-function interceptFunRetString (args) {
+export function interceptFunRetString (args) {
   const target = args[0];
   const paramTypes = args[2];
   return _interceptFunRet(target, args[1], paramTypes);
 }
-
-function interceptFunRet0 (args) {
+export function interceptFunRet0 (args) {
   const target = args[0];
   const paramTypes = args[1];
   return _interceptFunRet(target, 0, paramTypes);
 }
-
-function interceptFunRet1 (args) {
+export function interceptFunRet1 (args) {
   const target = args[0];
   const paramTypes = args[1];
   return _interceptFunRet(target, 1, paramTypes);
 }
-
-function interceptFunRetInt (args) {
+export function interceptFunRetInt (args) {
   const target = args[0];
   const paramTypes = args[2];
   return _interceptFunRet(target, args[1], paramTypes);
 }
-
-function interceptFunRet_1 (args) { // eslint-disable-line
+export function interceptFunRet_1 (args) {
   const target = args[0];
   const paramTypes = args[1];
   return _interceptFunRet(target, -1, paramTypes);
 }
-
 function _interceptRet (target, value) {
   if (target.startsWith('java:')) {
     try {
@@ -95,7 +80,6 @@ function _interceptRet (target, value) {
     return ptr(value);
   }, 'pointer', ['pointer']));
 }
-
 function _interceptFunRet (target, value, paramTypes) {
   if (target.startsWith('java:')) {
     const javaTarget = java.parseTargetJavaExpression(target, value);
@@ -109,7 +93,7 @@ function _interceptFunRet (target, value, paramTypes) {
   });
 }
 
-module.exports = {
+export default {
   interceptHelp,
   interceptFunHelp,
   interceptRetString,

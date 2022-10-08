@@ -3,7 +3,6 @@
 ** Commandline entrypoint for `ratafia` (r2 + Frida)
 ** --pancake 2015-2022 @ NowSecure
 */
-'use strict';
 
 const spawnSync = require('child_process').spawnSync;
 const colors = require('colors');

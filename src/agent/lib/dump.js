@@ -1,6 +1,4 @@
-'use strict';
-
-function Hexdump (lenstr) {
+export function Hexdump (lenstr) {
   const len = +lenstr || 32;
   try {
     return hexdump(ptr(global.r2frida.offset), len) || '';
@@ -9,6 +7,6 @@ function Hexdump (lenstr) {
   }
 }
 
-module.exports = {
-  Hexdump
+export default {
+	Hexdump
 };

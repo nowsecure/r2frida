@@ -1,5 +1,4 @@
 /* Copyright 2015-2022 - MIT license - pancake@nowsecure.com */
-'use strict';
 
 const r2f = require('./host');
 var useReadline = true;

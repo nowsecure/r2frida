@@ -1,5 +1,4 @@
 // Hexdump Initializer
-'use strict';
 
 var Hexdump = function (data, options) {
   var self = this;

@@ -1,5 +1,3 @@
-'use strict';
-
 var Cfg = {};
 
 function Offset(num, pad) {

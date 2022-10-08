@@ -1,22 +1,17 @@
-'use strict';
-
-const { sym } = require('./sys');
-const utils = require('./utils');
+import { sym } from './sys.js';
+import utils from './utils.js';
 
 const pendingCmds = {};
 const pendingCmdSends = [];
 let sendingCommand = false;
-
 let cmdSerial = 0;
-
 // r2->io->frida->r2pipe->r2
 let _r2 = null;
 let _r_core_new = null; // eslint-disable-line camelcase
 let _r_core_cmd_str = null; // eslint-disable-line camelcase
 let _r_core_free = null; // eslint-disable-line camelcase,no-unused-vars
 let _free = null;
-
-function getR2Arch (arch) {
+export function getR2Arch (arch) {
   switch (arch) {
     case 'ia32':
     case 'x64':
@@ -26,8 +21,7 @@ function getR2Arch (arch) {
   }
   return arch;
 }
-
-function hostCmds (commands) {
+export function hostCmds (commands) {
   let i = 0;
   function sendOne () {
     if (i < commands.length) {
@@ -41,8 +35,7 @@ function hostCmds (commands) {
   }
   return sendOne();
 }
-
-function hostCmd (cmd) {
+export function hostCmd (cmd) {
   return new Promise((resolve) => {
     const serial = cmdSerial;
     cmdSerial++;
@@ -50,19 +43,15 @@ function hostCmd (cmd) {
     _sendCommand(cmd, serial);
   });
 }
-
-function hostCmdj (cmd) {
+export function hostCmdj (cmd) {
   return hostCmd(cmd)
     .then(output => {
       return JSON.parse(output);
     });
 }
-
-function onCmdResp (params) {
+export function onCmdResp (params) {
   const { serial, output } = params;
-
   sendingCommand = false;
-
   if (serial in pendingCmds) {
     const onFinish = pendingCmds[serial];
     delete pendingCmds[serial];
@@ -70,7 +59,6 @@ function onCmdResp (params) {
   } else {
     throw new Error('Command response out of sync');
   }
-
   process.nextTick(() => {
     if (!sendingCommand) {
       const nextSend = pendingCmdSends.shift();
@@ -79,10 +67,8 @@ function onCmdResp (params) {
       }
     }
   });
-
   return [{}, null];
 }
-
 function _sendCommand (cmd, serial) {
   function sendIt () {
     sendingCommand = true;
@@ -91,23 +77,20 @@ function _sendCommand (cmd, serial) {
       serial: serial
     }));
   }
-
   if (sendingCommand) {
     pendingCmdSends.push(sendIt);
   } else {
     sendIt();
   }
 }
-
-function radareSeek (args) {
+export function radareSeek (args) {
   const addr = utils.getPtr('' + args);
   const cmdstr = 's ' + (addr || '' + args);
   return cmdstr;
   // XXX hangs
   // return r2.hostCmd(cmdstr);
 }
-
-function radareCommand (args) {
+export function radareCommand (args) {
   const cmd = args.join(' ');
   if (cmd.length === 0) {
     return 'Usage: :r [cmd]';
@@ -117,7 +100,6 @@ function radareCommand (args) {
   }
   return ':dl /tmp/libr.dylib';
 }
-
 function _radareCommandInit () {
   if (_r2) {
     return true;
@@ -135,7 +117,6 @@ function _radareCommandInit () {
   }
   return true;
 }
-
 function _radareCommandString (cmd) {
   if (_r2) {
     const aCmd = Memory.allocUtf8String(cmd);
@@ -148,7 +129,7 @@ function _radareCommandString (cmd) {
   return '';
 }
 
-module.exports = {
+export default {
   getR2Arch,
   hostCmds,
   hostCmd,

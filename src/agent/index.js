@@ -1,35 +1,33 @@
 /* eslint-disable comma-dangle */
-'use strict';
-
-const config = require('./config');
-const anal = require('./lib/anal');
-const android = require('./lib/java/android');
-const classes = require('./lib/info/classes');
-const darwin = require('./lib/darwin');
-const debug = require('./lib/debug');
-const disasm = require('./lib/disasm');
-const dump = require('./lib/dump');
-const expr = require('./lib/expr');
-const fs = require('./lib/fs');
-const info = require('./lib/info');
-const io = require('./io');
-const interceptor = require('./lib/debug/interceptor');
-const java = require('./lib/java');
-const log = require('./log');
-const lookup = require('./lib/info/lookup');
-const memory = require('./lib/debug/memory');
-const r2 = require('./lib/r2');
-const search = require('./lib/search');
-const stalker = require('./lib/debug/stalker');
-const sys = require('./lib/sys');
-const swift = require('./lib/darwin/swift');
-const trace = require('./lib/debug/trace');
-const utils = require('./lib/utils');
-
+import config from './config.js';
+import { global } from './global.js';
+import anal from './lib/anal.js';
+import android from './lib/java/android.js';
+import classes from './lib/info/classes.js';
+import darwin from './lib/darwin/index.js';
+import plugin from './plugin.js';
+import debug from './lib/debug/index.js';
+import disasm from './lib/disasm.js';
+import dump from './lib/dump.js';
+import expr from './lib/expr.js';
+import fs from './lib/fs.js';
+import info from './lib/info/index.js';
+import io from './io.js';
+import interceptor from './lib/debug/interceptor.js';
+import java from './lib/java/index.js';
+import log from './log.js';
+import lookup from './lib/info/lookup.js';
+import memory from './lib/debug/memory.js';
+import r2 from './lib/r2.js';
+import search from './lib/search.js';
+import stalker from './lib/debug/stalker.js';
+import sys from './lib/sys.js';
+import swift from './lib/darwin/swift.js';
+import trace from './lib/debug/trace.js';
+import utils from './lib/utils.js';
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 const isIOS15 = darwin.getIOSVersion().startsWith('15');
 const NeedsSafeIo = isLinuxArm32 || isIOS15;
-
 const commandHandlers = {
   E: expr.evalNum,
   '?e': echo,
@@ -53,6 +51,7 @@ const commandHandlers = {
   '?V': fridaVersion,
   // '.': // this is implemented in C
   i: info.dumpInfo,
+  'info': info.dumpInfo,
   'i*': info.dumpInfoR2,
   ij: info.dumpInfoJson,
   e: config.evalConfig,
@@ -65,10 +64,8 @@ const commandHandlers = {
   dc: debug.breakpointContinue,
   dcu: debug.breakpointContinueUntil,
   dk: debug.sendSignal,
-
   s: r2.radareSeek,
   r: r2.radareCommand,
-
   ie: info.listEntrypoint,
   ieq: info.listEntrypointQuiet,
   'ie*': info.listEntrypointR2,
@@ -82,24 +79,19 @@ const commandHandlers = {
   'il*': info.listModulesR2,
   ilq: info.listModulesQuiet,
   ilj: info.listModulesJson,
-
   ia: info.listAllHelp,
-
-  iAs: info.listAllSymbols, // SLOW
+  iAs: info.listAllSymbols,
   iAsj: info.listAllSymbolsJson,
   'iAs*': info.listAllSymbolsR2,
   iAn: classes.listAllClassesNatives,
-
   is: info.listSymbols,
   'is.': lookup.lookupSymbolHere,
   isj: info.listSymbolsJson,
   'is*': info.listSymbolsR2,
-
   iS: info.listSections,
   'iS.': info.listSectionsHere,
   'iS*': info.listSectionsR2,
   iSj: info.listSectionsJson,
-
   ias: lookup.lookupSymbol,
   'ias*': lookup.lookupSymbolR2,
   iasj: lookup.lookupSymbolJson,
@@ -110,7 +102,6 @@ const commandHandlers = {
   isam: lookup.lookupSymbolMany,
   isamj: lookup.lookupSymbolManyJson,
   'isam*': lookup.lookupSymbolManyR2,
-
   iE: info.listExports,
   'iE.': lookup.lookupSymbolHere,
   iEj: info.listExportsJson,
@@ -118,18 +109,14 @@ const commandHandlers = {
   iaE: lookup.lookupExport,
   iaEj: lookup.lookupExportJson,
   'iaE*': lookup.lookupExportR2,
-
   iEa: lookup.lookupExport,
   'iEa*': lookup.lookupExportR2,
   iEaj: lookup.lookupExportJson,
-
   // maybe dupped
   iAE: info.listAllExports,
   iAEj: info.listAllExportsJson,
   'iAE*': info.listAllExportsR2,
-
   init: initBasicInfoFromTarget,
-
   fD: lookup.lookupDebugInfo,
   fd: lookup.lookupAddress,
   'fd.': lookup.lookupAddress,
@@ -163,7 +150,7 @@ const commandHandlers = {
   'dm.': memory.listMemoryRangesHere,
   dmm: memory.listMemoryMaps,
   'dmm*': memory.listMemoryMapsR2,
-  'dmm.': memory.listMemoryMapsHere, // alias for 'dm.'
+  'dmm.': memory.listMemoryMapsHere,
   dmh: memory.listMallocRanges,
   'dmh*': memory.listMallocRangesR2,
   dmhj: memory.listMallocRangesJson,
@@ -247,7 +234,6 @@ const commandHandlers = {
   eval: expr.evalCode,
   chcon: sys.changeSelinuxContext,
 };
-
 async function initBasicInfoFromTarget (args) {
   const str = `
 e dbg.backend = io
@@ -264,31 +250,30 @@ s entry0 2> /dev/null
  `;
   return str;
 }
-
 if (Process.platform === 'darwin') {
   darwin.initFoundation();
 }
-
 const requestHandlers = {
   safeio: () => { global.r2frida.safeio = true; },
-  unsafeio: () => { if (!NeedsSafeIo) { global.r2frida.safeio = false; } },
+  unsafeio: () => {
+    if (!NeedsSafeIo) {
+      global.r2frida.safeio = false;
+    }
+  },
   read: io.read,
   write: io.write,
   state: state,
   perform: perform,
   evaluate: evaluate,
 };
-
 function state (params, data) {
   global.r2frida.offset = params.offset;
   debug.suspended = params.suspended;
   return [{}, null];
 }
-
 function isPromise (value) {
   return value !== null && typeof value === 'object' && typeof value.then === 'function';
 }
-
 function getHelpMessage (prefix) {
   return Object.keys(commandHandlers).sort()
     .filter((k) => {
@@ -302,10 +287,8 @@ function getHelpMessage (prefix) {
       return ' ' + k + '\t' + desc;
     }).join('\n') + '\n';
 }
-
 function perform (params) {
   const { command } = params;
-
   const tokens = command.split(/ /).map((c) => c.trim()).filter((x) => x);
   const [name, ...args] = tokens;
   if (typeof name === 'undefined') {
@@ -321,14 +304,12 @@ function perform (params) {
       value: _normalizeValue(value)
     }, null];
   }
-  const userHandler = global.r2frida.commandHandler(name);
-  const handler = userHandler !== undefined
-    ? userHandler
+  const userHandler = plugin.commandHandler(name);
+  const handler = userHandler ? userHandler
     : commandHandlers[name];
   if (handler === undefined) {
     throw new Error('Unhandled command: ' + name);
   }
-
   if (isPromise(handler)) {
     throw new Error("The handler can't be a promise");
   }
@@ -348,18 +329,15 @@ function perform (params) {
   }
   return [{ value: nv }, null];
 }
-
 function evaluate (params) {
   return new Promise(resolve => {
     let { code, ccode } = params;
     const isObjcMainLoopRunning = darwin.ObjCAvailable && darwin.hasMainLoop();
-
     if (darwin.ObjCAvailable && isObjcMainLoopRunning) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
     }
-
     function performEval () {
       let result;
       try {
@@ -370,20 +348,18 @@ const main = new NativeFunction(m.main, 'int', []);
 main();
 `;
         }
-        const rawResult = (1, eval)(code); // eslint-disable-line
+                const rawResult = (1, eval)(code); // eslint-disable-line
         global._ = rawResult;
         result = rawResult; // 'undefined';
       } catch (e) {
         result = 'throw new ' + e.name + '("' + e.message + '")';
       }
-
       resolve([{
         value: result
       }, null]);
     }
   });
 }
-
 Script.setGlobalAccessHandler({
   enumerate () {
     return [];
@@ -392,11 +368,9 @@ Script.setGlobalAccessHandler({
     return undefined;
   }
 });
-
 function fridaVersion () {
   return { version: Frida.version };
 }
-
 function uiAlert (args) {
   if (java.JavaAvailable) {
     return android.uiAlert(args);
@@ -406,12 +380,10 @@ function uiAlert (args) {
   }
   return 'Error: ui-alert is not implemented for this platform';
 }
-
 function echo (args) {
   console.log(args.join(' '));
   return null;
 }
-
 function onStanza (stanza, data) {
   const handler = requestHandlers[stanza.type];
   if (handler !== undefined) {
@@ -446,11 +418,9 @@ function onStanza (stanza, data) {
   }
   recv(onStanza);
 }
-
 function initializePuts () {
   const putsAddress = Module.findExportByName(null, 'puts');
   const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
-
   return function (s) {
     if (putsFunction) {
       const a = Memory.allocUtf8String(s);
@@ -460,7 +430,6 @@ function initializePuts () {
     }
   };
 }
-
 function _normalizeValue (value) {
   if (value === null) {
     return null;
@@ -473,7 +442,6 @@ function _normalizeValue (value) {
   }
   return JSON.stringify(value);
 }
-
 global.r2frida.hostCmd = r2.hostCmd;
 global.r2frida.hostCmdj = r2.hostCmdj;
 global.r2frida.logs = log.logs;

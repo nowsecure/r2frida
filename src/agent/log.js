@@ -1,11 +1,12 @@
-'use strict';
+import { wrapStanza } from './lib/utils.js';
+import config from './config.js';
+import { global } from './global.js';
 
-const config = require('./config');
+export const logs = [];
+export const traces = {};
 
-const logs = [];
-
-function traceEmit (msg) {
-  const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
+export function traceEmit (msg) {
+ const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
   const fileLog = config.getString('file.log');
   if (fileLog.length > 0) {
     send(wrapStanza('log-file', {
@@ -20,18 +21,14 @@ function traceEmit (msg) {
   }
   global.r2frida.logs = logs;
 }
-
-function traceLog (msg) {
-  const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
+export function traceLog (msg) {
   if (config.getBoolean('hook.verbose')) {
     send(wrapStanza('log', {
       message: msg
     }));
   }
 }
-
-module.exports = {
-  logs,
+export default {
   traceEmit,
   traceLog
 };

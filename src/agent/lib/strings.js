@@ -18,7 +18,7 @@ function parseOptions (options) {
   return opts;
 }
 
-function parseStrings (data, options) {
+export function parseStrings (data, options) {
   const opt = parseOptions(options);
   const strs = [];
   let str = '';
@@ -79,4 +79,6 @@ function isValidURL (s) {
   return true;
 }
 
-module.exports = parseStrings;
+export default {
+  parseStrings
+};

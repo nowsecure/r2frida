@@ -1,17 +1,14 @@
-'use strict';
+import fs from './fs.js';
 
-const fs = require('./fs');
-
-let _getenv = 0;
-let _setenv = 0;
-let _getpid = 0;
-let _getuid = 0;
-let _dup2 = 0;
-let _readlink = 0;
-let _fstat = 0;
-let _close = 0;
-let _kill = 0;
-
+export let _getenv = 0;
+export let _setenv = 0;
+export let _getpid = 0;
+export let _getuid = 0;
+export let _dup2 = 0;
+export let _readlink = 0;
+export let _fstat = 0;
+export let _close = 0;
+export let _kill = 0;
 if (Process.platform === 'windows') {
   _getenv = sym('getenv', 'pointer', ['pointer']);
   _setenv = sym('SetEnvironmentVariableA', 'int', ['pointer', 'pointer']);
@@ -32,23 +29,20 @@ if (Process.platform === 'windows') {
   _close = sym('close', 'int', ['int']);
   _kill = sym('kill', 'int', ['int', 'int']);
 }
-
-function sym (name, ret, arg) {
+export function sym (name, ret, arg) {
   try {
     return new NativeFunction(Module.getExportByName(null, name), ret, arg);
   } catch (e) {
     console.error(name, ':', e);
   }
 }
-
-function symf (name, ret, arg) {
+export function symf (name, ret, arg) {
   try {
     return new SystemFunction(Module.getExportByName(null, name), ret, arg);
   } catch (e) {
     // console.error('Warning', name, ':', e);
   }
 }
-
 function getWindowsUserNameA () {
   const _GetUserNameA = sym('GetUserNameA', 'int', ['pointer', 'pointer']);
   const PATH_MAX = 4096;
@@ -60,24 +54,20 @@ function getWindowsUserNameA () {
   }
   return '';
 }
-
-function getPidJson () {
+export function getPidJson () {
   return JSON.stringify({ pid: getPid() });
 }
-
-function getPid () {
+export function getPid () {
   return _getpid();
 }
-
-function getOrSetEnv (args) {
+export function getOrSetEnv (args) {
   if (args.length === 0) {
     return getEnv().join('\n') + '\n';
   }
   const { key, value } = getOrSetEnvJson(args);
   return key + '=' + value;
 }
-
-function getOrSetEnvJson (args) {
+export function getOrSetEnvJson (args) {
   if (args.length === 0) {
     return getEnvJson();
   }
@@ -98,8 +88,7 @@ function getOrSetEnvJson (args) {
     };
   }
 }
-
-function getEnv () {
+export function getEnv () {
   const result = [];
   let envp = Memory.readPointer(Module.findExportByName(null, 'environ'));
   let env;
@@ -109,8 +98,7 @@ function getEnv () {
   }
   return result;
 }
-
-function getEnvJson () {
+export function getEnvJson () {
   return getEnv().map(kv => {
     const eq = kv.indexOf('=');
     return {
@@ -119,24 +107,20 @@ function getEnvJson () {
     };
   });
 }
-
-function dlopen (args) {
+export function dlopen (args) {
   const path = fs.transformVirtualPath(args[0]);
   if (fs.exist(path)) {
     return Module.load(path);
   }
   return Module.load(args[0]);
 }
-
-function getenv (name) {
+export function getenv (name) {
   return Memory.readUtf8String(_getenv(Memory.allocUtf8String(name)));
 }
-
-function setenv (name, value, overwrite) {
+export function setenv (name, value, overwrite) {
   return _setenv(Memory.allocUtf8String(name), Memory.allocUtf8String(value), overwrite ? 1 : 0);
 }
-
-function changeSelinuxContext (args) {
+export function changeSelinuxContext (args) {
   if (Process.platform !== 'linux') {
     console.error('This is only available on Android/Linux');
     return '';
@@ -148,17 +132,15 @@ function changeSelinuxContext (args) {
   // TODO This doesnt run yet because permissions
   // TODO If it runs as root, then file might be checked
   const file = args[0];
-
   const con = Memory.allocUtf8String('u:object_r:frida_file:s0');
   const path = Memory.allocUtf8String(file);
-
   const rv = _setfilecon(path, con);
   return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
 
-module.exports = {
-  sym,
-  symf,
+export default {
+  _getenv,
+  _setenv,
   _getpid,
   _getuid,
   _dup2,
@@ -166,10 +148,16 @@ module.exports = {
   _fstat,
   _close,
   _kill,
-  getPid,
+  sym,
+  symf,
   getPidJson,
+  getPid,
   getOrSetEnv,
   getOrSetEnvJson,
+  getEnv,
+  getEnvJson,
   dlopen,
+  getenv,
+  setenv,
   changeSelinuxContext
 };

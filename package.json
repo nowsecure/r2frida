@@ -3,16 +3,18 @@
   "version": "5.7.8",
   "description": "Agent for frida:// io plugin",
   "private": true,
+  "type": "module",
+  "sourceType": "module",
   "main": "src/agent/index.js",
   "scripts": {
     "lint": "semistandard src/agent/*.js",
     "indent": "semistandard --fix src/agent/*.js",
-    "prepare": "npm run build",
-    "build": "frida-compile src/agent -Sco src/_agent.js -c",
-    "watch": "frida-compile src/agent -Sco src/_agent.js -w"
+    "build": "frida-compile -S -c -o src/_agent.js src/agent/index.js",
+    "watch": "frida-compile -Sco src/_agent.js -w src/agent/"
   },
   "license": "LGPL-3.0",
   "dependencies": {
+    "cjstoesm": "^2.1.2",
     "frida-compile": "10.2.5"
   },
   "engines": {
@@ -56,5 +58,14 @@
       "UInt64",
       "Int64"
     ]
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nowsecure/r2frida.git"
+  },
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/nowsecure/r2frida/issues"
+  },
+  "homepage": "https://github.com/nowsecure/r2frida#readme"
 }
