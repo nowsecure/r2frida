@@ -20,27 +20,12 @@ jobs:
       run: ./configure && make -j && sudo make install
     - name: Packaging
       run: make -C dist/debian
-    - name: Pub
+    - name: Pub Deb
       uses: actions/upload-artifact@v2
       with:
         name: build-linux
         path: dist/debian/*.deb
-  build-agent:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Building Radare2
-      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh --install /usr )
-    - name: Building r2frida
-      run: ./configure && make -j && sudo make install
-    - name: Packaging
-      run: make -C dist/debian
-    - name: Pub
-      uses: actions/upload-artifact@v2
-      with:
-        name: build-linux
-        path: dist/debian/*.deb
-    - name: Pub
+    - name: Pub Agent
       uses: actions/upload-artifact@v2
       with:
         name: build-agent
@@ -111,7 +96,6 @@ jobs:
       - build-linux
       - build-macos
       - build-windows
-      - build-agent
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
