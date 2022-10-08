@@ -190,7 +190,8 @@ else
 	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 endif
 else
-src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js node_modules
+src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js
+# frida-compile -Sc src/agent/index.js > src/_agent.js
 	src/frida-compile src/agent/index.js > src/_agent.js
 	# npm run build
 endif

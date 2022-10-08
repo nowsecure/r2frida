@@ -1,6 +1,6 @@
 import { wrapStanza } from './lib/utils.js';
 import config from './config.js';
-import global from './global.js';
+import { global } from './global.js';
 
 export const logs = [];
 export const traces = {};

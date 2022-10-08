@@ -9,7 +9,7 @@ import * as sys from "../sys.js";
 import * as swift from "../darwin/swift.js";
 import strings from "../strings.js";
 import * as utils from "../utils.js";
-import global from '../../global.js';
+import { global } from '../../global.js';
 export async function dumpInfo() {
     const padding = (x) => ''.padStart(20 - x, ' ');
     const properties = await dumpInfoJson();

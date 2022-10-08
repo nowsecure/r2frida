@@ -1,6 +1,6 @@
 /* eslint-disable comma-dangle */
 import config from './config.js';
-import global from './global.js';
+import { global } from './global.js';
 import anal from './lib/anal.js';
 import android from './lib/java/android.js';
 import classes from './lib/info/classes.js';
