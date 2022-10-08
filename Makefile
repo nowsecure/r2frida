@@ -301,7 +301,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/frida-compile: src/frida-compile.c
-	$(CC) -pthread -ldl -fPIE src/frida-compile.c -g -lpthread $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) -Iext/frida -o src/frida-compile
+	$(CC) $(FRIDA_LIBS) src/frida-compile.c -g -lpthread $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) -Iext/frida -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
