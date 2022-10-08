@@ -51,7 +51,7 @@ cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"
 frida-compile.exe agent/index.js > _agent.js
 REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 echo DONE
-radare2 -nfqcpc _agent.js | grep 0x > _agent.h || (echo "radare2.exe must be in path & exit /b 1)
+radare2 -nfqcpc _agent.js | grep 0x > _agent.h
 echo HEADER DONE
 
 echo Compiling the Agent...

@@ -66,7 +66,6 @@ int main(int argc, char **argv) {
 				continue;
 			}
 		}
-		// compile_file (argv[i]);
 		char *slash = strrchr (filename, '/');
 		if (slash) {
 			char *ofilename = filename;
@@ -74,8 +73,6 @@ int main(int argc, char **argv) {
 			char *root = strdup (filename);
 			filename = strdup (slash + 1);
 			char *d = r_file_abspath (root);
-			eprintf ("root is %s\n", d);
-			chdir (d);
 			frida_compiler_options_set_project_root (fco, d);
 			free (d);
 			free (root);
