@@ -26,10 +26,9 @@ for %%i in (%*) do (
 )
 
 copy config.h.w64 config.h
-call npm install
+REM call npm install
+
 cd src
-REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
-radare2 -nfqcpc _agent.js | grep 0x > _agent.h || (echo "radare2.exe must be in path & exit /b 1)
 
 mkdir frida > nul 2>&1
 cd frida
@@ -46,8 +45,14 @@ if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
 	.\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
 )
 cd ..
+echo Compiling the Compiler...
 
-echo Compiling...
+echo cl %DEBUG% /MT /nologo /LD /Gy /DFRIDA_VERSION_STRING="!frida_version!" frida-compile.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
+frida-compile.exe agent/index.js > _agent.js
+REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
+radare2 -nfqcpc _agent.js | grep 0x > _agent.h || (echo "radare2.exe must be in path & exit /b 1)
+
+echo Compiling the Agent...
 echo cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="!frida_version!" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
 cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
 
