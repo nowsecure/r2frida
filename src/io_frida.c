@@ -363,8 +363,8 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	GError *error;
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "eternalized-script");
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {

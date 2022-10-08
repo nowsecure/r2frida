@@ -1,5 +1,4 @@
 /* author  Sergi Alvarez i Capilla <pancake@nowsecure.com> */
-'use strict';
 
 /* eslint-disable camelcase */
 let _r_core_new = null;

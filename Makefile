@@ -6,6 +6,8 @@ frida_version=16.0.1
 
 R2FRIDA_PRECOMPILED_AGENT?=0
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.4/_agent.js
+#FRIDA_COMPILE=frida-compile
+FRIDA_COMPILE=src/frida-compile
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
@@ -188,8 +190,9 @@ else
 	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 endif
 else
-src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
-	npm run build
+src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js node_modules
+	src/frida-compile src/agent/index.js > src/_agent.js
+	# npm run build
 endif
 
 node_modules: package.json

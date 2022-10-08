@@ -1,30 +1,33 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "frida-core.h"
+#include <r_util.h>
+
 
 static int on_compiler_diagnostics (void) {
-	printf ("DIAGNOSTICS!\n");
+	eprintf ("DIAGNOSTICS!\n");
 	return 0;
 }
 
 int main(int argc, char **argv) {
+	int rc = 0;
 	GCancellable *cancellable = NULL;
 	GError *error = NULL;
 	const char *filename = "index.ts";
 	if (argc < 2) {
-		printf ("Usage: frida-compile [-] [file.{js,ts}] ...\n");
+		eprintf ("Usage: frida-compile [-] [file.{js,ts}] ...\n");
 		return 1;
 	}
 
 	frida_init ();
 	FridaDeviceManager *device_manager = frida_device_manager_new ();
 	if (!device_manager) {
-		printf ("Cannot open device manager\n");
+		eprintf ("Cannot open device manager\n");
 		return 1;
 	}
 	FridaDevice *device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, &error);
 	if (error || !device) {
-		printf ("Cannot open local frida device\n");
+		eprintf ("Cannot open local frida device\n");
 		return 1;
 	}
 	char buf[1024];
@@ -64,14 +67,17 @@ int main(int argc, char **argv) {
 			*slash = 0;
 			char *root = strdup (filename);
 			filename = strdup (slash + 1);
-			frida_compiler_options_set_project_root (fco, root); // /Users/pancake/prg/r2frida/src/agent/");
+			char *d = r_file_abspath (root);
+			frida_compiler_options_set_project_root (fco, d);
+			free (d);
 			free (root);
-			// free (ofilename);
+			free (ofilename);
 		}
 		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
-			fprintf (stderr, "ERROR: %s\n", error->message);
+			eprintf ("ERROR: %s\n", error->message);
+			rc = 1;
 		} else {
 			printf ("%s\n", slurpedData);
 		}
@@ -80,5 +86,5 @@ int main(int argc, char **argv) {
 	}
 	g_object_unref (compiler);
 	g_object_unref (device_manager);
-	return 0;
+	return rc;
 }

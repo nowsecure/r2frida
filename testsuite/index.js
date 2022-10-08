@@ -1,4 +1,3 @@
-'use strict';
 
 const r2pipe = require('r2pipe-promise');
 const colors = require('colors');
