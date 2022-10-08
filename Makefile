@@ -2,11 +2,15 @@ include config.mk
 
 R2V=$(VERSION)
 R2V=5.7.2
-frida_version=15.2.2
+frida_version=16.0.1
+
 R2FRIDA_PRECOMPILED_AGENT?=0
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.4/_agent.js
 
+frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
+
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
+CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)

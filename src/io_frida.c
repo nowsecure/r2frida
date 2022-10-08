@@ -542,7 +542,11 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			port = r_num_math (NULL, r_str_trim_head_ro (command + 3));
 		}
 		GError *error = NULL;
+#if FRIDA_VERSION_MAJOR >= 16
+		frida_script_enable_debugger_sync (rf->script, port, rf->cancellable, &error);
+#else
 		frida_session_enable_debugger_sync (rf->session, port, rf->cancellable, &error);
+#endif
 		if (error) {
 			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 				R_LOG_ERROR ("frida_session_enable_debugger_sync error: %s", error->message);
