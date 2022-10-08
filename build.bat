@@ -50,7 +50,9 @@ echo Compiling the Compiler...
 cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" frida-compile.c
 frida-compile.exe agent/index.js > _agent.js
 REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
+echo DONE
 radare2 -nfqcpc _agent.js | grep 0x > _agent.h || (echo "radare2.exe must be in path & exit /b 1)
+echo HEADER DONE
 
 echo Compiling the Agent...
 echo cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="!frida_version!" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
