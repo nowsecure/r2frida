@@ -1,7 +1,6 @@
 import * as config from "../../config.js";
 import log from "../../log.js";
 import utils from "../utils.js";
-
 export const SwiftAvailable = function () {
     return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 };
@@ -174,3 +173,9 @@ export function swiftTypes(args) {
     }
     return res;
 }
+export default {
+SwiftAvailable,
+traceSwift,
+swiftTypesR2,
+swiftTypes
+};

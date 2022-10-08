@@ -229,3 +229,16 @@ function _configParseSearchIn() {
     }
     return res;
 }
+
+export default {
+	search,
+searchInstances,
+searchInstancesJson,
+searchJson,
+searchHex,
+searchHexJson,
+searchWide,
+searchWideJson,
+searchValueImpl,
+searchValueImplJson
+};

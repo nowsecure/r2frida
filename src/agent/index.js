@@ -450,4 +450,6 @@ global.r2frida.safeio = NeedsSafeIo;
 global.r2frida.module = '';
 global.r2frida.puts = initializePuts();
 
+const r2frida = global.r2frida;
+
 recv(onStanza);

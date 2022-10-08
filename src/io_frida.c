@@ -363,8 +363,8 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	GError *error;
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "eternalized-script");
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
@@ -888,8 +888,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "_agent");
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 
 	const char *code_buf = NULL;
 	char *code_malloc_data = NULL;

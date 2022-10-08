@@ -267,3 +267,18 @@ function _dumpJavaArguments(args) {
     }
     return res;
 }
+
+export default {
+	JavaAvailable,
+javaUse,
+javaTraceExample,
+waitForJava,
+listJavaClassesJsonSync,
+listJavaClassesJson,
+javaPerform,
+traceJava,
+parseTargetJavaExpression,
+interceptRetJava,
+interceptFunRetJava,
+traceJavaConstructors
+};

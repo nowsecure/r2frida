@@ -1,5 +1,4 @@
 import swift from "./darwin/swift.js";
-
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
 export function sanitizeString(str) {
@@ -286,3 +285,25 @@ export function arrayBufferToHex(arrayBuffer) {
     }
     return result;
 }
+
+export default {
+sanitizeString,
+wrapStanza,
+hexPtr,
+ptrMax,
+ptrMin,
+toHexPairs,
+toWidePairs,
+normHexPairs,
+filterPrintable,
+byteArrayToHex,
+renderEndian,
+padPointer,
+trunc4k,
+rwxstr,
+rwxint,
+getPtr,
+autoType,
+requireFridaVersion,
+arrayBufferToHex,
+};

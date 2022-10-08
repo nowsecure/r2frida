@@ -7,7 +7,7 @@ const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
 const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 /* ObjC.available is buggy on non-objc apps, so override this */
-const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+export const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 export function initFoundation() {
     // required for early instrumentation
     try {
@@ -336,3 +336,22 @@ export class IOSPathTransform extends PathTransform {
         return this._api;
     }
 }
+
+export default {
+initFoundation,
+getIOSVersion,
+ObjCAvailable,
+isiOS,
+isObjC,
+getObjCClassPtr,
+dxObjc,
+hasMainLoop,
+uiAlert,
+listMachoSections,
+parseMachoHeader,
+getSections,
+getSegments,
+loadFrameworkBundle,
+unloadFrameworkBundle,
+IOSPathTransform
+};

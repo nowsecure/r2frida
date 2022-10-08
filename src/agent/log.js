@@ -27,3 +27,7 @@ export function traceLog (msg) {
     }));
   }
 }
+export default {
+  traceEmit,
+  traceLog
+};

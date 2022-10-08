@@ -10,6 +10,7 @@ import * as swift from "../darwin/swift.js";
 import strings from "../strings.js";
 import * as utils from "../utils.js";
 import { global } from '../../global.js';
+
 export async function dumpInfo() {
     const padding = (x) => ''.padStart(20 - x, ' ');
     const properties = await dumpInfoJson();
@@ -444,3 +445,37 @@ export function listStrings(args) {
     }
     return listStringsJson(args).map(({ base, text }) => utils.padPointer(base) + `  "${text}"`).join('\n');
 }
+
+export default {
+listEntrypointJson,
+listEntrypointR2,
+listEntrypointQuiet,
+listEntrypoint,
+listImports,
+listImportsR2,
+listImportsJson,
+listModules,
+listModulesQuiet,
+listModulesR2,
+listModulesJson,
+listModulesHere,
+listExports,
+listExportsR2,
+listAllExportsJson,
+listAllExports,
+listAllExportsR2,
+listExportsJson,
+listSectionsHere,
+listSectionsR2,
+listSections,
+listSectionsJson,
+listAllSymbolsJson,
+listAllSymbols,
+listAllSymbolsR2,
+listSymbols,
+listSymbolsR2,
+listSymbolsJson,
+listAllHelp,
+listStringsJson,
+listStrings
+};

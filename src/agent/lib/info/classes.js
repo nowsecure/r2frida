@@ -311,3 +311,23 @@ function _classGlob(k, v) {
     }
     return k.indexOf(v.replace(/\*/g, '')) !== -1;
 }
+
+export default {
+	listClassesLoadedJson,
+listClassesLoaders,
+listClassesLoaded,
+listAllClassesNatives,
+listClassesNatives,
+listClassesAllMethods,
+listClassSuperMethods,
+listClassVariables,
+listClassesHooks,
+listClassesWhere,
+listClasses,
+listClassesR2,
+listClassMethods,
+listClassMethodsJson,
+listClassesJson,
+listProtocols,
+listProtocolsJson
+};

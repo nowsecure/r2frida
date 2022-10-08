@@ -563,3 +563,21 @@ function _debase(a) {
     }
     return normalize(a);
 }
+
+export default {
+	fsList,
+fsGet,
+fsCat,
+fsOpen,
+chDir,
+getCwd,
+transformVirtualPath,
+exist,
+PathTransform,
+VirtualEnt,
+flatify,
+nsArrayMap,
+listFileDescriptors,
+listFileDescriptorsJson,
+closeFileDescriptors
+};

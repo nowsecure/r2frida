@@ -1,14 +1,14 @@
 import fs from "./fs.js";
 
-let _getenv = 0;
-let _setenv = 0;
-let _getpid = 0;
-let _getuid = 0;
-let _dup2 = 0;
-let _readlink = 0;
-let _fstat = 0;
-let _close = 0;
-let _kill = 0;
+export let _getenv = 0;
+export let _setenv = 0;
+export let _getpid = 0;
+export let _getuid = 0;
+export let _dup2 = 0;
+export let _readlink = 0;
+export let _fstat = 0;
+export let _close = 0;
+export let _kill = 0;
 if (Process.platform === 'windows') {
     _getenv = sym('getenv', 'pointer', ['pointer']);
     _setenv = sym('SetEnvironmentVariableA', 'int', ['pointer', 'pointer']);
@@ -141,3 +141,27 @@ export function changeSelinuxContext(args) {
     const rv = _setfilecon(path, con);
     return JSON.stringify({ ret: rv.value, errno: rv.errno });
 }
+
+export default {
+_getenv,
+_setenv,
+_getpid,
+_getuid,
+_dup2,
+_readlink,
+_fstat,
+_close,
+_kill,
+	sym,
+symf,
+getPidJson,
+getPid,
+getOrSetEnv,
+getOrSetEnvJson,
+getEnv,
+getEnvJson,
+dlopen,
+getenv,
+setenv,
+changeSelinuxContext
+};

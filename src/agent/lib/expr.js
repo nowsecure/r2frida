@@ -21,3 +21,8 @@ export function evalCode(args) {
     const result = eval(code); // eslint-disable-line
     return (result !== undefined) ? result : '';
 }
+export default {
+	numEval
+		,evalNum,
+		evalCode
+};

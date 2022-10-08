@@ -256,3 +256,6 @@ export function get (k) {
 export function getBoolean (k) {
   return _isTrue(config[k]);
 }
+export default {
+  get, set
+};

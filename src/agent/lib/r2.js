@@ -131,3 +131,13 @@ function _radareCommandString(cmd) {
     console.error('Warning: not calling back r2');
     return '';
 }
+
+export default {
+	getR2Arch,
+hostCmds,
+hostCmd,
+hostCmdj,
+onCmdResp,
+radareSeek,
+radareCommand
+} ;

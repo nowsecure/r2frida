@@ -48,3 +48,11 @@ global.r2frida = {
 };
 
 export const r2frida = global.r2frida;
+
+export default {
+  pluginRegister,
+  pluginUnregister,
+  commandHandler,
+  pluginList,
+  r2frida
+};
