@@ -256,6 +256,14 @@ export function get (k) {
 export function getBoolean (k) {
   return _isTrue(config[k]);
 }
+
 export default {
-  get, set
+  asR2Script,
+  getString,
+  evalConfigR2,
+  evalConfig,
+  evalConfigSearch,
+  set,
+  get,
+  getBoolean
 };

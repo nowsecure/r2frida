@@ -80,5 +80,5 @@ function isValidURL (s) {
 }
 
 export default {
-	parseStrings
-}
+  parseStrings
+};

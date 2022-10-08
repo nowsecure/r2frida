@@ -6,7 +6,6 @@
   "type": "module",
   "sourceType": "module",
   "main": "src/agent/index.js",
-  "module": "src/agent/index.js",
   "scripts": {
     "lint": "semistandard src/agent/*.js",
     "indent": "semistandard --fix src/agent/*.js",
