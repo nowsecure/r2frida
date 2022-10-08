@@ -47,7 +47,7 @@ if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
 cd ..
 echo Compiling the Compiler...
 
-echo cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" frida-compile.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
+cl %DEBUG% /OUT:frida-compile.exe /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" frida-compile.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
 frida-compile.exe agent/index.js > _agent.js
 REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 radare2 -nfqcpc _agent.js | grep 0x > _agent.h || (echo "radare2.exe must be in path & exit /b 1)
