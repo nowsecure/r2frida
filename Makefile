@@ -5,7 +5,7 @@ R2V=5.7.2
 frida_version=16.0.1
 
 R2FRIDA_PRECOMPILED_AGENT?=0
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.4/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.6/_agent.js
 #FRIDA_COMPILE=frida-compile
 FRIDA_COMPILE=src/frida-compile
 
