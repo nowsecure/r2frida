@@ -556,6 +556,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	} else if (!strncmp (command, "dtf?", 4)) {
 		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
 		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
+		io->cb_printf ("  %%  = format return value (only on onLeave)\n");
 		io->cb_printf ("  +  = show backtrace on trace\n");
 		io->cb_printf (" p/x = show pointer in hexadecimal\n");
 		io->cb_printf ("  c  = show value as a string (char)\n");
