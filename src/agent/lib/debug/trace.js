@@ -471,9 +471,10 @@ function _cloneArgs (args, fmt) {
 function _formatRetval (retval, fmt) {
   if (retval !== undefined && !retval.isNull()) {
     const retToken = fmt.indexOf('%');
-    if (retToken !== -1) {
-      return fmt[retToken + 1] !== undefined ? _format(retval, fmt[retToken + 1]) : retval;
+    if (retToken !== -1 && fmt[retToken + 1] !== undefined) {
+      return _format(retval, fmt[retToken + 1]);
     }
+    return retval;
   }
 }
 
