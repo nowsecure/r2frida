@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 	char buf[1024];
 	FridaCompiler *compiler = frida_compiler_new (device_manager);
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
-	FridaBuildOptions * fbo = frida_build_options_new ();
+	// FridaBuildOptions * fbo = frida_build_options_new ();
 	FridaCompilerOptions *fco = frida_compiler_options_new ();
 	frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
 	frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);

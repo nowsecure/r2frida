@@ -180,6 +180,7 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	git submodule update --init
 
 src/_agent.h: src/_agent.js
+	test -s src/_agent.js || ( rm -f src/_agent.js && exit 1)
 	r2 -nfqcpc $< | grep 0x > $@
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
