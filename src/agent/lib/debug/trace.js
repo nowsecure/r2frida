@@ -472,7 +472,9 @@ function _formatRetval (retval, fmt) {
   if (retval !== undefined && !retval.isNull()) {
     const retToken = fmt.indexOf('%');
     if (retToken !== -1 && fmt[retToken + 1] !== undefined) {
-      return _format(retval, fmt[retToken + 1]);
+      try {
+        return _format(retval, fmt[retToken + 1]);
+      } catch (e) {}
     }
     return retval;
   }
