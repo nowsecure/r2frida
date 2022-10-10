@@ -153,10 +153,13 @@ function listClassesHooks (args, mode) {
             let format = '';
             for (const arg of method.argumentTypes) {
               switch (arg) {
-                case 'pointer':
-                  format += 'O';
+                case 'pointer': // We return an hex pointer until a good type information is exposed by frida-objc-bridge 
+                  format += 'x';
                   break;
                 case 'uint64':
+                  format += 'i';
+                  break;
+                case 'bool': // TODO: Implement bool formatting at dtf
                   format += 'i';
                   break;
                 default:
