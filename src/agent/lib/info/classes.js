@@ -126,34 +126,55 @@ function listClassVariables (args) {
 }
 
 function listClassesHooks (args, mode) {
-  let out = '';
+  if (!ObjCAvailable) {
+    return 'ich only available on Objective-C environments.';
+  }
   if (args.length === 0) {
-    return 'Usage: :ich [kw]';
+    return 'Usage: :ich [className|moduleName]';
   }
   const moduleNames = {};
   const result = listClassesJson([]);
   if (ObjCAvailable) {
-    const klasses = ObjC.classes;
     for (const k of result) {
       moduleNames[k] = ObjC.classes[k].$moduleName;
     }
   }
-  for (const k of result) {
-    const modName = moduleNames[k];
-    if (k.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
-      const ins = search.searchInstancesJson([k]);
-      const inss = ins.map((x) => { return x.address; }).join(' ');
-      const a = 'OOO';
-      const klass = ObjC.classes[k];
+  let out = '';
+  for (const klassname of result) {
+    const modName = moduleNames[klassname];
+    if (klassname.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
+      const klass = ObjC.classes[klassname];
       if (klass) {
-        for (const m of klass.$ownMethods) {
+        for (const methodName of klass.$ownMethods) {
           // TODO: use instance.argumentTypes to generate the 'OOO'
-          out += ':dtf objc:' + k + '.' + m + ' ' + a + '\n';
+          const normalizeMethodName = _normalizeToFridaMethod(methodName);
+          const method = klass[methodName];
+          if (method !== undefined) {
+            let format = '';
+            for (const arg of method.argumentTypes) {
+              switch (arg) {
+                case 'pointer':
+                  format += 'O';
+                  break;
+                case 'uint64':
+                  format += 'i';
+                  break;
+                default:
+                  format += 'x';
+                  break;
+              }
+            }
+            out += `:dtf objc:${klassname}.^${normalizeMethodName}$ ${format}\n`;
+          }
         }
       }
     }
   }
   return out;
+}
+
+function _normalizeToFridaMethod (methodName) {
+  return methodName.replace('- ', '').replace('+ ', '').replace(/:/g, '_');
 }
 
 function listClassesWhere (args, mode) {
