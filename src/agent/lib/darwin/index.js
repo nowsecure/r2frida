@@ -15,7 +15,7 @@ function initFoundation () {
   // required for early instrumentation
   try {
     Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
-    Module.load('/System/Library/PrivateFrameworks/AppSSOCore.framework/AppSSOCore');
+    Module.load('/System/Library/PrivateFrameworks/AppSSOCore.framework/AppSSOCore')
   } catch (e) {
     // ignored
   }
@@ -105,7 +105,7 @@ function dxObjc (args) {
     ObjC.schedule(ObjC.mainQueue, function () {
       if (Object.prototype.hasOwnProperty.call(instancePointer, methodName)) {
         const retval = instancePointer[methodName](...t);
-        if (retval !== undefined) {
+        if (retval !== undefined && retval !== null && !retval.isNull()) {
           if (retval.class !== undefined) {
             console.log(ObjC.Object(retval).toString());
           } else {
