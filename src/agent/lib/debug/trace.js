@@ -198,16 +198,24 @@ function traceR2 (args) {
 }
 
 function clearTrace (args) {
-  if (args.length > 0 && +args[0] > 0) {
-    const res = [];
-    const nth = +args[0];
-    for (let i = 0; i < traceListeners.length; i++) {
-      const tl = traceListeners[i];
-      if (i === nth) {
-        tl.listener.detach();
-      } else {
-        res.push(tl);
-      }
+  let index;
+  if (args.length === 0) {
+    return '';
+  }
+  try {
+    index = parseInt(args[0], 10);
+  } catch {
+    return 'Integer argument is required.';
+  }
+  if (index < 0) {
+    return 'Index should be equal or greater to 0.';
+  }
+  for (let i = 0; i < traceListeners.length; i++) {
+    const tl = traceListeners[i];
+    if (i === index) {
+      tl.listener.detach();
+      traceListeners.splice(i, 1);
+      break;
     }
   }
   return '';
