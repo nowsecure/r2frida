@@ -218,6 +218,7 @@ function clearTrace (args) {
       break;
     }
   }
+  return '';
 }
 
 function clearAllTrace (args) {
