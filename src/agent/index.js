@@ -354,7 +354,7 @@ function evaluate (params) {
     let { code, ccode } = params;
     const isObjcMainLoopRunning = darwin.ObjCAvailable && darwin.hasMainLoop();
 
-    if (darwin.ObjCAvailable && isObjcMainLoopRunning && !debug.suspended) {
+    if (darwin.ObjCAvailable && isObjcMainLoopRunning) {
       ObjC.schedule(ObjC.mainQueue, performEval);
     } else {
       performEval();
