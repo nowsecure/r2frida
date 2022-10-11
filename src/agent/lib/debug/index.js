@@ -244,9 +244,7 @@ function listThreadsJson () {
 }
 
 function dumpRegisters (args) {
-  const tid = parseInt(args[0], 10);
-  return Process.enumerateThreads()
-    .filter(thread => tid === undefined || thread.id === tid)
+  return _getThreads(args[0])
     .map(thread => {
       const { id, state, context } = thread;
       const heading = `tid ${id} ${state}`;
@@ -260,8 +258,14 @@ function dumpRegisters (args) {
     .join('\n\n') + '\n';
 }
 
-function dumpRegistersJson () {
-  return Process.enumerateThreads();
+function dumpRegistersJson (args) {
+  return _getThreads(args[0]);
+}
+
+function _getThreads (threadid) {
+  const tid = threadid !== undefined ? parseInt(threadid, 10) : threadid;
+  return Process.enumerateThreads()
+    .filter(thread => tid === undefined || thread.id === tid);
 }
 
 function dumpRegistersR2 (args) {
