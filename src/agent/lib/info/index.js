@@ -50,7 +50,7 @@ async function dumpInfoJson () {
     cwd: fs.getCwd()
   };
 
-  if (darwin.ObjCAvailable && !debug.suspended) {
+  if (darwin.ObjCAvailable) {
     try {
       const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
       const id = mb ? mb.infoDictionary() : '';
