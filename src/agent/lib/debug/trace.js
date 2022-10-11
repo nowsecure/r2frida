@@ -215,6 +215,7 @@ function clearTrace (args) {
     if (i === index) {
       tl.listener.detach();
       traceListeners.splice(i, 1);
+      break;
     }
   }
 }
