@@ -440,8 +440,7 @@ function traceLogClear (args) {
 }
 
 function traceLogClearAll () {
-  log.logs = [];
-  log.traces = {};
+  log.logs.splice(0);
   return '';
 }
 

@@ -3,7 +3,6 @@
 const config = require('./config');
 
 const logs = [];
-const traces = {};
 
 function traceEmit (msg) {
   const { wrapStanza } = require('./lib/utils'); // Workaround fix: By some reason the reference is not obtained globally
@@ -33,7 +32,6 @@ function traceLog (msg) {
 
 module.exports = {
   logs,
-  traces,
   traceEmit,
   traceLog
 };
