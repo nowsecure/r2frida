@@ -1,5 +1,6 @@
 'use strict';
 
+const config = require('../../config');
 const r2 = require('../r2');
 const sys = require('../sys');
 const utils = require('../utils');
@@ -19,6 +20,9 @@ Process.setExceptionHandler(({ address }) => {
     send({ name: 'breakpoint-event', stanza: { cmd: bp.cmd } });
 
     let state = 'stopped';
+    if (config.getBoolean('hook.verbose')) {
+      console.log(`Breakpoint ${address} hit`);
+    }
     do {
       const op = recv('breakpoint-action', ({ action }) => {
         switch (action) {
@@ -27,6 +31,9 @@ Process.setExceptionHandler(({ address }) => {
             break;
           case 'resume':
             state = 'running';
+            if (config.getBoolean('hook.verbose')) {
+              console.log('Continue thread(s).');
+            }
             break;
           default:
             console.log('TODO2');
