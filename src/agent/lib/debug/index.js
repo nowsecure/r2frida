@@ -96,7 +96,7 @@ function breakpointNative (args) {
   }
 }
 
-function breakpointJson (args) {
+function breakpointJson () {
   const json = {};
   for (const [address, bp] of newBreakpoints.entries()) {
     if (bp.patches[0].address.equals(ptr(address))) {
@@ -244,9 +244,9 @@ function listThreadsJson () {
 }
 
 function dumpRegisters (args) {
-  const [tid] = args;
+  const tid = parseInt(args[0], 10);
   return Process.enumerateThreads()
-    .filter(thread => !tid || thread.id === tid)
+    .filter(thread => tid === undefined || thread.id === tid)
     .map(thread => {
       const { id, state, context } = thread;
       const heading = `tid ${id} ${state}`;
