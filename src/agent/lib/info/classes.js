@@ -177,7 +177,7 @@ function listClassesHooks (args, mode) {
 }
 
 function _normalizeToFridaMethod (methodName) {
-  return methodName.replace('- ', '').replace('+ ', '').replace(/:/g, '_');
+  return methodName.replace('- ', '').replace('+ ', '');
 }
 
 function listClassesWhere (args, mode) {
