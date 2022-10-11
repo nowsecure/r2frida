@@ -199,7 +199,7 @@ function traceR2 (args) {
 
 function clearTrace (args) {
   let index;
-  if (args.length <= 0) {
+  if (args.length === 0) {
     return '';
   }
   try {
