@@ -377,6 +377,16 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	return true;
 }
 
+static int on_compiler_diagnostics (void *user, GVariant *diagnostics) {
+	gchar *str = g_variant_print (diagnostics, TRUE);
+	str = r_str_replace (str, "int64", "int64:", true);
+	char *json = r_print_json_indent (str, true, "  ", NULL);
+	eprintf ("%s\n", json);
+	free (json);
+	g_free (str);
+	return 0;
+}
+
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 	R_LOG_DEBUG ("lseek %d @ 0x%08"PFMT64x, whence, offset);
 	switch (whence) {
@@ -542,7 +552,11 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			port = r_num_math (NULL, r_str_trim_head_ro (command + 3));
 		}
 		GError *error = NULL;
+#if FRIDA_VERSION_MAJOR >= 16
+		frida_script_enable_debugger_sync (rf->script, port, rf->cancellable, &error);
+#else
 		frida_session_enable_debugger_sync (rf->session, port, rf->cancellable, &error);
+#endif
 		if (error) {
 			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 				R_LOG_ERROR ("frida_session_enable_debugger_sync error: %s", error->message);
@@ -666,7 +680,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 #else
 					GError *error = NULL;
 					FridaCompiler *compiler = frida_compiler_new (device_manager);
-				// 	g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
+					g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
 					slurpedData = frida_compiler_build_sync (compiler, filename, NULL, NULL, &error);
 					g_object_unref (compiler);
 #endif
@@ -885,8 +899,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "_agent");
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
+	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
 
 	const char *code_buf = NULL;
 	char *code_malloc_data = NULL;
