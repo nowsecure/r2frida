@@ -224,8 +224,8 @@ function _getRanges (fromNum, toNum) {
   return ranges.filter(range => {
     return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
   }).map(range => {
-    const start = _ptrMax(range.base, from);
-    const end = _ptrMin(range.base.add(range.size), to);
+    const start = utils.ptrMax(range.base, from);
+    const end = utils.ptrMin(range.base.add(range.size), to);
     return {
       address: start,
       size: uint64(end.sub(start).toString()).toNumber()
