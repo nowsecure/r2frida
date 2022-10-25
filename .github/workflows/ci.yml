@@ -1,7 +1,7 @@
 name: ci
 
 env:
-  R2V: 5.7.4
+  R2V: 5.7.8
 
 on:
   push:
@@ -39,7 +39,8 @@ jobs:
         name: build-agent
         path: src/_agent.js
   build-macos:
-    runs-on: macos-latest
+#   runs-on: macos-11
+    runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
     - name: Building Radare2
@@ -58,7 +59,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-python@v1
+    - uses: actions/setup-python@v2
       with:
         python-version: 3.7.x
     - name: Preparing msvc toolchain
