@@ -39,8 +39,8 @@ jobs:
         name: build-agent
         path: src/_agent.js
   build-macos:
-#   runs-on: macos-11
-    runs-on: macos-12
+    runs-on: macos-11
+#   runs-on: macos-12
     steps:
     - uses: actions/checkout@v3
     - name: Building Radare2
