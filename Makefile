@@ -2,11 +2,18 @@ include config.mk
 
 R2V=$(VERSION)
 R2V=5.7.2
-frida_version=15.2.2
+frida_version=16.0.2
+
+R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT?=0
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.8/_agent.js
+FRIDA_COMPILE=frida-compile
+#FRIDA_COMPILE=src/frida-compile
+
+frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
+CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -121,7 +128,9 @@ LDFLAGS+=-Wl,--gc-sections
 endif
 
 all: .git/modules/ext ext/frida
-	# $(MAKE) src/frida-compile
+ifeq ($(frida_version_major),16)
+	$(MAKE) src/frida-compile
+endif
 	$(MAKE) io_frida.$(SO_EXT)
 
 deb:
@@ -174,6 +183,7 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	git submodule update --init
 
 src/_agent.h: src/_agent.js
+	test -s src/_agent.js || ( rm -f src/_agent.js && exit 1)
 	r2 -nfqcpc $< | grep 0x > $@
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
@@ -184,8 +194,14 @@ else
 	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 endif
 else
-src/_agent.js: src/agent/index.js src/agent/plugin.js node_modules
+src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js
+ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
+	src/frida-compile src/agent/index.js > src/_agent.js
+else
+	$(MAKE) node_modules
 	npm run build
+#	npx frida-compile -Sc src/agent/index.js > src/_agent.js
+endif
 endif
 
 node_modules: package.json
@@ -293,7 +309,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/frida-compile: src/frida-compile.c
-	$(CC) src/frida-compile.c -g $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) -Iext/frida -o src/frida-compile
+	$(CC) -g src/frida-compile.c $(FRIDA_LIBS) $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) -pthread -Iext/frida -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
