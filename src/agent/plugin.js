@@ -30,7 +30,7 @@ function pluginList() {
     return Object.keys(commandHandlers).join('\n');
 }
 
-import packageJson from "./package.json" assert { type: `json` };
+import packageJson from "./package.json" assert { type: "json" };
 
 global.r2frida = {
     version: packageJson.version,
