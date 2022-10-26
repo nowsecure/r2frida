@@ -8,12 +8,12 @@
     "lint": "semistandard src/agent/*.js",
     "indent": "semistandard --fix src/agent/*.js",
     "prepare": "npm run build",
-    "build": "frida-compile -Sco src/_agent.js src/agent",
-    "watch": "frida-compile -Sco src/_agent.js -w src/agent"
+    "build": "frida-compile -Sco src/_agent.js src/agent/index.js",
+    "watch": "frida-compile -Sco src/_agent.js -w src/agent/index.js"
   },
   "license": "LGPL-3.0",
   "dependencies": {
-    "frida-compile": "10.2.5"
+    "frida-compile": "15.1.1"
   },
   "engines": {
     "node": ">=14.16"
