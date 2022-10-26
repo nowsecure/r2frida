@@ -198,6 +198,7 @@ src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js
 ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
 	src/frida-compile src/agent/index.js > src/_agent.js
 else
+	$(MAKE) node_modules
 	npm run build
 #	npx frida-compile -Sc src/agent/index.js > src/_agent.js
 endif
