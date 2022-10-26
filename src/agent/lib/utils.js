@@ -1,37 +1,29 @@
+import swift from './darwin/swift.js';
 'use strict';
-
-const swift = require('./darwin/swift');
-
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
-
 function sanitizeString (str) {
   const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
   return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
 }
-
 function wrapStanza (name, stanza) {
   return {
     name: name,
     stanza: stanza
   };
 }
-
 function hexPtr (p) {
   if (p instanceof UInt64) {
     return `0x${p.toString(16)}`;
   }
   return p.toString();
 }
-
 function ptrMax (a, b) {
   return a.compare(b) > 0 ? a : b;
 }
-
 function ptrMin (a, b) {
   return a.compare(b) < 0 ? a : b;
 }
-
 function toHexPairs (raw) {
   const isString = typeof raw === 'string';
   const pairs = [];
@@ -42,7 +34,6 @@ function toHexPairs (raw) {
   }
   return pairs.join(' ');
 }
-
 function toWidePairs (raw) {
   const pairs = [];
   for (let i = 0; i !== raw.length; i += 1) {
@@ -53,7 +44,6 @@ function toWidePairs (raw) {
   }
   return pairs.join(' ');
 }
-
 function normHexPairs (raw) {
   const norm = raw.replace(/ /g, '');
   if (_isHex(norm)) {
@@ -61,7 +51,6 @@ function normHexPairs (raw) {
   }
   throw new Error('Invalid hex string');
 }
-
 function filterPrintable (arr) {
   const u8arr = new Uint8Array(arr);
   const printable = [];
@@ -76,7 +65,6 @@ function filterPrintable (arr) {
   }
   return printable.join('');
 }
-
 function byteArrayToHex (arr) {
   const u8arr = new Uint8Array(arr);
   const hexs = [];
@@ -86,7 +74,6 @@ function byteArrayToHex (arr) {
   }
   return hexs.join('');
 }
-
 function renderEndian (value, bigEndian, width) {
   const bytes = [];
   for (let i = 0; i !== width; i++) {
@@ -98,7 +85,6 @@ function renderEndian (value, bigEndian, width) {
   }
   return bytes;
 }
-
 function padPointer (value) {
   if (value.toString().indexOf('ArrayBuffer') !== -1) {
     value = arrayBufferToHex(value);
@@ -110,19 +96,16 @@ function padPointer (value) {
   }
   return '0x' + result;
 }
-
 function _toPairs (hex) {
   if ((hex.length % 2) !== 0) {
     throw new Error('Odd-length string');
   }
-
   const pairs = [];
   for (let i = 0; i !== hex.length; i += 2) {
     pairs.push(hex.substr(i, 2));
   }
   return pairs.join(' ').toLowerCase();
 }
-
 function _isHex (raw) {
   const hexSet = new Set(Array.from('abcdefABCDEF0123456789?.'));
   const inSet = new Set(Array.from(raw));
@@ -131,11 +114,9 @@ function _isHex (raw) {
   }
   return inSet.size === 0;
 }
-
 function trunc4k (x) {
   return x.and(ptr('0xfff').not());
 }
-
 function rwxstr (x) {
   let str = '';
   str += (x & 1) ? 'r' : '-';
@@ -143,12 +124,10 @@ function rwxstr (x) {
   str += (x & 4) ? 'x' : '-';
   return str;
 }
-
 function rwxint (x) {
   const ops = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
   return ops.indexOf([x]);
 }
-
 function getPtr (p) {
   if (typeof p === 'string') {
     p = p.trim();
@@ -244,7 +223,6 @@ function getPtr (p) {
   // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
   return Module.findExportByName(null, p);
 }
-
 function autoType (args) {
   const nfArgs = [];
   const nfArgsData = [];
@@ -276,7 +254,6 @@ function autoType (args) {
   }
   return [nfArgs, nfArgsData];
 }
-
 function requireFridaVersion (major, minor, patch) {
   const required = [major, minor, patch];
   const actual = Frida.version.split('.');
@@ -289,25 +266,39 @@ function requireFridaVersion (major, minor, patch) {
     }
   }
 }
-
 function arrayBufferToHex (arrayBuffer) {
   if (typeof arrayBuffer !== 'object' || arrayBuffer === null || typeof arrayBuffer.byteLength !== 'number') {
     throw new TypeError('Expected input to be an ArrayBuffer');
   }
-
   const view = new Uint8Array(arrayBuffer);
   let result = '';
   let value;
-
   for (let i = 0; i < view.length; i++) {
     value = view[i].toString(16);
     result += (value.length === 1 ? '0' + value : value);
   }
-
   return result;
 }
-
-module.exports = {
+export { sanitizeString };
+export { wrapStanza };
+export { hexPtr };
+export { ptrMax };
+export { ptrMin };
+export { toHexPairs };
+export { toWidePairs };
+export { normHexPairs };
+export { filterPrintable };
+export { byteArrayToHex };
+export { renderEndian };
+export { padPointer };
+export { trunc4k };
+export { rwxstr };
+export { rwxint };
+export { getPtr };
+export { autoType };
+export { requireFridaVersion };
+export { arrayBufferToHex };
+export default {
   sanitizeString,
   wrapStanza,
   hexPtr,

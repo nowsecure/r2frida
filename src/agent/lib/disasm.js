@@ -1,12 +1,9 @@
+import utils from './utils.js';
 'use strict';
-
-const utils = require('./utils');
-
 function disasmCode (lenstr) {
   const len = +lenstr || 32;
   return disasm(global.r2frida.offset, len);
 }
-
 function disasm (addr, len, initialOldName) {
   len = len || 32;
   if (typeof addr === 'string') {
@@ -89,7 +86,6 @@ function disasm (addr, len, initialOldName) {
   }
   return disco;
 }
-
 function tolerantInstructionParse (address) {
   let instr = null;
   let cursor = address;
@@ -98,7 +94,7 @@ function tolerantInstructionParse (address) {
     cursor = instr.next;
   } catch (e) {
     if (e.message !== 'invalid instruction' &&
-        e.message !== `access violation accessing ${cursor}`) {
+            e.message !== `access violation accessing ${cursor}`) {
       throw e;
     }
     if (e.message.indexOf('access violation') !== -1) {
@@ -119,11 +115,11 @@ function tolerantInstructionParse (address) {
         break;
     }
   }
-
   return [instr, cursor];
 }
-
-module.exports = {
+export { disasmCode };
+export { tolerantInstructionParse };
+export default {
   disasmCode,
   tolerantInstructionParse
 };

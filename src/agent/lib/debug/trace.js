@@ -1,25 +1,22 @@
+import expr from '../expr.js';
+import log from '../../log.js';
+import { getModuleByAddress } from '../info/lookup.js';
+import config from '../../config.js';
+import debug from './index.js';
+import darwin from '../darwin/index.js';
+import swift from '../darwin/swift.js';
+import java from '../java/index.js';
+import utils from '../utils.js';
+import { fromByteArray } from 'base64-js';
 'use strict';
-
-const expr = require('../expr');
-const log = require('../../log');
-const { getModuleByAddress } = require('../info/lookup');
-const config = require('../../config');
-const debug = require('../debug');
-const darwin = require('../darwin');
-const swift = require('../darwin/swift');
-const java = require('../java');
-const utils = require('../utils');
-
 const traceListeners = [];
 const tracehooks = {};
-
 function trace (args) {
   if (args.length === 0) {
     return _traceList();
   }
   return traceJson(args);
 }
-
 function traceFormat (args) {
   if (args.length === 0) {
     return _traceList();
@@ -42,7 +39,6 @@ function traceFormat (args) {
   const traceOnEnter = format.indexOf('^') !== -1;
   const traceBacktrace = format.indexOf('+') !== -1;
   const useCmd = config.getString('hook.usecmd');
-
   const currentModule = getModuleByAddress(address);
   const listener = Interceptor.attach(ptr(address), {
     myArgs: [],
@@ -78,7 +74,7 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
-          for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
+          for (let i = 0; i < this.myDumps.length; i++) { msg += `\ndump:${i + 1}\n${this.myDumps[i]}`; }
           log.traceEmit(msg);
         }
         if (useCmd.length > 0) {
@@ -92,7 +88,6 @@ function traceFormat (args) {
         const fmtRet = _formatRetval(retval, format);
         this.myArgs = fmtArgs.args;
         this.myDumps = fmtArgs.dumps;
-
         const traceMessage = {
           source: 'dtf',
           name: name,
@@ -111,7 +106,7 @@ function traceFormat (args) {
           if (config.getBoolean('hook.backtrace')) {
             msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
           }
-          for (let i = 0; i < this.myDumps.length; i++) msg += `\ndump:${i + 1}\n${this.myDumps[i]}`;
+          for (let i = 0; i < this.myDumps.length; i++) { msg += `\ndump:${i + 1}\n${this.myDumps[i]}`; }
           log.traceEmit(msg);
         }
         if (useCmd.length > 0) {
@@ -132,7 +127,6 @@ function traceFormat (args) {
   traceListeners.push(traceListener);
   return true;
 }
-
 function traceHook (args) {
   if (args.length === 0) {
     return JSON.stringify(tracehooks, null, 2);
@@ -143,7 +137,6 @@ function traceHook (args) {
   }
   return '';
 }
-
 function traceHere () {
   const args = [global.r2frida.offset];
   args.forEach(address => {
@@ -160,7 +153,6 @@ function traceHere () {
   });
   return true;
 }
-
 function traceJson (args) {
   if (args.length === 0) {
     return _traceListJson();
@@ -188,15 +180,12 @@ function traceJson (args) {
     })();
   });
 }
-
 function traceQuiet (args) {
   return traceListeners.map(({ address, hits, moduleName, name }) => [address, hits, moduleName + ':' + name].join(' ')).join('\n') + '\n';
 }
-
 function traceR2 (args) {
   return traceListeners.map(_ => `dt+ ${_.at} ${_.hits}`).join('\n') + '\n';
 }
-
 function clearTrace (args) {
   let index;
   if (args.length === 0) {
@@ -220,12 +209,10 @@ function clearTrace (args) {
   }
   return '';
 }
-
 function clearAllTrace (args) {
   traceListeners.splice(0).forEach(lo => lo.listener ? lo.listener.detach() : null);
   return '';
 }
-
 function traceRegs (args) {
   if (args.length < 1) {
     return 'Usage: dtr [name|address] [reg ...]';
@@ -294,7 +281,6 @@ function traceRegs (args) {
   traceListeners.push(traceListener);
   return '';
 }
-
 function traceReal (name, addressString) {
   if (arguments.length === 0) {
     return _traceList();
@@ -358,7 +344,6 @@ function traceReal (name, addressString) {
   traceListeners.push(traceListener);
   return '';
 }
-
 // \dth printf 0,1 .. kind of dtf
 function tracehook (address, args) {
   const at = debug.nameFromAddress(address);
@@ -369,7 +354,7 @@ function tracehook (address, args) {
       const [k, v] = fmt.split(':');
       switch (k) {
         case 'i':
-        // console.log('int', args[v]);
+          // console.log('int', args[v]);
           fmtarg.push(+args[v]);
           break;
         case 's':
@@ -384,7 +369,7 @@ function tracehook (address, args) {
           }
           break;
         case 'z':
-        // console.log('string', Memory.readCString(args[+v]));
+          // console.log('string', Memory.readCString(args[+v]));
           fmtarg.push(Memory.readCString(ptr(args[+v])));
           break;
         case 'v':
@@ -400,50 +385,40 @@ function tracehook (address, args) {
   }
   return fmtarg;
 }
-
 function traceLogDump () {
   return log.logs.map(_tracelogToString).join('\n') + '\n';
 }
-
-const { fromByteArray } = require ('base64-js');
-
 function traceLogDumpR2 () {
   let res = '';
   for (const l of log.logs) {
     const s = '' + _traceNameFromAddress(l.address) + ': ';
-    const input = JSON.stringify (l);
-    const binput = Uint8Array.from(input.split('').map((x)=>{return x.charCodeAt(0);}))
+    const input = JSON.stringify(l);
+    const binput = Uint8Array.from(input.split('').map((x) => { return x.charCodeAt(0); }));
     const bytes = Uint8Array.from(binput);
     const data = fromByteArray(bytes);
-    res += "T base64:" + data + "\n";
+    res += 'T base64:' + data + '\n';
     if (l.script) {
       res += l.script;
     }
   }
   return res;
 }
-
 function traceLogDumpQuiet () {
-  return log.logs.map(({ address, timestamp }) =>
-    [address, timestamp, _traceCountFromAddress(address), _traceNameFromAddress(address)].join(' '))
+  return log.logs.map(({ address, timestamp }) => [address, timestamp, _traceCountFromAddress(address), _traceNameFromAddress(address)].join(' '))
     .join('\n') + '\n';
 }
-
 function traceLogDumpJson () {
   return JSON.stringify(log.logs);
 }
-
 function traceLogClear (args) {
   // TODO: clear one trace instead of all
   console.error('ARGS', JSON.stringify(args));
   return traceLogClearAll();
 }
-
 function traceLogClearAll () {
   log.logs.splice(0);
   return '';
 }
-
 function haveTraceAt (address) {
   try {
     for (const trace of traceListeners) {
@@ -456,7 +431,6 @@ function haveTraceAt (address) {
   }
   return false;
 }
-
 function _cloneArgs (args, fmt) {
   const a = [];
   let j = 0;
@@ -474,23 +448,22 @@ function _cloneArgs (args, fmt) {
   }
   return a;
 }
-
 function _formatRetval (retval, fmt) {
   if (retval !== undefined && !retval.isNull()) {
     const retToken = fmt.indexOf('%');
     if (retToken !== -1 && fmt[retToken + 1] !== undefined) {
       try {
         return _format(retval, fmt[retToken + 1]);
-      } catch (e) {}
+      } catch (e) { }
     }
     return retval;
   }
 }
-
 function _formatArgs (args, fmt) {
   const fmtArgs = [];
   const dumps = [];
-  let arg; let j = 0;
+  let arg;
+  let j = 0;
   for (let i = 0; i < fmt.length; i++, j++) {
     try {
       arg = args[j];
@@ -539,7 +512,6 @@ function _formatArgs (args, fmt) {
   }
   return { args: fmtArgs, dumps: dumps };
 }
-
 function _format (addr, fmt) {
   let result;
   switch (fmt) {
@@ -597,7 +569,6 @@ function _format (addr, fmt) {
   }
   return result;
 }
-
 function _tracehookSet (name, format, callback) {
   if (name === null) {
     console.error('Name was not resolved');
@@ -609,42 +580,34 @@ function _tracehookSet (name, format, callback) {
   };
   return true;
 }
-
 function _traceList () {
   let count = 0;
   return traceListeners.map((t) => {
     return [count++, t.hits, t.at, t.source, t.moduleName, t.name, t.args].join('\t');
   }).join('\n') + '\n';
 }
-
 function _traceListJson () {
   return traceListeners.map(_ => JSON.stringify(_)).join('\n') + '\n';
 }
-
 function _traceListenerFromAddress (address) {
   const results = traceListeners.filter((tl) => '' + address === '' + tl.at);
   return (results.length > 0) ? results[0] : undefined;
 }
-
 function _traceCountFromAddress (address) {
   const tl = _traceListenerFromAddress(address);
   return tl ? tl.hits : 0;
 }
-
 function _traceNameFromAddress (address) {
   const tl = _traceListenerFromAddress(address);
   return tl ? tl.moduleName + ':' + tl.name : '';
 }
-
 function _hexdumpUntrusted (addr, len) {
   try {
-    if (typeof len === 'number') return hexdump(addr, { length: len });
-    else return hexdump(addr);
+    if (typeof len === 'number') { return hexdump(addr, { length: len }); } else { return hexdump(addr); }
   } catch (e) {
     return `hexdump at ${addr} failed: ${e}`;
   }
 }
-
 function _tracelogToString (l) {
   const line = [l.source, l.name || l.address, _objectToString(l.values)].join('\t');
   const bt = (!l.backtrace)
@@ -654,7 +617,6 @@ function _tracelogToString (l) {
     }).join('\n') + '\n';
   return line + bt;
 }
-
 function _objectToString (o) {
   // console.error(JSON.stringify(o));
   const r = Object.keys(o).map((k) => {
@@ -674,7 +636,6 @@ function _objectToString (o) {
   }).join(' ');
   return '(' + r + ')';
 }
-
 function _readUntrustedUtf8 (address, length) {
   try {
     if (typeof length === 'number') {
@@ -689,7 +650,6 @@ function _readUntrustedUtf8 (address, length) {
     return '(invalid utf8)';
   }
 }
-
 function _readUntrustedUtf16 (address, length) {
   try {
     if (typeof length === 'number') {
@@ -704,7 +664,6 @@ function _readUntrustedUtf16 (address, length) {
     return '(invalid utf16)';
   }
 }
-
 function _readUntrustedAnsi (address, length) {
   try {
     if (typeof length === 'number') {
@@ -719,8 +678,23 @@ function _readUntrustedAnsi (address, length) {
     return '(invalid Ansi)';
   }
 }
-
-module.exports = {
+export { trace };
+export { traceFormat };
+export { traceHook };
+export { traceHere };
+export { traceJson };
+export { traceQuiet };
+export { traceR2 };
+export { clearTrace };
+export { clearAllTrace };
+export { traceRegs };
+export { traceLogDump };
+export { traceLogDumpR2 };
+export { traceLogDumpQuiet };
+export { traceLogDumpJson };
+export { traceLogClear };
+export { traceLogClearAll };
+export default {
   trace,
   traceFormat,
   traceHook,

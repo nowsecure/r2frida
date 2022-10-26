@@ -1,10 +1,7 @@
+import config from '../../config.js';
+import log from '../../log.js';
 'use strict';
-
-const config = require('../../config');
-const log = require('../../log');
-
 const JavaAvailable = Java && Java.available;
-
 function javaUse (name) {
   const initialLoader = Java.classFactory.loader;
   let res = null;
@@ -22,7 +19,6 @@ function javaUse (name) {
   Java.classFactory.loader = initialLoader;
   return res;
 }
-
 function javaTraceExample () {
   javaPerform(function () {
     const System = Java.use('java.lang.System');
@@ -37,7 +33,6 @@ function javaTraceExample () {
     };
   });
 }
-
 function waitForJava () {
   javaPerform(function () {
     const ActivityThread = Java.use('android.app.ActivityThread');
@@ -46,7 +41,6 @@ function waitForJava () {
     console.log('Done: ' + ctx);
   });
 }
-
 function performOnJavaVM (fn) {
   return new Promise((resolve, reject) => {
     javaPerform(function () {
@@ -59,7 +53,6 @@ function performOnJavaVM (fn) {
     });
   });
 }
-
 /* this ugly sync method with while+settimeout is needed because
   returning a promise is not properly handled yet and makes r2
   lose track of the output of the command so you cant grep on it */
@@ -73,7 +66,7 @@ function listJavaClassesJsonSync (args) {
       // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
     });
     // eslint-disable-next-line
-    while (methods === undefined) {
+        while (methods === undefined) {
       /* wait here */
       setTimeout(null, 0);
     }
@@ -89,9 +82,8 @@ function listJavaClassesJsonSync (args) {
   });
   return classes;
 }
-
 // eslint-disable-next-line
-function listJavaClassesJson (args, classMethodsOnly) {
+function listJavaClassesJson(args, classMethodsOnly) {
   let res = [];
   if (args.length === 1) {
     javaPerform(function () {
@@ -132,14 +124,12 @@ function listJavaClassesJson (args, classMethodsOnly) {
   }
   return res;
 }
-
 function javaPerform (fn) {
   if (config.getBoolean('java.wait')) {
     return Java.perform(fn);
   }
   return Java.performNow(fn);
 }
-
 function traceJava (klass, method) {
   javaPerform(function () {
     const Throwable = Java.use('java.lang.Throwable');
@@ -171,7 +161,6 @@ function traceJava (klass, method) {
     };
   });
 }
-
 function parseTargetJavaExpression (target) {
   let klass = target.substring('java:'.length);
   const lastDot = klass.lastIndexOf('.');
@@ -182,7 +171,6 @@ function parseTargetJavaExpression (target) {
   }
   throw new Error('Error: Wrong java method syntax');
 }
-
 function interceptRetJava (klass, method, value) {
   javaPerform(function () {
     const targetClass = javaUse(klass);
@@ -209,7 +197,6 @@ function interceptRetJava (klass, method, value) {
     };
   });
 }
-
 function interceptFunRetJava (className, methodName, value, paramTypes) {
   javaPerform(function () {
     const targetClass = javaUse(className);
@@ -236,7 +223,6 @@ function interceptFunRetJava (className, methodName, value, paramTypes) {
     };
   });
 }
-
 function traceJavaConstructors (className) {
   javaPerform(function () {
     const foo = Java.use(className).$init.overloads;
@@ -253,7 +239,6 @@ function traceJavaConstructors (className) {
     });
   });
 }
-
 function _dumpJavaArguments (args) {
   let res = '';
   try {
@@ -267,8 +252,20 @@ function _dumpJavaArguments (args) {
   }
   return res;
 }
-
-module.exports = {
+export { JavaAvailable };
+export { javaUse };
+export { javaTraceExample };
+export { performOnJavaVM };
+export { waitForJava };
+export { listJavaClassesJson };
+export { listJavaClassesJsonSync };
+export { javaPerform };
+export { traceJava };
+export { parseTargetJavaExpression };
+export { interceptRetJava };
+export { interceptFunRetJava };
+export { traceJavaConstructors };
+export default {
   JavaAvailable,
   javaUse,
   javaTraceExample,

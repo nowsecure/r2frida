@@ -1,7 +1,6 @@
 function isPrintable (ch) {
   return (ch >= 32 && ch <= 126);
 }
-
 function parseOptions (options) {
   const opts = {
     minLength: 15,
@@ -17,7 +16,6 @@ function parseOptions (options) {
   }
   return opts;
 }
-
 function parseStrings (data, options) {
   const opt = parseOptions(options);
   const strs = [];
@@ -49,7 +47,6 @@ function parseStrings (data, options) {
   });
   return strs;
 }
-
 function isValidString (s) {
   if (s.indexOf('://') !== -1) {
     return false;
@@ -65,7 +62,6 @@ function isValidString (s) {
   }
   return true;
 }
-
 function isValidURL (s) {
   if (s.indexOf('://') === -1) {
     return false;
@@ -78,5 +74,4 @@ function isValidURL (s) {
   }
   return true;
 }
-
-module.exports = parseStrings;
+export default parseStrings;

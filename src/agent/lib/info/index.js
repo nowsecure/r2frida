@@ -1,17 +1,15 @@
+import { getModuleByAddress } from './lookup.js';
+import config from '../../config.js';
+import debug from '../debug/index.js';
+import darwin from '../darwin/index.js';
+import fs from '../fs.js';
+import java from '../java/index.js';
+import r2 from '../r2.js';
+import sys from '../sys.js';
+import swift from '../darwin/swift.js';
+import strings from '../strings.js';
+import utils from '../utils.js';
 'use strict';
-
-const { getModuleByAddress } = require('./lookup');
-const config = require('../../config');
-const debug = require('../debug');
-const darwin = require('../darwin');
-const fs = require('../fs');
-const java = require('../java/index');
-const r2 = require('../r2');
-const sys = require('../sys');
-const swift = require('../darwin/swift');
-const strings = require('../strings');
-const utils = require('../utils');
-
 async function dumpInfo () {
   const padding = (x) => ''.padStart(20 - x, ' ');
   const properties = await dumpInfoJson();
@@ -19,7 +17,6 @@ async function dumpInfo () {
     .map(k => k + padding(k.length) + properties[k])
     .join('\n');
 }
-
 async function dumpInfoR2 () {
   const properties = await dumpInfoJson();
   const jnienv = properties.jniEnv !== undefined ? properties.jniEnv : '';
@@ -30,7 +27,6 @@ async function dumpInfoR2 () {
     'f r2f.modulebase=' + properties.modulebase
   ].join('\n') + jnienv;
 }
-
 async function dumpInfoJson () {
   const res = {
     arch: r2.getR2Arch(Process.arch),
@@ -49,7 +45,6 @@ async function dumpInfoJson () {
     isDebuggerAttached: Process.isDebuggerAttached(),
     cwd: fs.getCwd()
   };
-
   if (darwin.ObjCAvailable) {
     try {
       const mb = (ObjC && ObjC.classes && ObjC.classes.NSBundle) ? ObjC.classes.NSBundle.mainBundle() : '';
@@ -58,13 +53,8 @@ async function dumpInfoJson () {
         const v = id ? id.objectForKey_(k) : '';
         return v ? v.toString() : '';
       }
-      const NSHomeDirectory = new NativeFunction(
-        Module.getExportByName(null, 'NSHomeDirectory'),
-        'pointer', []);
-      const NSTemporaryDirectory = new NativeFunction(
-        Module.getExportByName(null, 'NSTemporaryDirectory'),
-        'pointer', []);
-
+      const NSHomeDirectory = new NativeFunction(Module.getExportByName(null, 'NSHomeDirectory'), 'pointer', []);
+      const NSTemporaryDirectory = new NativeFunction(Module.getExportByName(null, 'NSTemporaryDirectory'), 'pointer', []);
       const bundleIdentifier = get('CFBundleIdentifier');
       if (bundleIdentifier) {
         res.bundle = bundleIdentifier;
@@ -108,12 +98,10 @@ async function dumpInfoJson () {
           res.codePath = tryTo(() => ctx.getPackageCodePath());
           res.packageName = tryTo(() => ctx.getPackageName());
         }
-
         try {
           function getContext () {
             return Java.use('android.app.ActivityThread').currentApplication().getApplicationContext().getContentResolver();
           }
-
           res.androidId = Java.use('android.provider.Settings$Secure').getString(getContext(), 'android_id');
         } catch (ignoredError) {
         }
@@ -125,10 +113,8 @@ async function dumpInfoJson () {
       }
     });
   }
-
   return res;
 }
-
 function listEntrypointJson (args) {
   function isEntrypoint (s) {
     if (s.type === 'section') {
@@ -156,7 +142,6 @@ function listEntrypointJson (args) {
       return symbol;
     });
 }
-
 function listEntrypointR2 (args) {
   let n = 0;
   return listEntrypointJson()
@@ -164,27 +149,23 @@ function listEntrypointR2 (args) {
       return 'f entry' + (n++) + ' = ' + entry.address;
     }).join('\n');
 }
-
 function listEntrypointQuiet (args) {
   return listEntrypointJson()
     .map((entry) => {
       return entry.address;
     }).join('\n');
 }
-
 function listEntrypoint (args) {
   return listEntrypointJson()
     .map((entry) => {
       return entry.address + ' ' + entry.name + '  # ' + entry.moduleName;
     }).join('\n');
 }
-
 function listImports (args) {
   return listImportsJson(args)
     .map(({ type, name, module, address }) => [address, type ? type[0] : ' ', name, module].join(' '))
     .join('\n');
 }
-
 function listImportsR2 (args) {
   const seen = new Set();
   let stubAddress = 0;
@@ -230,7 +211,6 @@ function listImportsR2 (args) {
     return flags.join('\n');
   }).join('\n');
 }
-
 function listImportsJson (args) {
   const alen = args.length;
   let result = [];
@@ -262,27 +242,22 @@ function listImportsJson (args) {
   });
   return result;
 }
-
 function listModules () {
   return Process.enumerateModules()
     .map(m => [utils.padPointer(m.base), utils.padPointer(m.base.add(m.size)), m.name].join(' '))
     .join('\n');
 }
-
 function listModulesQuiet () {
   return Process.enumerateModules().map(m => m.name).join('\n');
 }
-
 function listModulesR2 () {
   return Process.enumerateModules()
     .map(m => 'f lib.' + utils.sanitizeString(m.name) + ' = ' + utils.padPointer(m.base))
     .join('\n');
 }
-
 function listModulesJson () {
   return Process.enumerateModules();
 }
-
 function listModulesHere () {
   const here = ptr(global.r2frida.offset);
   return Process.enumerateModules()
@@ -290,7 +265,6 @@ function listModulesHere () {
     .map(m => utils.padPointer(m.base) + ' ' + m.name)
     .join('\n');
 }
-
 function listExports (args) {
   return listExportsJson(args)
     .map(({ type, name, address }) => {
@@ -298,7 +272,6 @@ function listExports (args) {
     })
     .join('\n');
 }
-
 function listExportsR2 (args) {
   return listExportsJson(args)
     .map(({ type, name, address }) => {
@@ -306,14 +279,12 @@ function listExportsR2 (args) {
     })
     .join('\n');
 }
-
 function listAllExportsJson (args) {
   const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
   return modules.reduce((result, moduleName) => {
     return result.concat(Module.enumerateExports(moduleName));
   }, []);
 }
-
 function listAllExports (args) {
   return listAllExportsJson(args)
     .map(({ type, name, address }) => {
@@ -321,7 +292,6 @@ function listAllExports (args) {
     })
     .join('\n');
 }
-
 function listAllExportsR2 (args) {
   return listAllExportsJson(args)
     .map(({ type, name, address }) => {
@@ -329,14 +299,12 @@ function listAllExportsR2 (args) {
     })
     .join('\n');
 }
-
 function listExportsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
     : getModuleByAddress(ptr(global.r2frida.offset));
   return Module.enumerateExports(currentModule.name);
 }
-
 function listSectionsHere () {
   const here = ptr(global.r2frida.offset);
   const moduleAddr = Process.enumerateModules()
@@ -344,7 +312,6 @@ function listSectionsHere () {
     .map(m => m.base);
   return listSections(moduleAddr);
 }
-
 function listSectionsR2 (args) {
   let i = 0;
   return listSectionsJson(args)
@@ -353,7 +320,6 @@ function listSectionsR2 (args) {
     })
     .join('\n');
 }
-
 function listSections (args) {
   return listSectionsJson(args)
     .map(({ vmaddr, vmsize, name }) => {
@@ -361,7 +327,6 @@ function listSections (args) {
     })
     .join('\n');
 }
-
 function listSectionsJson (args) {
   if (Process.platform !== 'darwin') {
     return 'Only darwin-based systems supported.';
@@ -369,7 +334,6 @@ function listSectionsJson (args) {
   const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
   return darwin.listMachoSections(baseAddr);
 }
-
 function listAllSymbolsJson (args) {
   const argName = args[0];
   const modules = Process.enumerateModules().map(m => m.path);
@@ -391,21 +355,18 @@ function listAllSymbolsJson (args) {
   }
   return res;
 }
-
 function listAllSymbols (args) {
   return listAllSymbolsJson(args)
     .map(({ type, name, address }) => {
       return [address, type[0], name].join(' ');
     }).join('\n');
 }
-
 function listAllSymbolsR2 (args) {
   return listAllSymbolsJson(args)
     .map(({ type, name, address }) => {
       return ['f', 'sym.' + type.substring(0, 3) + '.' + utils.sanitizeString(name), '=', address].join(' ');
     }).join('\n');
 }
-
 function listSymbols (args) {
   return listSymbolsJson(args)
     .map(({ type, name, address }) => {
@@ -413,7 +374,6 @@ function listSymbols (args) {
     })
     .join('\n');
 }
-
 function listSymbolsR2 (args) {
   return listSymbolsJson(args)
     .filter(({ address }) => !address.isNull())
@@ -422,7 +382,6 @@ function listSymbolsR2 (args) {
     })
     .join('\n');
 }
-
 function listSymbolsJson (args) {
   const currentModule = (args.length > 0)
     ? Process.getModuleByName(args[0])
@@ -438,11 +397,9 @@ function listSymbolsJson (args) {
     return sym;
   });
 }
-
 function listAllHelp (args) {
   return 'See :ia? for more information. Those commands may take a while to run.';
 }
-
 function listStringsJson (args) {
   if (!args || args.length !== 1) {
     args = [global.r2frida.offset];
@@ -473,15 +430,47 @@ function listStringsJson (args) {
   }
   throw new Error('Memory not mapped here');
 }
-
 function listStrings (args) {
   if (!args || args.length !== 1) {
     args = [ptr(global.r2frida.offset)];
   }
   return listStringsJson(args).map(({ base, text }) => utils.padPointer(base) + `  "${text}"`).join('\n');
 }
-
-module.exports = {
+export { dumpInfo };
+export { dumpInfoR2 };
+export { dumpInfoJson };
+export { listEntrypointJson };
+export { listEntrypointR2 };
+export { listEntrypointQuiet };
+export { listEntrypoint };
+export { listImports };
+export { listImportsR2 };
+export { listImportsJson };
+export { listModules };
+export { listModulesQuiet };
+export { listModulesR2 };
+export { listModulesJson };
+export { listModulesHere };
+export { listExports };
+export { listExportsR2 };
+export { listAllExportsJson };
+export { listAllExports };
+export { listAllExportsR2 };
+export { listExportsJson };
+export { listSectionsHere };
+export { listSectionsR2 };
+export { listSections };
+export { listSectionsJson };
+export { listAllSymbolsJson };
+export { listAllSymbols };
+export { listAllSymbolsR2 };
+export { listSymbols };
+export { listSymbolsR2 };
+export { listSymbolsJson };
+export { listAllHelp };
+export { listStringsJson };
+export { listStrings };
+export default {
   dumpInfo,
   dumpInfoR2,
   dumpInfoJson,

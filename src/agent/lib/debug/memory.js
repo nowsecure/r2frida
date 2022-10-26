@@ -1,37 +1,27 @@
+import expr from '../expr.js';
+import utils from '../utils.js';
 'use strict';
-
-const expr = require('../expr');
-const utils = require('../utils');
-
 const allocPool = {};
-
 function listMemoryRanges () {
   return listMemoryRangesJson()
-    .map(({ base, size, protection, file }) =>
-      [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
+      .concat((file !== undefined) ? [file.path] : [])
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function listMemoryRangesR2 () {
   return listMemoryRangesJson()
-    .map(({ base, size, protection, file }) =>
-      [
-        'f', 'map.' + utils.padPointer(base) + '.' + protection.replace(/-/g, '_'), size, base,
-        '#', protection
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [
+      'f', 'map.' + utils.padPointer(base) + '.' + protection.replace(/-/g, '_'), size, base,
+      '#', protection
+    ]
+      .concat((file !== undefined) ? [file.path] : [])
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function listMemoryRangesJson () {
   return _getMemoryRanges('---');
 }
-
 async function changeMemoryProtection (args) {
   const [addr, size, protection] = args;
   if (args.length !== 3 || protection.length > 3) {
@@ -42,7 +32,6 @@ async function changeMemoryProtection (args) {
   Memory.protect(address, ptr(mapsize).toInt32(), protection);
   return '';
 }
-
 function listMemoryRangesHere (args) {
   if (args.length !== 1) {
     args = [ptr(global.r2frida.offset)];
@@ -50,61 +39,49 @@ function listMemoryRangesHere (args) {
   const addr = ptr(args[0]);
   return listMemoryRangesJson()
     .filter(({ base, size }) => addr.compare(base) >= 0 && addr.compare(base.add(size)) < 0)
-    .map(({ base, size, protection, file }) =>
-      [
-        utils.padPointer(base),
-        '-',
-        utils.padPointer(base.add(size)),
-        protection
-      ]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [
+      utils.padPointer(base),
+      '-',
+      utils.padPointer(base.add(size)),
+      protection
+    ]
+      .concat((file !== undefined) ? [file.path] : [])
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function listMemoryMaps () {
   return _squashRanges(listMemoryRangesJson())
     .filter(_ => _.file)
-    .map(({ base, size, protection, file }) =>
-      [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
+      .concat((file !== undefined) ? [file.path] : [])
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function listMemoryMapsR2 () {
   return _squashRanges(listMemoryRangesJson())
     .filter(_ => _.file)
-    .map(({ base, size, protection, file }) =>
-      [
-        'f',
-        'dmm.' + utils.sanitizeString(file.path),
-        '=',
-        utils.padPointer(base)
-      ]
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [
+      'f',
+      'dmm.' + utils.sanitizeString(file.path),
+      '=',
+      utils.padPointer(base)
+    ]
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function listMallocRanges (args) {
   return _squashRanges(listMallocRangesJson(args))
     .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
 }
-
 function listMallocRangesJson (args) {
   return Process.enumerateMallocRanges();
 }
-
 function listMallocRangesR2 (args) {
   const chunks = listMallocRangesJson(args)
     .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
   return chunks + _squashRanges(listMallocRangesJson(args))
     .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
 }
-
 function listMemoryMapsHere (args) {
   if (args.length !== 1) {
     args = [ptr(global.r2frida.offset)];
@@ -123,13 +100,12 @@ function listMemoryMapsHere (args) {
     })
     .join('\n') + '\n';
 }
-
 function listMallocMaps (args) {
   const heaps = _squashRanges(listMallocRangesJson(args));
   function inRange (x) {
     for (const heap of heaps) {
       if (x.base.compare(heap.base) >= 0 &&
-      x.base.add(x.size).compare(heap.base.add(heap.size))) {
+                x.base.add(x.size).compare(heap.base.add(heap.size))) {
         return true;
       }
     }
@@ -137,14 +113,11 @@ function listMallocMaps (args) {
   }
   return _squashRanges(listMemoryRangesJson())
     .filter(inRange)
-    .map(({ base, size, protection, file }) =>
-      [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
-        .concat((file !== undefined) ? [file.path] : [])
-        .join(' ')
-    )
+    .map(({ base, size, protection, file }) => [utils.padPointer(base), '-', utils.padPointer(base.add(size)), protection]
+      .concat((file !== undefined) ? [file.path] : [])
+      .join(' '))
     .join('\n') + '\n';
 }
-
 function allocSize (args) {
   const size = +args[0];
   if (size > 0) {
@@ -153,7 +126,6 @@ function allocSize (args) {
   }
   return 0;
 }
-
 function allocString (args) {
   const theString = args.join(' ');
   if (theString.length > 0) {
@@ -162,7 +134,6 @@ function allocString (args) {
   }
   throw new Error('Usage: dmas [string]');
 }
-
 function allocWstring (args) {
   const theString = args.join(' ');
   if (theString.length > 0) {
@@ -171,7 +142,6 @@ function allocWstring (args) {
   }
   throw new Error('Usage: dmaw [string]');
 }
-
 function allocDup (args) {
   if (args.length < 2) {
     throw new Error('Missing argument');
@@ -184,7 +154,6 @@ function allocDup (args) {
   }
   return 0;
 }
-
 function listAllocs (args) {
   return Object.values(allocPool)
     .sort()
@@ -195,7 +164,6 @@ function listAllocs (args) {
     })
     .join('\n') + '\n';
 }
-
 function removeAlloc (args) {
   if (args.length === 0) {
     _clearAllocs();
@@ -206,7 +174,6 @@ function removeAlloc (args) {
   }
   return '';
 }
-
 function _getMemoryRanges (protection) {
   if (global.r2frida.hookedRanges !== null) {
     return global.r2frida.hookedRanges(protection);
@@ -216,16 +183,13 @@ function _getMemoryRanges (protection) {
     coalesce: false
   });
 }
-
 function _delAlloc (addr) {
   delete allocPool[addr];
 }
-
 function _clearAllocs () {
   Object.keys(allocPool)
     .forEach(addr => delete allocPool[addr]);
 }
-
 function _addAlloc (allocPtr) {
   const key = allocPtr.toString();
   if (!allocPtr.isNull()) {
@@ -233,7 +197,6 @@ function _addAlloc (allocPtr) {
   }
   return key;
 }
-
 function _squashRanges (ranges) {
   const res = [];
   let begin = ptr(0);
@@ -275,8 +238,25 @@ function _squashRanges (ranges) {
   }
   return res;
 }
-
-module.exports = {
+export { listMemoryRanges };
+export { listMemoryRangesR2 };
+export { listMemoryRangesJson };
+export { changeMemoryProtection };
+export { listMemoryRangesHere };
+export { listMemoryMaps };
+export { listMemoryMapsR2 };
+export { listMemoryMapsHere };
+export { listMallocRanges };
+export { listMallocRangesR2 };
+export { listMallocRangesJson };
+export { listMallocMaps };
+export { allocSize };
+export { allocString };
+export { allocWstring };
+export { allocDup };
+export { listAllocs };
+export { removeAlloc };
+export default {
   listMemoryRanges,
   listMemoryRangesR2,
   listMemoryRangesJson,

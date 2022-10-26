@@ -1,21 +1,17 @@
+import config from '../config.js';
+import darwin from './darwin/index.js';
+import io from '../io.js';
+import r2 from './r2.js';
+import utils from './utils.js';
 'use strict';
-
-const config = require('../config');
-const darwin = require('./darwin');
-const io = require('../io');
-const r2 = require('./r2');
-const utils = require('./utils');
-
 function search (args) {
   return searchJson(args).then(hits => {
     return _readableHits(hits);
   });
 }
-
 function searchInstances (args) {
   return _readableHits(searchInstancesJson(args));
 }
-
 function searchInstancesJson (args) {
   const className = args.join('');
   if (darwin.ObjCAvailable) {
@@ -32,7 +28,6 @@ function searchInstancesJson (args) {
     });
   }
 }
-
 function searchJson (args) {
   const pattern = utils.toHexPairs(args.join(' '));
   return _searchPatternJson(pattern).then(hits => {
@@ -49,13 +44,11 @@ function searchJson (args) {
     return hits.filter(hit => hit.content !== undefined);
   });
 }
-
 function searchHex (args) {
   return searchHexJson(args).then(hits => {
     return _readableHits(hits);
   });
 }
-
 function searchHexJson (args) {
   const pattern = utils.normHexPairs(args.join(''));
   return _searchPatternJson(pattern).then(hits => {
@@ -66,18 +59,15 @@ function searchHexJson (args) {
     return hits;
   });
 }
-
 function searchWide (args) {
   return searchWideJson(args).then(hits => {
     return _readableHits(hits);
   });
 }
-
 function searchWideJson (args) {
   const pattern = utils.toWidePairs(args.join(' '));
   return searchHexJson([pattern]);
 }
-
 function searchValueImpl (width) {
   return function (args) {
     return _searchValueJson(args, width).then(hits => {
@@ -85,13 +75,11 @@ function searchValueImpl (width) {
     });
   };
 }
-
 function searchValueImplJson (width) {
   return function (args) {
     return _searchValueJson(args, width);
   };
 }
-
 function _searchValueJson (args, width) {
   let value;
   try {
@@ -99,7 +87,6 @@ function _searchValueJson (args, width) {
   } catch (e) {
     return new Promise((resolve, reject) => reject(e));
   }
-
   return r2.hostCmdj('ej')
     .then((r2cfg) => {
       const bigEndian = r2cfg['cfg.bigendian'];
@@ -107,7 +94,6 @@ function _searchValueJson (args, width) {
       return searchHexJson([utils.toHexPairs(bytes)]);
     });
 }
-
 function _readableHits (hits) {
   const output = hits.map(hit => {
     if (typeof hit.flag === 'string') {
@@ -117,7 +103,6 @@ function _readableHits (hits) {
   });
   return output.join('\n') + '\n';
 }
-
 function _searchPatternJson (pattern) {
   return r2.hostCmdj('ej')
     .then(r2cfg => {
@@ -125,12 +110,9 @@ function _searchPatternJson (pattern) {
       const prefix = r2cfg['search.prefix'] || 'hit';
       const count = r2cfg['search.count'] || 0;
       const kwidx = r2cfg['search.kwidx'] || 0;
-
       const ranges = _getRanges(r2cfg['search.from'], r2cfg['search.to']);
       const nBytes = pattern.split(' ').length;
-
       qlog(`Searching ${nBytes} bytes: ${pattern}`);
-
       let results = [];
       const commands = [];
       let idx = 0;
@@ -138,12 +120,10 @@ function _searchPatternJson (pattern) {
         if (range.size === 0) {
           continue;
         }
-
         const rangeStr = `[${utils.padPointer(range.address)}-${utils.padPointer(range.address.add(range.size))}]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
           const partial = _scanForPattern(range.address, range.size, pattern);
-
           partial.forEach((hit) => {
             if (flags) {
               hit.flag = `${prefix}${kwidx}_${idx + count}`;
@@ -153,39 +133,31 @@ function _searchPatternJson (pattern) {
             }
             idx += 1;
           });
-
           results = results.concat(partial);
         } catch (e) {
           console.error('Oops', e);
         }
       }
-
       qlog(`hits: ${results.length}`);
-
       commands.push(`e search.kwidx=${kwidx + 1}`);
-
       return r2.hostCmds(commands).then(() => {
         return results;
       });
     });
-
   function qlog (message) {
     if (!config.getBoolean('search.quiet')) {
       console.log(message);
     }
   }
 }
-
 function _scanForPattern (address, size, pattern) {
   if (global.r2frida.hookedScan !== null) {
     return global.r2frida.hookedScan(address, size, pattern);
   }
   return Memory.scanSync(address, size, pattern);
 }
-
 function _getRanges (fromNum, toNum) {
   const searchIn = _configParseSearchIn();
-
   if (searchIn.heap) {
     return Process.enumerateMallocRanges()
       .map(_ => {
@@ -210,17 +182,13 @@ function _getRanges (fromNum, toNum) {
     }
     return true;
   });
-
   if (ranges.length === 0) {
     return [];
   }
-
   const first = ranges[0];
   const last = ranges[ranges.length - 1];
-
   const from = (fromNum === -1) ? first.base : ptr(fromNum);
   const to = (toNum === -1) ? last.base.add(last.size) : ptr(toNum);
-
   return ranges.filter(range => {
     return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
   }).map(range => {
@@ -232,7 +200,6 @@ function _getRanges (fromNum, toNum) {
     };
   });
 }
-
 function _configParseSearchIn () {
   const res = {
     current: false,
@@ -240,11 +207,9 @@ function _configParseSearchIn () {
     path: null,
     heap: false
   };
-
   const c = config.getString('search.in');
   const cSplit = c.split(':');
   const [scope, param] = cSplit;
-
   if (scope === 'current') {
     res.current = true;
   }
@@ -258,11 +223,19 @@ function _configParseSearchIn () {
     cSplit.shift();
     res.path = cSplit.join('');
   }
-
   return res;
 }
-
-module.exports = {
+export { search };
+export { searchInstances };
+export { searchInstancesJson };
+export { searchJson };
+export { searchHex };
+export { searchHexJson };
+export { searchWide };
+export { searchWideJson };
+export { searchValueImpl };
+export { searchValueImplJson };
+export default {
   search,
   searchInstances,
   searchInstancesJson,

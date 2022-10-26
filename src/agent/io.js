@@ -1,10 +1,7 @@
+import r2frida from './plugin.js';
+import config from './config.js';
 'use strict';
-
-const r2frida = require('./plugin'); // eslint-disable-line
-const config = require('./config');
-
 let cachedRanges = [];
-
 function read (params) {
   const { offset, count, fast } = params;
   if (typeof r2frida.hookedRead === 'function') {
@@ -13,8 +10,7 @@ function read (params) {
   if (r2frida.safeio) {
     try {
       if (cachedRanges.length === 0) {
-        cachedRanges = Process.enumerateRanges('').map(
-          (map) => [map.base, ptr(map.base).add(map.size)]);
+        cachedRanges = Process.enumerateRanges('').map((map) => [map.base, ptr(map.base).add(map.size)]);
       }
       // TODO: invalidate ranges at some point to refresh
       // process.nextTick(() => { cachedRanges = null; }
@@ -45,7 +41,7 @@ function read (params) {
   } catch (e) {
     if (!fast) {
       try {
-      // console.log("SLOW", offset);
+        // console.log("SLOW", offset);
         const readStarts = ptr(offset);
         const readEnds = readStarts.add(count);
         const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
@@ -56,18 +52,16 @@ function read (params) {
         const bytes = Memory.readByteArray(ptr(offset), +left);
         return [{}, (bytes !== null) ? bytes : []];
       } catch (e) {
-      // do nothing
+        // do nothing
       }
     }
   }
   return [{}, []];
 }
-
 function isExecutable (address) {
   const currentRange = Process.getRangeByAddress(address);
   return currentRange.protection.indexOf('x') !== -1;
 }
-
 function write (params, data) {
   if (typeof r2frida.hookedWrite === 'function') {
     return r2frida.hookedWrite(params.offset, data);
@@ -85,8 +79,9 @@ function write (params, data) {
   }
   return [{}, null];
 }
-
-module.exports = {
+export { read };
+export { write };
+export default {
   read: read,
   write: write
 };

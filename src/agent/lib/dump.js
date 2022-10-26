@@ -1,5 +1,4 @@
 'use strict';
-
 function Hexdump (lenstr) {
   const len = +lenstr || 32;
   try {
@@ -8,7 +7,7 @@ function Hexdump (lenstr) {
     return 'Cannot read memory.';
   }
 }
-
-module.exports = {
+export { Hexdump };
+export default {
   Hexdump
 };

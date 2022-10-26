@@ -1,24 +1,19 @@
+import config from '../../config.js';
+import r2 from '../r2.js';
+import sys from '../sys.js';
+import utils from '../utils.js';
 'use strict';
-
-const config = require('../../config');
-const r2 = require('../r2');
-const sys = require('../sys');
-const utils = require('../utils');
-
 const newBreakpoints = new Map();
 let suspended = false;
-
 /* breakpoint handler */
 Process.setExceptionHandler(({ address }) => {
   const bp = newBreakpoints.get(address.toString());
   if (!bp) {
     return false;
   }
-
   const index = bp.patches.findIndex(p => p.address.equals(address));
   if (index === 0) {
     send({ name: 'breakpoint-event', stanza: { cmd: bp.cmd } });
-
     let state = 'stopped';
     if (config.getBoolean('hook.verbose')) {
       console.log(`Breakpoint ${address} hit`);
@@ -49,16 +44,13 @@ Process.setExceptionHandler(({ address }) => {
       p.toggle();
     }
   }
-
   return true;
 });
-
 class CodePatch {
   constructor (address) {
     const insn = Instruction.parse(address);
     this.address = address;
     this.insn = insn;
-
     const insnSize = insn.size;
     this._newData = breakpointInstruction();
     this._originalData = address.readByteArray(insnSize);
@@ -71,11 +63,15 @@ class CodePatch {
   }
 
   enable () {
-    if (!this._applied) { this.toggle(); }
+    if (!this._applied) {
+      this.toggle();
+    }
   }
 
   disable () {
-    if (this._applied) { this.toggle(); }
+    if (this._applied) {
+      this.toggle();
+    }
   }
 
   _apply (data) {
@@ -84,14 +80,12 @@ class CodePatch {
     });
   }
 }
-
 function breakpointInstruction () {
   if (Process.arch === 'arm64') {
     return new Uint8Array([0x60, 0x00, 0x20, 0xd4]).buffer;
   }
   return new Uint8Array([0xcc]).buffer;
 }
-
 function breakpointNative (args) {
   if (args.length === 0) {
     _breakpointList([]);
@@ -102,7 +96,6 @@ function breakpointNative (args) {
     _breakpointSet(args);
   }
 }
-
 function breakpointJson () {
   const json = {};
   for (const [address, bp] of newBreakpoints.entries()) {
@@ -117,7 +110,6 @@ function breakpointJson () {
   }
   return JSON.stringify(json);
 }
-
 function breakpointNativeCommand (args) {
   if (args.length >= 2) {
     const address = args[0];
@@ -134,7 +126,6 @@ function breakpointNativeCommand (args) {
     console.error('Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]');
   }
 }
-
 function breakpointUnset (args) {
   const addr = utils.getPtr(args[0]).toString();
   const bp = newBreakpoints.get(addr);
@@ -143,7 +134,6 @@ function breakpointUnset (args) {
     newBreakpoints.delete(p.address.toString());
   }
 }
-
 function breakpointContinue (args) {
   if (suspended) {
     suspended = false;
@@ -151,13 +141,11 @@ function breakpointContinue (args) {
   }
   return 'Continue thread(s).';
 }
-
 function breakpointContinueUntil (args) {
   breakpointNative(args);
   breakpointContinue([]);
   breakpointNative(['-' + args[0]]);
 }
-
 function sendSignal (args) {
   const argsLength = args.length;
   console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
@@ -172,7 +160,6 @@ function sendSignal (args) {
   }
   return '';
 }
-
 function _breakpointList (args) {
   for (const [address, bp] of newBreakpoints.entries()) {
     if (bp.patches[0].address.equals(ptr(address))) {
@@ -180,23 +167,17 @@ function _breakpointList (args) {
     }
   }
 }
-
 function _breakpointSet (args) {
   const ptrAddr = utils.getPtr(args[0]);
-
   const p1 = new CodePatch(ptrAddr);
   const p2 = new CodePatch(p1.insn.next);
-
   const bp = {
     patches: [p1, p2]
   };
-
   newBreakpoints.set(p1.address.toString(), bp);
   newBreakpoints.set(p2.address.toString(), bp);
-
   p1.toggle();
 }
-
 function dxCall (args) {
   if (args.length === 0) {
     return `
@@ -216,7 +197,6 @@ For example:
   }
   return fun(...nfArgsData);
 }
-
 function dxSyscall (args) {
   if (args.length === 0) {
     return 'Usage dxs [syscallname] [args ...]';
@@ -224,7 +204,6 @@ function dxSyscall (args) {
   const syscallNumber = '' + _resolveSyscallNumber(args[0]);
   return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
 }
-
 function _resolveSyscallNumber (name) {
   const ios = Process.arch === 'arm64';
   switch (name) {
@@ -237,19 +216,16 @@ function _resolveSyscallNumber (name) {
   }
   return '' + name;
 }
-
 function listThreads () {
   return Process.enumerateThreads().map((thread) => {
     const threadName = _getThreadName(thread.id);
     return [thread.id, threadName].join(' ');
   }).join('\n') + '\n';
 }
-
 function listThreadsJson () {
   return Process.enumerateThreads()
     .map(thread => thread.id);
 }
-
 function dumpRegisters (args) {
   return _getThreads(args[0])
     .map(thread => {
@@ -264,17 +240,14 @@ function dumpRegisters (args) {
     })
     .join('\n\n') + '\n';
 }
-
 function dumpRegistersJson (args) {
   return _getThreads(args[0]);
 }
-
 function _getThreads (threadid) {
   const tid = threadid !== undefined ? parseInt(threadid, 10) : threadid;
   return Process.enumerateThreads()
     .filter(thread => tid === undefined || thread.id === tid);
 }
-
 function dumpRegistersR2 (args) {
   const threads = Process.enumerateThreads();
   const [tid] = args;
@@ -286,13 +259,12 @@ function dumpRegistersR2 (args) {
   names.sort(_compareRegisterNames);
   const values = names
     .map((name, index) => {
-      if (name === 'pc' || name === 'sp') return '';
+      if (name === 'pc' || name === 'sp') { return ''; }
       const value = context[name] || 0;
       return `ar ${name} = ${value}\n`;
     });
   return values.join('');
 }
-
 function dumpRegistersRecursively (args) {
   const [tid] = args;
   Process.enumerateThreads()
@@ -312,7 +284,6 @@ function dumpRegistersRecursively (args) {
     });
   return ''; // nothing to see here
 }
-
 function dumpRegisterProfile (args) {
   const threads = Process.enumerateThreads();
   const context = threads[0].context;
@@ -328,7 +299,6 @@ function dumpRegisterProfile (args) {
   }
   return profile;
 }
-
 function dumpRegisterArena (args) {
   const threads = Process.enumerateThreads();
   let [tidx] = args;
@@ -362,7 +332,6 @@ function dumpRegisterArena (args) {
   }
   return buf.toString('hex');
 }
-
 function nameFromAddress (address) {
   const at = DebugSymbol.fromAddress(ptr(address));
   if (at) {
@@ -386,7 +355,6 @@ function nameFromAddress (address) {
   }
   return address.toString();
 }
-
 function _getThreadName (tid) {
   let canGetThreadName = false;
   let pthreadGetnameNp = null;
@@ -400,7 +368,6 @@ function _getThreadName (tid) {
   } catch (e) {
     // do nothing
   }
-
   if (!canGetThreadName) {
     return '';
   }
@@ -409,14 +376,11 @@ function _getThreadName (tid) {
   pthreadGetnameNp(p, buffer, 4096);
   return buffer.readCString();
 }
-
 function _compareRegisterNames (lhs, rhs) {
   const lhsIndex = _parseRegisterIndex(lhs);
   const rhsIndex = _parseRegisterIndex(rhs);
-
   const lhsHasIndex = lhsIndex !== null;
   const rhsHasIndex = rhsIndex !== null;
-
   if (lhsHasIndex && rhsHasIndex) {
     return lhsIndex - rhsIndex;
   }
@@ -436,7 +400,6 @@ function _compareRegisterNames (lhs, rhs) {
   }
   return -1;
 }
-
 function _parseRegisterIndex (name) {
   const length = name.length;
   for (let index = 1; index < length; index++) {
@@ -447,7 +410,6 @@ function _parseRegisterIndex (name) {
   }
   return null;
 }
-
 function _regProfileAliasFor (arch) {
   switch (arch) {
     case 'arm64':
@@ -508,7 +470,6 @@ function _regProfileAliasFor (arch) {
   }
   return '';
 }
-
 function _regcursive (regname, regvalue) {
   const data = [regvalue];
   try {
@@ -545,7 +506,6 @@ function _regcursive (regname, regvalue) {
   }
   return data.join(' ');
 }
-
 function _indent (message, index) {
   if (index === 0) {
     return message;
@@ -555,7 +515,6 @@ function _indent (message, index) {
   }
   return '\t' + message;
 }
-
 function _alignRight (text, width) {
   let result = text;
   while (result.length < width) {
@@ -563,8 +522,26 @@ function _alignRight (text, width) {
   }
   return result;
 }
-
-module.exports = {
+export { suspended };
+export { breakpointNative };
+export { breakpointJson };
+export { breakpointNativeCommand };
+export { breakpointUnset };
+export { breakpointContinue };
+export { breakpointContinueUntil };
+export { sendSignal };
+export { dxCall };
+export { dxSyscall };
+export { listThreads };
+export { listThreadsJson };
+export { dumpRegisters };
+export { dumpRegistersJson };
+export { dumpRegistersR2 };
+export { dumpRegistersRecursively };
+export { dumpRegisterProfile };
+export { dumpRegisterArena };
+export { nameFromAddress };
+export default {
   suspended,
   breakpointNative,
   breakpointJson,

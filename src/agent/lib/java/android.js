@@ -1,5 +1,4 @@
 'use strict';
-
 function uiAlert (args) {
   if (args.length < 2) {
     return 'Usage: ?E title message';
@@ -22,34 +21,34 @@ function uiAlert (args) {
         const alert = AlertDialogBuilder.$new(this);
         alert.setMessage(title + message); // "What you want to do now?");
         /*
-        alert.setPositiveButton("Dismiss", Java.registerClass({
-          name: 'il.co.realgame.OnClickListenerPositive',
-          implements: [DialogInterfaceOnClickListener],
-          methods: {
-            getName: function() {
-              return 'OnClickListenerPositive';
-            },
-            onClick: function(dialog, which) {
-              // Dismiss
-              dialog.dismiss();
-            }
-          }
-        }).$new());
-        alert.setNegativeButton("Force Close!", Java.registerClass({
-          name: 'il.co.realgame.OnClickListenerNegative',
-          implements: [DialogInterfaceOnClickListener],
-          methods: {
-            getName: function() {
-              return 'OnClickListenerNegative';
-            },
-            onClick: function(dialog, which) {
-              // Close Application
-              currentActivity.finish();
-              System.exit(0);
-            }
-          }
-        }).$new());
-        */
+                alert.setPositiveButton("Dismiss", Java.registerClass({
+                  name: 'il.co.realgame.OnClickListenerPositive',
+                  implements: [DialogInterfaceOnClickListener],
+                  methods: {
+                    getName: function() {
+                      return 'OnClickListenerPositive';
+                    },
+                    onClick: function(dialog, which) {
+                      // Dismiss
+                      dialog.dismiss();
+                    }
+                  }
+                }).$new());
+                alert.setNegativeButton("Force Close!", Java.registerClass({
+                  name: 'il.co.realgame.OnClickListenerNegative',
+                  implements: [DialogInterfaceOnClickListener],
+                  methods: {
+                    getName: function() {
+                      return 'OnClickListenerNegative';
+                    },
+                    onClick: function(dialog, which) {
+                      // Close Application
+                      currentActivity.finish();
+                      System.exit(0);
+                    }
+                  }
+                }).$new());
+                */
         // Create Alert
         alert.create().show();
       }
@@ -57,7 +56,7 @@ function uiAlert (args) {
     };
   });
 }
-
-module.exports = {
+export { uiAlert };
+export default {
   uiAlert
 };

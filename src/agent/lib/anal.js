@@ -1,8 +1,6 @@
+import classes from './info/classes.js';
+import darwin from './darwin/index.js';
 'use strict';
-
-const classes = require('./info/classes');
-const darwin = require('./darwin');
-
 function analFunctionSignature (args) {
   if (!darwin.ObjCAvailable) {
     return 'Error: afs is only implemented for ObjC methods.';
@@ -38,7 +36,7 @@ function analFunctionSignature (args) {
   }
   return 'Usage: afs [klassName] [methodName]';
 }
-
-module.exports = {
+export { analFunctionSignature };
+export default {
   analFunctionSignature
 };

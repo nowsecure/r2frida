@@ -1,26 +1,22 @@
+import utils from '../utils.js';
+import { PathTransform, VirtualEnt, flatify, nsArrayMap } from '../fs.js';
+import { listClasses } from '../info/classes.js';
 'use strict';
-
-const utils = require('../utils');
-const { PathTransform, VirtualEnt, flatify, nsArrayMap } = require('../fs');
-
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
 const ISA_MAGIC_MASK = ptr('0x000003f000000001');
 const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
-
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
-
 function initFoundation () {
   // required for early instrumentation
   try {
     Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
-    Module.load('/System/Library/PrivateFrameworks/AppSSOCore.framework/AppSSOCore')
+    Module.load('/System/Library/PrivateFrameworks/AppSSOCore.framework/AppSSOCore');
   } catch (e) {
     // ignored
   }
 }
-
 function getIOSVersion () {
   if (!ObjCAvailable) {
     return '?';
@@ -32,13 +28,11 @@ function getIOSVersion () {
   // E.g. 13.5
   return version;
 }
-
 function isiOS () {
   return Process.platform === 'darwin' &&
-    Process.arch.indexOf('arm') === 0 &&
-    ObjC.available;
+        Process.arch.indexOf('arm') === 0 &&
+        ObjC.available;
 }
-
 function isObjC (p) {
   const klass = getObjCClassPtr(p);
   if (klass.isNull()) {
@@ -46,7 +40,6 @@ function isObjC (p) {
   }
   return true;
 }
-
 function getObjCClassPtr (p) {
   if (!looksValid(p)) {
     return NULL;
@@ -58,11 +51,9 @@ function getObjCClassPtr (p) {
   }
   return looksValid(classP) ? classP : NULL;
 }
-
 function looksValid (p) {
   return p.compare(MIN_PTR) >= 0 && isReadable(p);
 }
-
 function isReadable (p) {
   // TODO: catching access violation isn't compatible with jailed testing
   try {
@@ -72,7 +63,6 @@ function isReadable (p) {
     return false;
   }
 }
-
 function dxObjc (args) {
   if (!ObjCAvailable) {
     return 'dxo requires the objc runtime to be available to work.';
@@ -81,7 +71,6 @@ function dxObjc (args) {
     return 'Usage: dxo [klassname|instancepointer] [methodname] [args...]';
   }
   if (args.length === 1) {
-    const { listClasses } = require('../info/classes');
     return listClasses(args);
   }
   // Usage: "dxo instance-pointer [arg0 arg1]"
@@ -121,36 +110,28 @@ function dxObjc (args) {
   }
   return '';
 }
-
 function hasMainLoop () {
   const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
   if (getMainPtr === null) {
     return false;
   }
-
   const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
   if (copyCurrentModePtr === null) {
     return false;
   }
-
   const getMain = new NativeFunction(getMainPtr, 'pointer', []);
   const copyCurrentMode = new NativeFunction(copyCurrentModePtr, 'pointer', ['pointer']);
-
   const main = getMain();
   if (main.isNull()) {
     return false;
   }
-
   const mode = copyCurrentMode(main);
   const hasLoop = !mode.isNull();
-
   if (hasLoop) {
     new ObjC.Object(mode).release();
   }
-
   return hasLoop;
 }
-
 function uiAlert (args) {
   if (args.length < 2) {
     return 'Usage: ?E title message';
@@ -159,17 +140,11 @@ function uiAlert (args) {
   const message = args.slice(1).join(' ');
   ObjC.schedule(ObjC.mainQueue, function () {
     const UIAlertView = ObjC.classes.UIAlertView; /* iOS 7 */
-    const view = UIAlertView.alloc().initWithTitle_message_delegate_cancelButtonTitle_otherButtonTitles_(
-      title,
-      message,
-      NULL,
-      'OK',
-      NULL);
+    const view = UIAlertView.alloc().initWithTitle_message_delegate_cancelButtonTitle_otherButtonTitles_(title, message, NULL, 'OK', NULL);
     view.show();
     view.release();
   });
 }
-
 function listMachoSections (baseAddr) {
   const result = [];
   if (!_isMachoHeaderAtOffset(baseAddr)) {
@@ -186,7 +161,6 @@ function listMachoSections (baseAddr) {
   }
   return result;
 }
-
 function parseMachoHeader (offset) {
   const header = {
     magic: offset.readU32(),
@@ -207,7 +181,6 @@ function parseMachoHeader (offset) {
   }
   throw new Error('Only support for 64-bit apps');
 }
-
 function _isMachoHeaderAtOffset (offset) {
   const cursor = utils.trunc4k(offset);
   if (cursor.readU32() === 0xfeedfacf) {
@@ -215,7 +188,6 @@ function _isMachoHeaderAtOffset (offset) {
   }
   return false;
 }
-
 function getSections (segment) {
   let { name, nsects, sectionsPtr, slide } = segment;
   const sects = [];
@@ -229,7 +201,6 @@ function getSections (segment) {
   }
   return sects;
 }
-
 function getSegments (baseAddr, ncmds) {
   const LC_SEGMENT_64 = 0x19;
   let cursor = baseAddr.add(0x20);
@@ -263,7 +234,6 @@ function getSegments (baseAddr, ncmds) {
     });
   return segments;
 }
-
 function loadFrameworkBundle (args) {
   if (!ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
@@ -279,7 +249,6 @@ function loadFrameworkBundle (args) {
   }
   return bundle.load();
 }
-
 function unloadFrameworkBundle (args) {
   if (!ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
@@ -295,7 +264,6 @@ function unloadFrameworkBundle (args) {
   }
   return bundle.unload();
 }
-
 class IOSPathTransform extends PathTransform {
   constructor () {
     super();
@@ -305,14 +273,11 @@ class IOSPathTransform extends PathTransform {
 
   _fillVirtualDirs () {
     const pool = this.api.NSAutoreleasePool.alloc().init();
-
     const appHome = new ObjC.Object(this.api.NSHomeDirectory()).toString();
     const appBundle = this.api.NSBundle.mainBundle().bundlePath().toString();
-
     const root = new VirtualEnt('/');
     root.addSub(new VirtualEnt('AppHome', appHome));
     root.addSub(new VirtualEnt('AppBundle', appBundle));
-
     const groupNames = this._getAppGroupNames();
     if (groupNames.length > 0) {
       const fileManager = this.api.NSFileManager.defaultManager();
@@ -325,15 +290,11 @@ class IOSPathTransform extends PathTransform {
         }
       }
     }
-
     root.addSub(new VirtualEnt('Device', '/'));
-
     flatify(this._virtualDirs, root);
-
     this._mappedPrefixes = Object.keys(this._virtualDirs)
       .filter(key => typeof this._virtualDirs[key] === 'string')
       .sort((x, y) => x.length - y.length);
-
     pool.release();
   }
 
@@ -342,21 +303,17 @@ class IOSPathTransform extends PathTransform {
     if (task.isNull()) {
       return [];
     }
-
     const key = this.api.NSString.stringWithString_('com.apple.security.application-groups');
     const ids = this.api.SecTaskCopyValueForEntitlement(task, key, NULL);
     if (ids.isNull()) {
       this.api.CFRelease(task);
       return [];
     }
-
     const idsObj = new ObjC.Object(ids).autorelease();
     const names = nsArrayMap(idsObj, group => {
       return group.toString();
     });
-
     this.api.CFRelease(task);
-
     return names;
   }
 
@@ -366,31 +323,32 @@ class IOSPathTransform extends PathTransform {
         NSAutoreleasePool: ObjC.classes.NSAutoreleasePool,
         NSBundle: ObjC.classes.NSBundle,
         NSFileManager: ObjC.classes.NSFileManager,
-        NSHomeDirectory: new NativeFunction(
-          Module.findExportByName(null, 'NSHomeDirectory'),
-          'pointer', []
-        ),
+        NSHomeDirectory: new NativeFunction(Module.findExportByName(null, 'NSHomeDirectory'), 'pointer', []),
         NSString: ObjC.classes.NSString,
-        SecTaskCreateFromSelf: new NativeFunction(
-          Module.findExportByName(null, 'SecTaskCreateFromSelf'),
-          'pointer', ['pointer']
-        ),
-        SecTaskCopyValueForEntitlement: new NativeFunction(
-          Module.findExportByName(null, 'SecTaskCopyValueForEntitlement'),
-          'pointer', ['pointer', 'pointer', 'pointer']
-        ),
-        CFRelease: new NativeFunction(
-          Module.findExportByName(null, 'CFRelease'),
-          'void', ['pointer']
-        )
+        SecTaskCreateFromSelf: new NativeFunction(Module.findExportByName(null, 'SecTaskCreateFromSelf'), 'pointer', ['pointer']),
+        SecTaskCopyValueForEntitlement: new NativeFunction(Module.findExportByName(null, 'SecTaskCopyValueForEntitlement'), 'pointer', ['pointer', 'pointer', 'pointer']),
+        CFRelease: new NativeFunction(Module.findExportByName(null, 'CFRelease'), 'void', ['pointer'])
       };
     }
-
     return this._api;
   }
 }
-
-module.exports = {
+export { initFoundation };
+export { getIOSVersion };
+export { isiOS };
+export { isObjC };
+export { ObjCAvailable };
+export { hasMainLoop };
+export { dxObjc };
+export { uiAlert };
+export { listMachoSections };
+export { parseMachoHeader };
+export { getSections };
+export { getSegments };
+export { loadFrameworkBundle };
+export { unloadFrameworkBundle };
+export { IOSPathTransform };
+export default {
   initFoundation,
   getIOSVersion,
   isiOS,

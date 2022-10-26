@@ -1,13 +1,10 @@
+import config from '../../config.js';
+import utils from '../utils.js';
 'use strict';
-
-const config = require('../../config');
-const utils = require('../utils');
-
 function lookupDebugInfo (args) {
   const o = DebugSymbol.fromAddress(ptr('' + args));
   console.log(o);
 }
-
 function lookupAddress (args) {
   if (args.length === 0) {
     args = [ptr(global.r2frida.offset)];
@@ -16,13 +13,11 @@ function lookupAddress (args) {
     .map(({ type, name, address }) => [type, name, address].join(' '))
     .join('\n');
 }
-
 function lookupAddressR2 (args) {
   return lookupAddressJson(args)
     .map(({ type, name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
-
 function lookupAddressJson (args) {
   const exportAddress = ptr(args[0]);
   const result = [];
@@ -41,24 +36,20 @@ function lookupAddressJson (args) {
       return result;
     }, []);
 }
-
 function lookupSymbolHere (args) {
   return lookupAddress([ptr(global.r2frida.offset)]);
 }
-
 function lookupExport (args) {
   return lookupExportJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
     .map(({ address }) => '' + address)
     .join('\n');
 }
-
 function lookupExportR2 (args) {
   return lookupExportJson(args)
     .map(({ name, address }) => ['f', 'sym.' + name, '=', address].join(' '))
     .join('\n');
 }
-
 function lookupExportJson (args) {
   if (args.length === 2) {
     const [moduleName, exportName] = args;
@@ -90,22 +81,18 @@ function lookupExportJson (args) {
       }, []);
   }
 }
-
 // lookup symbols
-
 function lookupSymbol (args) {
   return lookupSymbolJson(args)
   // .map(({library, name, address}) => [library, name, address].join(' '))
     .map(({ address }) => '' + address)
     .join('\n');
 }
-
 function lookupSymbolR2 (args) {
   return lookupSymbolJson(args)
     .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
-
 function lookupSymbolManyJson (args) {
   const res = [];
   for (const arg of args) {
@@ -113,17 +100,14 @@ function lookupSymbolManyJson (args) {
   }
   return res;
 }
-
 function lookupSymbolMany (args) {
   return lookupSymbolManyJson(args).map(({ address }) => address).join('\n');
 }
-
 function lookupSymbolManyR2 (args) {
   return lookupSymbolManyJson(args)
     .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
     .join('\n');
 }
-
 function lookupSymbolJson (args) {
   if (args.length === 0) {
     return [];
@@ -169,20 +153,18 @@ function lookupSymbolJson (args) {
       return fcns.map((f) => { return { name: symbolName, address: f }; });
     }
     return [];
-
     /*
-    var at = DebugSymbol.fromName(symbolName);
-    if (at.name) {
-      return [{
-        library: at.moduleName,
-        name: symbolName,
-        address: at.address
-      }];
-    }
-    */
+        var at = DebugSymbol.fromName(symbolName);
+        if (at.name) {
+          return [{
+            library: at.moduleName,
+            name: symbolName,
+            address: at.address
+          }];
+        }
+        */
   }
 }
-
 function _getModuleAt (addr) {
   if (addr === null) {
     return null;
@@ -195,7 +177,6 @@ function _getModuleAt (addr) {
     });
   return modules.length > 0 ? modules[0] : null;
 }
-
 function getModuleByAddress (addr) {
   const m = config.getString('symbols.module');
   if (m !== '') {
@@ -207,8 +188,22 @@ function getModuleByAddress (addr) {
     return Process.getModuleByAddress(ptr(global.r2frida.offset));
   }
 }
-
-module.exports = {
+export { lookupSymbol };
+export { lookupSymbolR2 };
+export { lookupSymbolJson };
+export { lookupSymbolHere };
+export { lookupAddressJson };
+export { lookupSymbolMany };
+export { lookupSymbolManyJson };
+export { lookupSymbolManyR2 };
+export { lookupExport };
+export { lookupExportJson };
+export { lookupExportR2 };
+export { lookupDebugInfo };
+export { lookupAddress };
+export { lookupAddressR2 };
+export { getModuleByAddress };
+export default {
   lookupSymbol,
   lookupSymbolR2,
   lookupSymbolJson,
