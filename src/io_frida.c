@@ -136,11 +136,11 @@ static const gchar r_io_frida_agent_code[] = {
 	, 0x00
 };
 
-static bool r2f_debug_uri() {
+static bool r2f_debug_uri(void) {
 	return r_sys_getenv_asbool ("R2FRIDA_DEBUG_URI");
 }
 
-static bool r2f_compiler() {
+static bool r2f_compiler(void) {
 	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE");
 }
 
