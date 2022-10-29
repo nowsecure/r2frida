@@ -125,6 +125,7 @@ static const char * const helpmsg = ""\
 	"Environment: (Use the `%` command to change the environment at runtime)\n"
 	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
 	"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
+	"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
 	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
 	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
 	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n";
@@ -142,6 +143,18 @@ static bool r2f_debug_uri(void) {
 
 static bool r2f_compiler(void) {
 	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE");
+}
+
+static FridaScriptRuntime r2f_jsruntime(void) {
+	char *engine = r_sys_getenv ("R2FRIDA_RUNTIME");
+	if (engine) {
+		bool isqjs = !strcmp (engine, "qjs");
+		free (engine);
+		if (isqjs) {
+			return FRIDA_SCRIPT_RUNTIME_QJS;
+		}
+	}
+	return FRIDA_SCRIPT_RUNTIME_V8;
 }
 
 static void resume(RIOFrida *rf) {
@@ -363,8 +376,8 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	GError *error;
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "eternalized-script");
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	FridaScriptRuntime runtime = r2f_jsruntime ();
+	frida_script_options_set_runtime (options, runtime);
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
@@ -899,8 +912,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	FridaScriptOptions * options = frida_script_options_new ();
 	frida_script_options_set_name (options, "_agent");
-	// frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_QJS);
-	frida_script_options_set_runtime (options, FRIDA_SCRIPT_RUNTIME_V8);
+	FridaScriptRuntime runtime = r2f_jsruntime ();
+	frida_script_options_set_runtime (options, runtime);
 
 	const char *code_buf = NULL;
 	char *code_malloc_data = NULL;
