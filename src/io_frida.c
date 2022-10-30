@@ -594,8 +594,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  h  = hexdump from pointer (optional length, h16 to dump 16 bytes)\n");
 		io->cb_printf ("  H  = hexdump from pointer (optional position of length argument, H1 to dump args[1] bytes)\n");
 		io->cb_printf ("  s  = show string in place\n");
+		io->cb_printf ("  Z  = untrusted null terminated string (like z)\n");
+		io->cb_printf ("  S  = pointer to string\n");
 		io->cb_printf ("  O  = show pointer to ObjC object\n");
-		io->cb_printf ("Undocumented: Z, S\n");
 	} else if (!strncmp (command, "e?", 2)) {
 		io->cb_printf ("Usage: e [var[=value]]Evaluable vars\n");
 		io->cb_printf ("  patch.code      = true\n");

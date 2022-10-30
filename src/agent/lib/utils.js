@@ -99,6 +99,12 @@ function renderEndian (value, bigEndian, width) {
   return bytes;
 }
 
+function padString (text, length) {
+  const rest = length - text.length + 1;
+  const pad = (rest > 0)? Array(rest).join(' '): '';
+  return text + pad;
+}
+
 function padPointer (value) {
   if (value.toString().indexOf('ArrayBuffer') !== -1) {
     value = arrayBufferToHex(value);
@@ -320,6 +326,7 @@ module.exports = {
   byteArrayToHex,
   renderEndian,
   padPointer,
+  padString,
   trunc4k,
   rwxstr,
   rwxint,
