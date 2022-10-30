@@ -217,7 +217,7 @@ function _initModules (config) {
 
 function stalkTraceEverything (args) {
   if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dts [symbol]';
+    return 'Warning: dts is experimental and slow\nUsage: dts [symbol]';
   }
   return _stalkTraceSomething(_stalkEverythingAndGetEvents, args);
 }
@@ -231,14 +231,14 @@ dts[*j] seconds            Trace all threads for given seconds using the stalker
 
 function stalkTraceEverythingJson (args) {
   if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dtsj [symbol]';
+    return 'Warning: dts is experimental and slow\nUsage: dtsj [symbol]';
   }
   return _stalkTraceSomethingJson(_stalkEverythingAndGetEvents, args);
 }
 
 function stalkTraceEverythingR2 (args) {
   if (args.length === 0) {
-    return 'Warnnig: dts is experimental and slow\nUsage: dts* [symbol]';
+    return 'Warning: dts is experimental and slow\nUsage: dts* [symbol]';
   }
   return _stalkTraceSomethingR2(_stalkEverythingAndGetEvents, args);
 }
