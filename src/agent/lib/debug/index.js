@@ -286,8 +286,13 @@ function dumpRegistersR2 (args) {
   names.sort(_compareRegisterNames);
   const values = names
     .map((name, index) => {
-      if (name === 'pc' || name === 'sp') return '';
-      const value = context[name] || 0;
+      if (name === 'pc' || name === 'sp') {
+        return '';
+      }
+      const value = '' + (context[name] || 0);
+      if (value.indexOf('object') !== -1) {
+        return '';
+      }
       return `ar ${name} = ${value}\n`;
     });
   return values.join('');
