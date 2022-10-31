@@ -4,6 +4,7 @@ const config = require('../config');
 const darwin = require('./darwin');
 const io = require('../io');
 const r2 = require('./r2');
+const { getMemoryRanges } = require('./debug/memory');
 const utils = require('./utils');
 
 function search (args) {
@@ -195,7 +196,7 @@ function _getRanges (fromNum, toNum) {
         };
       });
   }
-  const ranges = _getMemoryRanges(searchIn.perm).filter(range => {
+  const ranges = getMemoryRanges(searchIn.perm).filter(range => {
     const start = range.base;
     const end = start.add(range.size);
     const offPtr = ptr(global.r2frida.offset);
