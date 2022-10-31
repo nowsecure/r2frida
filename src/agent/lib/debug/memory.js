@@ -29,7 +29,7 @@ function listMemoryRangesR2 () {
 }
 
 function listMemoryRangesJson () {
-  return _getMemoryRanges('---');
+  return getMemoryRanges('---');
 }
 
 async function changeMemoryProtection (args) {
@@ -207,7 +207,7 @@ function removeAlloc (args) {
   return '';
 }
 
-function _getMemoryRanges (protection) {
+function getMemoryRanges (protection) {
   if (global.r2frida.hookedRanges !== null) {
     return global.r2frida.hookedRanges(protection);
   }
@@ -294,5 +294,6 @@ module.exports = {
   allocWstring,
   allocDup,
   listAllocs,
-  removeAlloc
+  removeAlloc,
+  getMemoryRanges
 };
