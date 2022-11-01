@@ -5,7 +5,7 @@ const java = require('../java');
 const utils = require('../utils');
 
 function interceptHelp (args) {
-  return 'Usage: di[0,1,-1,s,v] [addr] : intercepts function method and replace the return value.\n' /
+  return 'Usage: di[0,1,-1,s,v] [addr] : intercept function method and replace the return value.\n' /
   'di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n' /
   'div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n';
 }
@@ -20,6 +20,16 @@ function interceptFunHelp (args) {
 function interceptRetString (args) {
   const target = args[0];
   return _interceptRet(target, args[1]);
+}
+
+function interceptRetFalse (args) {
+  const target = args[0];
+  return _interceptRet(target, false);
+}
+
+function interceptRetTrue (args) {
+  const target = args[0];
+  return _interceptRet(target, true);
 }
 
 function interceptRet0 (args) {
@@ -113,6 +123,8 @@ module.exports = {
   interceptHelp,
   interceptFunHelp,
   interceptRetString,
+  interceptRetFalse,
+  interceptRetTrue,
   interceptRet0,
   interceptRet1,
   interceptRetInt,
