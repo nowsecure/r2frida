@@ -352,6 +352,9 @@ function dumpRegisterArena (args) {
   const buf = Buffer.alloc(inc * names.length);
   for (const reg of names) {
     const r = context[reg];
+    if (typeof r.and !== 'function') {
+      continue;
+    }
     const b = [r.and(0xff),
       r.shr(8).and(0xff),
       r.shr(16).and(0xff),
