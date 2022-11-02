@@ -1,7 +1,7 @@
 const commandHandlers = {};
 
 function pluginRegister (name, ch) {
-  if (commandHandlers.hasOwnPropertyDescriptor(name)) {
+  if (name in commandHandlers) {
     console.log('Cannot register the same handler twice');
     return false;
   }
@@ -10,7 +10,7 @@ function pluginRegister (name, ch) {
 }
 
 function pluginUnregister (name) {
-  if (commandHandlers.hasOwnPropertyDescriptor(name)) {
+  if (name in commandHandlers) {
     delete commandHandlers[name];
     return true;
   }
