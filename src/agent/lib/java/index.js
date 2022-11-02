@@ -203,6 +203,8 @@ function interceptRetJava (klass, method, value) {
         case 0: return false;
         case 1: return true;
         case -1: return -1; // TODO should throw an error?
+        case true: return Java.use("java.lang.Boolean").$new(true);
+        case false: return Java.use("java.lang.Boolean").$new(false);
         case null: return;
       }
       return value;

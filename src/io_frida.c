@@ -1005,6 +1005,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		"!!!:dc",
 		"!!!:di",
 		"!!!:dii",
+		"!!!:dibt",
+		"!!!:dibf",
 		"!!!:di0",
 		"!!!:di1",
 		"!!!:di-1",
@@ -1060,7 +1062,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	} else {
 		R_LOG_INFO("Using safe io mode.");
 	}
-	
+
 	return fd;
 
 error:
@@ -1103,7 +1105,7 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	if (!io || !fd || !command) {
 		return NULL;
 	}
-	
+
 	return __system_continuation (io, fd, command);
 }
 

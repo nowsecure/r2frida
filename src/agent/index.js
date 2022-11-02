@@ -196,7 +196,7 @@ const commandHandlers = {
   dth: [trace.traceHook, 'list or add trace hook'],
   t: [swift.swiftTypes, 'list swift types'],
   't*': swift.swiftTypesR2,
-  dt: [trace.trace, 'innject a trace in the given native address (or java:method)', '([addr])'],
+  dt: [trace.trace, 'inject a trace in the given native address (or java:method)', '([addr])'],
   dtj: trace.traceJson,
   dtq: trace.traceQuiet,
   'dt*': trace.traceR2,
@@ -221,6 +221,8 @@ const commandHandlers = {
   dif: [interceptor.interceptFunHelp, 'intercept function'],
   // intercept ret function and dont call the function
   dis: [interceptor.interceptRetString, 'intercept return string', '[addr]'],
+  dibf: [interceptor.interceptRetFalse, 'intercept return boolean false', '[java:]'],
+  dibt: [interceptor.interceptRetTrue, 'intercept return boolean true', '[java:]'],
   di0: [interceptor.interceptRet0, 'intercept function call with a return 0', '[addr|java:]'],
   di1: [interceptor.interceptRet1, 'intercept function with a return 1', '[addr|java:]'],
   dii: [interceptor.interceptRetInt, 'force early return with given number', '[addr] [num]'],
