@@ -19,7 +19,7 @@ function listClassesLoaders (args) {
     return 'Error: icL is only available on Android targets.';
   }
   let res = '';
-  javaPerform(function () {
+  java.javaPerform(function () {
     function s2o (s) {
       let indent = 0;
       let res = '';
@@ -75,7 +75,7 @@ function listAllClassesNatives (args) {
 function listClassesNatives (args) {
   const natives = [];
   const vkn = args[0] || 'com';
-  javaPerform(function () {
+  java.javaPerform(function () {
     const klasses = listClassesJson([]);
     for (let kn of klasses) {
       kn = kn.toString();
@@ -153,7 +153,7 @@ function listClassesHooks (args, mode) {
             let format = '';
             for (const arg of method.argumentTypes) {
               switch (arg) {
-                case 'pointer': // We return an hex pointer until a good type information is exposed by frida-objc-bridge 
+                case 'pointer': // We return an hex pointer until a good type information is exposed by frida-objc-bridge
                   format += 'x';
                   break;
                 case 'uint64':
