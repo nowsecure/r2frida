@@ -2,8 +2,8 @@ include config.mk
 
 R2V=$(VERSION)
 R2V=5.7.8
-# frida_version=16.0.2
-frida_version=15.2.2
+frida_version=16.0.3
+# frida_version=15.2.2
 
 R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT?=0
