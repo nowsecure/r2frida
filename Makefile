@@ -10,7 +10,7 @@ ifeq ($(frida_major),15)
 R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT=1
 else
-R2FRIDA_NATIVE_COMPILER=1
+R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.8/_agent.js
@@ -209,7 +209,7 @@ ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
 else
 	$(MAKE) node_modules
 	npm run build
-#	npx frida-compile -Sc src/agent/index.js > src/_agent.js
+#	npx frida-compile -Sco src/_agent.js src/agent/index.js
 endif
 endif
 
