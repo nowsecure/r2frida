@@ -336,7 +336,7 @@ static bool __close(RIODesc *fd) {
 
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	GBytes *bytes = NULL;
-	gsize n;
+	gsize n = 0;
 	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
 	R_LOG_DEBUG ("read %d @ 0x%08"PFMT64x, count, io->off);
@@ -358,7 +358,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 			memcpy (buf, data, R_MIN (n, count));
 		}
 	} else {
-		memset (buf, 0xff, R_MIN (n, count));
+		memset (buf, 0xff, count);
 	}
 
 	json_object_unref (result);
@@ -417,8 +417,6 @@ static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 }
 
 static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
-	int i;
-
 	if (!fd || !fd->data) {
 		return -1;
 	}
@@ -729,16 +727,12 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		if (command[0] == 'j') { // "j"
 			// Example: "\j var a=Java.use('java.lang.String');var b=a.$new('findus');console.log('sinderel'+b.toString())"
 			// Output: sinderelfindus
-			GError *error = NULL;
-			char *js;
 			builder = build_request ("evaluate");
 			json_builder_set_member_name (builder, "code");
 			char *code = r_str_newf ("Java.perform(function(){%s;})", command + 1);
 			json_builder_add_string_value (builder, code);
 			free (code);
 		} else if (command[0] == ' ') {
-			GError *error = NULL;
-			char *js;
 			builder = build_request ("evaluate");
 			json_builder_set_member_name (builder, "code");
 			json_builder_add_string_value (builder, command + 1);
@@ -1097,18 +1091,13 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 }
 
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
-	RIOFrida *rf;
-	JsonBuilder *builder;
-	JsonObject *result;
-	const char *value;
-
 	if (!io || !fd || !command) {
 		return NULL;
 	}
-
 	return __system_continuation (io, fd, command);
 }
 
+#if 0
 static bool is_process_action(const char *rest) {
 	if (!strcmp (rest, "attach")) {
 		return true;
@@ -1121,6 +1110,7 @@ static bool is_process_action(const char *rest) {
 	}
 	return false;
 }
+#endif
 
 /// uri parser ///
 
@@ -1250,6 +1240,7 @@ static bool resolve3(RList *args, R2FridaLaunchOptions *lo, GCancellable *cancel
 	// frida://attach/usb//
 	R2FridaAction action = parse_action (arg0);
 	R2FridaLink link = parse_link (arg1);
+	R_LOG_DEBUG ("action %d link %d\n", action, link);
 	if (!*arg2) {
 		// frida://attach/usb/
 		dumpDevices (cancellable);
@@ -1676,7 +1667,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
 				} else if (name && !strcmp (name, "log")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza) {
+					if (stanza && stanza_node) {
 						JsonNode *message_node = json_object_get_member (stanza, "message");
 						if (message_node) {
 							JsonNodeType type = json_node_get_node_type (message_node);
@@ -1699,7 +1690,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 					}
 				} else if (name && !strcmp (name, "log-file")) {
 					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza) {
+					if (stanza && stanza_node) {
 						const char *filename = json_object_get_string_member (stanza, "filename");
 						JsonNode *message_node = json_object_get_member (stanza, "message");
 						if (message_node) {
@@ -1758,7 +1749,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	} else if (!strcmp (type, "log")) {
 		// This is reached from the agent when calling console.log
 		JsonNode *payload_node = json_object_get_member (root, "payload");
-		JsonNodeType type = json_node_get_node_type (payload_node);
+		// JsonNodeType type = json_node_get_node_type (payload_node);
 		const char *message = json_node_get_string (payload_node);
 		if (message) {
 			const char *cmd_prefix = "[r2cmd]";
@@ -1819,9 +1810,7 @@ beach:
 
 static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *process_name) {
 	char *res = NULL;
-	int count = 0;
-	GArray *applications;
-	gint num_applications, i;
+	gint num_applications = 0;
 
 	if (r2f_debug_uri ()) {
 		printf ("resolve_package_name_by_process_name\n");
@@ -1838,17 +1827,21 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	}
 	num_applications = frida_application_list_size (list);
 
-	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
-	for (i = 0; i < num_applications; i++) {
-		FridaApplication *application = frida_application_list_get (list, i);
-		if (application) {
-			const char *name = frida_application_get_name (application);
-			if (!strcmp (process_name, name)) {
-				res = strdup (frida_application_get_identifier (application));
-				break;
+	GArray *applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
+	if (applications) {
+		gint i;
+		for (i = 0; i < num_applications; i++) {
+			FridaApplication *application = frida_application_list_get (list, i);
+			if (application) {
+				const char *name = frida_application_get_name (application);
+				if (!strcmp (process_name, name)) {
+					res = strdup (frida_application_get_identifier (application));
+					break;
+				}
+				g_object_unref (application); /* borrow it */
 			}
-			g_object_unref (application); /* borrow it */
 		}
+		g_array_free (applications, num_applications);
 	}
 
 beach:
@@ -1859,10 +1852,8 @@ beach:
 
 static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid) {
 	char *res = NULL;
-	int count = 0;
 	FridaApplicationList *list;
-	GArray *applications;
-	gint num_applications, i;
+	gint i;
 	GError *error;
 
 	if (r2f_debug_uri ()) {
@@ -1878,19 +1869,22 @@ static char *resolve_process_name_by_package_name(FridaDevice *device, GCancella
 		}
 		goto beach;
 	}
-	num_applications = frida_application_list_size (list);
+	gint num_applications = frida_application_list_size (list);
 
-	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
-	for (i = 0; i != num_applications; i++) {
-		FridaApplication *application = frida_application_list_get (list, i);
-		if (application) {
-			const char *bid = frida_application_get_identifier (application);
-			if (!strcmp (bundleid, bid)) {
-				res = strdup (frida_application_get_name (application));
-				break;
+	GArray *applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
+	if (applications) {
+		for (i = 0; i != num_applications; i++) {
+			FridaApplication *application = frida_application_list_get (list, i);
+			if (application) {
+				const char *bid = frida_application_get_identifier (application);
+				if (!strcmp (bundleid, bid)) {
+					res = strdup (frida_application_get_name (application));
+					break;
+				}
+				g_object_unref (application); /* borrow it */
 			}
-			g_object_unref (application); /* borrow it */
 		}
+		g_array_free (applications, num_applications);
 	}
 
 beach:
@@ -1902,15 +1896,14 @@ beach:
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	FridaApplicationList *list;
 	GArray *applications;
-	gint num_applications, i;
-	GError *error;
+	gint i, num_applications = 0;
+	GError *error = NULL;
 
 	if (r2f_debug_uri ()) {
 		printf ("dump-apps\n");
 		return 0;
 	}
 
-	error = NULL;
 	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
@@ -2023,7 +2016,6 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 	switch (type) {
 	case APPLICATIONS:
 		r_table_set_columnsf (table, "dss", "PID", "Name", "Identifier");
-		char buf[64];
 		for (i = 0; i < num_items; i++) {
 			FridaApplication *application = g_array_index (items, FridaApplication*, i);
 			guint pid = frida_application_get_pid (application);
