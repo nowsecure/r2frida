@@ -44,7 +44,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Building Radare2
-      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && sys/install.sh --with-rpath /usr )
+      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && ./configure && make -j && sudo make install )
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Packaging
