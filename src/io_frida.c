@@ -146,15 +146,16 @@ static bool r2f_compiler(void) {
 }
 
 static FridaScriptRuntime r2f_jsruntime(void) {
+	const FridaScriptRuntime default_runtime = FRIDA_SCRIPT_RUNTIME_QJS;
 	char *engine = r_sys_getenv ("R2FRIDA_RUNTIME");
 	if (engine) {
-		bool isqjs = !strcmp (engine, "qjs");
+		const bool isqjs = !strcmp (engine, "qjs");
 		free (engine);
-		if (isqjs) {
-			return FRIDA_SCRIPT_RUNTIME_QJS;
-		}
+		return isqjs
+			? FRIDA_SCRIPT_RUNTIME_QJS
+			: FRIDA_SCRIPT_RUNTIME_V8;
 	}
-	return FRIDA_SCRIPT_RUNTIME_V8;
+	return default_runtime;
 }
 
 static void resume(RIOFrida *rf) {
