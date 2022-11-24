@@ -59,6 +59,8 @@ CC?=gcc
 CXX?=g++
 CFLAGS+=-fPIC
 LDFLAGS+=-shared -fPIC
+CFLAGS+=-Wall
+CFLAGS+=-Werror
 
 CFLAGS+=-g
 LDFLAGS+=-g
