@@ -1,14 +1,13 @@
 'use strict';
-function Hexdump(lenstr) {
-    const len = +lenstr || 32;
-    try {
-        return hexdump(ptr(global.r2frida.offset), len) || '';
-    }
-    catch (e) {
-        return 'Cannot read memory.';
-    }
+function Hexdump (lenstr) {
+  const len = +lenstr || 32;
+  try {
+    return hexdump(ptr(global.r2frida.offset), len) || '';
+  } catch (e) {
+    return 'Cannot read memory.';
+  }
 }
 export { Hexdump };
 export default {
-    Hexdump
+  Hexdump
 };
