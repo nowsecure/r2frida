@@ -1,6 +1,7 @@
 import { getModuleByAddress } from './lookup.js';
 import config from '../../config.js';
 import darwin from '../darwin/index.js';
+import elf from '../elf/index.js';
 import fs from '../fs.js';
 import java from '../java/index.js';
 import r2 from '../r2.js';
@@ -343,19 +344,32 @@ function listSectionsR2 (args) {
 }
 
 function listSections (args) {
-  return listSectionsJson(args)
-    .map(({ vmaddr, vmsize, name }) => {
-      return [vmaddr, vmsize, name].join(' ');
+  const headers = 'vaddr\tvsize\tperm\tname\n'.concat('―――――――――――――――――――――――\n');
+  return headers.concat(listSectionsJson(args)
+    .map(({ vmaddr, vmsize, perm, name }) => {
+      return [vmaddr, vmsize, perm, name].join('\t');
     })
-    .join('\n');
+    .join('\n'));
 }
 
 function listSectionsJson (args) {
-  if (Process.platform !== 'darwin') {
-    return 'Only darwin-based systems supported.';
+  let baseAddr;
+  if (Process.platform === 'darwin') {
+    const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
+    return darwin.listMachoSections(baseAddr);
   }
-  const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
-  return darwin.listMachoSections(baseAddr);
+  if (Process.platform === 'linux') {
+    if (args.length === 1) {
+      baseAddr = args[0];
+    } else {
+      const here = ptr(global.r2frida.offset);
+      baseAddr = Process.enumerateModules()
+        .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+        .map(m => m.base)[0];
+    }
+    return elf.listElfSections(ptr(baseAddr));
+  }
+  throw new Error('Command only available on unix-based systems.');
 }
 
 function listAllSymbolsJson (args) {
