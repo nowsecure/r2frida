@@ -2,9 +2,11 @@ import config from '../../config.js';
 import log from '../../log.js';
 import utils from '../utils.js';
 'use strict';
+
 const SwiftAvailable = function () {
   return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.hasOwnProperty('Swift') && Swift.available;
 };
+
 function traceSwift (klass, method) {
   if (!SwiftAvailable()) {
     return;
@@ -20,6 +22,7 @@ function traceSwift (klass, method) {
   };
   Swift.Interceptor.Attach(targetAddress, callback);
 }
+
 function swiftTypesR2 (args) {
   let res = '';
   if (SwiftAvailable()) {
@@ -82,6 +85,7 @@ function swiftTypesR2 (args) {
   }
   return res;
 }
+
 function swiftTypes (args) {
   if (!SwiftAvailable()) {
     if (config.getBoolean('want.swift')) {
