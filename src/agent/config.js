@@ -1,260 +1,289 @@
 'use strict';
 const config = {
-    'java.wait': false,
-    'want.swift': false,
-    'patch.code': true,
-    'search.in': 'perm:r--',
-    'search.quiet': false,
-    'stalker.event': 'compile',
-    'stalker.timeout': 5 * 60,
-    'stalker.in': 'raw',
-    'hook.backtrace': false,
-    'hook.verbose': true,
-    'hook.logs': true,
-    'hook.output': 'simple',
-    'hook.usecmd': '',
-    'file.log': '',
-    'symbols.module': '',
-    'symbols.unredact': Process.platform === 'darwin'
+  'java.wait': false,
+  'want.swift': false,
+  'patch.code': true,
+  'search.in': 'perm:r--',
+  'search.quiet': false,
+  'stalker.event': 'compile',
+  'stalker.timeout': 5 * 60,
+  'stalker.in': 'raw',
+  'hook.backtrace': false,
+  'hook.verbose': true,
+  'hook.logs': true,
+  'hook.output': 'simple',
+  'hook.usecmd': '',
+  'file.log': '',
+  'symbols.module': '',
+  'symbols.unredact': Process.platform === 'darwin'
 };
 const configHelp = {
-    'want.swift': _configHelpWantSwift,
-    'java.wait': _configHelpJavaWait,
-    'search.in': _configHelpSearchIn,
-    'stalker.event': _configHelpStalkerEvent,
-    'stalker.timeout': _configHelpStalkerTimeout,
-    'stalker.in': _configHelpStalkerIn,
-    'hook.backtrace': _configHelpHookBacktrace,
-    'hook.verbose': _configHelpHookVerbose,
-    'hook.usecmd': _configHelpHookUseCmd,
-    'hook.logs': _configHelpHookLogs,
-    'hook.output': _configHelpHookOutput,
-    'file.log': _configHelpFileLog,
-    'symbols.module': _configHelpSymbolsModule,
-    'symbols.unredact': _configHelpSymbolsUnredact
+  'want.swift': _configHelpWantSwift,
+  'java.wait': _configHelpJavaWait,
+  'search.in': _configHelpSearchIn,
+  'stalker.event': _configHelpStalkerEvent,
+  'stalker.timeout': _configHelpStalkerTimeout,
+  'stalker.in': _configHelpStalkerIn,
+  'hook.backtrace': _configHelpHookBacktrace,
+  'hook.verbose': _configHelpHookVerbose,
+  'hook.usecmd': _configHelpHookUseCmd,
+  'hook.logs': _configHelpHookLogs,
+  'hook.output': _configHelpHookOutput,
+  'file.log': _configHelpFileLog,
+  'symbols.module': _configHelpSymbolsModule,
+  'symbols.unredact': _configHelpSymbolsUnredact
 };
 const configValidator = {
-    'want.swift': _configValidateBoolean,
-    'java.wait': _configValidateBoolean,
-    'search.in': _configValidateSearchIn,
-    'stalker.event': _configValidateStalkerEvent,
-    'stalker.timeout': _configValidateStalkerTimeout,
-    'stalker.in': _configValidateStalkerIn,
-    'hook.backtrace': _configValidateBoolean,
-    'hook.verbose': _configValidateBoolean,
-    'hook.logs': _configValidateBoolean,
-    'hook.output': _configValidateString,
-    'file.log': _configValidateString,
-    'symbols.module': _configValidateString,
-    'symbols.unredact': _configValidateBoolean
+  'want.swift': _configValidateBoolean,
+  'java.wait': _configValidateBoolean,
+  'search.in': _configValidateSearchIn,
+  'stalker.event': _configValidateStalkerEvent,
+  'stalker.timeout': _configValidateStalkerTimeout,
+  'stalker.in': _configValidateStalkerIn,
+  'hook.backtrace': _configValidateBoolean,
+  'hook.verbose': _configValidateBoolean,
+  'hook.logs': _configValidateBoolean,
+  'hook.output': _configValidateString,
+  'file.log': _configValidateString,
+  'symbols.module': _configValidateString,
+  'symbols.unredact': _configValidateBoolean
 };
-function _configHelpWantSwift() {
-    return 'Use Swift.Frida if available, disabled by default as long as some apps make Frida crash';
-}
-function _configHelpJavaWait() {
-    return 'Wait for Java classloader to be ready (boolean)';
-}
-function _configHelpSearchIn() {
-    return `Specify which memory ranges to search in, possible values:
 
-    perm:---        filter by permissions (default: 'perm:r--')
-    current         search the range containing current offset
-    heap            search inside the heap allocated regions
-    path:pattern    search ranges mapping paths containing 'pattern'
+function _configHelpWantSwift () {
+  return 'Use Swift.Frida if available, disabled by default as long as some apps make Frida crash';
+}
+
+function _configHelpJavaWait () {
+  return 'Wait for Java classloader to be ready (boolean)';
+}
+
+function _configHelpSearchIn () {
+  return `Specify which memory ranges to search in, possible values:
+  
+  perm:---        filter by permissions (default: 'perm:r--')
+  current         search the range containing current offset
+  heap            search inside the heap allocated regions
+  path:pattern    search ranges mapping paths containing 'pattern'
   `;
 }
-function _configHelpStalkerEvent() {
-    return `Specify the event to use when stalking, possible values:
 
-    call            trace calls
-    ret             trace returns
-    exec            trace every instruction
-    block           trace basic block execution (every time)
-    compile         trace basic blocks once (this is the default)
+function _configHelpStalkerEvent () {
+  return `Specify the event to use when stalking, possible values:
+  
+  call            trace calls
+  ret             trace returns
+  exec            trace every instruction
+  block           trace basic block execution (every time)
+  compile         trace basic blocks once (this is the default)
   `;
 }
-function _configHelpStalkerTimeout() {
-    return `Time after which the stalker gives up (in seconds). Defaults to 5 minutes,
- set to 0 to disable.`;
-}
-function _configHelpFileLog() {
-    return `Set filename to save all the tracing logs generated by :dt
 
-    string        specify file path of the log file
+function _configHelpStalkerTimeout () {
+  return `Time after which the stalker gives up (in seconds). Defaults to 5 minutes,
+  set to 0 to disable.`;
+}
+
+function _configHelpFileLog () {
+  return `Set filename to save all the tracing logs generated by :dt
+  
+  string        specify file path of the log file
   `;
 }
-function _configHelpHookUseCmd() {
-    return `Use the given command when registering a new trace (dt) or injection (di) to be executed when hits
 
-    '' | 'r2cmd'  the r2 command will be executed from the host side and r2frida commands can be also recursively called
+function _configHelpHookUseCmd () {
+  return `Use the given command when registering a new trace (dt) or injection (di) to be executed when hits
+  
+  '' | 'r2cmd'  the r2 command will be executed from the host side and r2frida commands can be also recursively called
   `;
 }
-function _configHelpHookVerbose() {
-    return `Show trace messages to the console. They are also logged in :dtl
 
-    true | false    to enable or disable the option
+function _configHelpHookVerbose () {
+  return `Show trace messages to the console. They are also logged in :dtl
+  
+  true | false    to enable or disable the option
   `;
 }
-function _configHelpHookLogs() {
-    return `Save hook trace logs internally in the agent. Use :dtl to list them
 
-    true | false    to enable or disable the option (enabled by default)
+function _configHelpHookLogs () {
+  return `Save hook trace logs internally in the agent. Use :dtl to list them
+  
+  true | false    to enable or disable the option (enabled by default)
   `;
 }
-function _configHelpHookOutput() {
-    return `Choose output format.
 
-    simple | json   (simple by default)
+function _configHelpHookOutput () {
+  return `Choose output format.
+  
+  simple | json   (simple by default)
   `;
 }
-function _configHelpHookBacktrace() {
-    return `Append the backtrace on each trace hook registered with :dt commands
 
-    true | false    to enable or disable the option
+function _configHelpHookBacktrace () {
+  return `Append the backtrace on each trace hook registered with :dt commands
+  
+  true | false    to enable or disable the option
   `;
 }
-function _configHelpStalkerIn() {
-    return `Restrict stalker results based on where the event has originated:
 
-    raw             stalk everywhere (the default)
-    app             stalk only in the app module
-    modules         stalk in app module and all linked libraries
+function _configHelpStalkerIn () {
+  return `Restrict stalker results based on where the event has originated:
+  
+  raw             stalk everywhere (the default)
+  app             stalk only in the app module
+  modules         stalk in app module and all linked libraries
   `;
 }
-function _configHelpSymbolsModule() {
-    return `When set ignore offset to tell frida which module to use for symbols:
 
-    See :dm command to get all maps and :dmm for modules
+function _configHelpSymbolsModule () {
+  return `When set ignore offset to tell frida which module to use for symbols:
+  
+  See :dm command to get all maps and :dmm for modules
   `;
 }
-function _configHelpSymbolsUnredact() {
-    return `Try to get symbol names from debug symbols when they're "redacted":
 
-    true            try to unredact (the default)
-    false           do not attempt to unredact
+function _configHelpSymbolsUnredact () {
+  return `Try to get symbol names from debug symbols when they're "redacted":
+  
+  true            try to unredact (the default)
+  false           do not attempt to unredact
   `;
 }
-function _configValidateStalkerTimeout(val) {
-    return val >= 0;
+
+function _configValidateStalkerTimeout (val) {
+  return val >= 0;
 }
-function _configValidateStalkerEvent(val) {
-    return ['call', 'ret', 'exec', 'block', 'compile'].indexOf(val) !== -1;
+
+function _configValidateStalkerEvent (val) {
+  return ['call', 'ret', 'exec', 'block', 'compile'].indexOf(val) !== -1;
 }
-function _configValidateStalkerIn(val) {
-    return ['raw', 'app', 'modules'].indexOf(val) !== -1;
+
+function _configValidateStalkerIn (val) {
+  return ['raw', 'app', 'modules'].indexOf(val) !== -1;
 }
-function _configValidateString(val) {
-    return typeof (val) === 'string';
+function _configValidateString (val) {
+  return typeof (val) === 'string';
 }
-function _configValidateBoolean(val) {
-    return _isTrue(val) || _isFalse(val);
+
+function _configValidateBoolean (val) {
+  return _isTrue(val) || _isFalse(val);
 }
-function _isTrue(x) {
-    return (x === true || x === 1 || x === '1' || (/(true)/i).test(x));
+
+function _isTrue (x) {
+  return (x === true || x === 1 || x === '1' || (/(true)/i).test(x));
 }
-function _isFalse(x) {
-    return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
+
+function _isFalse (x) {
+  return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
 }
-function _configValidateSearchIn(val) {
-    if (val === 'heap') {
-        return true;
+
+function _configValidateSearchIn (val) {
+  if (val === 'heap') {
+    return true;
+  }
+  const valSplit = val.split(':');
+  const [scope, param] = valSplit;
+  if (param === undefined) {
+    if (scope === 'current') {
+      return valSplit.length === 1;
     }
-    const valSplit = val.split(':');
-    const [scope, param] = valSplit;
-    if (param === undefined) {
-        if (scope === 'current') {
-            return valSplit.length === 1;
-        }
-        return false;
+    return false;
+  }
+  if (scope === 'perm') {
+    const paramSplit = param.split('');
+    if (paramSplit.length !== 3 || valSplit.length > 2) {
+      return false;
     }
-    if (scope === 'perm') {
-        const paramSplit = param.split('');
-        if (paramSplit.length !== 3 || valSplit.length > 2) {
-            return false;
-        }
-        const [r, w, x] = paramSplit;
-        return (r === 'r' || r === '-') &&
-            (w === 'w' || w === '-') &&
-            (x === 'x' || x === '-');
-    }
-    return scope === 'path';
+    const [r, w, x] = paramSplit;
+    return (r === 'r' || r === '-') &&
+    (w === 'w' || w === '-') &&
+    (x === 'x' || x === '-');
+  }
+  return scope === 'path';
 }
-function helpFor(k) {
-    if (configHelp[k] !== undefined) {
-        return configHelp[k]();
-    }
-    console.error(`no help for ${k}`);
-    return '';
+
+function helpFor (k) {
+  if (configHelp[k] !== undefined) {
+    return configHelp[k]();
+  }
+  console.error(`no help for ${k}`);
+  return '';
 }
-function asR2Script() {
-    return Object.keys(config)
-        .map(k => ':e ' + k + '=' + config[k])
-        .join('\n');
+
+function asR2Script () {
+  return Object.keys(config)
+    .map(k => ':e ' + k + '=' + config[k])
+    .join('\n');
 }
-function getStringValue(k) {
-    const ck = config[k];
-    if (_configValidateBoolean(ck)) {
-        return ck ? 'true' : 'false';
-    }
-    return ck ? ('' + ck) : '';
+
+function getStringValue (k) {
+  const ck = config[k];
+  if (_configValidateBoolean(ck)) {
+    return ck ? 'true' : 'false';
+  }
+  return ck ? ('' + ck) : '';
 }
-function evalConfigR2(args) {
+
+function evalConfigR2 (args) {
+  return asR2Script();
+}
+
+function evalConfig (args) {
+  if (args.length === 0) {
     return asR2Script();
-}
-function evalConfig(args) {
-    if (args.length === 0) {
-        return asR2Script();
+  }
+  const argstr = args.join(' ');
+  if (argstr.endsWith('.')) {
+    // list k=v of all the keys starting with argstr
+    let s = '';
+    for (const k of Object.keys(config)) {
+      if (k.startsWith(argstr)) {
+        s += ':e ' + k + ' = ' + config[k] + '\n';
+      }
     }
-    const argstr = args.join(' ');
-    if (argstr.endsWith('.')) {
-        // list k=v of all the keys starting with argstr
-        let s = '';
-        for (const k of Object.keys(config)) {
-            if (k.startsWith(argstr)) {
-                s += ':e ' + k + ' = ' + config[k] + '\n';
-            }
-        }
-        return s;
+    return s;
+  }
+  const kv = argstr.split(/=/);
+  const [k, v] = kv;
+  if (kv.length === 2) {
+    if (get(k) !== undefined) {
+      if (v === '?') {
+        return helpFor(kv[0]);
+      }
+      set(kv[0], kv[1]);
+    } else {
+      console.error('unknown variable');
     }
-    const kv = argstr.split(/=/);
-    const [k, v] = kv;
-    if (kv.length === 2) {
-        if (get(k) !== undefined) {
-            if (v === '?') {
-                return helpFor(kv[0]);
-            }
-            set(kv[0], kv[1]);
-        }
-        else {
-            console.error('unknown variable');
-        }
-        return '';
+    return '';
+  }
+  return getStringValue(argstr);
+}
+
+function evalConfigSearch (args) {
+  const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
+  const from = currentRange.base;
+  const to = from.add(currentRange.size);
+  return `e search.in=range
+  e search.from=${from}
+  e search.to=${to}
+  e anal.in=range
+  e anal.from=${from}
+  e anal.to=${to}`;
+}
+
+function set (k, v) {
+  if (configValidator[k] !== undefined) {
+    if (!configValidator[k](v)) {
+      console.error(`Invalid value for ${k}`);
+      return '';
     }
-    return getStringValue(argstr);
+  }
+  config[k] = v;
 }
-function evalConfigSearch(args) {
-    const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
-    const from = currentRange.base;
-    const to = from.add(currentRange.size);
-    return `e search.in=range
-e search.from=${from}
-e search.to=${to}
-e anal.in=range
-e anal.from=${from}
-e anal.to=${to}`;
+
+function get (k) {
+  return config[k];
 }
-function set(k, v) {
-    if (configValidator[k] !== undefined) {
-        if (!configValidator[k](v)) {
-            console.error(`Invalid value for ${k}`);
-            return '';
-        }
-    }
-    config[k] = v;
-}
-function get(k) {
-    return config[k];
-}
+
 export const getBoolean = (k) => _isTrue(config[k]);
 export { config as values };
 export { getStringValue as getString };
@@ -264,12 +293,12 @@ export { evalConfigSearch };
 export { set };
 export { get };
 export default {
-    values: config,
-    getBoolean,
-    getString: getStringValue,
-    evalConfigR2,
-    evalConfig,
-    evalConfigSearch,
-    set,
-    get
+  values: config,
+  getBoolean,
+  getString: getStringValue,
+  evalConfigR2,
+  evalConfig,
+  evalConfigSearch,
+  set,
+  get
 };
