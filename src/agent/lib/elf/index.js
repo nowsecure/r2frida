@@ -29,7 +29,7 @@ function parseSegmentHeaders (baseAddr, phOffset, entrySize, entries) {
       name: parseHeaderType(cursor.readU32()),
       perm: parseFlags(cursor.add(0x4).readU32()),
       fileoff: cursor.add(0x8).readPointer(),
-      vmaddr: cursor.add(0x10).readPointer(),
+      vmaddr: (cursor.add(0x10).readPointer()).add(baseAddr),
       filesize: cursor.add(0x20).readPointer(),
       vmsize: cursor.add(0x28).readPointer(),
       align: cursor.add(0x30).readPointer()
@@ -137,6 +137,5 @@ function parseElfHeader (offset) {
   throw new Error('Only support for 64-bit apps');
 }
 
-module.exports = {
-  listElfSections
-};
+export { listElfSections };
+export default { listElfSections };
