@@ -8,6 +8,7 @@ const ISA_MAGIC_MASK = ptr('0x000003f000000001');
 const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 /* ObjC.available is buggy on non-objc apps, so override this */
 const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
+
 function initFoundation () {
   // required for early instrumentation
   try {
@@ -17,6 +18,7 @@ function initFoundation () {
     // ignored
   }
 }
+
 function getIOSVersion () {
   if (!ObjCAvailable) {
     return '?';
@@ -28,11 +30,13 @@ function getIOSVersion () {
   // E.g. 13.5
   return version;
 }
+
 function isiOS () {
   return Process.platform === 'darwin' &&
   Process.arch.indexOf('arm') === 0 &&
   ObjC.available;
 }
+
 function isObjC (p) {
   const klass = getObjCClassPtr(p);
   if (klass.isNull()) {
@@ -40,6 +44,7 @@ function isObjC (p) {
   }
   return true;
 }
+
 function getObjCClassPtr (p) {
   if (!looksValid(p)) {
     return NULL;
@@ -51,9 +56,11 @@ function getObjCClassPtr (p) {
   }
   return looksValid(classP) ? classP : NULL;
 }
+
 function looksValid (p) {
   return p.compare(MIN_PTR) >= 0 && isReadable(p);
 }
+
 function isReadable (p) {
   // TODO: catching access violation isn't compatible with jailed testing
   try {
@@ -63,6 +70,7 @@ function isReadable (p) {
     return false;
   }
 }
+
 function dxObjc (args) {
   if (!ObjCAvailable) {
     return 'dxo requires the objc runtime to be available to work.';
@@ -110,6 +118,7 @@ function dxObjc (args) {
   }
   return '';
 }
+
 function hasMainLoop () {
   const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
   if (getMainPtr === null) {
@@ -132,6 +141,7 @@ function hasMainLoop () {
   }
   return hasLoop;
 }
+
 function uiAlert (args) {
   if (args.length < 2) {
     return 'Usage: ?E title message';
@@ -145,6 +155,7 @@ function uiAlert (args) {
     view.release();
   });
 }
+
 function listMachoSections (baseAddr) {
   const result = [];
   if (!_isMachoHeaderAtOffset(baseAddr)) {
@@ -161,6 +172,7 @@ function listMachoSections (baseAddr) {
   }
   return result;
 }
+
 function parseMachoHeader (offset) {
   const header = {
     magic: offset.readU32(),
@@ -181,6 +193,7 @@ function parseMachoHeader (offset) {
   }
   throw new Error('Only support for 64-bit apps');
 }
+
 function _isMachoHeaderAtOffset (offset) {
   const cursor = utils.trunc4k(offset);
   if (cursor.readU32() === 0xfeedfacf) {
@@ -188,6 +201,7 @@ function _isMachoHeaderAtOffset (offset) {
   }
   return false;
 }
+
 function getSections (segment) {
   let { name, nsects, sectionsPtr, slide } = segment;
   const sects = [];
@@ -201,6 +215,7 @@ function getSections (segment) {
   }
   return sects;
 }
+
 function getSegments (baseAddr, ncmds) {
   const LC_SEGMENT_64 = 0x19;
   let cursor = baseAddr.add(0x20);
@@ -234,6 +249,7 @@ function getSegments (baseAddr, ncmds) {
     });
   return segments;
 }
+
 function loadFrameworkBundle (args) {
   if (!ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
@@ -249,6 +265,7 @@ function loadFrameworkBundle (args) {
   }
   return bundle.load();
 }
+
 function unloadFrameworkBundle (args) {
   if (!ObjCAvailable) {
     console.log('dlf: This command requires the objc runtime');
@@ -264,6 +281,7 @@ function unloadFrameworkBundle (args) {
   }
   return bundle.unload();
 }
+
 class IOSPathTransform extends PathTransform {
   constructor () {
     super();
