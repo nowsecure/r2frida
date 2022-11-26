@@ -2,7 +2,7 @@ include config.mk
 
 R2V=$(VERSION)
 R2V=5.7.8
-frida_version=16.0.3
+frida_version=16.0.4
 # frida_version=15.2.2
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
@@ -10,9 +10,11 @@ ifeq ($(frida_major),15)
 R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT=1
 else
-R2FRIDA_NATIVE_COMPILER=0
+# frida 16
+R2FRIDA_NATIVE_COMPILER=1
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
+
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.8/_agent.js
 FRIDA_COMPILE=frida-compile
 #FRIDA_COMPILE=src/frida-compile
