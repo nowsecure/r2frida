@@ -35,7 +35,9 @@ function parseSegmentHeaders (baseAddr, phOffset, entrySize, entries) {
       align: cursor.add(0x30).readPointer()
     };
     cursor = cursor.add(entrySize);
-    segments.push(segment);
+    if (segment.name !== undefined) {
+      segments.push(segment);
+    }
   }
   return segments;
 }
