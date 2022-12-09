@@ -1,6 +1,6 @@
-const commandHandlers = {};
+const commandHandlers : any[any] = {};
 
-function pluginRegister (name, ch) {
+function pluginRegister (name: string, ch: any) {
   if (name in commandHandlers) {
     console.log('Cannot register the same handler twice');
     return false;
@@ -9,7 +9,7 @@ function pluginRegister (name, ch) {
   return true;
 }
 
-function pluginUnregister (name) {
+function pluginUnregister (name: string) {
   if (name in commandHandlers) {
     delete commandHandlers[name];
     return true;
@@ -17,9 +17,9 @@ function pluginUnregister (name) {
   return false;
 }
 
-function commandHandler (name) {
+function commandHandler (name: string) {
   for (const key of Object.keys(commandHandlers)) {
-    const ch = commandHandlers[key];
+    const ch : any = commandHandlers[key];
     if (typeof ch === 'function') {
       const handler = ch(name);
       if (handler !== undefined) {
@@ -35,9 +35,24 @@ function pluginList () {
 }
 
 // import packageJson from "./package.json" assert { type: "json" };
+export interface R2FridaPlugin {
+  version: string,
+  safeio: boolean,
+  commandHandler: any,
+  pluginRegister: any,
+  pluginUnregister: any,
+  pluginList: any,
+  hookedRead: any,
+  hookedWrite: any,
+  hookedRanges: any,
+  hookedScan: any,
+  offset: string,
+  logs: string[],
+};
 
-global.r2frida = {
-  version: "5.7.8", // packageJson.version,
+const r2frida : R2FridaPlugin = {
+  version: "5.7.9", // packageJson.version,
+  safeio: false,
   commandHandler: commandHandler,
   pluginRegister: pluginRegister,
   pluginUnregister: pluginUnregister,
@@ -46,6 +61,13 @@ global.r2frida = {
   hookedRead: null,
   hookedWrite: null,
   hookedRanges: null,
-  hookedScan: null
+  hookedScan: null,
+  offset: "",
+  logs: [],
 };
-export default global.r2frida;
+
+declare var global : any;
+
+global.r2frida = r2frida;
+
+export default r2frida;

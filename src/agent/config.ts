@@ -1,5 +1,8 @@
 'use strict';
-const config = {
+
+import r2frida from './plugin.js';
+
+const config : any[string] = {
   'java.wait': false,
   'want.swift': false,
   'patch.code': true,
@@ -17,7 +20,8 @@ const config = {
   'symbols.module': '',
   'symbols.unredact': Process.platform === 'darwin'
 };
-const configHelp = {
+
+const configHelp : any[string] = {
   'want.swift': _configHelpWantSwift,
   'java.wait': _configHelpJavaWait,
   'search.in': _configHelpSearchIn,
@@ -33,7 +37,8 @@ const configHelp = {
   'symbols.module': _configHelpSymbolsModule,
   'symbols.unredact': _configHelpSymbolsUnredact
 };
-const configValidator = {
+
+const configValidator : any[string] = {
   'want.swift': _configValidateBoolean,
   'java.wait': _configValidateBoolean,
   'search.in': _configValidateSearchIn,
@@ -149,34 +154,34 @@ function _configHelpSymbolsUnredact () {
   `;
 }
 
-function _configValidateStalkerTimeout (val) {
+function _configValidateStalkerTimeout (val: number) : boolean {
   return val >= 0;
 }
 
-function _configValidateStalkerEvent (val) {
+function _configValidateStalkerEvent (val: string) : boolean {
   return ['call', 'ret', 'exec', 'block', 'compile'].indexOf(val) !== -1;
 }
 
-function _configValidateStalkerIn (val) {
+function _configValidateStalkerIn (val: string) : boolean{
   return ['raw', 'app', 'modules'].indexOf(val) !== -1;
 }
-function _configValidateString (val) {
+function _configValidateString (val: any) : boolean {
   return typeof (val) === 'string';
 }
 
-function _configValidateBoolean (val) {
+function _configValidateBoolean (val: any) : boolean {
   return _isTrue(val) || _isFalse(val);
 }
 
-function _isTrue (x) {
+function _isTrue (x: any) : boolean {
   return (x === true || x === 1 || x === '1' || (/(true)/i).test(x));
 }
 
-function _isFalse (x) {
+function _isFalse (x: any) : boolean {
   return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
 }
 
-function _configValidateSearchIn (val) {
+function _configValidateSearchIn (val: string) : boolean {
   if (val === 'heap') {
     return true;
   }
@@ -201,7 +206,7 @@ function _configValidateSearchIn (val) {
   return scope === 'path';
 }
 
-function helpFor (k) {
+function helpFor (k: string) {
   if (configHelp[k] !== undefined) {
     return configHelp[k]();
   }
@@ -209,13 +214,13 @@ function helpFor (k) {
   return '';
 }
 
-function asR2Script () {
+function asR2Script () : string {
   return Object.keys(config)
     .map(k => ':e ' + k + '=' + config[k])
     .join('\n');
 }
 
-function getStringValue (k) {
+function getString (k: string) : string{
   const ck = config[k];
   if (_configValidateBoolean(ck)) {
     return ck ? 'true' : 'false';
@@ -223,11 +228,11 @@ function getStringValue (k) {
   return ck ? ('' + ck) : '';
 }
 
-function evalConfigR2 (args) {
+export function evalConfigR2 (args: string[]) : string{
   return asR2Script();
 }
 
-function evalConfig (args) {
+export function evalConfig (args: string[] ) {
   if (args.length === 0) {
     return asR2Script();
   }
@@ -255,11 +260,11 @@ function evalConfig (args) {
     }
     return '';
   }
-  return getStringValue(argstr);
+  return getString(argstr);
 }
 
-function evalConfigSearch (args) {
-  const currentRange = Process.getRangeByAddress(ptr(global.r2frida.offset));
+export function evalConfigSearch (args: string[]) {
+  const currentRange = Process.getRangeByAddress(ptr(r2frida.offset));
   const from = currentRange.base;
   const to = from.add(currentRange.size);
   return `e search.in=range
@@ -270,9 +275,10 @@ function evalConfigSearch (args) {
   e anal.to=${to}`;
 }
 
-function set (k, v) {
+export function set (k: string, v: any) {
   if (configValidator[k] !== undefined) {
-    if (!configValidator[k](v)) {
+    const cb : any = configValidator[k];
+    if (cb && !cb(v)) {
       console.error(`Invalid value for ${k}`);
       return '';
     }
@@ -280,22 +286,16 @@ function set (k, v) {
   config[k] = v;
 }
 
-function get (k) {
+export function get (k: string) {
   return config[k];
 }
 
-export const getBoolean = (k) => _isTrue(config[k]);
+export const getBoolean = (k: string) => _isTrue(config[k]);
 export { config as values };
-export { getStringValue as getString };
-export { evalConfigR2 };
-export { evalConfig };
-export { evalConfigSearch };
-export { set };
-export { get };
 export default {
   values: config,
   getBoolean,
-  getString: getStringValue,
+  getString,
   evalConfigR2,
   evalConfig,
   evalConfigSearch,

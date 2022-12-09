@@ -1,10 +1,10 @@
 import config from './config.js';
 import { wrapStanza } from './lib/utils.js';
-'use strict';
+import r2frida from './plugin.js';
 
-export const logs = [];
+export const logs : any[] = [];
 
-export function traceEmit (msg) {
+export function traceEmit (msg: string) {
   const fileLog = config.getString('file.log');
   if (fileLog.length > 0) {
     send(wrapStanza('log-file', {
@@ -17,10 +17,10 @@ export function traceEmit (msg) {
   if (config.getBoolean('hook.logs')) {
     logs.push(msg);
   }
-  global.r2frida.logs = logs;
+  r2frida.logs = logs;
 }
 
-export function traceLog (msg) {
+export function traceLog (msg: string) {
   if (config.getBoolean('hook.verbose')) {
     send(wrapStanza('log', {
       message: msg
