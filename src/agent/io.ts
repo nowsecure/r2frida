@@ -2,9 +2,9 @@ import r2frida from './plugin.js';
 import config from './config.js';
 'use strict';
 
-let cachedRanges = [];
+let cachedRanges : any[] = [];
 
-function read (params) {
+export function read (params: any) {
   const { offset, count, fast } = params;
   if (typeof r2frida.hookedRead === 'function') {
     return r2frida.hookedRead(offset, count);
@@ -12,7 +12,8 @@ function read (params) {
   if (r2frida.safeio) {
     try {
       if (cachedRanges.length === 0) {
-        cachedRanges = Process.enumerateRanges('').map((map) => [map.base, ptr(map.base).add(map.size)]);
+	const foo = (map: any) => [map.base, ptr(map.base).add(map.size)];
+        cachedRanges = Process.enumerateRanges('').map(foo);
       }
       // TODO: invalidate ranges at some point to refresh
       // process.nextTick(() => { cachedRanges = null; }
@@ -24,7 +25,7 @@ function read (params) {
             const rest = o.add(count).sub(map[1]);
             left = left.sub(rest);
           }
-          const bytes = Memory.readByteArray(o, left);
+          const bytes = o.readByteArray(left);
           return [{}, (bytes !== null) ? bytes : []];
         }
       }
@@ -37,7 +38,7 @@ function read (params) {
     return [{}, []];
   }
   try {
-    const bytes = Memory.readByteArray(ptr(offset), count);
+    const bytes = ptr(offset).readByteArray(count);
     // console.log("FAST", offset);
     return [{}, (bytes !== null) ? bytes : []];
   } catch (e) {
@@ -51,7 +52,7 @@ function read (params) {
         const left = (readEnds.compare(moduleEnds) > 0
           ? readEnds
           : moduleEnds).sub(offset);
-        const bytes = Memory.readByteArray(ptr(offset), +left);
+        const bytes = ptr(offset).readByteArray(+left);
         return [{}, (bytes !== null) ? bytes : []];
       } catch (e) {
         // do nothing
@@ -61,32 +62,28 @@ function read (params) {
   return [{}, []];
 }
 
-function isExecutable (address) {
+function isExecutable (address: NativePointer) {
   const currentRange = Process.getRangeByAddress(address);
   return currentRange.protection.indexOf('x') !== -1;
 }
 
-function write (params, data) {
+export function write (params: any, data: any) {
+  const ptroff = ptr(params.offset);
   if (typeof r2frida.hookedWrite === 'function') {
-    return r2frida.hookedWrite(params.offset, data);
+    return r2frida.hookedWrite(ptroff, data);
   }
-  if (config.getBoolean('patch.code') && isExecutable(ptr(params.offset))) {
+  if (config.getBoolean('patch.code') && isExecutable(ptroff)) {
     if (typeof Memory.patchCode === 'function') {
-      Memory.patchCode(ptr(params.offset), 1, function (ptr) {
-        Memory.writeByteArray(ptr, data);
+      Memory.patchCode(ptroff, 1, function (p: NativePointer) {
+        p.writeByteArray(data);
       });
     } else {
-      Memory.writeByteArray(ptr(params.offset), data);
+      ptr(params.offset).writeByteArray(data);
     }
   } else {
-    Memory.writeByteArray(ptr(params.offset), data);
+    ptr(params.offset).writeByteArray(data);
   }
   return [{}, null];
 }
 
-export { read };
-export { write };
-export default {
-  read: read,
-  write: write
-};
+export default { read, write };

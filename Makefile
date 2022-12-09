@@ -204,7 +204,7 @@ else
 	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 endif
 else
-src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.js
+src/_agent.js: src/frida-compile src/agent/index.js src/agent/plugin.ts
 ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
 	src/frida-compile src/agent/index.js > src/_agent.js
 else
