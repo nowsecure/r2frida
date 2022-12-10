@@ -308,6 +308,11 @@ function arrayBufferToHex (arrayBuffer) {
   return result;
 }
 
+function belongsTo (modules, addr) {
+  return modules.filter(m => addr.compare(m.vmaddr) >= 0 && addr.compare(m.vmaddr.add(m.vmsize)) < 0);
+}
+
+export { belongsTo };
 export { sanitizeString };
 export { wrapStanza };
 export { hexPtr };
@@ -329,6 +334,7 @@ export { autoType };
 export { requireFridaVersion };
 export { arrayBufferToHex };
 export default {
+  belongsTo,
   sanitizeString,
   wrapStanza,
   hexPtr,
