@@ -156,6 +156,17 @@ function uiAlert (args) {
   });
 }
 
+function listMachoSegments (baseAddr) {
+  if (!_isMachoHeaderAtOffset(baseAddr)) {
+    throw new Error(`Not a valid Mach0 module found at ${baseAddr}`);
+  }
+  const machoHeader = parseMachoHeader(baseAddr);
+  if (machoHeader !== undefined) {
+    return getSegments(baseAddr, machoHeader.ncmds);
+  }
+  return [];
+}
+
 function listMachoSections (baseAddr) {
   const result = [];
   if (!_isMachoHeaderAtOffset(baseAddr)) {
@@ -360,6 +371,7 @@ export { hasMainLoop };
 export { dxObjc };
 export { uiAlert };
 export { listMachoSections };
+export { listMachoSegments };
 export { parseMachoHeader };
 export { getSections };
 export { getSegments };
@@ -376,6 +388,7 @@ export default {
   dxObjc,
   uiAlert,
   listMachoSections,
+  listMachoSegments,
   parseMachoHeader,
   getSections,
   getSegments,
