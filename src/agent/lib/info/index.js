@@ -326,12 +326,71 @@ function listExportsJson (args) {
   return Module.enumerateExports(currentModule.name);
 }
 
-function listSectionsHere () {
+function listSegmentsHere () {
+  const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
   const here = ptr(global.r2frida.offset);
   const moduleAddr = Process.enumerateModules()
     .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
     .map(m => m.base);
-  return listSections(moduleAddr);
+  const segment = utils.belongsTo(listSegmentsJson(moduleAddr), here);
+  return headers.concat(segment
+    .map(({ vmaddr, vmsize, perm, name }) => {
+      return [vmaddr, vmsize, perm, name].join('\t');
+    })
+    .join('\n'));
+}
+
+function listSegmentsR2 (args) {
+  let i = 0;
+  return listSegmentsJson(args)
+    .filter(s => s.name !== undefined)
+    .map(({ vmaddr, vmsize, name }) => {
+      return [`f segment.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
+    })
+    .join('\n');
+}
+
+function listSegments (args) {
+  const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
+  return headers.concat(listSegmentsJson(args)
+    .map(({ vmaddr, vmsize, perm, name }) => {
+      return [vmaddr, vmsize, perm, name].join('\t');
+    })
+    .join('\n'));
+}
+
+function listSegmentsJson (args) {
+  let baseAddr;
+  if (Process.platform === 'darwin') {
+    const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
+    return darwin.listMachoSegments(baseAddr);
+  }
+  if (Process.platform === 'linux') {
+    if (args.length === 1) {
+      baseAddr = args[0];
+    } else {
+      const here = ptr(global.r2frida.offset);
+      baseAddr = Process.enumerateModules()
+        .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+        .map(m => m.base)[0];
+    }
+    return elf.listElfSegments(ptr(baseAddr));
+  }
+  throw new Error('Command only available on unix-based systems.');
+}
+
+function listSectionsHere () {
+  const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
+  const here = ptr(global.r2frida.offset);
+  const moduleAddr = Process.enumerateModules()
+    .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+    .map(m => m.base);
+  const section = utils.belongsTo(listSectionsJson(moduleAddr), here);
+  return headers.concat(section
+    .map(({ vmaddr, vmsize, perm, name }) => {
+      return [vmaddr, vmsize, perm, name].join('\t');
+    })
+    .join('\n'));
 }
 
 function listSectionsR2 (args) {
@@ -344,7 +403,7 @@ function listSectionsR2 (args) {
 }
 
 function listSections (args) {
-  const headers = 'vaddr\tvsize\tperm\tname\n'.concat('―――――――――――――――――――――――\n');
+  const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
   return headers.concat(listSectionsJson(args)
     .map(({ vmaddr, vmsize, perm, name }) => {
       return [vmaddr, vmsize, perm, name].join('\t');
@@ -507,6 +566,10 @@ export { listSectionsHere };
 export { listSectionsR2 };
 export { listSections };
 export { listSectionsJson };
+export { listSegmentsHere };
+export { listSegmentsR2 };
+export { listSegments };
+export { listSegmentsJson };
 export { listAllSymbolsJson };
 export { listAllSymbols };
 export { listAllSymbolsR2 };
@@ -542,6 +605,10 @@ export default {
   listSectionsR2,
   listSections,
   listSectionsJson,
+  listSegmentsHere,
+  listSegmentsR2,
+  listSegments,
+  listSegmentsJson,
   listAllSymbolsJson,
   listAllSymbols,
   listAllSymbolsR2,

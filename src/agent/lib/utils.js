@@ -5,8 +5,11 @@ const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
 
 function sanitizeString (str) {
-  const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
-  return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+  if (str) {
+    const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
+    return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+  }
+  return str;
 }
 
 function wrapStanza (name, stanza) {
@@ -308,6 +311,11 @@ function arrayBufferToHex (arrayBuffer) {
   return result;
 }
 
+function belongsTo (modules, addr) {
+  return modules.filter(m => addr.compare(m.vmaddr) >= 0 && addr.compare(m.vmaddr.add(m.vmsize)) < 0);
+}
+
+export { belongsTo };
 export { sanitizeString };
 export { wrapStanza };
 export { hexPtr };
@@ -329,6 +337,7 @@ export { autoType };
 export { requireFridaVersion };
 export { arrayBufferToHex };
 export default {
+  belongsTo,
   sanitizeString,
   wrapStanza,
   hexPtr,
