@@ -64,14 +64,14 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
     dynamicEntries[dynamicTags.DT_HASH].name,
     hashTablePtr,
     (nbucket * 4) + (nchain * 4) + 8,
-    utils.belongsTo(segments, hashTablePtr).perm
+    utils.belongsTo(segments, hashTablePtr).map(x => x.perm)
   ));
   // STRTAB Section
   sections.push(new Section(
     dynamicEntries[dynamicTags.DT_STRTAB].name,
     dynamicEntries[dynamicTags.DT_STRTAB].value,
     dynamicEntries[dynamicTags.DT_STRSZ].value,
-    utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_STRTAB].value).perm
+    utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_STRTAB].value).map(x => x.perm)
   ));
   // DYNSYM Section
   const symTabSize = nchain * dynamicEntries[dynamicTags.DT_SYMENT].value;
@@ -79,7 +79,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
     dynamicEntries[dynamicTags.DT_SYMTAB].name,
     dynamicEntries[dynamicTags.DT_SYMTAB].value,
     symTabSize,
-    utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_SYMTAB].value).perm
+    utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_SYMTAB].value).map(x => x.perm)
   ));
   // DT_PREINIT_ARRAY Section (Optional)
   if (dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value !== null) {
@@ -87,7 +87,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
       dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].name,
       dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
       dynamicEntries[dynamicTags.DT_PREINIT_ARRAYSZ].value,
-      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value).perm
+      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value).map(x => x.perm)
     ));
   }
   // DT_INIT_ARRAY Section (Optional)
@@ -96,7 +96,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
       dynamicEntries[dynamicTags.DT_INIT_ARRAY].name,
       dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
       dynamicEntries[dynamicTags.DT_INIT_ARRAYSZ].value,
-      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_INIT_ARRAY].value).perm
+      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_INIT_ARRAY].value).map(x => x.perm)
     ));
   }
   // DT_FINI_ARRAY Section (Optional)
@@ -105,7 +105,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
       dynamicEntries[dynamicTags.DT_FINI_ARRAY].name,
       dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
       dynamicEntries[dynamicTags.DT_FINI_ARRAYSZ].value,
-      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_FINI_ARRAY].value).perm
+      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_FINI_ARRAY].value).map(x => x.perm)
     ));
   }
   // DT_REL Section (Optional)
@@ -114,7 +114,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
       dynamicEntries[dynamicTags.DT_REL].name,
       dynamicEntries[dynamicTags.DT_REL].value,
       dynamicEntries[dynamicTags.DT_RELSZ].value,
-      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_REL].value).perm
+      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_REL].value).map(x => x.perm)
     ));
   }
   // DT_RELA Section (Optional)
@@ -123,7 +123,7 @@ function parseSectionHeaders (baseAddr, PTDynamicAddr, PTDynamicSize, segments) 
       dynamicEntries[dynamicTags.DT_RELA].name,
       dynamicEntries[dynamicTags.DT_RELA].value,
       dynamicEntries[dynamicTags.DT_RELASZ].value,
-      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_RELA].value).perm
+      utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_RELA].value).map(x => x.perm)
     ));
   }
   return sections;

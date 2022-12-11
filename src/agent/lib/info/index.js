@@ -343,6 +343,7 @@ function listSegmentsHere () {
 function listSegmentsR2 (args) {
   let i = 0;
   return listSegmentsJson(args)
+    .filter(s => s.name !== undefined)
     .map(({ vmaddr, vmsize, name }) => {
       return [`f segment.${i++}.${utils.sanitizeString(name)} ${vmsize} ${vmaddr}`].join(' ');
     })
@@ -429,8 +430,6 @@ function listSectionsJson (args) {
   }
   throw new Error('Command only available on unix-based systems.');
 }
-
-
 
 function listAllSymbolsJson (args) {
   const argName = args[0];

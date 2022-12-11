@@ -5,8 +5,11 @@ const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
 
 function sanitizeString (str) {
-  const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
-  return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+  if (str) {
+    const specialChars = '/\\`+-${}~|*,;:\"\'#@&<> ()[]!?%';
+    return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+  }
+  return str;
 }
 
 function wrapStanza (name, stanza) {
