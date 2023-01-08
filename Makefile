@@ -115,7 +115,7 @@ FRIDA_LIBS+=$(FRIDA_CORE_LIBS)
 
 # OSX-FRIDA
 ifeq ($(shell uname),Darwin)
-LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
+PLUGIN_LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
   ifeq ($(frida_os),macos)
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=-framework Foundation
@@ -139,8 +139,8 @@ STRIP_SYMBOLS=yes
 endif
 
 ifeq ($(STRIP_SYMBOLS),yes)
-LDFLAGS+=-Wl,--version-script,ld.script
-LDFLAGS+=-Wl,--gc-sections
+PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
+PLUGIN_LDFLAGS+=-Wl,--gc-sections
 endif
 
 all: .git/modules/ext ext/frida
@@ -190,7 +190,7 @@ config.mk config.h:
 
 io_frida.$(SO_EXT): src/io_frida.o
 	pkg-config --cflags r_core
-	$(CC) $^ -o $@ $(LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
@@ -263,7 +263,7 @@ R2A_DIR=$(R2A_ROOT)/data/data/com.termux/files/usr
 android-arm64: radare2-android-arm64-libs
 	$(MAKE) frida_os=android frida_arch=arm64 CC=ndk-gcc CXX=ndk-g++ \
 		CFLAGS="-I$(R2A_DIR)/include/libr $(CFLAGS)" \
-		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
+		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS) $(PLUGIN_LDFLAGS)" SO_EXT=so
 
 radare2-android-arm-libs:
 	$(DLCMD) http://termux.net/dists/stable/main/binary-arm/radare2_$(R2V)_arm.deb
@@ -276,7 +276,7 @@ radare2-android-arm-libs:
 android-arm: radare2-android-arm-libs
 	$(MAKE) frida_os=android frida_arch=arm CC=ndk-gcc CXX=ndk-g++ \
 		CFLAGS="-I$(R2A_DIR)/include/libr $(CFLAGS)" \
-		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS)" SO_EXT=so
+		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS) $(PLUGIN_LDFLAGS)" SO_EXT=so
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
@@ -327,7 +327,9 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/frida-compile: src/frida-compile.c
-	$(CC) -g src/frida-compile.c $(FRIDA_LIBS) $(LDFLAGS) $(FRIDA_CFLAGS) $(shell pkg-config --cflags --libs r_util) -pthread -Iext/frida -o src/frida-compile
+	$(CC) -g src/frida-compile.c $(FRIDA_LIBS) $(LDFLAGS) $(FRIDA_CFLAGS) \
+		$(shell pkg-config --cflags --libs r_util) \
+		-pthread -Iext/frida -o src/frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
