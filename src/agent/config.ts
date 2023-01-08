@@ -1,5 +1,3 @@
-'use strict';
-
 import r2frida from './plugin.js';
 
 const config : any[string] = {

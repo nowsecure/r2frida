@@ -1,6 +1,6 @@
 import r2frida from './plugin.js';
 import config from './config.js';
-'use strict';
+
 
 let cachedRanges : any[] = [];
 

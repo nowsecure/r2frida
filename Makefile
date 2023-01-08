@@ -37,6 +37,10 @@ R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT=1
 else
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g' -e 's,aarch64,arm64,g')
+ifeq ($(frida_os),linux)
+# frida segfaults
+R2FRIDA_NATIVE_COMPILER=0
+endif
 endif
 frida_os_arch := $(frida_os)-$(frida_arch)
 
@@ -212,9 +216,11 @@ ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
 else
 	$(MAKE) node_modules
 	npm run build
-#	npx frida-compile -Sco src/_agent.js src/agent/index.js
 endif
 endif
+
+watch:
+	npm run watch
 
 node_modules: package.json
 	mkdir -p node_modules
