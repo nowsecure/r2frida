@@ -33,6 +33,8 @@ endif
 
 ifeq ($(frida_os),android)
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,arm,g' -e 's,aarch64,arm64,g')
+R2FRIDA_NATIVE_COMPILER=0
+R2FRIDA_PRECOMPILED_AGENT=1
 else
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g' -e 's,aarch64,arm64,g')
 endif
