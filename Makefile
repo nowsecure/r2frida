@@ -65,7 +65,8 @@ endif
 CC?=gcc
 CXX?=g++
 CFLAGS+=-fPIC
-LDFLAGS+=-shared -fPIC
+LDFLAGS+=-fPIC
+PLUGIN_LDFLAGS+=-shared -fPIC
 CFLAGS+=-Wall
 CFLAGS+=-Werror
 

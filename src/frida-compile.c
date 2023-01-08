@@ -5,7 +5,7 @@
 #include <r_util/r_print.h>
 
 
-static int on_compiler_diagnostics (void *user, GVariant *diagnostics) {
+static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 	gchar *str = g_variant_print (diagnostics, TRUE);
 	str = r_str_replace (str, "int64", "int64:", true);
 	char *json = r_print_json_indent (str, true, "  ", NULL);
@@ -88,6 +88,9 @@ int main(int argc, char **argv) {
 		}
 		free (slurpedData);
 		free (filename);
+		if (rc && stdin_mode) {
+			break;
+		}
 	}
 	g_object_unref (compiler);
 	g_object_unref (device_manager);
