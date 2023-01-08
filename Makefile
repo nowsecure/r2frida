@@ -14,7 +14,7 @@ R2FRIDA_NATIVE_COMPILER=1
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.7.8/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js
 FRIDA_COMPILE=frida-compile
 #FRIDA_COMPILE=src/frida-compile
 
