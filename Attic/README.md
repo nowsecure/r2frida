@@ -11,7 +11,7 @@ and extend its features with other programming languages and tools.
 
 Frida is a tracer/code-injector tool that runs on top of the V8 Javascript
 engine to allow interaction between host and target in a dynamic and
-programatic way, which opens the door to create new tools on top of it.
+programmatic way, which opens the door to create new tools on top of it.
 
 The r2frida tool aims to join the power of radare2 and frida for better
 analysis and understanding of running processes, mainly targetting
