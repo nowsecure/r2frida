@@ -516,7 +516,7 @@ function _formatArgs (args, fmt) {
       dumps.push(_hexdumpUntrusted(arg, dumpLen));
     } else if (fmt[i] === 'H') {
       // hexdump pointer target, default length 128
-      // use length from other funtion arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
+      // use length from other function arg with H<arg number>, f.e. H0 to dump '+args[0]' bytes
       let dumpLen = 128;
       const optionalNumStr = fmt.slice(i + 1).match(/^[0-9]*/)[0];
       if (optionalNumStr.length > 0) {
