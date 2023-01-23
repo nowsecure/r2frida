@@ -1,5 +1,4 @@
 /* entrypoint for host.js frida's host-side code */
-'use strict';
 
 const spawnSync = require('child_process').spawnSync;
 const frida = require('frida');
