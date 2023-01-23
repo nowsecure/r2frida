@@ -1,3 +1,5 @@
+/* radare2 - MIT - Copyright 2022-2023 - pancake */
+
 #include <stdio.h>
 #include <stdbool.h>
 #include "frida-core.h"

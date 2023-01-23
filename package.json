@@ -3,62 +3,31 @@
   "version": "5.8.0",
   "description": "Agent for frida:// io plugin",
   "private": true,
+  "type": "module",
   "main": "src/agent/index.js",
   "scripts": {
-    "lint": "semistandard src/agent/*.js",
-    "indent": "semistandard --fix src/agent/*.js",
+    "lint": "eslint src/agent",
+    "indent": "eslint --fix src/agent",
     "prepare": "npm run build",
-    "build": "frida-compile -Sco src/_agent.js src/agent/index.js",
-    "watch": "frida-compile -Sco src/_agent.js -w src/agent/index.js"
+    "build": "frida-compile -Sco src/_agent.js src/agent/index.ts",
+    "watch": "frida-compile -Sco src/_agent.js -w src/agent/index.ts",
+    "codecheck-ts": "eslint . --ext .ts --no-error-on-unmatched-pattern"
   },
   "license": "LGPL-3.0",
-  "dependencies": {
-    "frida-compile": "16.1.4"
-  },
   "engines": {
     "node": ">=14.16"
   },
-  "devDependencies": {
-    "semistandard": "16.0.1",
-    "@types/frida-gum": "*",
-    "@types/node": "^18.0.0",
-    "typescript": "^4.3.2"
+  "dependencies": {
+    "frida-compile": "16.1.5"
   },
-  "semistandard": {
-    "globals": [
-      "javaPerform",
-      "Runtime",
-      "VMStack",
-      "DebugSymbol",
-      "File",
-      "Frida",
-      "hexdump",
-      "Instruction",
-      "Interceptor",
-      "Java",
-      "Memory",
-      "getModuleByAddress",
-      "Module",
-      "NativeCallback",
-      "NativeFunction",
-      "SystemFunction",
-      "NativePointer",
-      "NULL",
-      "ObjC",
-      "Process",
-      "Swift",
-      "recv",
-      "Script",
-      "Socket",
-      "Stalker",
-      "Thread",
-      "ptr",
-      "rpc",
-      "send",
-      "uint64",
-      "UInt64",
-      "Int64"
-    ]
+  "devDependencies": {
+    "@frida/events": "^4.0.4",
+    "@types/frida-gum": "^18.3.1",
+    "@types/node": "^18.0.0",
+    "typescript": "^4.9.4",
+    "@typescript-eslint/eslint-plugin": "^5.16.0",
+    "@typescript-eslint/parser": "^5.16.0",
+    "eslint": "^8.11.0"
   },
   "exports": {
     "require": "./src/agent/index.js",
