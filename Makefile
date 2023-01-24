@@ -144,7 +144,7 @@ PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
 PLUGIN_LDFLAGS+=-Wl,--gc-sections
 endif
 
-all: .git/modules/ext ext/frida
+all: ext/frida
 ifeq ($(frida_version_major),16)
 	$(MAKE) src/frida-compile
 endif
@@ -195,9 +195,6 @@ io_frida.$(SO_EXT): src/io_frida.o
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
-
-.git/modules/ext:
-	git submodule update --init
 
 src/_agent.h: src/_agent.js
 	test -s src/_agent.js || ( rm -f src/_agent.js && exit 1)
@@ -351,6 +348,6 @@ endif
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 update:
-	git submodule update && $(RM) ext/frida/libfrida-core.a
+	$(RM) ext/frida/libfrida-core.a
 
 .PHONY: all clean install uninstall release symstall
