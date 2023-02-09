@@ -61,11 +61,11 @@ export function onCmdResp(params: any) {
     if (serial in pendingCmds) {
         const onFinish = pendingCmds[serial];
         delete pendingCmds[serial];
-        process.nextTick(() => onFinish(output));
+        Script.nextTick(() => onFinish(output));
     } else {
         throw new Error('Command response out of sync');
     }
-    process.nextTick(() => {
+    Script.nextTick(() => {
         if (!sendingCommand) {
             const nextSend = pendingCmdSends.shift();
             if (nextSend !== undefined) {
