@@ -209,9 +209,11 @@ else
 endif
 else
 src/_agent.js: src/frida-compile
-	npm i && npm run build
+	src/frida-compile src/agent/index.ts > src/_agent.js ## fail
+# frida-compile -Sco src/_agent.js src/agent/index.ts ## ok
+# npm i && npm run build
 
-wip:
+wip: src/frida-compile
 ifeq ($(R2FRIDA_NATIVE_COMPILER),1)
 	src/frida-compile src/agent/index > src/_agent.js
 else
@@ -281,6 +283,7 @@ android-arm: radare2-android-arm-libs
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
+	$(RM) src/frida-compile
 	$(RM) -rf $(R2A_DIR)
 
 mrproper: clean
