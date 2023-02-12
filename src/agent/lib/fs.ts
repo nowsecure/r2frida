@@ -1,4 +1,4 @@
-import { toByteArray } from "base64-js";
+import { toByteArray } from "./base64.js";
 import path from "path";
 import { sym, _readlink, getPid, _fstat, _dup2, _close } from "./sys.js";
 import { isiOS, IOSPathTransform } from "./darwin/index.js";
