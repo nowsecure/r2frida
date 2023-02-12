@@ -12,7 +12,7 @@ export function Hexdump(lenstr: number): string {
         };
         return hexdump(ptroff, options) || '';
     } catch (e: any) {
-        return 'Cannot read memory';
+        return "Cannot read memory";
     }
 }
 

@@ -1,9 +1,9 @@
-import * as utils from './utils.js';
+import { padPointer} from './utils.js';
 
 declare let global: any;
 
 export function disasmCode(lenstr: number): string {
-    const len = +lenstr || 32;
+    const len = (lenstr > 0)? lenstr: 32;
     return disasm(global.r2frida.offset, len);
 }
 
@@ -28,7 +28,7 @@ export function disasm(addr: NativePointer, len: number, initialOldName?: string
     let disco = '';
     for (let i = 0; i < len; i++) {
         const [op, next] = tolerantInstructionParse(addr);
-        const vaddr = utils.padPointer(addr);
+        const vaddr = padPointer(addr);
         if (op === null) {
             disco += `${vaddr}\tinvalid\n`;
             if (next === null) {
@@ -41,10 +41,10 @@ export function disasm(addr: NativePointer, len: number, initialOldName?: string
         let dsName = (ds.name === null || ds.name.indexOf('0x') === 0) ? '' : ds.name;
         let moduleName = ds.moduleName;
         if (!ds.moduleName) {
-            moduleName = '';
+            moduleName = "";
         }
         if (!dsName) {
-            dsName = '';
+            dsName = "";
         }
         if ((moduleName || dsName) && dsName !== oldName) {
             disco += ';;; ' + (moduleName || dsName) + '\n';
@@ -86,12 +86,12 @@ export function disasm(addr: NativePointer, len: number, initialOldName?: string
             }
         }
         // console.log([op.address, op.mnemonic, op.opStr, comment].join('\t'));
-        disco += [utils.padPointer(op.address), op.mnemonic, op.opStr, comment].join('\t') + '\n';
+        disco += [padPointer(op.address), op.mnemonic, op.opStr, comment].join('\t') + '\n';
         if (op.size < 1) {
             // break; // continue after invalid
             op.size = 1;
         }
-        addr = addr!.add(op.size);
+        addr = addr.add(op.size);
     }
     return disco;
 }
@@ -103,21 +103,21 @@ export function tolerantInstructionParse(address: NativePointer): [any, any] {
         instr = Instruction.parse(cursor);
         cursor = instr.next;
     } catch (e: any) {
-        if (e.message !== 'invalid instruction' &&
+        if (e.message !== "invalid instruction" &&
             e.message !== `access violation accessing ${cursor}`) {
             throw e;
         }
-        if (e.message.indexOf('access violation') !== -1) {
+        if (e.message.indexOf("access violation") !== -1) {
             // cannot access the memory
         } else {
             // console.log(`warning: error parsing instruction at ${cursor}`);
         }
         // skip invalid instructions
         switch (Process.arch) {
-            case 'arm64':
+            case "arm64":
                 cursor = cursor.add(4);
                 break;
-            case 'arm':
+            case "arm":
                 cursor = cursor.add(2);
                 break;
             default:

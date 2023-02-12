@@ -1,8 +1,15 @@
 import r2frida from './plugin.js';
 import config from './config.js';
 
+export default { read, write };
 
-let cachedRanges: any[] = [];
+type PointerPair = NativePointer[];
+let cachedRanges: PointerPair[] = [];
+
+// TODO: cached ranges are never invalidated. add a command for it?
+function invalidateCachedRanges() {
+    Script.nextTick(() => { cachedRanges = [] ; });
+}
 
 export function read(params: any) {
     const { offset, count, fast } = params;
@@ -12,11 +19,9 @@ export function read(params: any) {
     if (r2frida.safeio) {
         try {
             if (cachedRanges.length === 0) {
-                const foo = (map: any) => [map.base, ptr(map.base).add(map.size)];
+                const foo = (map: RangeDetails) : PointerPair => [map.base, map.base.add(map.size)];
                 cachedRanges = Process.enumerateRanges('').map(foo);
             }
-            // TODO: invalidate ranges at some point to refresh
-            // process.nextTick(() => { cachedRanges = null; }
             const o = ptr(offset);
             for (const map of cachedRanges) {
                 if (o.compare(map[0]) >= 0 && o.compare(map[1]) < 0) {
@@ -68,7 +73,7 @@ function isExecutable(address: NativePointer) {
 }
 
 export function write(params: any, data: any) {
-    const ptroff = ptr(params.offset);
+    const ptroff = params.offset;
     if (typeof r2frida.hookedWrite === 'function') {
         return r2frida.hookedWrite(ptroff, data);
     }
@@ -78,12 +83,10 @@ export function write(params: any, data: any) {
                 p.writeByteArray(data);
             });
         } else {
-            ptr(params.offset).writeByteArray(data);
+            params.offset.writeByteArray(data);
         }
     } else {
-        ptr(params.offset).writeByteArray(data);
+        params.offset.writeByteArray(data);
     }
     return [{}, null];
 }
-
-export default { read, write };

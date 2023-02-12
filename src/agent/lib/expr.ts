@@ -1,4 +1,4 @@
-import r2 from './r2.js';
+import r2 from "./r2.js";
 
 export async function numEval(expr: string): Promise<NativePointer> {
     return new Promise((resolve, reject) => {
@@ -10,7 +10,7 @@ export async function numEval(expr: string): Promise<NativePointer> {
     });
 }
 
-export function evalNum(args: string[]) {
+export function evalNum(args: string[]) : Promise<NativePointer> {
     return new Promise((resolve, reject) => {
         numEval(args.join(' ')).then(res => {
             resolve(res);
@@ -18,10 +18,9 @@ export function evalNum(args: string[]) {
     });
 }
 
-export function evalCode(args: string[]) {
-    const code = args.join(' ');
-    const result = eval(code); // eslint-disable-line
-    return (result !== undefined) ? result : '';
+export function evalCode(args: string[]) : string {
+    const result = eval(args.join(" ")); // eslint-disable-line
+    return (result !== undefined) ? result : "";
 }
 
 export default {

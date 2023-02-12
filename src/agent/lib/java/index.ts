@@ -23,7 +23,7 @@ export function javaUse(name: string): any {
     Java.classFactory.loader = initialLoader;
     return res;
     */
-   return Java.use(name);
+    return Java.use(name);
 }
 
 export function javaTraceExample() {
@@ -80,7 +80,7 @@ export function listJavaClassesJsonSync(args: string[]) {
         });
         // eslint-disable-next-line
         while (methods === undefined) {
-            setTimeout(()=>{/* wait here */}, 0);
+            setTimeout(() => {/* wait here */ }, 0);
         }
         return methods;
     }
@@ -152,7 +152,7 @@ export function traceJava(klass: string, method: string) {
         k[method].implementation = function (args: string[]) {
             const res = this[method]();
             const bt = config.getBoolean('hook.backtrace')
-                ? Throwable.$new().getStackTrace().map((_:any) => _.toString())
+                ? Throwable.$new().getStackTrace().map((_: any) => _.toString())
                 : [];
             const traceMessage = {
                 source: 'dt',
@@ -263,7 +263,7 @@ export function traceJavaConstructors(className: string) {
     });
 }
 
-function _dumpJavaArguments(args: string[]) {
+function _dumpJavaArguments(args: string[]): string {
     let res = '';
     try {
         for (const a of args) {

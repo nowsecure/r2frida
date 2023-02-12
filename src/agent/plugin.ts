@@ -51,7 +51,7 @@ export interface R2FridaPlugin {
 }
 
 const r2frida: R2FridaPlugin = {
-    version: "5.7.9", // packageJson.version,
+    version: "5.8.2", // packageJson.version,
     safeio: false,
     commandHandler: commandHandler,
     pluginRegister: pluginRegister,
