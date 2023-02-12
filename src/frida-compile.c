@@ -30,12 +30,12 @@ int main(int argc, char **argv) {
 	frida_init ();
 	FridaDeviceManager *device_manager = frida_device_manager_new ();
 	if (!device_manager) {
-		eprintf ("Cannot open device manager\n");
+		R_LOG_ERROR ("Cannot open device manager");
 		return 1;
 	}
 	FridaDevice *device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, &error);
 	if (error || !device) {
-		eprintf ("Cannot open local frida device\n");
+		R_LOG_ERROR ("Cannot open local frida device");
 		return 1;
 	}
 	char buf[1024];
@@ -68,18 +68,22 @@ int main(int argc, char **argv) {
 				continue;
 			}
 		}
+#if 0
 		char *slash = strrchr (filename, '/');
 		if (slash) {
 			char *ofilename = filename;
 			*slash = 0;
 			char *root = strdup (filename);
 			filename = strdup (slash + 1);
-			char *d = r_file_abspath (root);
+			// char *d = r_file_abspath (root);
+			char *d = strdup ("/Users/pancake/prg/r2frida/"); // r_file_abspath (root);
 			frida_compiler_options_set_project_root (fco, d);
+			eprintf ("PROJECT ROOT IS (%s)\n", d);
 			free (d);
 			free (root);
 			free (ofilename);
 		}
+#endif
 		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
