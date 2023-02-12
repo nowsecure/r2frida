@@ -7,7 +7,7 @@ import * as darwin from '../darwin/index.js';
 import * as swift from '../darwin/swift.js';
 import * as java from '../java/index.js';
 import * as utils from '../utils.js';
-import { fromByteArray } from 'base64-js';
+import { fromByteArray } from '../base64.js';
 
 const traceListeners: any[] = [];
 const tracehooks: any = {};
