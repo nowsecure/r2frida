@@ -3,12 +3,12 @@ import * as utils from '../utils.js';
 
 declare let global: any;
 
-export function lookupDebugInfo(args: string[]) {
+export function lookupDebugInfo(args: string[]) : void {
     const o = DebugSymbol.fromAddress(ptr('' + args));
     console.log(o);
 }
 
-export function lookupAddress(args: string[]) {
+export function lookupAddress(args: string[]) : string {
     if (args.length === 0) {
         args = [ptr(global.r2frida.offset).toString()];
     }
@@ -17,7 +17,7 @@ export function lookupAddress(args: string[]) {
         .join('\n');
 }
 
-export function lookupAddressR2(args: string[]) {
+export function lookupAddressR2(args: string[]) : string {
     return lookupAddressJson(args)
         .map(({ type, name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
         .join('\n');
@@ -44,7 +44,7 @@ export function lookupAddressJson(args: string[]): any[] {
 }
 
 export function lookupSymbolHere(args: string[]) {
-    return lookupAddress([ptr(global.r2frida.offset).toString()]);
+    return lookupAddress([global.r2frida.offset.toString()]);
 }
 
 export function lookupExport(args: string[]) {

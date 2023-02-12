@@ -1,5 +1,5 @@
 import { sym } from './sys.js';
-import {wrapStanza, getPtr} from './utils.js';
+import { wrapStanza, getPtr } from './utils.js';
 
 type CommandFunction = () => void;
 const pendingCmds: any = [];
@@ -13,7 +13,7 @@ let _r_core_cmd_str: any | null = null; // eslint-disable-line camelcase
 let _r_core_free: any | null = null; // eslint-disable-line camelcase,no-unused-vars
 let _free: any | null = null;
 
-export function getR2Arch(arch: string): string {
+export function getArch(arch: string): string {
     switch (arch) {
         case 'ia32':
         case 'x64':
@@ -29,7 +29,7 @@ export function hostCmds(commands: string[]): any {
     function sendOne(): any {
         if (i < commands.length) {
             return hostCmd(commands[i]).then(() => {
-                i += 1;
+                i++;
                 return sendOne();
             });
         } else {
@@ -91,13 +91,12 @@ function _sendCommand(cmd: string, serial: number) {
     }
 }
 
-export function radareSeek(args: string[]) {
+export function seek(args: string[]) : string {
     const addr = getPtr('' + args);
-    const cmdstr = 's ' + (addr || '' + args);
-    return cmdstr;
+    return 's ' + (addr || '' + args);
 }
 
-export function radareCommand(args: string[]) {
+export function cmd(args: string[]) : string {
     const cmd = args.join(' ');
     if (cmd.length === 0) {
         return 'Usage: :r [cmd]';
@@ -108,7 +107,7 @@ export function radareCommand(args: string[]) {
     return ':dl /tmp/libr.dylib';
 }
 
-function _radareCommandInit() {
+function _radareCommandInit(): boolean {
     if (_r2) {
         return true;
     }
@@ -138,13 +137,12 @@ function _radareCommandString(cmd: string): string {
     return '';
 }
 
-// TODO: eliminate all the default exports
 export default {
-    getR2Arch,
+    getArch,
     hostCmds,
     hostCmd,
     hostCmdj,
     onCmdResp,
-    radareSeek,
-    radareCommand
+    seek,
+    cmd
 };

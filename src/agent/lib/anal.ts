@@ -1,15 +1,15 @@
-import * as classes from './info/classes.js';
-import * as darwin from './darwin/index.js';
+import { listClasses } from './info/classes.js';
+import { ObjCAvailable } from './darwin/index.js';
 
-export function analFunctionSignature(args: string[]) {
-    if (!darwin.ObjCAvailable) {
+export function analFunctionSignature(args: string[]) : string {
+    if (!ObjCAvailable) {
         return 'Error: afs is only implemented for ObjC methods.';
     }
     if (args.length === 0) {
         return 'Usage: afs [class] [method]';
     }
     if (args.length === 1) {
-        return classes.listClasses(args);
+        return listClasses(args);
     }
     if (args.length > 1) {
         const klassName = args[0];

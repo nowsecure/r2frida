@@ -34,7 +34,7 @@ export async function dumpInfoR2() {
 
 export async function dumpInfoJson() {
     const res : any = {
-        arch: r2.getR2Arch(Process.arch),
+        arch: r2.getArch(Process.arch),
         bits: Process.pointerSize * 8,
         os: Process.platform,
         pid: sys.getPid(),

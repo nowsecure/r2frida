@@ -35,7 +35,7 @@ function listElfSections(baseAddr: NativePointer) {
     }
 }
 
-function _isElfHeaderAtOffset(offset: NativePointer) {
+function _isElfHeaderAtOffset(offset: NativePointer) : boolean {
     const cursor = utils.trunc4k(offset);
     if (cursor.readU32() === ELF_HEADER) {
         return true;
@@ -133,7 +133,7 @@ function parseSectionHeaders(baseAddr: NativePointer, PTDynamicAddr: NativePoint
 
 function parseSegmentHeaders(baseAddr: NativePointer, phOffset: number, entrySize: number, entries: number) {
     let cursor = baseAddr.add(phOffset);
-    const segments = [];
+    const segments: any[] = [];
     while (entries-- > 0) {
         const segment = {
             name: parseHeaderType(cursor.readU32()),
@@ -152,7 +152,7 @@ function parseSegmentHeaders(baseAddr: NativePointer, phOffset: number, entrySiz
     return segments;
 }
 
-function parseHeaderType(value: number) {
+function parseHeaderType(value: number) : string | null {
     switch (value) {
         case 0:
             return 'PT_NULL';
@@ -179,6 +179,7 @@ function parseHeaderType(value: number) {
         case 0x7FFFFFFF:
             return 'PT_HIPROC';
     }
+    return null;
 }
 
 function parseElfHeader(offset: NativePointer) {
