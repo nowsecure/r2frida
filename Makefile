@@ -13,7 +13,6 @@ R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js
-FRIDA_COMPILE=frida-compile
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
@@ -77,6 +76,8 @@ LDFLAGS+=$(subst -lssl,,$(shell pkg-config --libs r_core r_io r_util))
 else
 LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 endif
+R2_BINDIR=$(shell r2 -H R2_PREFIX)/bin
+R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
 R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 R2_PLUGSYS=$(shell r2 -H R2_LIBR_PLUGINS)
 ifeq ($(R2_PLUGDIR),)
@@ -143,7 +144,7 @@ endif
 
 all: ext/frida
 ifeq ($(frida_version_major),16)
-	$(MAKE) src/frida-compile
+	$(MAKE) src/r2frida-compile
 endif
 	$(MAKE) io_frida.$(SO_EXT)
 
@@ -198,12 +199,12 @@ src/_agent.h: src/_agent.js
 	test -s src/_agent.js || exit 1
 	r2 -nfqcpc $< | grep 0x > $@
 
-src/_agent.js: src/frida-compile
+src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	# src/frida-compile -Sco src/_agent.js src/agent/index.ts
-	src/frida-compile -Sc src/agent/index.ts > src/_agent.js
+	# src/r2frida-compile -Sco src/_agent.js src/agent/index.ts
+	src/r2frida-compile -Sc src/agent/index.ts > src/_agent.js
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 
@@ -268,7 +269,7 @@ android-arm: radare2-android-arm-libs
 
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h
-	$(RM) src/frida-compile
+	$(RM) -f src/r2frida-compile src/frida-compile
 	$(RM) -rf $(R2A_DIR)
 
 mrproper: clean
@@ -281,11 +282,14 @@ mrproper: clean
 
 user-install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
+	mkdir -p $(DESTDIR)/"$(R2PM_BINDIR)"
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
+	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
 
 user-uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
 
 user-symstall:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGDIR)"
@@ -296,6 +300,8 @@ user-symstall:
 install:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
+	mkdir -p "$(DESTDIR)/$(R2_BINDIR)"
+	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
 
 symstall:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
@@ -303,6 +309,7 @@ symstall:
 
 uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
+	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
 
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
@@ -315,10 +322,10 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-src/frida-compile: src/frida-compile.c
-	$(CC) -g src/frida-compile.c $(FRIDA_LIBS) $(LDFLAGS) $(FRIDA_CFLAGS) \
+src/r2frida-compile: src/r2frida-compile.c
+	$(CC) -g src/r2frida-compile.c $(FRIDA_LIBS) $(LDFLAGS) $(FRIDA_CFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) \
-		-pthread -Iext/frida -o src/frida-compile
+		-pthread -Iext/frida -o src/r2frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
@@ -344,4 +351,4 @@ vs:
 update:
 	$(RM) ext/frida/libfrida-core.a
 
-.PHONY: all clean install uninstall release symstall
+.PHONY: all clean install user-install uninstall user-uninstall release symstall
