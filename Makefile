@@ -1,7 +1,7 @@
 include config.mk
 
 R2V=$(VERSION)
-R2V=5.8.0
+R2V?=5.8.2
 frida_version=16.0.9
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
@@ -47,12 +47,12 @@ frida_os_arch := $(frida_os)-$(frida_arch)
 WGET?=wget
 CURL?=curl
 
-ifneq ($(shell $(WGET) --help > /dev/null 2>&1),)
+ifneq ($(shell $(WGET) --help 2> /dev/null),)
 USE_WGET=1
-DLCMD=$(WGET) -c
+DLCMD=$(WGET) -c -O
 else
 USE_WGET=0
-DLCMD=$(CURL) -L
+DLCMD=$(CURL) -Ls -o
 endif
 
 DESTDIR?=
@@ -203,14 +203,12 @@ src/_agent.h: src/_agent.js
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 src/_agent.js:
-ifeq ($(USE_WGET),1)
-	$(WGET) -O src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
-else
-	$(CURL) -Lo src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
-endif
+	$(CURL) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
 src/_agent.js: src/frida-compile
-	src/frida-compile src/agent/index.ts > src/_agent.js ## fail
+	src/frida-compile src/agent/index.ts > src/_agent.js
+	test -s src/_agent.js || rm -f src/_agent.js
+
 # frida-compile -Sco src/_agent.js src/agent/index.ts ## ok
 # npm i && npm run build
 
@@ -343,11 +341,11 @@ ext/frida-$(frida_os)-$(frida_version):
 $(FRIDA_SDK):
 	rm -f ext/frida
 	mkdir -p $(@D)/_
-ifeq ($(USE_WGET),1)
-	$(WGET) -cO frida-sdk.tar.xz $(FRIDA_SDK_URL)
-	tar xJvf frida-sdk.tar.xz -C $(@D)/_
+ifeq (${USE_WGET},0)
+	$(CURL) -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 else
-	curl -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
+	$(DLCMD) frida-sdk.tar.xz -c $(FRIDA_SDK_URL)
+	tar xJvf frida-sdk.tar.xz -C $(@D)/_
 endif
 	mv $(@D)/_/* $(@D)
 	rmdir $(@D)/_
