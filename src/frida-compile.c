@@ -17,14 +17,50 @@ static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 	return 0;
 }
 
-int main(int argc, char **argv) {
-	int rc = 0;
+static int show_help(const char *argv0, int line) {
+	printf ("Usage: %s (-r root) (-hSc) [-] [path/to/file.{js,ts}] ...\n", argv0);
+	if (!line) {
+		printf (
+		" -c                  Enable compression\n"
+		" -h                  Show this help message\n"
+		" -r [project-root]   Specify the project root directory\n"
+		" -S                  Do not include source maps\n"
+		);
+	}
+	return 1;
+}
+
+int main(int argc, const char **argv) {
+	const char *arg0 = argv[0];
+	int c, rc = 0;
 	GCancellable *cancellable = NULL;
 	GError *error = NULL;
 	const char *filename = "index.ts";
 	if (argc < 2) {
-		eprintf ("Usage: frida-compile [-] [file.{js,ts}] ...\n");
-		return 1;
+		return show_help (arg0, true);
+	}
+	bool source_maps = true;
+	bool compression = false;
+	RGetopt opt;
+	r_getopt_init (&opt, argc, argv, "r:Sch");
+	const char *proot = NULL;
+	while ((c = r_getopt_next (&opt)) != -1) {
+		switch (c) {
+		case 'r':
+			proot = opt.arg;
+			break;
+		case 'S':
+			source_maps = false;
+			break;
+		case 'c':
+			compression = true;
+			break;
+		case 'h':
+			show_help (arg0, false);
+			return 0;
+		default:
+			return show_help (arg0, false);
+		}
 	}
 
 	frida_init ();
@@ -43,13 +79,17 @@ int main(int argc, char **argv) {
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
 	// FridaBuildOptions * fbo = frida_build_options_new ();
 	FridaCompilerOptions *fco = frida_compiler_options_new ();
-	frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
-	frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
+	if (!source_maps) {
+		frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
+	}
+	if (compression) {
+		frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
+	}
 	//frida_compiler_options_set_project_root (fco, "../src/agent/"); // ".");
 
 	int i;
 	bool stdin_mode = false;
-	for (i = 1; stdin_mode || i < argc; i = stdin_mode? i: i+1) {
+	for (i = opt.ind; stdin_mode || i < argc; i = stdin_mode? i: i + 1) {
 		char *filename = strdup (argv[i]);
 		if (stdin_mode) {
 			fflush (stdin);
@@ -68,7 +108,11 @@ int main(int argc, char **argv) {
 				continue;
 			}
 		}
+		if (R_STR_ISNOTEMPTY (proot)) {
+			frida_compiler_options_set_project_root (fco, proot);
+		}
 #if 0
+		// eprintf ("DEFAULT PROJECT ROOT %s\n", frida_compiler_options_get_project_root (fco));
 		char *slash = strrchr (filename, '/');
 		if (slash) {
 			char *ofilename = filename;
