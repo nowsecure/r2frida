@@ -170,7 +170,7 @@ ios: r2-sdk-ios/$(R2V)
 
 r2-sdk-ios/$(R2V):
 	rm -rf r2-sdk-ios
-	$(DLCMD) https://github.com/radareorg/radare2/releases/download/$(R2V)/r2ios-sdk-$(R2V).zip
+	$(DLCMD) r2-sdk-ios-$(R2V).zip https://github.com/radareorg/radare2/releases/download/$(R2V)/r2ios-sdk-$(R2V).zip
 	mkdir -p r2-sdk-ios/$(R2V)
 	tar xzvf radare2-ios-arm64-$(R2V).tar.gz -C r2-sdk-ios
 	mv r2-sdk-ios/*/* r2-sdk-ios
@@ -203,7 +203,7 @@ src/_agent.h: src/_agent.js
 
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 src/_agent.js:
-	$(CURL) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
+	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
 src/_agent.js: src/frida-compile
 	src/frida-compile src/agent/index.ts > src/_agent.js
@@ -253,8 +253,8 @@ endif
 	cp -f io_frida.so /tmp/io_frida-$(R2V)-android-arm.so
 
 radare2-android-arm64-libs:
-	$(DLCMD) http://termux.net/dists/stable/main/binary-aarch64/radare2_${R2V}_aarch64.deb
-	$(DLCMD) http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_${R2V}_aarch64.deb
+	$(DLCMD) radare2_$(R2V)_aarch64.deb http://termux.net/dists/stable/main/binary-aarch64/radare2_${R2V}_aarch64.deb
+	$(DLCMD) radare2-dev_$(R2V)_aarch64.deb http://termux.net/dists/stable/main/binary-aarch64/radare2-dev_${R2V}_aarch64.deb
 	mkdir -p $(R2A_ROOT)
 	cd $(R2A_ROOT) && 7z x -y ../radare2_${R2V}_aarch64.deb && tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	cd $(R2A_ROOT) && 7z x -y ../radare2-dev_${R2V}_aarch64.deb && tar xzvf data.tar.gz || tar xJvf data.tar.xz
@@ -268,8 +268,8 @@ android-arm64: radare2-android-arm64-libs
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS) $(PLUGIN_LDFLAGS)" SO_EXT=so
 
 radare2-android-arm-libs:
-	$(DLCMD) http://termux.net/dists/stable/main/binary-arm/radare2_$(R2V)_arm.deb
-	$(DLCMD) http://termux.net/dists/stable/main/binary-arm/radare2-dev_$(R2V)_arm.deb
+	$(DLCMD) radare2_$(R2V)_arm.deb http://termux.net/dists/stable/main/binary-arm/radare2_$(R2V)_arm.deb
+	$(DLCMD) radare2-dev_$(R2V)_arm.deb http://termux.net/dists/stable/main/binary-arm/radare2-dev_$(R2V)_arm.deb
 	mkdir -p $(R2A_ROOT)
 	cd $(R2A_ROOT) ; 7z x -y ../radare2_$(R2V)_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
 	cd $(R2A_ROOT) ; 7z x -y ../radare2-dev_$(R2V)_arm.deb ; tar xzvf data.tar.gz || tar xJvf data.tar.xz
