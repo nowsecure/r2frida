@@ -6,11 +6,9 @@ frida_version=16.0.9
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
 ifeq ($(frida_major),15)
-R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT=1
 else
 # frida 16
-R2FRIDA_NATIVE_COMPILER=1
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
@@ -30,18 +28,18 @@ frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
 endif
 
+## not linux-arm64
 ifeq ($(frida_os),android)
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,arm,g' -e 's,aarch64,arm64,g')
-R2FRIDA_NATIVE_COMPILER=0
 R2FRIDA_PRECOMPILED_AGENT=1
 else
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g' -e 's,aarch64,arm64,g')
-ifeq ($(frida_os),linux)
-# frida segfaults
-R2FRIDA_NATIVE_COMPILER=0
 endif
-endif
+
 frida_os_arch := $(frida_os)-$(frida_arch)
+ifeq ($(frida_os_arch),linux-arm64)
+R2FRIDA_PRECOMPILED_AGENT=1
+endif
 
 WGET?=wget
 CURL?=curl
