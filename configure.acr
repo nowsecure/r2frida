@@ -10,10 +10,12 @@ EXEC R2_VERSION r2 -v ;
 
 ARG_WITH PRECOMPILED_AGENT precompiled-agent do not require node/npm ;
 
+((
 IFNOT PRECOMPILED_AGENT {
 	CHKPRG! NODE node
 	CHKPRG! NPM npm
 }
+))
 
 PKGCFG! R2_CFLAGS R2_LDFLAGS r_core
 CHKPRG CURL curl
