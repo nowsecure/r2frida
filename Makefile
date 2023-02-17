@@ -2,7 +2,7 @@ include config.mk
 
 R2V=$(VERSION)
 R2V?=5.8.2
-frida_version=16.0.9
+frida_version=16.0.10
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
 ifeq ($(frida_major),15)
@@ -36,9 +36,6 @@ frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g'
 endif
 
 frida_os_arch := $(frida_os)-$(frida_arch)
-ifeq ($(frida_os_arch),linux-arm64)
-R2FRIDA_PRECOMPILED_AGENT=1
-endif
 
 WGET?=wget
 CURL?=curl
