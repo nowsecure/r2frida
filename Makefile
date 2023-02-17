@@ -32,15 +32,16 @@ HAVE_MUSL=$(shell test /lib/ld-musl* && echo 1 || echo 0)
 ## not linux-arm64
 ifeq ($(frida_os),android)
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,arm,g' -e 's,aarch64,arm64,g')
+frida_os_arch := $(frida_os)-$(frida_arch)
 else
 frida_arch := $(shell uname -m | sed -e 's,i[0-9]86,x86,g' -e 's,armv.*,armhf,g' -e 's,aarch64,arm64,g')
-endif
-
 ifeq ($(HAVE_MUSL),1)
 frida_os_arch := $(frida_os)-$(frida_arch)-musl
 else
 frida_os_arch := $(frida_os)-$(frida_arch)
 endif
+endif
+
 
 WGET?=wget
 CURL?=curl
