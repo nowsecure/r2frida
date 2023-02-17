@@ -334,6 +334,7 @@ $(FRIDA_SDK):
 ifeq (${USE_WGET},0)
 	$(CURL) -Ls $(FRIDA_SDK_URL) | xz -d | tar -C $(@D)/_ -xf -
 else
+	rm -f frida-sdk.tar.xz
 	$(DLCMD) frida-sdk.tar.xz -c $(FRIDA_SDK_URL)
 	tar xJvf frida-sdk.tar.xz -C $(@D)/_
 endif
