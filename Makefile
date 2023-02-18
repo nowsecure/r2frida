@@ -109,9 +109,6 @@ FRIDA_SDK_URL=https://github.com/frida/frida/releases/download/$(frida_version)/
 FRIDA_CFLAGS+=-Iext/frida
 FRIDA_CORE_LIBS=ext/frida/libfrida-core.a
 #FRIDA_CORE_LIBS=$(shell find /tmp/lib/*.a)
-ifneq ($(frida_os),android)
-FRIDA_LIBS+=-lresolv
-endif
 
 FRIDA_LIBS+=$(FRIDA_CORE_LIBS)
 
@@ -133,6 +130,9 @@ endif
   ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-framework AppKit
   endif
+endif
+ifneq ($(frida_os),android)
+FRIDA_LIBS+=-lresolv
 endif
 
 ifeq ($(frida_os),android)

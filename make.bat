@@ -54,14 +54,23 @@ echo Building r2frida-compile...
 cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c
 cd ..
 
+REM REM       echo Building the Agent...
+REM REM       del src\_agent.js
+REM REM       src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.js
+REM REM       echo Creating the header...
+REM REM       del src\_agent.js.hex
+REM REM       %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js.hex
+REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
+REM REM       DEL src\_agent.js.hex
+
 echo Building the Agent...
-del src\_agent.js
-src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.js
+del src\_agent.txt
+src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.txt
 echo Creating the header...
 del src\_agent.js.hex
-%R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js.hex
-powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
-DEL src\_agent.js.hex
+%R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.txt > src\_agent.txt.hex
+powershell -command "Get-Content .\src\_agent.txt.hex | Select-String -Exclude Start 0x" > src\_agent.h
+DEL src\_agent.txt.hex
 
 echo Compiling the Plugin...
 cd src
