@@ -55,9 +55,10 @@ cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"
 cd ..
 
 echo Building the Agent...
+del src\_agent.js
 src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.js
-REM type .\_agent.js | xxd -i > .\_agent.h || (echo "xxd not in path?" & exit /b 1)
 echo Creating the header...
+del src\_agent.js.hex
 %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js.hex
 powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
 DEL src\_agent.js.hex
