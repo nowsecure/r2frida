@@ -127,7 +127,6 @@ static const char * const helpmsg = ""\
 
 static const gchar r_io_frida_agent_code[] = {
 #include "_agent.h"
-	0x00
 };
 
 static bool r2f_debug_uri(void) {
@@ -913,8 +912,15 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	if (code_buf == NULL) {
-		code_buf = r_io_frida_agent_code;
-		code_size = sizeof (r_io_frida_agent_code) - 1;
+		code_size = sizeof (r_io_frida_agent_code) + 1;
+		code_malloc_data = malloc (code_size);
+		if (!code_malloc_data) {
+			R_LOG_ERROR ("Cannot allocate enough memory for the agent");
+			goto error;
+		}
+		memcpy (code_malloc_data, r_io_frida_agent_code, code_size);
+		code_malloc_data[code_size - 1] = 0;
+		code_buf = code_malloc_data;
 	}
 
 	rf->script = frida_session_create_script_sync (rf->session, code_buf, options, rf->cancellable, &error);
@@ -2075,7 +2081,6 @@ RIOPlugin r_io_plugin_frida = {
 	.write = __write,
 	.resize = __resize,
 	.system = __system,
-//	.isdbg = true // this requires 'dL io' and some fixes in !!!
 };
 
 #ifndef R2_PLUGIN_INCORE

@@ -65,7 +65,7 @@ REM REM       DEL src\_agent.js.hex
 
 echo Building the Agent...
 del src\_agent.txt
-src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.txt
+src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
 echo Creating the header...
 del src\_agent.js.hex
 %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.txt > src\_agent.txt.hex

@@ -24,6 +24,7 @@ static int show_help(const char *argv0, int line) {
 		" -c                  Enable compression\n"
 		" -h                  Show this help message\n"
 		" -r [project-root]   Specify the project root directory\n"
+		" -o [file]           Specify output file\n"
 		" -S                  Do not include source maps\n"
 		);
 	}
@@ -31,6 +32,7 @@ static int show_help(const char *argv0, int line) {
 }
 
 int main(int argc, const char **argv) {
+	const char *outfile = NULL;
 	const char *arg0 = argv[0];
 	int c, rc = 0;
 	GCancellable *cancellable = NULL;
@@ -42,7 +44,7 @@ int main(int argc, const char **argv) {
 	bool source_maps = true;
 	bool compression = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:Sch");
+	r_getopt_init (&opt, argc, argv, "r:Scho:");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -51,6 +53,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'S':
 			source_maps = false;
+			break;
+		case 'o':
+			outfile = opt.arg;
 			break;
 		case 'c':
 			compression = true;
@@ -131,10 +136,16 @@ int main(int argc, const char **argv) {
 		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
-			eprintf ("ERROR: %s\n", error->message);
+			R_LOG_ERROR ("%s", error->message);
 			rc = 1;
 		} else {
-			printf ("%s\n", slurpedData);
+			if (outfile) {
+				if (!r_file_dump (outfile, (const ut8*)slurpedData, -1, false)) {
+					R_LOG_ERROR ("Cannot dump to %s", outfile);
+				}
+			} else {
+				printf ("%s\n", slurpedData);
+			}
 		}
 		free (slurpedData);
 		free (filename);
