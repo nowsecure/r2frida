@@ -64,6 +64,8 @@ REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-Stri
 REM REM       DEL src\_agent.js.hex
 
 echo Building the Agent...
+echo src\r2frida-compile.exe -o _agent.txt -Sc src\agent\index.ts
+dir
 src\r2frida-compile.exe -o _agent.txt -Sc src\agent\index.ts
 ren _agent.txt src\_agent.txt
 echo Creating the header...
