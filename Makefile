@@ -27,7 +27,11 @@ frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
 endif
 endif
 
-HAVE_MUSL=$(shell test /lib/ld-musl* && echo 1 || echo 0)
+ifeq ($(frida_os),linux)
+HAVE_MUSL=$(shell (test /lib/ld-musl*) && echo 1 || echo 0)
+else
+HAVE_MUSL=0
+endif
 
 ## not linux-arm64
 ifeq ($(frida_os),android)
