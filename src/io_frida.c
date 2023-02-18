@@ -127,7 +127,7 @@ static const char * const helpmsg = ""\
 
 static const gchar r_io_frida_agent_code[] = {
 #include "_agent.h"
-	, 0x00
+	0x00
 };
 
 static bool r2f_debug_uri(void) {
