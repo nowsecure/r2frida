@@ -41,6 +41,7 @@ int main(int argc, const char **argv) {
 	if (argc < 2) {
 		return show_help (arg0, true);
 	}
+eprintf ("hwllo world\n");
 	bool source_maps = true;
 	bool compression = false;
 	RGetopt opt;
@@ -80,6 +81,7 @@ int main(int argc, const char **argv) {
 		return 1;
 	}
 	char buf[1024];
+eprintf ("new compiler\n");
 	FridaCompiler *compiler = frida_compiler_new (device_manager);
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
 	// FridaBuildOptions * fbo = frida_build_options_new ();
@@ -87,12 +89,14 @@ int main(int argc, const char **argv) {
 	if (!source_maps) {
 		frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
 	}
+eprintf ("falt\n");
 	if (compression) {
 		frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
 	}
 	//frida_compiler_options_set_project_root (fco, "../src/agent/"); // ".");
 
 	int i;
+eprintf ("brindis\n");
 	bool stdin_mode = false;
 	for (i = opt.ind; stdin_mode || i < argc; i = stdin_mode? i: i + 1) {
 		char *filename = strdup (argv[i]);
@@ -113,6 +117,7 @@ int main(int argc, const char **argv) {
 				continue;
 			}
 		}
+eprintf ("rpjrroot \n");
 		if (R_STR_ISNOTEMPTY (proot)) {
 			frida_compiler_options_set_project_root (fco, proot);
 		}
@@ -133,6 +138,7 @@ int main(int argc, const char **argv) {
 			free (ofilename);
 		}
 #endif
+eprintf ("LETs compile\n");
 		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
@@ -174,9 +180,11 @@ printf ("End\n");
 		free (slurpedData);
 		free (filename);
 		if (rc && stdin_mode) {
+eprintf ("done\n");
 			break;
 		}
 	}
+eprintf ("done2\n");
 	g_object_unref (compiler);
 	g_object_unref (device_manager);
 	return rc;
