@@ -78,4 +78,4 @@ REM copy src\io_frida.pdb r2frida-%R2V%-w64\
 copy install.bat r2frida-%R2V%-w64\
 powershell -command "Compress-Archive -Path r2frida-%R2V%-w64 -DestinationPath r2frida-%R2V%-w64.zip"
 
-install.bat
+.\install.bat
