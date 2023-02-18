@@ -206,13 +206,9 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	# src/r2frida-compile -Sco src/_agent.js src/agent/index.ts
 	src/r2frida-compile -Sc src/agent/index.ts > src/_agent.js
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
-
-watch:
-	npm run watch
 
 node_modules: package.json
 	mkdir -p node_modules
@@ -326,8 +322,8 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/r2frida-compile: src/r2frida-compile.c
-	$(CC) -g src/r2frida-compile.c $(FRIDA_LIBS) $(LDFLAGS) $(FRIDA_CFLAGS) \
-		$(shell pkg-config --cflags --libs r_util) \
+	$(CC) -g src/r2frida-compile.c $(LDFLAGS) $(FRIDA_CFLAGS) \
+		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		-pthread -Iext/frida -o src/r2frida-compile
 
 ext/frida-$(frida_os)-$(frida_version):
