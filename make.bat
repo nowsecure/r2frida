@@ -66,8 +66,7 @@ REM REM       DEL src\_agent.js.hex
 echo Building the Agent...
 echo src\r2frida-compile.exe -o _agent.txt -Sc src\agent\index.ts
 dir
-src\r2frida-compile.exe -o _agent.txt -Sc src\agent\index.ts
-ren _agent.txt src\_agent.txt
+src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
 echo Creating the header...
 cd src
 echo CD=%CD%
