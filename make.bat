@@ -66,12 +66,9 @@ REM REM       DEL src\_agent.js.hex
 echo Building the Agent...
 echo src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
 REM src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
-src\r2frida-compile.exe -o _agent.txt -Sc src\agent\index.ts
-echo Creating the header...
+src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
 cd src
-echo CD=%CD%
-dir
-dir ..
+echo Creating the header...
 %R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
 powershell -command "Get-Content .\_agent.txt.hex | Select-String -Exclude Start 0x" > _agent.h
 DEL _agent.txt.hex
