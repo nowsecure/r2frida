@@ -18,7 +18,7 @@ static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 }
 
 static int show_help(const char *argv0, int line) {
-	printf ("Usage: %s (-r root) (-hSc) [-] [path/to/file.{js,ts}] ...\n", argv0);
+	printf ("Usage: %s (-r root) (-hSc) [-r root] [-o output.js] [path/to/file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
 		" -c                  Enable compression\n"
@@ -37,6 +37,8 @@ int main(int argc, const char **argv) {
 	int c, rc = 0;
 	GCancellable *cancellable = NULL;
 	GError *error = NULL;
+eprintf ("Entry\n");
+fflush(stderr);
 	const char *filename = "index.ts";
 	if (argc < 2) {
 		return show_help (arg0, true);
