@@ -141,6 +141,7 @@ int main(int argc, const char **argv) {
 		} else {
 			if (outfile) {
 #if R2__WINDOWS__
+printf ("CreateFile\n");
 				HANDLE fh = CreateFile (outfile,
 					GENERIC_WRITE,
 					0, NULL, CREATE_ALWAYS,
@@ -150,11 +151,13 @@ int main(int argc, const char **argv) {
 					rc = 1;
 				} else {
 					DWORD written = 0;
+printf ("WriteFile\n");
 					BOOL res = WriteFile (fh, slurpedData, strlen (slurpedData), &written, NULL);
 					if (res == FALSE) {
 						R_LOG_ERROR ("Cannot write to %s", outfile);
 						rc = 1;
 					}
+printf ("CloseHandle\n");
 					CloseHandle (fh);
 				}
 #else
@@ -167,6 +170,7 @@ int main(int argc, const char **argv) {
 				printf ("%s\n", slurpedData);
 			}
 		}
+printf ("End\n");
 		free (slurpedData);
 		free (filename);
 		if (rc && stdin_mode) {
