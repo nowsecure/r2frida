@@ -64,13 +64,13 @@ REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-Stri
 REM REM       DEL src\_agent.js.hex
 
 echo Building the Agent...
-del src\_agent.txt
 src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
 echo Creating the header...
-del src\_agent.js.hex
-%R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.txt > src\_agent.txt.hex
-powershell -command "Get-Content .\src\_agent.txt.hex | Select-String -Exclude Start 0x" > src\_agent.h
-DEL src\_agent.txt.hex
+cd src
+%R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
+powershell -command "Get-Content .\_agent.txt.hex | Select-String -Exclude Start 0x" > _agent.h
+DEL _agent.txt.hex
+cd ..
 
 echo Compiling the Plugin...
 cd src
