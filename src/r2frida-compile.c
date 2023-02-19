@@ -140,9 +140,29 @@ int main(int argc, const char **argv) {
 			rc = 1;
 		} else {
 			if (outfile) {
+#if R2__WINDOWS
+				HANDLE fh = CreateFile (out,
+					GENERIC_WRITE,
+					0, NULL, CREATE_ALWAYS,
+					FILE_ATTRIBUTE_NORMAL, NULL);
+				if (fh == INVALID_HANDLE_VALUE) {
+					R_LOG_ERROR ("Cannot dump to %s", outfile);
+					rc = 1;
+				} else {
+					DWORD written = 0;
+					BOOL res = WriteFile (fh, slurpedData, strlen (slurpedData), &written, NULL);
+					if (res == FALSE) {
+						R_LOG_ERROR ("Cannot write to %s", outfile);
+						rc = 1;
+					}
+					CloseHandle (fh);
+				}
+#else
 				if (!r_file_dump (outfile, (const ut8*)slurpedData, -1, false)) {
 					R_LOG_ERROR ("Cannot dump to %s", outfile);
+					rc = 1;
 				}
+#endif
 			} else {
 				printf ("%s\n", slurpedData);
 			}
