@@ -63,14 +63,19 @@ REM REM       %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js
 REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
 REM REM       DEL src\_agent.js.hex
 
-echo Building the Agent...
-del src\_agent.txt
-src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
+echo Downloading precompiled agent
+powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
+
+REM echo Building the Agent...
+REM echo src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
+REM src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
+
+cd src
 echo Creating the header...
-del src\_agent.js.hex
-%R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.txt > src\_agent.txt.hex
-powershell -command "Get-Content .\src\_agent.txt.hex | Select-String -Exclude Start 0x" > src\_agent.h
-DEL src\_agent.txt.hex
+%R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
+powershell -command "Get-Content .\_agent.txt.hex | Select-String -Exclude Start 0x" > _agent.h
+DEL _agent.txt.hex
+cd ..
 
 echo Compiling the Plugin...
 cd src

@@ -18,7 +18,7 @@ static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 }
 
 static int show_help(const char *argv0, int line) {
-	printf ("Usage: %s (-r root) (-hSc) [-] [path/to/file.{js,ts}] ...\n", argv0);
+	printf ("Usage: %s (-r root) (-hSc) [-r root] [-o output.js] [path/to/file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
 		" -c                  Enable compression\n"
@@ -140,9 +140,29 @@ int main(int argc, const char **argv) {
 			rc = 1;
 		} else {
 			if (outfile) {
+#if R2__WINDOWS__
+				HANDLE fh = CreateFile (outfile,
+					GENERIC_WRITE,
+					0, NULL, CREATE_ALWAYS,
+					FILE_ATTRIBUTE_NORMAL, NULL);
+				if (fh == INVALID_HANDLE_VALUE) {
+					R_LOG_ERROR ("Cannot dump to %s", outfile);
+					rc = 1;
+				} else {
+					DWORD written = 0;
+					BOOL res = WriteFile (fh, slurpedData, strlen (slurpedData), &written, NULL);
+					if (res == FALSE) {
+						R_LOG_ERROR ("Cannot write to %s", outfile);
+						rc = 1;
+					}
+					CloseHandle (fh);
+				}
+#else
 				if (!r_file_dump (outfile, (const ut8*)slurpedData, -1, false)) {
 					R_LOG_ERROR ("Cannot dump to %s", outfile);
+					rc = 1;
 				}
+#endif
 			} else {
 				printf ("%s\n", slurpedData);
 			}
