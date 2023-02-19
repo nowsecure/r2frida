@@ -20,7 +20,7 @@ CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
 
 ifeq ($(strip $(frida_os)),)
-ifeq ($(shell uname -s 2> /dev/null),Android)
+ifeq ($(shell uname -o 2> /dev/null),Android)
 frida_os := android
 else
 frida_os := $(shell uname -s | tr '[A-Z]' '[a-z]' | sed 's,^darwin$$,macos,')
