@@ -140,8 +140,8 @@ int main(int argc, const char **argv) {
 			rc = 1;
 		} else {
 			if (outfile) {
-#if R2__WINDOWS
-				HANDLE fh = CreateFile (out,
+#if R2__WINDOWS__
+				HANDLE fh = CreateFile (outfile,
 					GENERIC_WRITE,
 					0, NULL, CREATE_ALWAYS,
 					FILE_ATTRIBUTE_NORMAL, NULL);
