@@ -7,3 +7,6 @@
 /src/_agent.h
 /src/_agent.js
 config.h
+.DS_Store
+frida-sdk.tar.xz
+src/r2frida-compile.dSYM

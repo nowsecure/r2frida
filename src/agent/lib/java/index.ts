@@ -23,7 +23,12 @@ export function javaUse(name: string): any {
     Java.classFactory.loader = initialLoader;
     return res;
     */
-    return Java.use(name);
+    let res = null;
+    try {
+        res = Java.use(name);
+    } catch (e) {
+    }
+    return res;
 }
 
 export function javaTraceExample() {
@@ -149,31 +154,38 @@ export function traceJava(klass: string, method: string) {
     javaPerform(function () {
         const Throwable = Java.use('java.lang.Throwable');
         const k = javaUse(klass);
-        k[method].implementation = function (args: string[]) {
-            const res = this[method]();
-            const bt = config.getBoolean('hook.backtrace')
-                ? Throwable.$new().getStackTrace().map((_: any) => _.toString())
-                : [];
-            const traceMessage = {
-                source: 'dt',
-                klass: klass,
-                method: method,
-                backtrace: bt,
-                timestamp: new Date(),
-                result: res,
-                values: args
-            };
-            if (config.getString('hook.output') === 'json') {
-                log.traceEmit(JSON.stringify(traceMessage));
-            } else {
-                let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(args)}. Return value: ${res.toString()}`;
-                if (config.getBoolean('hook.backtrace')) {
-                    msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
+        if (k == null) {
+            log.traceEmit('Didn\'t find class "' + klass + '"');
+            return;
+        }
+
+        for (var i = 0; i < k[method].overloads.length; i++) {
+            k[method].overloads[i].implementation = function () {
+                const res = this[method].apply(this, arguments);
+                const bt = config.getBoolean('hook.backtrace')
+                    ? Throwable.$new().getStackTrace().map((_: any) => _.toString())
+                    : [];
+                const traceMessage = {
+                    source: 'dt',
+                    klass: klass,
+                    method: method,
+                    backtrace: bt,
+                    timestamp: new Date(),
+                    result: res,
+                    values: arguments
+                };
+                if (config.getString('hook.output') === 'json') {
+                    log.traceEmit(JSON.stringify(traceMessage));
+                } else {
+                    let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(arguments)}. Return value: ${res.toString()}`;
+                    if (config.getBoolean('hook.backtrace')) {
+                        msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
+                    }
+                    log.traceEmit(msg);
                 }
-                log.traceEmit(msg);
+                return res;
             }
-            return res;
-        };
+        }
     });
 }
 
