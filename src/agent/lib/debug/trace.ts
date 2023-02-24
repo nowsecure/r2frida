@@ -477,16 +477,16 @@ function _cloneArgs(args: string[], fmt: string) {
     return a;
 }
 
-function _formatRetval(retval: any, fmt: any) {
-    if (retval !== undefined && !retval.isNull()) {
+function _formatRetval(retval: any, fmt: string) {
+    if (fmt !== undefined) {
         const retToken = fmt.indexOf('%');
         if (retToken !== -1 && fmt[retToken + 1] !== undefined) {
             try {
                 return _format(retval, fmt[retToken + 1]);
             } catch (e: any) { }
         }
-        return retval;
     }
+    return retval;
 }
 
 function _formatArgs(args: string[], fmt: string) {
