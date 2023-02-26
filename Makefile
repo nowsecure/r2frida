@@ -125,6 +125,7 @@ FRIDA_LIBS+=-framework Foundation
   ifeq ($(frida_os),ios)
 FRIDA_LIBS+=-framework UIKit
 FRIDA_LIBS+=-framework CoreGraphics
+FRIDA_LIBS+=-framework Foundation
   else
   ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-lbsm
@@ -167,18 +168,22 @@ IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 
 # XXX we are statically linking to the .a we should use shared libs if exist
 ios: r2-sdk-ios/$(R2V)
+	rm -rf ext && $(MAKE) clean && $(MAKE) && cp -f src/r2frida-compile src/_agent.h /tmp
+	rm -rf ext && cp /tmp/_agent.h src
+	rm src/io_frida.o src/r2frida-compile
 	$(MAKE) \
-	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr" \
+	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr -DFRIDA_VERSION_STRING=\\\"${frida_version}\\\""
 	LDFLAGS="-Lr2-sdk-ios/lib -lr -shared -fPIC" \
 	CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
 
 r2-sdk-ios/$(R2V):
 	rm -rf r2-sdk-ios
 	$(DLCMD) r2-sdk-ios-$(R2V).zip https://github.com/radareorg/radare2/releases/download/$(R2V)/r2ios-sdk-$(R2V).zip
-	mkdir -p r2-sdk-ios/$(R2V)
-	tar xzvf radare2-ios-arm64-$(R2V).tar.gz -C r2-sdk-ios
-	mv r2-sdk-ios/*/* r2-sdk-ios
-	rm -f radare2-ios-arm64-$(R2V).tar.gz
+	mkdir -p r2-sdk-ios
+	cd r2-sdk-ios/ && unzip ../r2-sdk-ios-$(R2V).zip
+	mv r2-sdk-ios/usr/* r2-sdk-ios
+	mkdir r2-sdk-ios/include/libr/sys
+	touch r2-sdk-ios/include/libr/sys/ptrace.h
 
 .PHONY: ext/frida asan
 
