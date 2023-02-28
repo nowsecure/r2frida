@@ -18,14 +18,14 @@ static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 }
 
 static int show_help(const char *argv0, int line) {
-	printf ("Usage: %s (-r root) (-hSc) [-r root] [-o output.js] [path/to/file.{js,ts}] ...\n", argv0);
+	printf ("Usage: %s (-hSc) [-r root] [-o output.js] [path/to/file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
+		" -S                  Do not include source maps\n"
 		" -c                  Enable compression\n"
 		" -h                  Show this help message\n"
-		" -r [project-root]   Specify the project root directory\n"
 		" -o [file]           Specify output file\n"
-		" -S                  Do not include source maps\n"
+		" -r [project-root]   Specify the project root directory\n"
 		);
 	}
 	return 1;
