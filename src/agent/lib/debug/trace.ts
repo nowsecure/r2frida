@@ -177,11 +177,11 @@ export function traceJson(args: string[]) {
             }
             const narg = utils.getPtr(arg);
             if (narg) {
-                traceReal(arg, narg);
+                traceReal(arg, narg.toString());
                 pull();
             } else {
                 expr.numEval(arg).then(function (at: any) {
-                    console.error(traceReal(arg, at));
+                    console.error(traceReal(arg, at.toString()));
                     pull();
                 }).catch(reject);
             }

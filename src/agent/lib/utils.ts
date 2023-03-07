@@ -158,6 +158,7 @@ export function rwxint(x: string): number {
     return ops.indexOf(x);
 }
 
+// TODO: make return optional
 export function getPtr(p: any) : NativePointer {
     if (typeof p === 'string') {
         p = p.trim();
@@ -251,7 +252,11 @@ export function getPtr(p: any) : NativePointer {
         // console.error(e);
     }
     // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
-    return Module.findExportByName(null, p);
+    const res = Module.findExportByName(null, p);
+    if (res === null) {
+      return ptr(0);
+    }
+    return res;
 }
 
 export function autoType(args: string[]) {
