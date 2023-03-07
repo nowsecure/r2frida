@@ -158,7 +158,7 @@ export function rwxint(x: string): number {
     return ops.indexOf(x);
 }
 
-export function getPtr(p: any) {
+export function getPtr(p: any) : NativePointer {
     if (typeof p === 'string') {
         p = p.trim();
     }
@@ -178,7 +178,7 @@ export function getPtr(p: any) {
         const method = km[1];
         if (!Swift.classes[klass]) {
             console.error('Missing class ' + klass);
-            return;
+            return ptr(0);
         }
         const klassDefinition = Swift.classes[klass];
         let targetAddress = ptr(0);

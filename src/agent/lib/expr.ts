@@ -6,7 +6,7 @@ export async function numEval(expr: string): Promise<NativePointer> {
         if (symbol && symbol.name) {
             return resolve(symbol.address);
         }
-        r2.hostCmd('?v ' + expr).then((_: any) => resolve(_.trim())).catch(reject);
+        r2.hostCmd('?v ' + expr).then((_: any) => resolve(ptr(_.trim()))).catch(reject);
     });
 }
 
