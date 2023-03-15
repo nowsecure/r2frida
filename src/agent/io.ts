@@ -44,12 +44,10 @@ export function read(params: any) {
     }
     try {
         const bytes = ptr(offset).readByteArray(count);
-        // console.log("FAST", offset);
         return [{}, (bytes !== null) ? bytes : []];
     } catch (e) {
         if (!fast) {
             try {
-                // console.log("SLOW", offset);
                 const readStarts = ptr(offset);
                 const readEnds = readStarts.add(count);
                 const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
@@ -67,7 +65,7 @@ export function read(params: any) {
     return [{}, []];
 }
 
-function isExecutable(address: NativePointer) {
+function isExecutable(address: NativePointer) : boolean {
     const currentRange = Process.getRangeByAddress(address);
     return currentRange.protection.indexOf('x') !== -1;
 }

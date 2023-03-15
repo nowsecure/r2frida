@@ -5,7 +5,6 @@ import * as classes from './lib/info/classes.js';
 import * as darwin from './lib/darwin/index.js';
 import * as debug from './lib/debug/index.js';
 import disasm from './lib/disasm.js';
-import dump from './lib/dump.js';
 import expr from './lib/expr.js';
 import * as fs from './lib/fs.js';
 import info from './lib/info/index.js';
@@ -23,7 +22,7 @@ import * as trace from './lib/debug/trace.js';
 import * as utils from './lib/utils.js';
 import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValueImpl, searchValueImplJson, searchWide, searchWideJson } from './lib/search.js';
 
-declare let global: any;
+import { r2frida, PutsFunction } from "./plugin.js";
 
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
 // const isIOS15 = darwin.getIOSVersion().startsWith('15');
@@ -51,6 +50,7 @@ const commandHandlers = {
     '/v4j': searchValueImplJson(4),
     '/v8j': searchValueImplJson(8),
     '?V': [fridaVersion, 'show frida version'],
+    '?Vj': [fridaVersionJson, 'show frida version in JSON'],
     // '.': // this is implemented in C
     i: [info.dumpInfo, 'show information about the target process'],
     'i*': [info.dumpInfoR2, 'use .:i* to import r2frida target process info into r2'],
@@ -236,8 +236,8 @@ const commandHandlers = {
     mg: [fs.fsGet, 'used by the FS/IO integration to get remote file'],
     m: [fs.fsOpen, 'used by the FS/IO integration to open remote files'],
     pd: [disasm.disasmCode, 'disassemble code using only frida apis'],
-    px: [dump.Hexdump, 'print memory contents in hexdump style'],
-    x: [dump.Hexdump, 'alias for `:px`'],
+    px: [utils.Hexdump, 'print memory contents in hexdump style'],
+    x: [utils.Hexdump, 'alias for `:px`'],
     eval: [expr.evalCode, 'evaluate some javascript code'],
     chcon: [sys.changeSelinuxContext, 'change selinux context'],
 };
@@ -263,10 +263,10 @@ if (Process.platform === 'darwin') {
     darwin.initFoundation();
 }
 const requestHandlers = {
-    safeio: () => { global.r2frida.safeio = true; },
+    safeio: () => { r2frida.safeio = true; },
     unsafeio: () => {
         if (!NeedsSafeIo) {
-            global.r2frida.safeio = false;
+            r2frida.safeio = false;
         }
     },
     read: io.read,
@@ -277,16 +277,16 @@ const requestHandlers = {
 };
 
 function state(params:any, data:any) {
-    global.r2frida.offset = params.offset;
+    r2frida.offset = params.offset;
     debug.setSuspended(params.suspended);
     return [{}, null];
 }
 
-function isPromise(value: any | null) {
+function isPromise(value: any) : boolean {
     return value !== null && typeof value === 'object' && typeof value.then === 'function';
 }
 
-function getHelpMessage(prefix: string) {
+function getHelpMessage(prefix: string) : string {
     return Object.keys(commandHandlers).sort()
         .filter((k) => {
             return !prefix || k.startsWith(prefix);
@@ -322,7 +322,7 @@ function perform(params: any) {
             value: _normalizeValue(value)
         }, null];
     }
-    const userHandler = global.r2frida.commandHandler(name);
+    const userHandler = r2frida.commandHandler(name);
     const handler = userHandler !== undefined
         ? userHandler
         : (typeof cmdHandler === 'object') ? cmdHandler[0] : cmdHandler;
@@ -349,7 +349,7 @@ function perform(params: any) {
     return [{ value: nv }, null];
 }
 
-function evaluate(params:any) {
+function evaluate(params: any) : Promise<any> {
     return new Promise(resolve => {
         const { ccode } = params;
         let { code } = params;
@@ -371,7 +371,7 @@ function evaluate(params:any) {
                 }
                 // const rawResult = (1, eval)(code); // eslint-disable-line
                 const rawResult = eval(code); // eslint-disable-line
-                global._ = rawResult;
+                // global._ = rawResult;
                 result = rawResult; // 'undefined';
             } catch (e: any) {
                 result = 'throw new ' + e.name + '("' + e.message + '")';
@@ -391,11 +391,15 @@ Script.setGlobalAccessHandler({
     }
 });
 
-function fridaVersion() {
+function fridaVersion() : string {
+    return Frida.version;
+}
+
+function fridaVersionJson() : any {
     return { version: Frida.version };
 }
 
-function uiAlert(args: string[]) {
+function uiAlert(args: string[]) : string | undefined {
     if (java.JavaAvailable) {
         return android.uiAlert(args);
     }
@@ -445,15 +449,15 @@ function onStanza(stanza: any, data: any) {
     recv(onStanza);
 }
 
-function initializePuts() {
+function initializePuts() : PutsFunction | null {
     const putsAddress = Module.findExportByName(null, 'puts');
     if (putsAddress === null) {
         console.error("Cannot resolve 'puts'");
-        return;
+        return null;
     }
     const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
     return function (s: string) {
-        if (putsFunction) {
+        if (putsFunction !== null) {
             const a = Memory.allocUtf8String(s);
             putsFunction(a);
         } else {
@@ -475,13 +479,13 @@ function _normalizeValue(value: any | null) {
     return JSON.stringify(value);
 }
 
-global.r2frida.hostCmd = r2.hostCmd;
-global.r2frida.hostCmdj = r2.hostCmdj;
-global.r2frida.logs = log.logs;
-global.r2frida.log = log.traceLog;
-global.r2frida.emit = log.traceEmit;
-global.r2frida.safeio = NeedsSafeIo;
-global.r2frida.module = '';
-global.r2frida.puts = initializePuts();
+r2frida.hostCmd = r2.hostCmd;
+r2frida.hostCmdj = r2.hostCmdj;
+r2frida.logs = log.logs;
+r2frida.log = log.traceLog;
+r2frida.emit = log.traceEmit;
+r2frida.safeio = NeedsSafeIo;
+r2frida.module = '';
+r2frida.puts = initializePuts();
 
 recv(onStanza);

@@ -2,10 +2,9 @@ import config from '../config.js';
 import { ObjCAvailable } from './darwin/index.js';
 import io from '../io.js';
 import r2 from './r2.js';
+import { r2frida } from "../plugin.js";
 import { getMemoryRanges } from './debug/memory.js';
 import { normHexPairs, filterPrintable, toWidePairs, byteArrayToHex, ptrMin, ptrMax, padPointer, toHexPairs, renderEndian, hexPtr } from './utils.js';
-
-declare let global: any;
 
 export function search(args: string[]) {
     return searchJson(args).then((hits: any) => {
@@ -169,8 +168,8 @@ function _searchPatternJson(pattern: string) {
 }
 
 function _scanForPattern(address: any, size: any, pattern: any) {
-    if (global.r2frida.hookedScan !== null) {
-        return global.r2frida.hookedScan(address, size, pattern);
+    if (r2frida.hookedScan !== null) {
+        return r2frida.hookedScan(address, size, pattern);
     }
     return Memory.scanSync(address, size, pattern);
 }
@@ -189,7 +188,7 @@ function _getRanges(fromNum: any, toNum: any) {
     const ranges = getMemoryRanges(searchIn.perm).filter((range: any) => {
         const start = range.base;
         const end = start.add(range.size);
-        const offPtr = ptr(global.r2frida.offset);
+        const offPtr = ptr(r2frida.offset);
         if (searchIn.current) {
             return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
         }
