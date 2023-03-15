@@ -10,8 +10,8 @@ import { SwiftAvailable } from '../darwin/swift.js';
 import strings from '../strings.js';
 import { belongsTo, padPointer, sanitizeString } from '../utils.js';
 import { parseMachoHeader, hasMainLoop } from '../darwin/index.js';
+import { r2frida } from "../../plugin.js";
 
-declare let global: any;
 
 export async function dumpInfo() {
     const padding = (x: number) => ''.padStart(20 - x, ' ');
@@ -241,7 +241,7 @@ export function listImportsJson(args: string[]) {
         moduleName = args[0];
         result = Process.getModuleByName(moduleName).enumerateImports() || [];
     } else {
-        const currentModule = getModuleByAddress(global.r2frida.offset);
+        const currentModule = getModuleByAddress(ptr(r2frida.offset));
         if (currentModule) {
             result = currentModule.enumerateImports() || [];
         }
@@ -276,7 +276,7 @@ export function listModulesJson() {
 }
 
 export function listModulesHere() {
-    const here = ptr(global.r2frida.offset);
+    const here = ptr(r2frida.offset);
     return Process.enumerateModules()
         .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
         .map(m => padPointer(m.base.toString()) + ' ' + m.name)
@@ -327,13 +327,13 @@ export function listAllExportsR2(args: string[]) {
 export function listExportsJson(args: string[]) {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
-        : getModuleByAddress(ptr(global.r2frida.offset));
+        : getModuleByAddress(ptr(r2frida.offset));
     return currentModule.enumerateExports();
 }
 
 export function listSegmentsHere() {
     const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
-    const here = ptr(global.r2frida.offset);
+    const here = ptr(r2frida.offset);
     const moduleAddr = Process.enumerateModules()
         .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
         .map(m => m.base);
@@ -374,7 +374,7 @@ export function listSegmentsJson(args: string[]) {
         if (args.length === 1) {
             baseAddr = ptr(args[0]);
         } else {
-            const here = ptr(global.r2frida.offset);
+            const here = ptr(r2frida.offset);
             baseAddr = Process.enumerateModules()
                 .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
                 .map(m => m.base)[0];
@@ -386,7 +386,7 @@ export function listSegmentsJson(args: string[]) {
 
 export function listSectionsHere(): string {
     const headers = 'vaddr    \tvsize\tperm\tname\n'.concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
-    const here = ptr(global.r2frida.offset);
+    const here = ptr(r2frida.offset);
     const moduleAddr = Process.enumerateModules()
         .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
         .map(m => m.base);
@@ -427,7 +427,7 @@ export function listSectionsJson(args: string[]): any {
         if (args.length === 1) {
             baseAddr = ptr(args[0]);
         } else {
-            const here = ptr(global.r2frida.offset);
+            const here = ptr(r2frida.offset);
             baseAddr = Process.enumerateModules()
                 .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
                 .map(m => m.base)[0];
@@ -493,7 +493,7 @@ export function listSymbolsR2(args: string[]) {
 export function listSymbolsJson(args: string[]) {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
-        : getModuleByAddress(global.r2frida.offset);
+        : getModuleByAddress(ptr(r2frida.offset));
     const symbols = Process.getModuleByName(currentModule.name).enumerateSymbols();
     return symbols.map(sym => {
         if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
@@ -512,7 +512,7 @@ export function listAllHelp(args: string[]) {
 
 export function listStringsJson(args: string[]) {
     if (!args || args.length !== 1) {
-        args = [global.r2frida.offset];
+        args = [r2frida.offset];
     }
     const base = ptr(args[0]);
     const currentRange = Process.findRangeByAddress(base);
@@ -543,7 +543,7 @@ export function listStringsJson(args: string[]) {
 
 export function listStrings(args: string[]) {
     if (!args || args.length !== 1) {
-        args = [global.r2frida.offset];
+        args = [r2frida.offset];
     }
     return listStringsJson(args).map(({ base, text }) => padPointer(base) + `  "${text}"`).join('\n');
 }

@@ -8,10 +8,10 @@ import * as swift from '../darwin/swift.js';
 import * as java from '../java/index.js';
 import * as utils from '../utils.js';
 import { fromByteArray } from '../base64.js';
+import { r2frida } from "../../plugin.js";
 
 const traceListeners: any[] = [];
 const tracehooks: any = {};
-declare let global: any;
 
 export function trace(args: string[]) {
     if (args.length === 0) {
@@ -34,7 +34,7 @@ export function traceFormat(args: any) {
         address = '' + utils.getPtr(name);
         format = '';
     } else {
-        address = global.r2frida.offset;
+        address = r2frida.offset;
         format = args[0];
     }
     if (haveTraceAt(ptr(address))) {
@@ -145,12 +145,12 @@ export function traceHook(args: string[]) {
 }
 
 export function traceHere() {
-    const args = [global.r2frida.offset];
+    const args = [r2frida.offset];
     args.forEach(address => {
         const at = DebugSymbol.fromAddress(ptr(address)) || '' + ptr(address);
         const listener = Interceptor.attach(ptr(address), function () {
             const bt = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
-            const at = debug.nameFromAddress(address);
+            const at = debug.nameFromAddress(ptr(address));
             console.log('Trace here probe hit at ' + address + '::' + at + '\n\t' + bt.join('\n\t'));
         });
         traceListeners.push({

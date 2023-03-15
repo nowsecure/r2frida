@@ -1,10 +1,9 @@
 import { padPointer} from './utils.js';
-
-declare let global: any;
+import { r2frida } from "../plugin.js";
 
 export function disasmCode(lenstr: number): string {
     const len = (lenstr > 0)? lenstr: 32;
-    return disasm(global.r2frida.offset, len);
+    return disasm(ptr(r2frida.offset), len);
 }
 
 // internal
@@ -20,7 +19,7 @@ export function disasm(addr: NativePointer, len: number, initialOldName?: string
             }
             addr = newaddr;
         } catch (e) {
-            addr = ptr(global.r2frida.offset);
+            addr = ptr(r2frida.offset);
         }
     }
     let oldName = initialOldName !== undefined ? initialOldName : null;

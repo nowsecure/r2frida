@@ -3,10 +3,9 @@ import log from '../../log.js';
 import { getPtr } from '../utils.js';
 
 declare let Swift: any;
-declare let global: any;
 
 export const SwiftAvailable = function () {
-    return config.getBoolean('want.swift') && Process.platform === 'darwin' && global.Swift !== undefined && Swift.available;
+    return config.getBoolean('want.swift') && Process.platform === 'darwin' && Swift !== undefined && Swift.available;
 };
 
 export function traceSwift(klass: string, method: string) {

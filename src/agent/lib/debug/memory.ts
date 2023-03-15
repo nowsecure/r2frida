@@ -1,12 +1,12 @@
 import expr from '../expr.js';
+import { r2frida } from "../../plugin.js";
 
 import { filterPrintable, rwxstr, padPointer, sanitizeString, getPtr, rwxint } from '../utils.js';
 
-declare let global: any;
 
 const allocPool = new Map<any, any>(); // : MapNativePointer[] = [];
 
-export function listMemoryRanges() {
+export function listMemoryRanges() : string {
     return listMemoryRangesJson()
         .map((a:any) => [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
             .concat((a.file !== undefined) ? [a.file.path] : [])
@@ -14,7 +14,7 @@ export function listMemoryRanges() {
         .join('\n') + '\n';
 }
 
-export function listMemoryRangesR2() {
+export function listMemoryRangesR2() : string {
     return listMemoryRangesJson()
         .map((a:any) => [
             'f', 'map.' + padPointer(a.base) + '.' + a.protection.replace(/-/g, '_'), a.size, a.base,
@@ -40,7 +40,7 @@ export async function changeMemoryProtection(args: string[]) {
 
 export function listMemoryRangesHere(args: string[]) {
     if (args.length !== 1) {
-        args = [global.r2frida.offset];
+        args = [r2frida.offset];
     }
     const addr = ptr(args[0]);
     return listMemoryRangesJson()
@@ -95,7 +95,7 @@ export function listMallocRangesR2(args: string[]) {
 
 export function listMemoryMapsHere(args: string[]) {
     if (args.length !== 1) {
-        args = [global.r2frida.offset];
+        args = [r2frida.offset];
     }
     const addr = ptr(args[0]);
     return _squashRanges(listMemoryRangesJson())
@@ -193,8 +193,8 @@ export function removeAlloc(args: string[]) {
 }
 
 export function getMemoryRanges(protection: string) {
-    if (global.r2frida.hookedRanges !== null) {
-        return global.r2frida.hookedRanges(protection);
+    if (r2frida.hookedRanges !== null) {
+        return r2frida.hookedRanges(protection);
     }
     return Process.enumerateRanges({
         protection,

@@ -33,6 +33,7 @@ function commandHandler(name: string) {
 function pluginList() {
     return Object.keys(commandHandlers).join('\n');
 }
+export type PutsFunction = (s: string) => void;
 
 // import packageJson from "./package.json" assert { type: "json" };
 export interface R2FridaPlugin {
@@ -48,10 +49,27 @@ export interface R2FridaPlugin {
     hookedScan: any,
     offset: string,
     logs: string[],
+    hostCmd: any,
+    hostCmdj: any,
+    log: any,
+    emit: any,
+    module: string,
+    puts: PutsFunction | null,
 }
 
-const r2frida: R2FridaPlugin = {
-    version: "5.8.2", // packageJson.version,
+/*
+r2frida.hostCmd = r2.hostCmd;
+r2frida.hostCmdj = r2.hostCmdj;
+r2frida.logs = log.logs;
+r2frida.log = log.traceLog;
+r2frida.emit = log.traceEmit;
+r2frida.safeio = NeedsSafeIo;
+r2frida.module = '';
+r2frida.puts = initializePuts();
+*/
+
+export const r2frida: R2FridaPlugin = {
+    version: "5.8.2",
     safeio: false,
     commandHandler: commandHandler,
     pluginRegister: pluginRegister,
@@ -64,10 +82,13 @@ const r2frida: R2FridaPlugin = {
     hookedScan: null,
     offset: "",
     logs: [],
+    hostCmd: undefined,
+    hostCmdj: undefined,
+    log: undefined,
+    emit: undefined,
+    module: "",
+    puts: null 
 };
 
-declare let global: any;
-
-global.r2frida = r2frida;
-
+// dont do this global, we can export and use the r2frida object
 export default r2frida;

@@ -1,7 +1,6 @@
 import config from '../../config.js';
 import * as utils from '../utils.js';
-
-declare let global: any;
+import { r2frida } from "../../plugin.js";
 
 export function lookupDebugInfo(args: string[]) : void {
     const o = DebugSymbol.fromAddress(ptr('' + args));
@@ -10,7 +9,7 @@ export function lookupDebugInfo(args: string[]) : void {
 
 export function lookupAddress(args: string[]) : string {
     if (args.length === 0) {
-        args = [ptr(global.r2frida.offset).toString()];
+        args = [ptr(r2frida.offset).toString()];
     }
     return lookupAddressJson(args)
         .map(({ type, name, address }) => [type, name, address].join(' '))
@@ -44,7 +43,7 @@ export function lookupAddressJson(args: string[]): any[] {
 }
 
 export function lookupSymbolHere(args: string[]) {
-    return lookupAddress([global.r2frida.offset.toString()]);
+    return lookupAddress([r2frida.offset.toString()]);
 }
 
 export function lookupExport(args: string[]) {
@@ -203,7 +202,7 @@ export function getModuleByAddress(addr: NativePointer): any {
     try {
         return Process.getModuleByAddress(addr);
     } catch (e) {
-        return Process.getModuleByAddress(ptr(global.r2frida.offset));
+        return Process.getModuleByAddress(ptr(r2frida.offset));
     }
 }
 
