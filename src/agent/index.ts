@@ -26,8 +26,9 @@ import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson,
 declare let global: any;
 
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-const isIOS15 = darwin.getIOSVersion().startsWith('15');
-const NeedsSafeIo = isLinuxArm32 || isIOS15;
+// const isIOS15 = darwin.getIOSVersion().startsWith('15');
+// const NeedsSafeIo = isLinuxArm32 || isIOS15;
+const NeedsSafeIo = isLinuxArm32;
 
 const commandHandlers = {
     '?': [expr.evalNum, 'evaluate number'],
