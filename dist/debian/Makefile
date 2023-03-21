@@ -4,6 +4,7 @@ UNAME=$(shell uname)
 SUDO?=sudo
 DEPENDS=
 CROSSARCH=x64
+R2CFG_FLAGS?=
 PWD=$(shell pwd)
 PACKAGE_DIR?=${PWD}
 
@@ -22,10 +23,10 @@ all: root
 
 root:
 ifeq ($(UNAME),Darwin)
-	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr ; npm i ; \
+	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr $(R2CFG_FLAGS) ; npm i ; \
 	$(DOCKCROSS) --image dockcross/linux-$(CROSSARCH) bash -c 'sh dist/build.sh'
 else
-	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr ; make
+	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr $(R2CFG_FLAGS) ; make
 endif
 	mkdir -p root/$(R2PLUGDIR)
 	cp -f ../../io_frida.so root/$(R2PLUGDIR)

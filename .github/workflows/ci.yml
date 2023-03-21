@@ -10,8 +10,43 @@ on:
   pull_request:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build-linux20:
+    # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
+    runs-on: ubuntu-20.04
+    continue-on-error: true
+    steps:
+    - uses: actions/checkout@v3
+    - name: Installing radare2
+      run: |
+        wget https://github.com/radareorg/radare2/releases/download/5.8.4/radare2_5.8.4_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/5.8.4/radare2-dev_5.8.4_amd64.deb
+        sudo dpkg -i radare2_5.8.4_amd64.deb
+        sudo dpkg -i radare2-dev_5.8.4_amd64.deb
+    - name: Building r2frida
+      run: ./configure && make -j && sudo make install
+    - name: Packaging
+      run: make -C dist/debian
+    - name: Pub
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-linux
+        path: dist/debian/*.deb
+  build-linux20-precompiled:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: Installing radare2
+      run: |
+        wget https://github.com/radareorg/radare2/releases/download/5.8.4/radare2_5.8.4_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/5.8.4/radare2-dev_5.8.4_amd64.deb
+        sudo dpkg -i radare2_5.8.4_amd64.deb
+        sudo dpkg -i radare2-dev_5.8.4_amd64.deb
+    - name: Building r2frida
+      run: ./configure --with-precompiled-agent && make -j && sudo make install
+    - name: Packaging
+      run: make -C dist/debian R2CFG_FLAGS=--with-precompiled-agent
+  build-linux22:
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Building Radare2
@@ -26,7 +61,7 @@ jobs:
         name: build-linux
         path: dist/debian/*.deb
   build-agent:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: Building Radare2
@@ -121,7 +156,8 @@ jobs:
       is_release: ${{ steps.release.outputs.is }}
       tag_name: ${{ steps.release.outputs.tag }}
     needs:
-      - build-linux
+      - build-linux20
+      - build-linux22
       - build-macos
       - build-cydia
       - build-windows
