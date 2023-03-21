@@ -144,6 +144,10 @@ LDFLAGS+=-landroid -llog -lm
 STRIP_SYMBOLS=yes
 endif
 
+ifeq ($(frida_os),linux)
+LDFLAGS+=-Wl,--start-group
+endif
+
 ifeq ($(STRIP_SYMBOLS),yes)
 PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
 PLUGIN_LDFLAGS+=-Wl,--gc-sections
