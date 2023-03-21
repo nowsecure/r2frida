@@ -16,6 +16,8 @@ jobs:
     continue-on-error: true
     steps:
     - uses: actions/checkout@v3
+    - name: Testing stat for frida-fs
+      run: make -C dist/docker test
     - name: Installing radare2
       run: |
         wget https://github.com/radareorg/radare2/releases/download/5.8.4/radare2_5.8.4_amd64.deb
@@ -51,6 +53,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Building Radare2
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh --with-rpath /usr )
+    - name: Testing stat for frida-fs
+      run: make -C dist/docker test
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Packaging
