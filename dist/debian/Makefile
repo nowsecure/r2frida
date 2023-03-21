@@ -29,6 +29,8 @@ else
 endif
 	mkdir -p root/$(R2PLUGDIR)
 	cp -f ../../io_frida.so root/$(R2PLUGDIR)
+	mkdir -p root/usr/bin
+	cp -f ../../src/r2frida-compile root/usr/bin/
 
 purge: clean
 	rm -rf root
