@@ -12,7 +12,7 @@ else
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.8.2/_agent.js
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
