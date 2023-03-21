@@ -1,7 +1,7 @@
 include config.mk
 
 R2V=$(VERSION)
-R2V?=5.8.2
+R2V?=5.8.4
 frida_version=16.0.11
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
