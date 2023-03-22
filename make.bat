@@ -63,12 +63,12 @@ REM REM       %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js
 REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
 REM REM       DEL src\_agent.js.hex
 
-echo Downloading precompiled agent
-powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
+REM echo Downloading precompiled agent
+REM powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
 
 REM echo Building the Agent...
 REM echo src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
-REM src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
+src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
 
 cd src
 echo Creating the header...
@@ -92,5 +92,7 @@ copy src\io_frida.dll r2frida-%R2V%-w64\
 REM copy src\io_frida.pdb r2frida-%R2V%-w64\
 copy install.bat r2frida-%R2V%-w64\
 powershell -command "Compress-Archive -Path r2frida-%R2V%-w64 -DestinationPath r2frida-%R2V%-w64.zip"
+
+radare2 -N -l src\io_frida.dll frida://0
 
 .\install.bat
