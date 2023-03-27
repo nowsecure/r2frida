@@ -33,6 +33,7 @@ export async function dumpInfoR2() {
 }
 
 export async function dumpInfoJson() {
+    const firstModule = Process.enumerateModules()[0];
     const res : any = {
         arch: r2.getArch(Process.arch),
         bits: Process.pointerSize * 8,
@@ -46,6 +47,8 @@ export async function dumpInfoJson() {
         mainLoop: hasMainLoop(),
         pageSize: Process.pageSize,
         pointerSize: Process.pointerSize,
+        modulename: firstModule.name,
+        modulebase: firstModule.base,
         codeSigningPolicy: Process.codeSigningPolicy,
         isDebuggerAttached: Process.isDebuggerAttached(),
         cwd: getCwd()
@@ -69,8 +72,6 @@ export async function dumpInfoJson() {
                 res.appnumversion = get('CFBundleNumericVersion');
                 res.minOS = get('MinimumOSVersion');
             }
-            res.modulename = Process.enumerateModules()[0].name;
-            res.modulebase = Process.enumerateModules()[0].base;
             res.homedir = (new ObjC.Object(NSHomeDirectory()).toString());
             res.tmpdir = (new ObjC.Object(NSTemporaryDirectory()).toString());
             res.bundledir = ObjC.classes.NSBundle.mainBundle().bundleURL().path();
