@@ -25,9 +25,10 @@ import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson,
 import { r2frida, PutsFunction } from "./plugin.js";
 
 const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-// const isIOS15 = darwin.getIOSVersion().startsWith('15');
-// const NeedsSafeIo = isLinuxArm32 || isIOS15;
-const NeedsSafeIo = isLinuxArm32;
+const iOsVersion = darwin.getIOSVersion();
+const isIOS15 = iOsVersion.startsWith('15');
+const isIOS16 = iOsVersion.startsWith('16');
+const NeedsSafeIo = isLinuxArm32 || isIOS15 || isIOS16;
 
 const commandHandlers = {
     '?': [expr.evalNum, 'evaluate number'],

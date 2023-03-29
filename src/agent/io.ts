@@ -39,7 +39,7 @@ export function read(params: any) {
             console.error('safeio-read', e);
         }
     }
-    if (offset < 0) {
+    if (offset < 2) {
         return [{}, []];
     }
     try {
