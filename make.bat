@@ -4,6 +4,16 @@ set frida_version=16.0.16
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
+if "%VSARCH%" == "" (
+  set VSARCH=x86_amd64
+  set PLATFORM=x64
+  REM call preconfigure.bat
+      pushd "C:\Program Files\Microsoft Visual Studio\"
+      cd "2022\Community\VC\Auxiliary\Build\"
+      vcvarsall.bat %VSARCH%
+      popd
+)
+set
 set R2_BASE=""
 if exist radare2 (
 	set R2_BASE=%CD%\radare2
@@ -30,7 +40,7 @@ for %%i in (%*) do (
 )
 
 echo Copying custom header for Windows
-copy config.h.w64 config.h
+copy /y config.h.w64 config.h
 
 cd src
 
@@ -39,11 +49,12 @@ cd frida
 
 set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/!frida_version!/frida-core-devkit-!frida_version!-windows-!frida_os_arch!.exe"
 
-if not exist ".\frida-core-sdk-!frida_version!-!frida_os_arch!.exe" (
+if not exist .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe (
 	echo Downloading Frida Core Sdk
 
-	powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, ""frida-core-sdk.exe-!frida_version!-!frida_os_arch!"")" ^
-	|| wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
+	REM powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, frida-core-sdk.exe-!frida_version!-!frida_os_arch!)" ^
+	REM || wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
+	python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
 
 	echo Extracting...
 	.\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
@@ -66,9 +77,15 @@ REM REM       DEL src\_agent.js.hex
 REM echo Downloading precompiled agent
 REM powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
 
-echo Building the Agent...
-REM echo src\r2frida-compile.exe -o %CD%\src\_agent.txt -Sc src\agent\index.ts
-src\r2frida-compile.exe -o src\_agent.txt -Sc src\agent\index.ts
+echo Building the agent with r2frida-compile...
+echo "powershell -command src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"
+powershell -command "src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"
+dir %CD%\src
+
+echo Compiling the agent with frida-compile
+echo "powershell -command 'npm i frida-compile; node_modules\.bin\frida-compile.cmd -Sc -o src/_agent.txt src\agent\index.ts'"
+powershell -command "npm i frida-compile; node_modules/.bin/frida-compile.cmd -Sc -o src/_agent.txt src/agent/index.ts"
+dir %CD%\src
 
 cd src
 echo Creating the header...
@@ -79,7 +96,8 @@ cd ..
 
 echo Compiling the Plugin...
 cd src
-cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
+REM cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
+cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
 cd ..
 
 echo Distribution Zip...
@@ -93,6 +111,6 @@ REM copy src\io_frida.pdb r2frida-%R2V%-w64\
 copy install.bat r2frida-%R2V%-w64\
 powershell -command "Compress-Archive -Path r2frida-%R2V%-w64 -DestinationPath r2frida-%R2V%-w64.zip"
 
-radare2 -N -l src\io_frida.dll frida://0
+REM radare2 -N -l src\io_frida.dll frida://0
 
 .\install.bat
