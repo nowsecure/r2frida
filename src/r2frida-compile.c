@@ -94,6 +94,10 @@ int main(int argc, const char **argv) {
 
 	int i;
 	bool stdin_mode = false;
+	if (argc - opt.ind > 1) {
+		R_LOG_ERROR ("Only take one file as argument");
+		return 1;
+	}
 	for (i = opt.ind; stdin_mode || i < argc; i = stdin_mode? i: i + 1) {
 		char *filename = strdup (argv[i]);
 		if (stdin_mode) {
@@ -111,6 +115,10 @@ int main(int argc, const char **argv) {
 				// enter stdin mode
 				stdin_mode = true;
 				continue;
+			}
+			if (!r_str_endswith (filename, ".js") && !r_str_endswith (filename, ".ts")) {
+				R_LOG_ERROR ("The r2frida-compile only accepts .js and .ts files");
+				return 1;
 			}
 		}
 		if (R_STR_ISNOTEMPTY (proot)) {
