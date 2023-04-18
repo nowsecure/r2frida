@@ -6,6 +6,10 @@
 #include <r_util.h>
 #include <r_util/r_print.h>
 
+#ifdef _MSC_VER
+#undef R2__WINDOWS__
+#define R2__WINDOWS__ 1
+#endif
 
 static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 	gchar *str = g_variant_print (diagnostics, TRUE);
@@ -32,6 +36,7 @@ static int show_help(const char *argv0, int line) {
 }
 
 int main(int argc, const char **argv) {
+	printf ("Hello main\n");
 	const char *outfile = NULL;
 	const char *arg0 = argv[0];
 	int c, rc = 0;
@@ -46,6 +51,7 @@ int main(int argc, const char **argv) {
 	RGetopt opt;
 	r_getopt_init (&opt, argc, argv, "r:Scho:");
 	const char *proot = NULL;
+	printf ("getopt\n");
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'r':
@@ -67,22 +73,27 @@ int main(int argc, const char **argv) {
 			return show_help (arg0, false);
 		}
 	}
+	printf ("frida init\n");
 
 	frida_init ();
+	printf ("device\n");
 	FridaDeviceManager *device_manager = frida_device_manager_new ();
 	if (!device_manager) {
 		R_LOG_ERROR ("Cannot open device manager");
 		return 1;
 	}
+	printf ("bytype\n");
 	FridaDevice *device = frida_device_manager_get_device_by_type_sync (device_manager, FRIDA_DEVICE_TYPE_LOCAL, 0, cancellable, &error);
 	if (error || !device) {
 		R_LOG_ERROR ("Cannot open local frida device");
 		return 1;
 	}
 	char buf[1024];
+	printf ("compiler\n");
 	FridaCompiler *compiler = frida_compiler_new (device_manager);
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
 	// FridaBuildOptions * fbo = frida_build_options_new ();
+	printf ("options\n");
 	FridaCompilerOptions *fco = frida_compiler_options_new ();
 	if (!source_maps) {
 		frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
@@ -141,14 +152,19 @@ int main(int argc, const char **argv) {
 			free (ofilename);
 		}
 #endif
+	printf ("compiling\n");
 		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
+	printf ("done\n");
 		if (error || !slurpedData) {
+	printf ("omg err\n");
 			R_LOG_ERROR ("%s", error->message);
 			rc = 1;
 		} else {
+	printf ("dumping to %s\n", outfile);
 			if (outfile) {
 #if R2__WINDOWS__
+eprintf ("Using windows dump\n");
 				HANDLE fh = CreateFile (outfile,
 					GENERIC_WRITE,
 					0, NULL, CREATE_ALWAYS,
@@ -158,14 +174,19 @@ int main(int argc, const char **argv) {
 					rc = 1;
 				} else {
 					DWORD written = 0;
+eprintf ("Writing file %s\n", outfile);
 					BOOL res = WriteFile (fh, slurpedData, strlen (slurpedData), &written, NULL);
 					if (res == FALSE) {
 						R_LOG_ERROR ("Cannot write to %s", outfile);
 						rc = 1;
+					} else {
+						rc = 0;
 					}
+eprintf ("Closing handl\n");
 					CloseHandle (fh);
 				}
 #else
+eprintf ("Using r2 dump\n");
 				if (!r_file_dump (outfile, (const ut8*)slurpedData, -1, false)) {
 					R_LOG_ERROR ("Cannot dump to %s", outfile);
 					rc = 1;
@@ -175,13 +196,16 @@ int main(int argc, const char **argv) {
 				printf ("%s\n", slurpedData);
 			}
 		}
+printf ("Eht\n");
 		free (slurpedData);
 		free (filename);
+printf ("FIn\n");
 		if (rc && stdin_mode) {
 			break;
 		}
 	}
 	g_object_unref (compiler);
 	g_object_unref (device_manager);
+printf ("rc=%d\n", rc);
 	return rc;
 }

@@ -139,14 +139,11 @@ jobs:
         pwd
     - name: make
       shell: cmd
-      run: |
-        cd
-        set PKG_CONFIG_PATH=%CD%\radare2\lib\pkgconfig
-        set PATH=%CD%\radare2\bin;%PATH%
-        set ARCH=x64
-        call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
-        make.bat
-        zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
+      run: make.bat
+    - name: zip
+      shell: cmd
+# run: zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
+      run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe
     - uses: actions/upload-artifact@v3
       with:
         if-no-files-found: error
