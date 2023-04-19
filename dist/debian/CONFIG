@@ -1,7 +1,13 @@
 PACKAGE=r2frida
-ARCH=amd64
 DEPENDS=radare2
 SECTION=user/shell
 PRIORITY=optional
 MAINTAINER=pancake <pancake@nopcode.org>
 include ../../config.mk
+# arch
+UNAMEM=$(shell uname -m)
+ifeq ($(UNAMEM),x86_64)
+ARCH=amd64
+else
+ARCH=aarch64
+endif
