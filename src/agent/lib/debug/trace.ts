@@ -418,7 +418,7 @@ export function traceLogDumpR2() {
         const binput = Uint8Array.from(input.split('').map((x) => { return x.charCodeAt(0); }));
         const bytes = Uint8Array.from(binput);
         const data = fromByteArray(bytes);
-        res += `T base64: ${data} \n`;
+        res += `T base64:${data} \n`;
         if (l.script) {
             res += l.script;
         }
