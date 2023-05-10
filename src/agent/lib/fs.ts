@@ -3,7 +3,7 @@ import path from "path";
 import { sym, _readlink, getPid, _fstat, _dup2, _close } from "./sys.js";
 import { isiOS, IOSPathTransform } from "./darwin/index.js";
 
-function normalize(x: string) {
+function normalize(x: string) : string {
     /* no-op */
     return x;
 }
@@ -301,14 +301,14 @@ export class PathTransform {
         this._mappedPrefixes = [];
     }
 
-    toActual(virtualPath: string) {
+    toActual(virtualPath: string) : string | null {
         for (const vPrefix of this._mappedPrefixes) {
             if (virtualPath.indexOf(vPrefix) === 0) {
                 const replacement = this._virtualDirs[vPrefix];
                 return virtualPath.replace(vPrefix, replacement);
             }
         }
-        return null;
+        return virtualPath;
     }
 
     getVirtualDir(virtualPath: string) {
