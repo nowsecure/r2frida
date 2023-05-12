@@ -17,6 +17,7 @@ R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/down
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
+CFLAGS+=-DR2FRIDA_VERSION_STRING=\"${VERSION}\"
 CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
 
 ifeq ($(strip $(frida_os)),)
@@ -334,7 +335,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/r2frida-compile: src/r2frida-compile.c
-	$(CC) -g src/r2frida-compile.c $(LDFLAGS) $(FRIDA_CFLAGS) \
+	$(CC) -g src/r2frida-compile.c $(CFLAGS) $(LDFLAGS) $(FRIDA_CFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		-pthread -Iext/frida -o src/r2frida-compile
 

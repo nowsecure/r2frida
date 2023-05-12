@@ -30,6 +30,8 @@ static int show_help(const char *argv0, int line) {
 		" -h                  Show this help message\n"
 		" -o [file]           Specify output file\n"
 		" -r [project-root]   Specify the project root directory\n"
+		" -q                  Be quiet\n"
+		" -v                  Display version\n"
 		);
 	}
 	return 1;
@@ -41,14 +43,14 @@ int main(int argc, const char **argv) {
 	int c, rc = 0;
 	GCancellable *cancellable = NULL;
 	GError *error = NULL;
-	const char *filename = "index.ts";
 	if (argc < 2) {
 		return show_help (arg0, true);
 	}
+	bool quiet = false;
 	bool source_maps = true;
 	bool compression = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:Scho:");
+	r_getopt_init (&opt, argc, argv, "r:Scho:qv");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -64,8 +66,20 @@ int main(int argc, const char **argv) {
 		case 'c':
 			compression = true;
 			break;
+		case 'q':
+			quiet = true;
+			break;
 		case 'h':
 			show_help (arg0, false);
+			return 0;
+		case 'v':
+			if (quiet) {
+				printf ("%s\n", R2FRIDA_VERSION_STRING);
+			} else {
+				printf ("r2frida: %s\n", R2FRIDA_VERSION_STRING);
+				printf ("radare2: %s\n", R2_VERSION);
+				printf ("frida: %s\n", FRIDA_VERSION_STRING);
+			}
 			return 0;
 		default:
 			return show_help (arg0, false);

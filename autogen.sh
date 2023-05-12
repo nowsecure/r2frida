@@ -15,3 +15,4 @@ V=`./configure -qV`
 vim src/agent/plugin.ts
 jq ".version=\"$V\"" package.json > p
 mv p package.json
+vim make.bat

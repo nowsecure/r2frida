@@ -1797,7 +1797,7 @@ static void dumpDevices(RIOFrida *rf, GCancellable *cancellable) {
 	}
 	g_array_sort (devices, compareDevices);
 
-	print_list(DEVICES, devices, num_devices);
+	print_list (DEVICES, devices, num_devices);
 beach:
 	g_clear_error (&error);
 	g_clear_object (&list);

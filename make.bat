@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 set frida_version=16.0.19
+set r2frida_version=5.8.6
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
@@ -62,7 +63,7 @@ if not exist .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe (
 cd ..
 
 echo Building r2frida-compile...
-cl %DEBUG% /MT /nologo /Gy /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c
+cl %DEBUG% /MT /nologo /Gy /DR2FRIDA_VERSION_STRING="!r2frida_version!" /DFRIDA_VERSION_STRING="!frida_version!" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c
 cd ..
 
 REM REM       echo Building the Agent...
