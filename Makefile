@@ -17,8 +17,8 @@ R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/down
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
-CFLAGS+=-DR2FRIDA_VERSION_STRING=\"${VERSION}\"
 CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
+CFLAGS+=-DR2FRIDA_VERSION_STRING=\"${VERSION}\"
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
@@ -172,14 +172,22 @@ IOS_CXX=xcrun --sdk iphoneos g++ $(IOS_ARCH_CFLAGS)
 .PHONY: io_frida.$(SO_EXT)
 
 # XXX we are statically linking to the .a we should use shared libs if exist
-ios: r2-sdk-ios/$(R2V)
-	rm -rf ext && $(MAKE) clean && $(MAKE) && cp -f src/r2frida-compile src/_agent.h /tmp
-	rm -rf ext && cp /tmp/_agent.h src
-	rm src/io_frida.o src/r2frida-compile
-	$(MAKE) \
-	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr -DFRIDA_VERSION_STRING=\\\"${frida_version}\\\""
-	LDFLAGS="-Lr2-sdk-ios/lib -lr -shared -fPIC" \
-	CC="$(IOS_CC)" CXX="$(IOS_CXX)" frida_os=ios frida_arch=arm64
+ios:
+	rm -rf ext
+	$(MAKE) clean && $(MAKE)
+	$(MAKE) src/_agent.h \
+		&& cp -f src/_agent.h src/_agent.h.host \
+		&& cp -f src/_agent.js src/_agent.js.host
+	$(MAKE) r2-sdk-ios/$(R2V)
+	rm -rf ext
+	rm -f src/*.o
+	$(MAKE) R2FRIDA_HOST_COMPILER=1 \
+	CFLAGS="-Ir2-sdk-ios/include -Ir2-sdk-ios/include/libr \
+	-DR2FRIDA_VERSION_STRING=\\\"${VERSION}\\\" \
+	-DFRIDA_VERSION_STRING=\\\"${frida_version}\\\"" \
+	LDFLAGS="-shared -fPIC r2-sdk-ios/lib/libr.a" \
+	HOST_CC="$(CC)" CC="$(IOS_CC)" CXX="$(IOS_CXX)" \
+	frida_os=ios frida_arch=arm64
 
 r2-sdk-ios/$(R2V):
 	rm -rf r2-sdk-ios
@@ -215,12 +223,19 @@ src/_agent.h: src/_agent.js
 	test -s src/_agent.js || exit 1
 	r2 -NNnfqcpc $< | grep 0x > $@
 
+ifeq ($(R2FRIDA_HOST_COMPILER),1)
+src/_agent.js:
+	mv src/_agent.h.host src/_agent.h
+	mv src/_agent.js.host src/_agent.js
+	test -s src/_agent.js || rm -f src/_agent.js
+else
 src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
 	src/r2frida-compile -o src/_agent.js -Sc src/agent/index.ts
 	test -s src/_agent.js || rm -f src/_agent.js
+endif
 endif
 
 node_modules: package.json
@@ -337,7 +352,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 src/r2frida-compile: src/r2frida-compile.c
 	$(CC) -g src/r2frida-compile.c $(CFLAGS) $(LDFLAGS) $(FRIDA_CFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
-		-pthread -Iext/frida -o src/r2frida-compile
+		-pthread -Iext/frida -o $@
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
