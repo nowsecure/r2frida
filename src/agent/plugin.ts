@@ -69,7 +69,7 @@ r2frida.puts = initializePuts();
 */
 
 export const r2frida: R2FridaPlugin = {
-    version: "5.8.4",
+    version: "5.8.6",
     safeio: false,
     commandHandler: commandHandler,
     pluginRegister: pluginRegister,
