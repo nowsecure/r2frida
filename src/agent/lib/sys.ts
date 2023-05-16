@@ -33,7 +33,7 @@ export function sym(name: string, ret: NativeFunctionReturnType, arg: NativeFunc
     try {
         return new NativeFunction(Module.getExportByName(null, name), ret, arg);
     } catch (e) {
-        console.error(name, ':', e);
+        return null;
     }
 }
 
@@ -41,7 +41,7 @@ export function symf(name: string, ret: NativeFunctionReturnType, arg: NativeFun
     try {
         return new SystemFunction(Module.getExportByName(null, name), ret, arg);
     } catch (e) {
-        // console.error('Warning', name, ':', e);
+        return null;
     }
 }
 

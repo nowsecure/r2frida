@@ -453,7 +453,6 @@ function onStanza(stanza: any, data: any) {
 function initializePuts() : PutsFunction | null {
     const putsAddress = Module.findExportByName(null, 'puts');
     if (putsAddress === null) {
-        console.error("Cannot resolve 'puts'");
         return null;
     }
     const putsFunction = new NativeFunction(putsAddress, 'pointer', ['pointer']);
