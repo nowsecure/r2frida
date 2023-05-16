@@ -38,7 +38,7 @@ export async function dumpInfoJson() {
         arch: r2.getArch(Process.arch),
         bits: Process.pointerSize * 8,
         os: Process.platform,
-        pid: sys.getPid(),
+        pid: Process.id,
         uid: sys._getuid!(),
         objc: ObjCAvailable,
         runtime: Script.runtime,

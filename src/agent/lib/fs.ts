@@ -1,6 +1,6 @@
 import { toByteArray } from "./base64.js";
 import path from "path";
-import { sym, _readlink, getPid, _fstat, _dup2, _close } from "./sys.js";
+import { sym, _readlink, _fstat, _dup2, _close } from "./sys.js";
 import { isiOS, IOSPathTransform } from "./darwin/index.js";
 
 function normalize(x: string) : string {
@@ -560,7 +560,7 @@ export function listFileDescriptorsJson(args: string[]) {
     const PATH_MAX = 4096;
     function getFdName(fd: any) {
         if (_readlink && Process.platform === 'linux') {
-            const fdPath = path.join('proc', '' + getPid(), 'fd', '' + fd);
+            const fdPath = path.join('proc', '' + Process.id, 'fd', '' + fd);
             const buffer = Memory.alloc(PATH_MAX);
             const source = Memory.alloc(PATH_MAX);
             source.writeUtf8String(fdPath);

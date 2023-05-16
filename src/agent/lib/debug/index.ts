@@ -172,7 +172,7 @@ export function sendSignal(args: string[]) {
     console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
     if (argsLength === 1) {
         const sig = +args[0];
-        sys._kill!(sys._getpid!(), sig);
+        sys._kill!(Process.id, sig);
     } else if (argsLength === 2) {
         const [pid, sig] = args;
         sys._kill!(+pid, +sig);
