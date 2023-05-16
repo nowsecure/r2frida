@@ -3,7 +3,6 @@ import { exist, transformVirtualPath } from './fs.js';
 // TODO: add proper Function<> type for each :any here
 export let _getenv: any | null = null;
 export let _setenv: any | null = null;
-export let _getpid: any | null = null;
 export let _getuid: any | null = null;
 export let _dup2: any | null = null;
 export let _readlink: any | null = null;
@@ -14,7 +13,6 @@ export let _kill: any | null = null;
 if (Process.platform === 'windows') {
     _getenv = sym('getenv', 'pointer', ['pointer']);
     _setenv = sym('SetEnvironmentVariableA', 'int', ['pointer', 'pointer']);
-    _getpid = sym('_getpid', 'int', []);
     _getuid = getWindowsUserNameA;
     _dup2 = sym('_dup2', 'int', ['int', 'int']);
     _fstat = sym('_fstat', 'int', ['int', 'pointer']);
@@ -23,7 +21,6 @@ if (Process.platform === 'windows') {
 } else {
     _getenv = sym('getenv', 'pointer', ['pointer']);
     _setenv = sym('setenv', 'int', ['pointer', 'pointer', 'int']);
-    _getpid = sym('getpid', 'int', []);
     _getuid = sym('getuid', 'int', []);
     _dup2 = sym('dup2', 'int', ['int', 'int']);
     _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
@@ -61,14 +58,11 @@ export function getWindowsUserNameA() {
 }
 
 export function getPidJson(): any {
-    return JSON.stringify({ pid: getPid() });
+    return JSON.stringify({ pid: Process.id });
 }
 
 export function getPid(): number {
-    if (_getpid !== null) {
-        return _getpid();
-    }
-    return -1;
+    return Process.id;
 }
 
 export function getOrSetEnv(args: string[]) {
@@ -167,7 +161,6 @@ export function changeSelinuxContext(args: string[]) {
 export default {
     sym,
     symf,
-    _getpid,
     _getuid,
     _dup2,
     _readlink,
