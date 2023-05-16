@@ -69,6 +69,7 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **device, GCancellable *cancellable);
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable);
 static JsonBuilder *build_request(const char *type);
+static void add_offset_parameter(JsonBuilder *builder, ut64 off);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json);
 static void pending_cmd_free(RFPendingCmd * pending_cmd);
@@ -332,8 +333,7 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("read");
-	json_builder_set_member_name (builder, "offset");
-	json_builder_add_int_value (builder, io->off);
+	add_offset_parameter (builder, io->off);
 	json_builder_set_member_name (builder, "count");
 	json_builder_add_int_value (builder, count);
 
@@ -414,8 +414,7 @@ static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("write");
-	json_builder_set_member_name (builder, "offset");
-	json_builder_add_int_value (builder, io->off);
+	add_offset_parameter (builder, io->off);
 
 	JsonObject *result = perform_request (rf, builder, g_bytes_new (buf, count), NULL);
 	if (!result) {
@@ -521,11 +520,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 
 	/* update state (seek and suspended) in agent */
 	{
-		char offstr[127] = {0};
 		JsonBuilder *builder = build_request ("state");
-		json_builder_set_member_name (builder, "offset");
-		snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, io->off);
-		json_builder_add_string_value (builder, offstr);
+		add_offset_parameter (builder, io->off);
 		json_builder_set_member_name (builder, "suspended");
 		json_builder_add_boolean_value (builder, rf->suspended);
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
@@ -1452,6 +1448,13 @@ static JsonBuilder *build_request(const char *type) {
 	json_builder_set_member_name (builder, "payload");
 	json_builder_begin_object (builder);
 	return builder;
+}
+
+static void add_offset_parameter(JsonBuilder *builder, ut64 off) {
+	char offstr[2 + 16 + 1];
+	json_builder_set_member_name (builder, "offset");
+	snprintf (offstr, sizeof (offstr), "0x%"PFMT64x, off);
+	json_builder_add_string_value (builder, offstr);
 }
 
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
