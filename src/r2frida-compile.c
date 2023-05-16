@@ -120,7 +120,9 @@ int main(int argc, const char **argv) {
 		char *filename = strdup (argv[i]);
 		if (stdin_mode) {
 			fflush (stdin);
-			fgets (buf, sizeof (buf), stdin);
+			if (!fgets (buf, sizeof (buf), stdin)) {
+				break;
+			}
 			buf[sizeof (buf) -1] = 0;
 			free (filename);
 			int len = strlen (buf);
