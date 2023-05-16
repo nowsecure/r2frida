@@ -39,7 +39,7 @@ export async function dumpInfoJson() {
         bits: Process.pointerSize * 8,
         os: Process.platform,
         pid: Process.id,
-        uid: sys._getuid!(),
+        uid: sys._getuid?.() ?? 0,
         objc: ObjCAvailable,
         runtime: Script.runtime,
         swift: SwiftAvailable(),
