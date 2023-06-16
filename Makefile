@@ -29,7 +29,7 @@ endif
 endif
 
 ifeq ($(frida_os),linux)
-HAVE_MUSL=$(shell (test -x /lib/ld-musl*) && echo 1 || echo 0)
+HAVE_MUSL=$(shell (grep -q musl /bin/ls && test -x /lib/ld-musl*) && echo 1 || echo 0)
 else
 HAVE_MUSL=0
 endif
