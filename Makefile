@@ -219,9 +219,9 @@ src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
 src/_agent.h: src/_agent.js
-	test -s src/_agent.js || ( rm -f src/_agent.js && ${MAKE} src/_agent.js)
+	test -s src/_agent.js || ( rm -f src/_agent.js && ${MAKE} src/_agent.js )
 	test -s src/_agent.js || exit 1
-	r2 -NNnfqcpc $< | grep 0x > $@
+	[ -f src/_agent.h ] || (echo Running r2; r2 -NNnfqcpc $< | grep 0x > $@)
 
 ifeq ($(R2FRIDA_HOST_COMPILER),1)
 src/_agent.js:
@@ -233,7 +233,7 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	src/r2frida-compile -o src/_agent.js -Sc src/agent/index.ts
+	src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 endif
