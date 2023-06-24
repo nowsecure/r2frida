@@ -145,13 +145,18 @@ LDFLAGS+=-landroid -llog -lm
 STRIP_SYMBOLS=yes
 endif
 
-#ifeq ($(frida_os),linux)
-#LDFLAGS+=-Wl,--start-group
-#endif
+ifeq ($(frida_os),linux)
+LDFLAGS+=-Wl,--start-group
+LDFLAGS+=-lm
+endif
 
 ifeq ($(STRIP_SYMBOLS),yes)
 PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
 PLUGIN_LDFLAGS+=-Wl,--gc-sections
+endif
+
+ifeq ($(frida_os),linux)
+LDFLAGS+=-Wl,--end-group
 endif
 
 all: ext/frida
@@ -350,9 +355,9 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/r2frida-compile: src/r2frida-compile.c
-	$(CC) -g src/r2frida-compile.c $(CFLAGS) $(LDFLAGS) $(FRIDA_CFLAGS) \
+	$(CC) -g src/r2frida-compile.c $(FRIDA_CFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
-		-pthread -Iext/frida -o $@
+		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
