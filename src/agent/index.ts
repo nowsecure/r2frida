@@ -24,12 +24,6 @@ import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson,
 
 import { r2frida, PutsFunction } from "./plugin.js";
 
-const isLinuxArm32 = (Process.platform === 'linux' && Process.arch === 'arm' && Process.pointerSize === 4);
-const iOsVersion = darwin.getIOSVersion();
-const isIOS15 = iOsVersion.startsWith('15');
-const isIOS16 = iOsVersion.startsWith('16');
-const NeedsSafeIo = isLinuxArm32 || isIOS15 || isIOS16;
-
 const commandHandlers = {
     '?': [expr.evalNum, 'evaluate number'],
     '?e': [echo, 'print message'],
@@ -264,11 +258,11 @@ if (Process.platform === 'darwin') {
     darwin.initFoundation();
 }
 const requestHandlers = {
-    safeio: () => { r2frida.safeio = true; },
+    safeio: () => {
+      config.set("io.safe", true);
+    },
     unsafeio: () => {
-        if (!NeedsSafeIo) {
-            r2frida.safeio = false;
-        }
+      config.set("io.safe", false);
     },
     read: io.read,
     write: io.write,
@@ -484,7 +478,6 @@ r2frida.hostCmdj = r2.hostCmdj;
 r2frida.logs = log.logs;
 r2frida.log = log.traceLog;
 r2frida.emit = log.traceEmit;
-r2frida.safeio = NeedsSafeIo;
 r2frida.module = '';
 r2frida.puts = initializePuts();
 

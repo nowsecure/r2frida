@@ -38,7 +38,6 @@ export type PutsFunction = (s: string) => void;
 // import packageJson from "./package.json" assert { type: "json" };
 export interface R2FridaPlugin {
     version: string,
-    safeio: boolean,
     commandHandler: any,
     pluginRegister: any,
     pluginUnregister: any,
@@ -57,20 +56,8 @@ export interface R2FridaPlugin {
     puts: PutsFunction | null,
 }
 
-/*
-r2frida.hostCmd = r2.hostCmd;
-r2frida.hostCmdj = r2.hostCmdj;
-r2frida.logs = log.logs;
-r2frida.log = log.traceLog;
-r2frida.emit = log.traceEmit;
-r2frida.safeio = NeedsSafeIo;
-r2frida.module = '';
-r2frida.puts = initializePuts();
-*/
-
 export const r2frida: R2FridaPlugin = {
     version: "5.8.8",
-    safeio: false,
     commandHandler: commandHandler,
     pluginRegister: pluginRegister,
     pluginUnregister: pluginUnregister,

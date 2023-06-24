@@ -16,7 +16,17 @@ export function read(params: any) {
     if (typeof r2frida.hookedRead === 'function') {
         return r2frida.hookedRead(offset, count);
     }
-    if (r2frida.safeio) {
+    if (config.getBoolean('io.volatile')) {
+        const np = new NativePointer(offset) as any;
+	try {
+          const data = np.readVolatile(count);
+          return [{}, data];
+	} catch(err) {
+	  // config.set("io.volatile", false);
+	}
+        return [{}, []];
+    }
+    if (config.getBoolean('io.safe')) {
         try {
             if (cachedRanges.length === 0) {
                 const foo = (map: RangeDetails) : PointerPair => [map.base, map.base.add(map.size)];
@@ -36,7 +46,7 @@ export function read(params: any) {
             }
             return [{}, []];
         } catch (e) {
-            console.error('safeio-read', e);
+            // console.error('safeio-read', e);
         }
     }
     if (offset < 2) {
