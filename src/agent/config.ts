@@ -1,8 +1,20 @@
 import r2frida from './plugin.js';
 
+function haveVolatileApi() {
+  try {
+    var ptr = new NativePointer("0") as any;
+    return (typeof ptr.readVolatile === 'function');
+  } catch(e) {
+    return false;
+  }
+  return false;
+}
+
 const config: any[string] = {
     'java.wait': false,
     'want.swift': false,
+    'io.safe': false,
+    'io.volatile': haveVolatileApi(),
     'patch.code': true,
     'search.in': 'perm:r--',
     'search.quiet': false,
@@ -22,6 +34,8 @@ const config: any[string] = {
 const configHelp: any[string] = {
     'want.swift': _configHelpWantSwift,
     'java.wait': _configHelpJavaWait,
+    'io.safe': _configHelpIoSafe,
+    'io.volatile': _configHelpIoVolatile,
     'search.in': _configHelpSearchIn,
     'stalker.event': _configHelpStalkerEvent,
     'stalker.timeout': _configHelpStalkerTimeout,
@@ -39,6 +53,8 @@ const configHelp: any[string] = {
 const configValidator: any[string] = {
     'want.swift': _configValidateBoolean,
     'java.wait': _configValidateBoolean,
+    'io.safe': _configValidateBoolean,
+    'io.volatile': _configValidateBoolean,
     'search.in': _configValidateSearchIn,
     'stalker.event': _configValidateStalkerEvent,
     'stalker.timeout': _configValidateStalkerTimeout,
@@ -54,6 +70,14 @@ const configValidator: any[string] = {
 
 function _configHelpWantSwift() {
     return 'Use Swift.Frida if available, disabled by default as long as some apps make Frida crash';
+}
+
+function _configHelpIoVolatile() {
+    return 'Use the new Volatile IO API (requires frida 16.1.0)';
+}
+
+function _configHelpIoSafe() {
+    return 'Safe IO';
 }
 
 function _configHelpJavaWait() {
