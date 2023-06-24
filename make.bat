@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-set frida_version=16.0.19
+set frida_version=16.1.0
 set r2frida_version=5.8.8
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2

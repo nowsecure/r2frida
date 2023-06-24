@@ -2,7 +2,7 @@ include config.mk
 
 R2V=$(VERSION)
 R2V?=5.8.4
-frida_version=16.0.19
+frida_version=16.1.0
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
 ifeq ($(frida_major),15)
@@ -145,9 +145,9 @@ LDFLAGS+=-landroid -llog -lm
 STRIP_SYMBOLS=yes
 endif
 
-ifeq ($(frida_os),linux)
-LDFLAGS+=-Wl,--start-group
-endif
+#ifeq ($(frida_os),linux)
+#LDFLAGS+=-Wl,--start-group
+#endif
 
 ifeq ($(STRIP_SYMBOLS),yes)
 PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
