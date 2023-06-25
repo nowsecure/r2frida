@@ -1,4 +1,5 @@
 import config from './config.js';
+import { r2pipe } from './r2pipe-frida.js';
 import * as anal from './lib/anal.js';
 import * as android from './lib/java/android.js';
 import * as classes from './lib/info/classes.js';
@@ -23,6 +24,17 @@ import * as utils from './lib/utils.js';
 import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValueImpl, searchValueImplJson, searchWide, searchWideJson } from './lib/search.js';
 
 import { r2frida, PutsFunction } from "./plugin.js";
+
+declare let global : any;
+
+global.r2pipe = {
+  open: () => {
+    return {
+      cmd: (s:string) => r2frida.cmd(s),
+      log: console.log
+    }
+  }
+};
 
 const commandHandlers = {
     '?': [expr.evalNum, 'evaluate number'],
@@ -480,5 +492,14 @@ r2frida.log = log.traceLog;
 r2frida.emit = log.traceEmit;
 r2frida.module = '';
 r2frida.puts = initializePuts();
+// r2frida.r2pipe = global.r2pipe;
+r2frida.cmd = (cmd:string) => {
+	const res : any = perform({command:cmd});
+	return res[0].value;
+};
+global.r2frida = r2frida;
+global.dump = function(x: any) {
+	console.log(JSON.stringify(x, null, 2));
+}
 
 recv(onStanza);
