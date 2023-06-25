@@ -8,7 +8,7 @@ const maxPrintable = '~'.charCodeAt(0);
 
 export function sanitizeString(str: string): string {
     if (str) {
-        const specialChars = "/\\`+-${}~|*,;:\"'#@&<> ()[]!?%";
+        const specialChars = "^/\\`+-${}~|*,;:\"'#@&<> ()[]!?%";
         return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
     }
     return str;
