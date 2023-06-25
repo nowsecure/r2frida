@@ -6,6 +6,63 @@ import { autoType, getPtr, padPointer } from '../utils.js';
 const newBreakpoints = new Map();
 let suspended = false;
 
+const regProfileAliasForArm64 = `
+=PC pc
+=SP sp
+=BP x29
+=A0 x0
+=A1 x1
+=A2 x2
+=A3 x3
+=ZF zf
+=SF nf
+=OF vf
+=CF cf
+=SN x8
+`;
+
+const regProfileAliasForArm = `
+=PC r15
+=LR r14
+=SP sp
+=BP fp
+=A0 r0
+=A1 r1
+=A2 r2
+=A3 r3
+=ZF zf
+=SF nf
+=OF vf
+=CF cf
+=SN r7
+`;
+
+const regProfileAliasForX64 = `
+=PC rip
+=SP rsp
+=BP rbp
+=A0 rdi
+=A1 rsi
+=A2 rdx
+=A3 rcx
+=A4 r8
+=A5 r9
+=SN rax
+`;
+
+const regProfileAliasForX86 = `
+=PC eip
+=SP esp
+=BP ebp
+=A0 eax
+=A1 ebx
+=A2 ecx
+=A3 edx
+=A4 esi
+=A5 edi
+=SN eax
+`;
+
 export function isSuspended() : boolean {
     return suspended;
 }
@@ -463,60 +520,15 @@ function _parseRegisterIndex(name: string) {
 function _regProfileAliasFor(arch: string): string {
     switch (arch) {
         case 'arm64':
-            return `=PC pc
-      =SP sp
-      =BP x29
-      =A0 x0
-      =A1 x1
-      =A2 x2
-      =A3 x3
-      =ZF zf
-      =SF nf
-      =OF vf
-      =CF cf
-      =SN x8
-      `;
+            return regProfileAliasForArm64;
         case 'arm':
-            return `=PC r15
-      =LR r14
-      =SP sp
-      =BP fp
-      =A0 r0
-      =A1 r1
-      =A2 r2
-      =A3 r3
-      =ZF zf
-      =SF nf
-      =OF vf
-      =CF cf
-      =SN r7
-      `;
+            return regProfileAliasForArm;
         case 'ia64':
         case 'x64':
-            return `=PC rip
-      =SP rsp
-      =BP rbp
-      =A0 rdi
-      =A1 rsi
-      =A2 rdx
-      =A3 rcx
-      =A4 r8
-      =A5 r9
-      =SN rax
-      `;
+            return regProfileAliasForX64;
         case 'ia32':
         case 'x86':
-            return `=PC eip
-      =SP esp
-      =BP ebp
-      =A0 eax
-      =A1 ebx
-      =A2 ecx
-      =A3 edx
-      =A4 esi
-      =A5 edi
-      =SN eax
-      `;
+            return regProfileAliasForX86;
     }
     return '';
 }
