@@ -1,7 +1,7 @@
 import config from '../../config.js';
 import r2 from '../r2.js';
 import sys from '../sys.js';
-import { autoType, getPtr, padPointer } from '../utils.js';
+import { autoType, getPtr, padPointer, byteArrayToHex } from '../utils.js';
 
 const newBreakpoints = new Map();
 let suspended = false;
@@ -397,7 +397,7 @@ export function dumpRegisterProfile(args: string[]) {
 
 export function dumpRegisterArena(args: string[]) {
     const threads = Process.enumerateThreads();
-    if (args.length < 1) {
+    if (threads.length < 1) {
         return "";
     }
     let tidx = +args[0];
@@ -411,28 +411,25 @@ export function dumpRegisterArena(args: string[]) {
     const names = Object.keys(JSON.parse(JSON.stringify(context)))
         .filter(_ => _ !== 'pc' && _ !== 'sp');
     names.sort(_compareRegisterNames);
-    let off = 0;
-    const inc = Process.pointerSize;
-    const buf = Buffer.alloc(inc * names.length);
+    let offset = 0;
+    const regSize = Process.pointerSize;
+    if (regSize !== 4 && regSize !== 8) {
+        console.error("Invalid register size");
+        return;
+    }
+    const buf = [];
     for (const reg of names) {
         const r = context[reg];
         if (typeof r.and !== 'function') {
             continue;
         }
-        const b = [r.and(0xff),
-        r.shr(8).and(0xff),
-        r.shr(16).and(0xff),
-        r.shr(24).and(0xff),
-        r.shr(32).and(0xff),
-        r.shr(40).and(0xff),
-        r.shr(48).and(0xff),
-        r.shr(56).and(0xff)];
-        for (let i = 0; i < inc; i++) {
-            buf.writeUInt8(b[i], off + i);
+        for (let i = 0; i < regSize; i++) {
+            const idx = i * 8;
+            buf.push(r.shr(idx).and(0xff));
         }
-        off += inc;
+        offset += regSize;
     }
-    return buf.toString('hex');
+    return byteArrayToHex(buf);
 }
 
 export function nameFromAddress(address: NativePointer) {
