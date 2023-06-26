@@ -50,6 +50,7 @@ export interface R2FridaPlugin {
     logs: string[],
     hostCmd: any,
     hostCmdj: any,
+    cmd: any,
     log: any,
     emit: any,
     module: string,
@@ -74,7 +75,8 @@ export const r2frida: R2FridaPlugin = {
     log: undefined,
     emit: undefined,
     module: "",
-    puts: null 
+    puts: null,
+    cmd: undefined,
 };
 
 // dont do this global, we can export and use the r2frida object
