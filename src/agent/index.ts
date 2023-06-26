@@ -25,15 +25,15 @@ import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson,
 
 import { r2frida, PutsFunction } from "./plugin.js";
 
-declare let global : any;
+declare let global: any;
 
 global.r2pipe = {
-  open: () => {
-    return {
-      cmd: (s:string) => r2frida.cmd(s),
-      log: console.log
+    open: () => {
+        return {
+            cmd: (s: string) => r2frida.cmd(s),
+            log: console.log
+        }
     }
-  }
 };
 
 const commandHandlers = {
@@ -271,10 +271,10 @@ if (Process.platform === 'darwin') {
 }
 const requestHandlers = {
     safeio: () => {
-      config.set("io.safe", true);
+        config.set("io.safe", true);
     },
     unsafeio: () => {
-      config.set("io.safe", false);
+        config.set("io.safe", false);
     },
     read: io.read,
     write: io.write,
@@ -283,17 +283,17 @@ const requestHandlers = {
     evaluate: evaluate,
 };
 
-function state(params:any, data:any) {
+function state(params: any, data: any) {
     r2frida.offset = params.offset;
     debug.setSuspended(params.suspended);
     return [{}, null];
 }
 
-function isPromise(value: any) : boolean {
+function isPromise(value: any): boolean {
     return value !== null && typeof value === 'object' && typeof value.then === 'function';
 }
 
-function getHelpMessage(prefix: string) : string {
+function getHelpMessage(prefix: string): string {
     return Object.keys(commandHandlers).sort()
         .filter((k) => {
             return !prefix || k.startsWith(prefix);
@@ -313,7 +313,7 @@ function getHelpMessage(prefix: string) : string {
 
 function perform(params: any) {
     const { command } = params;
-    const tokens = command.split(/ /).map((c: any) => c.trim()).filter((x:any) => x);
+    const tokens = command.split(/ /).map((c: any) => c.trim()).filter((x: any) => x);
     const [name, ...args] = tokens;
     if (typeof name === 'undefined') {
         const value = getHelpMessage('');
@@ -342,7 +342,7 @@ function perform(params: any) {
     const value = handler(args);
     if (isPromise(value)) {
         return new Promise((resolve, reject) => {
-            return value.then((output:any) => {
+            return value.then((output: any) => {
                 resolve([{
                     value: _normalizeValue(output)
                 }, null]);
@@ -356,7 +356,7 @@ function perform(params: any) {
     return [{ value: nv }, null];
 }
 
-function evaluate(params: any) : Promise<any> {
+function evaluate(params: any): Promise<any> {
     return new Promise(resolve => {
         const { ccode } = params;
         let { code } = params;
@@ -398,15 +398,15 @@ Script.setGlobalAccessHandler({
     }
 });
 
-function fridaVersion() : string {
+function fridaVersion(): string {
     return Frida.version;
 }
 
-function fridaVersionJson() : any {
+function fridaVersionJson(): any {
     return { version: Frida.version };
 }
 
-function uiAlert(args: string[]) : string | undefined {
+function uiAlert(args: string[]): string | undefined {
     if (java.JavaAvailable) {
         return android.uiAlert(args);
     }
@@ -443,7 +443,7 @@ function onStanza(stanza: any, data: any) {
                 const [replyStanza, replyBytes] = value;
                 send(utils.wrapStanza('reply', replyStanza), replyBytes);
             }
-        } catch (e:any) {
+        } catch (e: any) {
             send(utils.wrapStanza('reply', { error: e.message }), []);
         }
     } else if (stanza.type === 'bp') {
@@ -456,7 +456,7 @@ function onStanza(stanza: any, data: any) {
     recv(onStanza);
 }
 
-function initializePuts() : PutsFunction | null {
+function initializePuts(): PutsFunction | null {
     const putsAddress = Module.findExportByName(null, 'puts');
     if (putsAddress === null) {
         return null;
@@ -493,13 +493,13 @@ r2frida.emit = log.traceEmit;
 r2frida.module = '';
 r2frida.puts = initializePuts();
 // r2frida.r2pipe = global.r2pipe;
-r2frida.cmd = (cmd:string) => {
-	const res : any = perform({command:cmd});
-	return res[0].value;
+r2frida.cmd = (cmd: string) => {
+    const res: any = perform({ command: cmd });
+    return res[0].value;
 };
 global.r2frida = r2frida;
-global.dump = function(x: any) {
-	console.log(JSON.stringify(x, null, 2));
+global.dump = function (x: any) {
+    console.log(JSON.stringify(x, null, 2));
 }
 
 recv(onStanza);
