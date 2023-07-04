@@ -238,7 +238,7 @@ function helpFor(k: string) {
 
 function asR2Script(): string {
     return Object.keys(config)
-        .map(k => ':e ' + k + '=' + config[k])
+        .map(k => ":e " + k + "=" + config[k])
         .join('\n');
 }
 
@@ -247,7 +247,7 @@ function getString(k: string): string {
     if (_configValidateBoolean(ck)) {
         return ck ? 'true' : 'false';
     }
-    return ck ? ('' + ck) : '';
+    return ck ? ("" + ck) : "";
 }
 
 export function evalConfigR2(args: string[]): string {
@@ -270,13 +270,13 @@ export function evalConfig(args: string[]) {
         return s;
     }
     const kv = argstr.split(/=/);
-    const [k, v] = kv;
+    const [k, v] = [kv[0].trim(), kv[1].trim()];
     if (kv.length === 2) {
         if (get(k) !== undefined) {
             if (v === '?') {
                 return helpFor(kv[0]);
             }
-            set(kv[0], kv[1]);
+            set(k, v);
         } else {
             console.error('unknown variable');
         }
