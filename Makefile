@@ -160,6 +160,7 @@ LDFLAGS+=-Wl,--end-group
 endif
 
 all: ext/frida
+	rm -f src/_agent*
 ifeq ($(frida_version_major),16)
 	$(MAKE) src/r2frida-compile
 endif
