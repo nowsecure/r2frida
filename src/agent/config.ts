@@ -1,13 +1,13 @@
 import r2frida from './plugin.js';
 
 function haveVolatileApi() {
-  try {
-    var ptr = new NativePointer("0") as any;
-    return (typeof ptr.readVolatile === 'function');
-  } catch(e) {
+    try {
+        const p = new NativePointer("0");
+        return (typeof p.readVolatile === 'function');
+    } catch (e) {
+        return false;
+    }
     return false;
-  }
-  return false;
 }
 
 const config: any[string] = {
