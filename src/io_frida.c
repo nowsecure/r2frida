@@ -53,6 +53,8 @@ typedef struct {
 	gulong onmsg_handler;
 	gulong ondtc_handler;
 	FridaDeviceManager *device_manager;
+	RStrBuf *sb;
+	bool inputmode;
 } RIOFrida;
 
 typedef enum {
@@ -186,6 +188,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 
 	rf->cancellable = g_cancellable_new (); // TODO: call cancel() when shutting down
 	rf->s = r_socket_new (false);
+	rf->sb = r_strbuf_new ("");
 	rf->detached = false;
 	rf->detach_reason = 0;
 	rf->io = io;
@@ -241,6 +244,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 	}
 	r_socket_free (rf->s);
 	free (rf->crash_report);
+	r_strbuf_free (rf->sb);
 	g_clear_object (&rf->crash);
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
@@ -732,10 +736,18 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	}
 	free (slurpedData);
 
+	rf->inputmode = true;
 	result = perform_request (rf, builder, NULL, NULL);
 	if (!result) {
 		return NULL;
 	}
+	{
+		char *s = r_strbuf_drain (rf->sb);
+		io->cb_printf ("%s\n", s);
+		free (s);
+		rf->sb = r_strbuf_new ("");
+	}
+	rf->inputmode = false;
 
 	if (!json_object_has_member (result, "value")) {
 		return NULL;
@@ -771,7 +783,8 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			char * s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
-				eprintf ("%s\n", s);
+				r_cons_printf ("%s\n", s);
+				// eprintf ("%s\n", s);
 				free (s);
 			}
 
@@ -1628,6 +1641,114 @@ static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_unlock (&rf->lock);
 }
 
+static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root, const char *raw_message, GBytes *data) {
+	JsonNode *payload_node = json_object_get_member (root, "payload");
+	JsonNodeType type = json_node_get_node_type (payload_node);
+	if (type == JSON_NODE_OBJECT) {
+		JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
+		if (payload && json_object_has_member (payload, "stanza")) {
+			JsonObject *stanza = json_object_get_object_member (payload, "stanza");
+			const char *name = json_object_get_string_member (payload, "name");
+
+			if (name && !strcmp (name, "reply")) {
+				if (stanza) {
+					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+					JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
+					if (stanza_type == JSON_NODE_OBJECT) {
+						on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
+					} else {
+						R_LOG_ERROR ("Bug in the agent, cannot find stanza in the message: %s", raw_message);
+					}
+				} else {
+					R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
+				}
+			} else if (name && !strcmp (name, "breakpoint-event")) {
+				on_breakpoint_event (rf, json_object_get_object_member (payload, "stanza"));
+			} else if (name && !strcmp (name, "cmd")) {
+				on_cmd (rf, json_object_get_object_member (payload, "stanza"));
+			} else if (name && !strcmp (name, "log")) {
+				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+				if (stanza && stanza_node) {
+					JsonNode *message_node = json_object_get_member (stanza, "message");
+					if (message_node) {
+						JsonNodeType type = json_node_get_node_type (message_node);
+						char *message = NULL;
+						if (type == JSON_NODE_OBJECT) {
+							message = json_to_string (message_node, FALSE);
+						} else {
+							const char *cmessage = json_object_get_string_member (stanza, "message");
+							if (cmessage) {
+								message = strdup (cmessage);
+							}
+						}
+						if (message) {
+							eprintf ("%s\n", message);
+							free (message);
+						}
+					}
+				} else {
+					R_LOG_WARN ("Missing stanza for log message");
+				}
+			} else if (name && !strcmp (name, "log-file")) {
+				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
+				if (stanza && stanza_node) {
+					const char *filename = json_object_get_string_member (stanza, "filename");
+					JsonNode *message_node = json_object_get_member (stanza, "message");
+					if (message_node) {
+						JsonNodeType type = json_node_get_node_type (message_node);
+						char *message = (type == JSON_NODE_OBJECT)
+							? json_to_string (message_node, FALSE)
+							: strdup (json_object_get_string_member (stanza, "message"));
+						if (filename && message) {
+							bool sent = false;
+							message = r_str_append (message, "\n");
+							if (*filename == '|') {
+								// redirect the message to a program shell
+								char *emsg = r_str_escape (message);
+								r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
+								free (emsg);
+							} else if (r_str_startswith (filename, "tcp:")) {
+								char *host = strdup (filename + 4);
+								char *port = strchr (host, ':');
+								if (port) {
+									*port++ = 0;
+									if (!r_socket_is_connected (rf->s)) {
+										(void)r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
+									}
+									if (r_socket_is_connected (rf->s)) {
+										size_t msglen = strlen (message);
+										if (r_socket_write (rf->s, message, msglen) == msglen) {
+											sent = true;
+										}
+									}
+								}
+							}
+							if (!sent) {
+								(void) r_file_dump (filename, (const ut8*)message, -1, true);
+							}
+						}
+						free (message);
+					} else {
+						R_LOG_WARN ("Missing message node");
+					}
+					// json_node_unref (stanza_node);
+				} else {
+					R_LOG_WARN ("Missing stanza for log-file message");
+				}
+			} else {
+				if (!r_str_startswith (name, "action-")) {
+					R_LOG_WARN ("Unknown packet named '%s'", name);
+				}
+			}
+			json_object_unref (payload);
+		} else {
+			R_LOG_ERROR ("Unexpected payload (%s)", raw_message);
+		}
+	} else {
+		R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
+	}
+}
+
 static void on_message(FridaScript *script, const char *raw_message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
 	JsonNode *message = json_from_string (raw_message, NULL);
@@ -1639,118 +1760,14 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	}
 
 	if (!strcmp (type, "send")) {
-		JsonNode *payload_node = json_object_get_member (root, "payload");
-		JsonNodeType type = json_node_get_node_type (payload_node);
-		if (type == JSON_NODE_OBJECT) {
-			JsonObject *payload = json_object_ref (json_object_get_object_member (root, "payload"));
-			if (payload && json_object_has_member (payload, "stanza")) {
-				JsonObject *stanza = json_object_get_object_member (payload, "stanza");
-				const char *name = json_object_get_string_member (payload, "name");
-
-				if (name && !strcmp (name, "reply")) {
-					if (stanza) {
-						JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-						JsonNodeType stanza_type = json_node_get_node_type (stanza_node);
-						if (stanza_type == JSON_NODE_OBJECT) {
-							on_stanza (rf, json_object_ref (json_object_get_object_member (payload, "stanza")), data);
-						} else {
-							R_LOG_ERROR ("Bug in the agent, cannot find stanza in the message: %s", raw_message);
-						}
-					} else {
-						R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
-					}
-				} else if (name && !strcmp (name, "breakpoint-event")) {
-					on_breakpoint_event (rf, json_object_get_object_member (payload, "stanza"));
-				} else if (name && !strcmp (name, "cmd")) {
-					on_cmd (rf, json_object_get_object_member (payload, "stanza"));
-				} else if (name && !strcmp (name, "log")) {
-					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza && stanza_node) {
-						JsonNode *message_node = json_object_get_member (stanza, "message");
-						if (message_node) {
-							JsonNodeType type = json_node_get_node_type (message_node);
-							char *message = NULL;
-							if (type == JSON_NODE_OBJECT) {
-								message = json_to_string (message_node, FALSE);
-							} else {
-								const char *cmessage = json_object_get_string_member (stanza, "message");
-								if (cmessage) {
-									message = strdup (cmessage);
-								}
-							}
-							if (message) {
-								eprintf ("%s\n", message);
-								free (message);
-							}
-						}
-					} else {
-						R_LOG_WARN ("Missing stanza for log message");
-					}
-				} else if (name && !strcmp (name, "log-file")) {
-					JsonNode *stanza_node = json_object_get_member (payload, "stanza");
-					if (stanza && stanza_node) {
-						const char *filename = json_object_get_string_member (stanza, "filename");
-						JsonNode *message_node = json_object_get_member (stanza, "message");
-						if (message_node) {
-							JsonNodeType type = json_node_get_node_type (message_node);
-							char *message = (type == JSON_NODE_OBJECT)
-								? json_to_string (message_node, FALSE)
-								: strdup (json_object_get_string_member (stanza, "message"));
-							if (filename && message) {
-								bool sent = false;
-								message = r_str_append (message, "\n");
-								if (*filename == '|') {
-									// redirect the message to a program shell
-									char *emsg = r_str_escape (message);
-									r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
-									free (emsg);
-								} else if (r_str_startswith (filename, "tcp:")) {
-									char *host = strdup (filename + 4);
-									char *port = strchr (host, ':');
-									if (port) {
-										*port++ = 0;
-										if (!r_socket_is_connected (rf->s)) {
-											(void)r_socket_connect (rf->s, host, port, R_SOCKET_PROTO_TCP, 0);
-										}
-										if (r_socket_is_connected (rf->s)) {
-											size_t msglen = strlen (message);
-											if (r_socket_write (rf->s, message, msglen) == msglen) {
-												sent = true;
-											}
-										}
-									}
-								}
-								if (!sent) {
-									(void) r_file_dump (filename, (const ut8*)message, -1, true);
-								}
-							}
-							free (message);
-						} else {
-							R_LOG_WARN ("Missing message node");
-						}
-						// json_node_unref (stanza_node);
-					} else {
-						R_LOG_WARN ("Missing stanza for log-file message");
-					}
-				} else {
-					if (!r_str_startswith (name, "action-")) {
-						R_LOG_WARN ("Unknown packet named '%s'", name);
-					}
-				}
-				json_object_unref (payload);
-			} else {
-				R_LOG_ERROR ("Unexpected payload (%s)", raw_message);
-			}
-		} else {
-			R_LOG_ERROR ("Bug in the agent, expected an object: %s", raw_message);
-		}
+		on_message_send (rf, script, root, raw_message, data);
 	} else if (!strcmp (type, "log")) {
 		// This is reached from the agent when calling console.log
 		JsonNode *payload_node = json_object_get_member (root, "payload");
 		// JsonNodeType type = json_node_get_node_type (payload_node);
 		const char *message = json_node_get_string (payload_node);
 		if (message) {
-			const char *cmd_prefix = "[r2cmd]";
+			const char cmd_prefix[] = "[r2cmd]";
 			if (r_str_startswith (message, cmd_prefix)) {
 				const char *cmd = message + strlen (cmd_prefix);
 				// eprintf ("Running r2 command: '%s'\n", cmd);
@@ -1760,7 +1777,12 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 				r_core_cmd0 (rf->r2core, cmd);
 #endif
 			} else {
-				eprintf ("%s\n", message);
+				// eprintf ("LOG MESSAGE RECEIVED (%s)\n", message);
+				if (rf->inputmode) {
+					r_strbuf_append (rf->sb, message);
+				} else {
+					eprintf ("%s\n", message);
+				}
 			}
 		} else {
 			R_LOG_ERROR ("Missing message: %s", message);
