@@ -96,24 +96,6 @@ jobs:
         if-no-files-found: error
         name: build-macos
         path: dist/macos/r2frida-*.pkg
-  build-cydia:
-    runs-on: macos-11
-    steps:
-    - uses: actions/checkout@v3
-    - name: Install dependencies
-      run: brew install pkg-config
-    - name: Building Radare2
-      run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && ./configure && make -j && sudo make install )
-    - name: Building r2frida
-      run: ./configure && make -j && sudo make install
-    - name: Packaging
-      run: make -C dist/cydia
-    - name: Pub
-      uses: actions/upload-artifact@v3
-      with:
-        if-no-files-found: error
-        name: build-cydia
-        path: dist/cydia/r2frida_*.deb
   build-windows:
     runs-on: windows-latest
     steps:
@@ -160,7 +142,6 @@ jobs:
       - build-linux20
       - build-linux22
       - build-macos
-      - build-cydia
       - build-windows
       - build-agent
     runs-on: ubuntu-latest
