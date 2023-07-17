@@ -6,17 +6,17 @@ import { filterPrintable, rwxstr, padPointer, sanitizeString, getPtr, rwxint } f
 
 const allocPool = new Map<any, any>(); // : MapNativePointer[] = [];
 
-export function listMemoryRanges() : string {
+export function listMemoryRanges(): string {
     return listMemoryRangesJson()
-        .map((a:any) => [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
+        .map((a: any) => [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
             .concat((a.file !== undefined) ? [a.file.path] : [])
             .join(' '))
         .join('\n') + '\n';
 }
 
-export function listMemoryRangesR2() : string {
+export function listMemoryRangesR2(): string {
     return listMemoryRangesJson()
-        .map((a:any) => [
+        .map((a: any) => [
             'f', 'map.' + padPointer(a.base) + '.' + a.protection.replace(/-/g, '_'), a.size, a.base,
             '#', a.protection
         ].concat((a.file !== undefined) ? [a.file.path] : []).join(' '))
@@ -44,7 +44,7 @@ export function listMemoryRangesHere(args: string[]) {
     }
     const addr = ptr(args[0]);
     return listMemoryRangesJson()
-        .filter((a:any) => addr.compare(a.base) >= 0 && addr.compare(a.base.add(a.size)) < 0)
+        .filter((a: any) => addr.compare(a.base) >= 0 && addr.compare(a.base.add(a.size)) < 0)
         .map((a: any) => [
             padPointer(a.base),
             '-',
@@ -123,10 +123,10 @@ export function listMallocMaps(args: string[]) {
     }
     return _squashRanges(listMemoryRangesJson())
         .filter(inRange)
-        .map((a: any) => 
-         [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
-            .concat((a.file !== undefined) ? [a.file.path] : [])
-            .join(' '))
+        .map((a: any) =>
+            [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
+                .concat((a.file !== undefined) ? [a.file.path] : [])
+                .join(' '))
         .join('\n') + '\n';
 }
 
@@ -192,7 +192,7 @@ export function removeAlloc(args: string[]) {
     return '';
 }
 
-export function getMemoryRanges(protection: string) {
+export function getMemoryRanges(protection: string): RangeDetails[] {
     if (r2frida.hookedRanges !== null) {
         return r2frida.hookedRanges(protection);
     }
@@ -219,44 +219,48 @@ function _addAlloc(allocPtr: NativePointer) {
     return key;
 }
 
-function _squashRanges(ranges: any) {
-    const res = [];
+function _squashRanges(ranges: any): RangeDetails[] {
+    const res: RangeDetails[] = [];
     let begin = ptr(0);
     let end = ptr(0);
     let lastPerm = 0;
-    let lastFile = '';
+    let lastFile = {path:"", size:0, offset: 0};
+    let first = true;
     for (const r of ranges) {
-        lastPerm |= rwxint(r.protection);
-        // console.log("-", r.base, range.base.add(range.size));
-        if (r.base.equals(end)) {
-            // enlarge segment
-            end = end.add(r.size);
-            // console.log("enlarge", begin, end);
-        } else {
-            if (begin.equals(ptr(0))) {
-                begin = r.base;
-                end = begin.add(r.size);
-                // console.log("  set", begin, end);
-            } else {
-                // console.log("  append", begin, end);
-                res.push({
-                    base: begin,
-                    size: end.sub(begin),
-                    protection: rwxstr(lastPerm),
-                    file: lastFile
-                });
-                end = ptr(0);
-                begin = ptr(0);
-                lastPerm = 0;
-                lastFile = '';
-            }
-        }
-        if (r.file) {
+        if (begin.equals(ptr(0))) {
+            begin = r.base;
+            end = r.base.add(r.size);
             lastFile = r.file;
         }
+        if (first || r.file.path === lastFile.path) {
+            // do nothing
+            if (end.equals(r.base)) {
+                end = r.base.add(r.size);
+            } else {
+                end = r.base.add(r.size);
+                // gap
+            }
+            lastFile = r.file;
+        } else {
+            // append
+            res.push({
+                base: begin,
+                size: end.sub(begin).toUInt32(),
+                protection: rwxstr(lastPerm),
+                file: lastFile
+            });
+            begin = r.base;
+            end = r.base.add(r.size);
+            lastFile = r.file;
+            first = true;
+            lastPerm = 0;
+        }
+        // lastFile = r.file;
+        lastPerm |= rwxint(r.protection);
+        first = false;
     }
     if (!begin.equals(ptr(0))) {
-        res.push({ base: begin, size: end.sub(begin), protection: rwxstr(lastPerm), file: lastFile });
+        res.push({ base: begin, size: end.sub(begin).toUInt32(), protection: rwxstr(lastPerm), file: lastFile });
     }
     return res;
 }
