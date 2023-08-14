@@ -2090,10 +2090,18 @@ error:
 }
 
 RIOPlugin r_io_plugin_frida = {
+#if R2_VERSION_NUMBER >= 50809
+	.meta = {
+		.name = "frida",
+		.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
+		.license = "MIT",
+	},
+#else
 	.name = "frida",
 	.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
-	.uris = "frida://",
 	.license = "MIT",
+#endif
+	.uris = "frida://",
 	.open = __open,
 	.close = __close,
 	.read = __read,
