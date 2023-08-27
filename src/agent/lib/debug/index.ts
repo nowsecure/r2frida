@@ -336,6 +336,29 @@ function _getThreads(threadid: string) {
         .filter(thread => tid === undefined || thread.id === tid);
 }
 
+export function dumpRegistersEsil(args: string[]) {
+    const threads = Process.enumerateThreads();
+    const [tid] = args;
+    const context = tid ? threads.filter(th => th.id === +tid) : threads[0].context;
+    if (!context) {
+        return '';
+    }
+    const names = Object.keys(JSON.parse(JSON.stringify(context)));
+    names.sort(_compareRegisterNames);
+    const values = names
+        .map((name, index) => {
+            if (name === 'pc' || name === 'sp') {
+                return '';
+            }
+            const value = '' + ((context as any)[name] || 0);
+            if (value.indexOf('object') !== -1) {
+                return '';
+            }
+            return `${value},${name},:=`;
+        });
+    return values.join(',');
+}
+
 export function dumpRegistersR2(args: string[]) {
     const threads = Process.enumerateThreads();
     const [tid] = args;

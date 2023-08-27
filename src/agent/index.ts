@@ -182,6 +182,7 @@ const commandHandlers = {
     dptj: [debug.listThreadsJson, 'list threads in json format'],
     dr: [debug.dumpRegisters, 'show register values'],
     'dr*': [debug.dumpRegistersR2, 'Import register values of target process as flags .:dr*'],
+    dre: [debug.dumpRegistersEsil, 'Show register values as an esil expression'],
     drr: [debug.dumpRegistersRecursively, 'telescope registers dump'],
     drp: [debug.dumpRegisterProfile, 'display register profile of target process cpu'],
     dr8: [debug.dumpRegisterArena, 'dump the register arena contents in hexpairs'],
