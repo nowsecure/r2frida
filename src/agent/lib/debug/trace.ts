@@ -58,7 +58,7 @@ export function traceFormat(args: any) {
                 this.myBacktrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
             }
             if (traceOnEnter) {
-                const traceMessage :any = {
+                const traceMessage: any = {
                     source: 'dtf',
                     name: name,
                     address: address,
@@ -85,13 +85,13 @@ export function traceFormat(args: any) {
                 }
             }
         },
-        onLeave(this:any, retval: InvocationReturnValue): void {
+        onLeave(this: any, retval: InvocationReturnValue): void {
             if (!traceOnEnter) {
                 const fmtArgs = _formatArgs(this.keepArgs, format);
                 const fmtRet = _formatRetval(retval, format);
                 this.myArgs = fmtArgs.args;
                 this.myDumps = fmtArgs.dumps;
-                const traceMessage : any = {
+                const traceMessage: any = {
                     source: 'dtf',
                     name: name,
                     address: address,
@@ -243,12 +243,12 @@ export function traceRegs(args: string[]) {
         const regState: any = {};
         rest.forEach((r) => {
             let regName = r;
-            let regValue = "" 
+            let regValue = ""
             if (r.indexOf('=') !== -1) {
-                const kv = r.split('=');
-                context[kv[0]] = ptr(kv[1]); // set register value
+                const kv = r.split('=', 2);
                 regName = kv[0];
                 regValue = kv[1];
+                context[regName] = ptr(regValue); // set register value
             } else {
                 try {
                     const rv = ptr(context[r]);
@@ -338,7 +338,7 @@ export function traceReal(name: string, addressString?: string) {
     const currentModule = getModuleByAddress(address);
     const listener = Interceptor.attach(address, (args: any) => {
         const values = tracehook(address, args);
-        const traceMessage :any = {
+        const traceMessage: any = {
             source: 'dt',
             address: address,
             timestamp: new Date(),
@@ -647,7 +647,7 @@ function _hexdumpUntrusted(addr: NativePointer, len: number) {
     }
 }
 
-function _tracelogToString(l:any) {
+function _tracelogToString(l: any) {
     const line = [l.source, l.name || l.address, _objectToString(l.values)].join('\t');
     const bt = (!l.backtrace)
         ? ''
@@ -656,7 +656,7 @@ function _tracelogToString(l:any) {
         }).join('\n') + '\n';
     return line + bt;
 }
-function _objectToString(o:any) {
+function _objectToString(o: any) {
     // console.error(JSON.stringify(o));
     const r = Object.keys(o).map((k) => {
         try {
