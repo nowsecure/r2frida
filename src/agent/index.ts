@@ -504,4 +504,37 @@ global.dump = function (x: any) {
     console.log(JSON.stringify(x, null, 2));
 }
 
+global._setUnhandledExceptionCallback((error: Error) => {
+  const message = {
+    type: 'error',
+    error: '' + error,
+    message: '' + error,
+    description: '' + error,
+    stack: '',
+    fileName: '',
+    lineNumber: 0,
+    columnNumber: 0
+  };
+
+  if (error instanceof Error) {
+    const stack = error.stack;
+    if (stack !== undefined) {
+      message.stack = stack;
+    }
+
+    const fileName = (error as any).fileName;
+    if (fileName !== undefined) {
+      message.fileName = fileName;
+    }
+
+    const lineNumber = (error as any).lineNumber;
+    if (lineNumber !== undefined) {
+      message.lineNumber = lineNumber;
+      message.columnNumber = 1;
+    }
+  }
+
+  send(utils.wrapStanza('reply', message), []);
+});
+
 recv(onStanza);
