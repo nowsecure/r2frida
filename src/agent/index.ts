@@ -382,7 +382,7 @@ function evaluate(params: any): Promise<any> {
                 // global._ = rawResult;
                 result = rawResult; // 'undefined';
             } catch (e: any) {
-                result = 'throw new ' + e.name + '("' + e.message + '")';
+                result = e.message + '\n' + eval(JSON.stringify(e.stack));
             }
             resolve([{
                 value: result
@@ -390,6 +390,7 @@ function evaluate(params: any): Promise<any> {
         }
     });
 }
+
 Script.setGlobalAccessHandler({
     enumerate() {
         return [];
