@@ -436,7 +436,6 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
-	const char *value;
 	R_LOG_DEBUG ("system_continuation (%s)", command);
 
 	if (!strcmp (command, "help") || !strcmp (command, "h") || !strcmp (command, "?")) {
@@ -596,20 +595,20 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		io->cb_printf ("  stalker.timeout = 300\n");
 		io->cb_printf ("  stalker.in      = raw\n");
 	// fails to aim at seek workarounding hostCmd
-	} else if (!strncmp (command, "s  ", 3)) {
+	} else if (r_str_startswith (command, "s  ")) {
 		if (rf && rf->r2core) {
 			r_core_cmdf (rf->r2core, "s %s", command + 2);
 		} else {
 			R_LOG_ERROR ("Invalid r2 core instance");
 		}
 		return NULL;
-	} else if (!strncmp (command, "dkr", 3)) {
+	} else if (r_str_startswith (command, "dkr")) {
 		io->cb_printf ("DetachReason: %s\n", detachReasonAsString (rf));
 		if (rf->crash_report) {
 			io->cb_printf ("%s\n", rf->crash_report);
 		}
 		return NULL;
-	} else if (!strncmp (command, "dl2", 3)) {
+	} else if (r_str_startswith (command, "dl2")) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
 			gchar *path = r_str_trim_dup (command + 3);
@@ -752,10 +751,10 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	if (!json_object_has_member (result, "value")) {
 		return NULL;
 	}
-	value = json_object_get_string_member (result, "value");
+	const char *value = json_object_get_string_member (result, "value");
 	char *sys_result = NULL;
 	if (value && strcmp (value, "undefined")) {
-		bool is_fs_io = command[0] == 'm';
+		const bool is_fs_io = command[0] == 'm';
 		if (is_fs_io) {
 			sys_result = strdup (value);
 		} else {
@@ -768,9 +767,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 }
 
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
-	if (!core || !fd || !path) {
-		return;
-	}
+	r_return_if_fail (core && fd && path);
 	RList *files = r_sys_dir (path);
 	RListIter *iter;
 	const char *file;
@@ -780,14 +777,13 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			if (r2f_debug_uri()) {
 				R_LOG_INFO ("Loading %s", file);
 			}
-			char * s = __system_continuation (core->io, fd, cmd);
+			char *s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
 				r_cons_printf ("%s\n", s);
 				// eprintf ("%s\n", s);
 				free (s);
 			}
-
 		}
 	}
 }
@@ -1799,22 +1795,18 @@ static void dumpDevices(RIOFrida *rf, GCancellable *cancellable) {
 		printf ("dump-devices\n");
 		return;
 	}
-	FridaDeviceList *list;
-	GArray *devices;
-	gint num_devices, i;
-	GError *error;
-
-	error = NULL;
-	list = frida_device_manager_enumerate_devices_sync (rf->device_manager, cancellable, &error);
+	gint i;
+	GError *error = NULL;
+	FridaDeviceList *list = frida_device_manager_enumerate_devices_sync (rf->device_manager, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
-	num_devices = frida_device_list_size (list);
+	gint num_devices = frida_device_list_size (list);
 
-	devices = g_array_sized_new (FALSE, FALSE, sizeof (FridaDevice *), num_devices);
+	GArray *devices = g_array_sized_new (FALSE, FALSE, sizeof (FridaDevice *), num_devices);
 	for (i = 0; i != num_devices; i++) {
 		FridaDevice *device = frida_device_list_get (list, i);
 		g_array_append_val (devices, device);
@@ -1872,17 +1864,15 @@ beach:
 
 static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid) {
 	char *res = NULL;
-	FridaApplicationList *list;
 	gint i;
-	GError *error;
 
 	if (r2f_debug_uri ()) {
 		printf ("resolve_process_name_by_package_name\n");
 		return NULL;
 	}
 
-	error = NULL;
-	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
+	GError *error = NULL;
+	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("%s", error->message);
