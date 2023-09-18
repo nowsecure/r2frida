@@ -13,7 +13,10 @@
 
 static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 	gchar *str = g_variant_print (diagnostics, TRUE);
-	str = r_str_replace (str, "int64", "int64:", true);
+	str = r_str_replace (str, "int64", "", true);
+	str = r_str_replace (str, "<", "", true);
+	str = r_str_replace (str, ">", "", true);
+	str = r_str_replace (str, "'", "\"", true);
 	char *json = r_print_json_indent (str, true, "  ", NULL);
 	eprintf ("%s\n", json);
 	free (json);
