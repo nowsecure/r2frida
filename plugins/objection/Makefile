@@ -22,3 +22,9 @@ install: r2f-objection-agent.js
 user-install: r2f-objection-agent.js
 	mkdir -p $(HOME)/.local/share/radare2/r2frida/scripts/
 	cp -f r2f-objection-plugin.js $(HOME)/.local/share/radare2/r2frida/scripts/
+
+uninstall:
+	rm -f $(R2_PREFIX)/share/r2frida/scripts/r2f-objection-plugin.js
+
+user-uninstall:
+	rm -f $(HOME)/.local/share/radare2/r2frida/scripts/r2f-objection-plugin.js
