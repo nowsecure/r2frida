@@ -3,7 +3,21 @@
 With this plugin you can enable and disable the jailbreak check bypasses of Objection
 
 Note that this is a 5 minute hack and there's still many things to be done to get
-all the probes available
+all the probes available.
+
+## Installation
+
+You may probably want to install it in your home, so run this:
+
+```
+make user-install
+```
+
+But that's also available via r2pm:
+
+```
+r2pm -ci r2frida-objection
+```
 
 ## How to use
 

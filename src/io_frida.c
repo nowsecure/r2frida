@@ -14,9 +14,9 @@
 #endif
 
 typedef struct {
-	const char * cmd_string;
+	const char *cmd_string;
 	ut64 serial;
-	JsonObject * _cmd_json;
+	JsonObject *_cmd_json;
 } RFPendingCmd;
 
 typedef struct {
@@ -119,6 +119,8 @@ static const char * const helpmsg = ""\
 	"Remote:\n"
 	"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
 	"Environment: (Use the `%` command to change the environment at runtime)\n"
+	"  R2FRIDA_SCRIPTS_DIR="R2_DATDIR"/r2frida/scripts\n"
+	"  R2FRIDA_SCRIPTS_DIR=~/.local/share/radare2/r2frida/scripts\n"
 	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
 	"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
 	"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
