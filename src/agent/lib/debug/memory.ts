@@ -232,7 +232,7 @@ function _squashRanges(ranges: any): RangeDetails[] {
             end = r.base.add(r.size);
             lastFile = r.file;
         }
-        if (first || r.file.path === lastFile.path) {
+        if (first || !r.file || r.file.path === lastFile.path) {
             // do nothing
             if (end.equals(r.base)) {
                 end = r.base.add(r.size);
