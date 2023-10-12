@@ -129,6 +129,7 @@ const commandHandlers = {
     iAEj: info.listAllExportsJson,
     'iAE*': info.listAllExportsR2,
     init: [initBasicInfoFromTarget, 'print initialization commands to import basic r2frida info into r2'],
+    'init*': [initBasicInfoFromTarget, 'same as init'],
     fD: [lookup.lookupDebugInfo, 'lookup debug information'],
     fd: [lookup.lookupAddress, 'describe flag name in current address'],
     'fd.': [lookup.lookupAddress, 'same as fd but using current offset instead of taking it as argument'],
@@ -250,21 +251,18 @@ const commandHandlers = {
     chcon: [sys.changeSelinuxContext, 'change selinux context'],
 };
 
-async function initBasicInfoFromTarget(args: string[]) {
-    const str = `
-  e dbg.backend = io
-  e anal.autoname=true
-  e cmd.fcn.new=aan
-  .:i*
-  s r2f.modulebase
-  .:is*
-  .:ie*
-  .:dmm*
-  .:il*
-  m /r2f io 0
-  s entry0 2> /dev/null
-  `;
-    return str;
+async function initBasicInfoFromTarget(args: string[]) : Promise<string> {
+    return `e dbg.backend = io
+e anal.autoname=true
+e cmd.fcn.new=aan
+.:i*
+s r2f.modulebase
+.:is*
+.:ie*
+.:dmm*
+.:il*
+m /r2f io 0
+s entry0 2> /dev/null`;
 }
 
 if (Process.platform === 'darwin') {
