@@ -485,6 +485,7 @@ export function listSymbols(args: string[]) {
 export function listSymbolsR2(args: string[]) {
     return listSymbolsJson(args)
         .filter(({ address }) => !address.isNull())
+        .filter(({ name }) => name !== "")
         .map(({ name, address }) => {
             return ['f', 'sym.' + sanitizeString(name), '=', address].join(' ');
         })

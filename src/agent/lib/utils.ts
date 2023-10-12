@@ -5,13 +5,16 @@ declare let Swift: any;
 
 const minPrintable = ' '.charCodeAt(0);
 const maxPrintable = '~'.charCodeAt(0);
+let globalSymCounter = 0;
 
 export function sanitizeString(str: string): string {
     if (str) {
         const specialChars = "^/\\`+-${}~|*,;:\"'#@&<> ()[]!?%";
         return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+    } else {
+        globalSymCounter++;
+        return 'noname.' + globalSymCounter;
     }
-    return str;
 }
 
 export function wrapStanza(name: string, stanza: any) {
