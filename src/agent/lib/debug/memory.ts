@@ -65,7 +65,7 @@ export function listMemoryMaps() {
 }
 
 export function listMemoryMapsR2() {
-    return _squashRanges(listMemoryRangesJson())
+    const maps = _squashRanges(listMemoryRangesJson())
         .filter(_ => _.file)
         .map(({ base, size, protection, file }) => [
             'f',
@@ -75,6 +75,7 @@ export function listMemoryMapsR2() {
         ]
             .join(' '))
         .join('\n') + '\n';
+    return "fs+maps\n" + maps + "fs-\n";
 }
 
 export function listMallocRanges(args: string[]) {

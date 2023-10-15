@@ -17,9 +17,9 @@ export function lookupAddress(args: string[]) : string {
 }
 
 export function lookupAddressR2(args: string[]) : string {
-    return lookupAddressJson(args)
-        .map(({ type, name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-        .join('\n');
+    const symbols = lookupAddressJson(args)
+        .map(({ type, name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '));
+    return ["fs+symbols", ...symbols, "fs-"].join("\n");
 }
 
 export function lookupAddressJson(args: string[]): any[] {
@@ -117,9 +117,9 @@ export function lookupSymbolMany(args: string[]) {
 }
 
 export function lookupSymbolManyR2(args: string[]) {
-    return lookupSymbolManyJson(args)
-        .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-        .join('\n');
+    const symbols = lookupSymbolManyJson(args)
+        .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '));
+    return ["fs+symbols", ...symbols, "fs-"].join("\n");
 }
 
 export function lookupSymbolJson(args: string[]) {
