@@ -642,7 +642,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		resume (rf);
 		return NULL;
 	}
-
 	char *slurpedData = NULL;
 	if (command[0] == '.') {
 		switch (command[1]) {
@@ -747,7 +746,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	}
 	{
 		char *s = r_strbuf_drain (rf->sb);
-		io->cb_printf ("%s\n", s);
+		if (*s) {
+			io->cb_printf ("%s\n", s);
+		}
 		free (s);
 		rf->sb = r_strbuf_new ("");
 	}
@@ -779,7 +780,7 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	r_list_foreach (files, iter, file) {
 		if (r_str_endswith (file, ".js")) {
 			char *cmd = r_str_newf (". %s"R_SYS_DIR"%s", path, file);
-			if (r2f_debug_uri()) {
+			if (r2f_debug_uri ()) {
 				R_LOG_INFO ("Loading %s", file);
 			}
 			char *s = __system_continuation (core->io, fd, cmd);
@@ -1095,9 +1096,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 }
 
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
-	if (!io || !fd || !command) {
-		return NULL;
-	}
+	r_return_val_if_fail (io && fd && command, NULL);
 	return __system_continuation (io, fd, command);
 }
 
