@@ -260,6 +260,7 @@ s r2f.modulebase
 .:is*
 .:ie*
 .:dmm*
+.:dm*
 .:il*
 m /r2f io 0
 s entry0 2> /dev/null`;
