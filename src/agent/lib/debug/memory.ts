@@ -70,7 +70,7 @@ export function listMemoryMapsR2() {
         .map(({ base, size, protection, file }) => [
             'f',
             'dmm.' + sanitizeString((file as any).path),
-            '=',
+            size,
             padPointer(base)
         ]
             .join(' '))
