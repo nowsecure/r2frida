@@ -524,7 +524,7 @@ export function flatify(result: any, vEnt: any, path = "") {
     }
 }
 
-export function nsArrayMap(array: any, callback: any) {
+export function nsArrayMap(array: any, callback: any): any[] {
     const result = [];
     const count = array.count().valueOf();
     for (let index = 0; index !== count; index++) {

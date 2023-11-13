@@ -10,7 +10,7 @@ const ISA_MAGIC_VALUE = ptr('0x000001a000000001');
 /* ObjC.available is buggy on non-objc apps, so override this */
 export const ObjCAvailable = (Process.platform === 'darwin') && !(Java && Java.available) && ObjC && ObjC.available && ObjC.classes && typeof ObjC.classes.NSString !== 'undefined';
 
-export function initFoundation() {
+export function initFoundation(): void {
     // required for early instrumentation
     try {
         Module.load('/System/Library/Frameworks/Foundation.framework/Foundation');
@@ -20,7 +20,7 @@ export function initFoundation() {
     }
 }
 
-export function getIOSVersion() :string {
+export function getIOSVersion(): string {
     if (!ObjCAvailable) {
         return '?';
     }
@@ -32,47 +32,44 @@ export function getIOSVersion() :string {
     return version;
 }
 
-export function isiOS() {
+export function isiOS(): boolean {
     return Process.platform === 'darwin' &&
         Process.arch.indexOf('arm') === 0 &&
         ObjC.available;
 }
 
-export function isObjC(p: NativePointer) {
-    const klass = getObjCClassPtr(p);
-    if (klass.isNull()) {
-        return false;
-    }
-    return true;
+export function isValidObjC(addr: NativePointer): boolean {
+    const klass = getObjectClassfromPointer(addr);
+    return !klass.isNull();
 }
 
-export function getObjCClassPtr(p: NativePointer) {
-    if (!looksValid(p)) {
+export function getObjectClassfromPointer(addr: NativePointer): NativePointer {
+    if (!isAddressInRange(addr) || !isReadable(addr)) {
         return NULL;
     }
-    const isa = p.readPointer();
+    const isa = addr.readPointer();
     let classP = isa;
     if (classP.and(ISA_MAGIC_MASK).equals(ISA_MAGIC_VALUE)) {
         classP = isa.and(ISA_MASK);
     }
-    return looksValid(classP) ? classP : NULL;
+    return isAddressInRange(classP) ? classP : NULL;
 }
 
-export function looksValid(p: NativePointer) {
-    return p.compare(MIN_PTR) >= 0 && isReadable(p);
+export function isAddressInRange(addr: NativePointer): boolean {
+    return addr.compare(MIN_PTR) >= 0;
 }
 
-export function isReadable(p: NativePointer) {
+export function isReadable(addr: NativePointer): boolean {
     // TODO: catching access violation isn't compatible with jailed testing
     try {
-        p.readU8();
+        addr.readU8();
         return true;
     } catch (e) {
         return false;
     }
 }
 
-export  function dxObjc(args: string[]) {
+export  function callObjcMethod(args: string[]): string {
     if (!ObjCAvailable) {
         return "dxo requires the objc runtime to be available to work.";
     }
@@ -89,11 +86,11 @@ export  function dxObjc(args: string[]) {
     } else {
         const klassName = args[0];
         if (!ObjC.classes[klassName]) {
-            return 'Cannot find objc class ' + klassName;
+            return `Cannot find objc class ${klassName}`;
         }
         const instances = ObjC.chooseSync(ObjC.classes[klassName]);
         if (!instances || instances[0] === undefined) {
-            return "Cannot find any instance for klass " + klassName;
+            return `Cannot find any instance for klass ${klassName}`;
         }
         instancePointer = instances[0];
     }
@@ -111,7 +108,7 @@ export  function dxObjc(args: string[]) {
                     }
                 }
             } else {
-                console.error('unknown method ' + methodName + ' for objc instance at ' + padPointer(instancePointer));
+                console.error(`unknown method ${methodName} for objc instance at ${padPointer(instancePointer)}`);
             }
         });
     } catch (e) {
@@ -120,13 +117,11 @@ export  function dxObjc(args: string[]) {
     return '';
 }
 
-export function hasMainLoop() {
+export function hasMainLoop(): boolean {
+    let hasLoop = false;
     const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
-    if (getMainPtr === null) {
-        return false;
-    }
     const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
-    if (copyCurrentModePtr === null) {
+    if (getMainPtr === null || copyCurrentModePtr === null) {
         return false;
     }
     const getMain = new NativeFunction(getMainPtr, 'pointer', []);
@@ -136,14 +131,14 @@ export function hasMainLoop() {
         return false;
     }
     const mode = copyCurrentMode(main);
-    const hasLoop = !mode.isNull();
+    hasLoop = !mode.isNull();
     if (hasLoop) {
         new ObjC.Object(mode).release();
     }
     return hasLoop;
 }
 
-export function uiAlert(args: string[]) {
+export function uiAlert(args: string[]): string {
     if (args.length < 2) {
         return 'Usage: ?E title message';
     }
@@ -155,6 +150,7 @@ export function uiAlert(args: string[]) {
         view.show();
         view.release();
     });
+    return 'alert triggered';
 }
 
 export function listMachoSegments(baseAddr: NativePointer) {
@@ -214,25 +210,25 @@ export function _isMachoHeaderAtOffset(offset: NativePointer) {
     return false;
 }
 
-export function getSections(segment: any) {
+export function getSections(segment: Segment): Section[] {
     const { name, slide } = segment;
     let { nsects, sectionsPtr } = segment;
-    const sects = [];
+    const sects = [] as Section[];
     while (nsects--) {
         sects.push({
             name: `${name}.${sectionsPtr.readUtf8String()}`,
             vmaddr: sectionsPtr.add(32).readPointer().add(slide),
-            vmsize: sectionsPtr.add(40).readU64()
+            vmsize: sectionsPtr.add(40).readPointer()
         });
         sectionsPtr = sectionsPtr.add(80);
     }
     return sects;
 }
 
-export function getSegments(baseAddr: NativePointer, ncmds: number) {
+export function getSegments(baseAddr: NativePointer, ncmds: number): Segment[] {
     const LC_SEGMENT_64 = 0x19;
     let cursor = baseAddr.add(0x20);
-    const segments : any[] = [];
+    const segments : Segment[] = [];
     let slide = ptr(0);
     while (ncmds-- > 0) {
         const command = cursor.readU32();
@@ -246,8 +242,9 @@ export function getSegments(baseAddr: NativePointer, ncmds: number) {
             vmaddr: cursor.add(0x18).readPointer(),
             vmsize: cursor.add(0x18).add(8).readPointer(),
             nsects: cursor.add(64).readU32(),
-            sectionsPtr: cursor.add(72)
-        };
+            sectionsPtr: cursor.add(72),
+            slide: ptr(0x0)
+        } as Segment;
         if (segment.name === '__TEXT') {
             slide = baseAddr.sub(segment.vmaddr);
         }
@@ -263,7 +260,7 @@ export function getSegments(baseAddr: NativePointer, ncmds: number) {
     return segments;
 }
 
-export function loadFrameworkBundle(args: string[]) {
+export function loadFrameworkBundle(args: string[]): boolean {
     if (!ObjCAvailable) {
         console.log('dlf: This command requires the objc runtime');
         return false;
@@ -279,7 +276,7 @@ export function loadFrameworkBundle(args: string[]) {
     return bundle.load();
 }
 
-export function unloadFrameworkBundle(args: string[]) {
+export function unloadFrameworkBundle(args: string[]): boolean {
     if (!ObjCAvailable) {
         console.log('dlf: This command requires the objc runtime');
         return false;
@@ -304,10 +301,10 @@ export class IOSPathTransform extends PathTransform {
         this._fillVirtualDirs();
     }
 
-    _fillVirtualDirs() {
+    _fillVirtualDirs(): void {
         const pool = this.api.NSAutoreleasePool.alloc().init();
-        const appHome = new ObjC.Object(this.api.NSHomeDirectory()).toString();
-        const appBundle = this.api.NSBundle.mainBundle().bundlePath().toString();
+        const appHome: string = new ObjC.Object(this.api.NSHomeDirectory()).toString();
+        const appBundle: string = this.api.NSBundle.mainBundle().bundlePath().toString();
         const root = new VirtualEnt('/');
         root.addSub(new VirtualEnt("AppHome", appHome));
         root.addSub(new VirtualEnt("AppBundle", appBundle));
@@ -331,7 +328,7 @@ export class IOSPathTransform extends PathTransform {
         pool.release();
     }
 
-    _getAppGroupNames() {
+    _getAppGroupNames(): string[] {
         const task = this.api.SecTaskCreateFromSelf(NULL);
         if (task.isNull()) {
             return [];
@@ -339,13 +336,15 @@ export class IOSPathTransform extends PathTransform {
         const key = this.api.NSString.stringWithString_('com.apple.security.application-groups');
         const ids = this.api.SecTaskCopyValueForEntitlement(task, key, NULL);
         if (ids.isNull()) {
+            this.api.CFRelease(key);
             this.api.CFRelease(task);
             return [];
         }
         const idsObj = new ObjC.Object(ids).autorelease();
-        const names = nsArrayMap(idsObj, (group: any) => {
+        const names: string[] = nsArrayMap(idsObj, (group: any) => {
             return group.toString();
         });
+        this.api.CFRelease(key);
         this.api.CFRelease(task);
         return names;
     }
@@ -365,4 +364,19 @@ export class IOSPathTransform extends PathTransform {
         }
         return this._api;
     }
+}
+
+interface Segment {
+    name: string;
+    vmaddr: NativePointer;
+    vmsize: NativePointer;
+    nsects: number;
+    sectionsPtr: NativePointer;
+    slide: NativePointer;
+}
+
+interface Section {
+    name: string;
+    vmaddr: NativePointer;
+    vmsize: NativePointer;
 }
