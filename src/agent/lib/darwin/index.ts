@@ -69,7 +69,7 @@ export function isReadable(addr: NativePointer): boolean {
     }
 }
 
-export  function callObjcMethod(args: string[]): string {
+export function callObjcMethod(args: string[]): string {
     if (!ObjCAvailable) {
         return "dxo requires the objc runtime to be available to work.";
     }
