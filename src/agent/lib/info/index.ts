@@ -181,7 +181,7 @@ export function listImports(args: string[]) {
 
 export function listImportsR2(args: string[]) {
     const seen = new Set();
-    let stubAddress = 0;
+    let stubAddress = ptr(0);
     const stubSize = Process.arch === 'x64' ? 6 : 8;
     if (Process.platform === 'darwin') {
         try {
@@ -217,7 +217,7 @@ export function listImportsR2(args: string[]) {
         }
         if (stubAddress) {
             if (x.index > 0) {
-                const pltaddr = ptr(stubAddress).add(stubSize * (x.index - 1));
+                const pltaddr = stubAddress.add(stubSize * (x.index - 1));
                 flags.push('f sym.imp.' + sanitizeString(x.name) + ` = ${pltaddr}`);
             }
         }

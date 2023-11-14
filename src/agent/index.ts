@@ -176,7 +176,7 @@ const commandHandlers = {
     'dma-': [memory.removeAlloc, 'free given heap pointer', '[addr]'],
     dp: [sys.getPid, 'get process id'],
     dxc: [debug.dxCall, 'call function with arguments', '[addr] [args..]'],
-    dxo: [darwin.dxObjc, 'call objc function with args', '[sym] [id]'],
+    dxo: [darwin.callObjcMethod, 'call objc function with args', '[sym] [id]'],
     dxs: [debug.dxSyscall, 'inject and execute a syscall', '[sysnum] [args..]'],
     dpj: [sys.getPidJson, 'print target process id in json'],
     dpt: [debug.listThreads, 'display threads of the target process'],

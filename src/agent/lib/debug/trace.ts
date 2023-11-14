@@ -572,7 +572,7 @@ function _format(addr: NativePointer, fmt: string) {
         case 'O':
             if (ObjC.available) {
                 if (!addr.isNull()) {
-                    if (darwin.isObjC(addr)) {
+                    if (darwin.isValidObjC(addr)) {
                         const o = new ObjC.Object(addr);
                         if (o.$className === 'Foundation.__NSSwiftData') {
                             result = `${o.$className}: "${ObjC.classes.NSString.alloc().initWithData_encoding_(o, 4).toString()}"`;
@@ -661,7 +661,7 @@ function _objectToString(o: any) {
     const r = Object.keys(o).map((k) => {
         try {
             const p = ptr(o[k]);
-            if (darwin.isObjC(p)) {
+            if (darwin.isValidObjC(p)) {
                 const o = new ObjC.Object(p);
                 return k + ': ' + o.toString();
             }
