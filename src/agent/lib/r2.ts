@@ -1,4 +1,4 @@
-import { sym } from './sys.js';
+import { sym, getenv } from './sys.js';
 import { wrapStanza, getPtr } from './utils.js';
 
 type CommandFunction = () => void;
@@ -120,7 +120,12 @@ function _radareCommandInit(): boolean {
         _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
         _r_core_free = sym('r_core_free', 'void', ['pointer']);
         _free = sym('free', 'void', ['pointer']);
-        _r2 = _r_core_new();
+        const cpstr = getenv("R2CORE");
+        if (cpstr !== null) {
+          _r2 = ptr(cpstr);
+        } else {
+          _r2 = _r_core_new();
+        }
     }
     return true;
 }
