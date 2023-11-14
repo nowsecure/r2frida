@@ -39,11 +39,11 @@ export function isiOS(): boolean {
 }
 
 export function isValidObjC(addr: NativePointer): boolean {
-    const klass = getObjectClassfromPointer(addr);
+    const klass = getObjCClassfromPointer(addr);
     return !klass.isNull();
 }
 
-export function getObjectClassfromPointer(addr: NativePointer): NativePointer {
+export function getObjCClassfromPointer(addr: NativePointer): NativePointer {
     if (!isAddressInRange(addr) || !isReadable(addr)) {
         return NULL;
     }
@@ -118,7 +118,6 @@ export function callObjcMethod(args: string[]): string {
 }
 
 export function hasMainLoop(): boolean {
-    let hasLoop = false;
     const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
     const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
     if (getMainPtr === null || copyCurrentModePtr === null) {
@@ -131,7 +130,7 @@ export function hasMainLoop(): boolean {
         return false;
     }
     const mode = copyCurrentMode(main);
-    hasLoop = !mode.isNull();
+    const hasLoop = !mode.isNull();
     if (hasLoop) {
         new ObjC.Object(mode).release();
     }
