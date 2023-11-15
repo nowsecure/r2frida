@@ -297,8 +297,9 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 }
 
 static bool user_wants_safe_io(FridaDevice *device) {
-	/* Requesting safe_io on iOS15 until https://github.com/frida/frida-gum/commit/72c5c84a424e40336489ee0624e46a7ff31807b8 */
 	bool SAFE_IO_required = false;
+#if 0
+	/* Requesting safe_io on iOS15 until https://github.com/frida/frida-gum/commit/72c5c84a424e40336489ee0624e46a7ff31807b8 */
 	GError *error = NULL;
 	GHashTable * params;
 	GVariant * os;
@@ -311,6 +312,7 @@ static bool user_wants_safe_io(FridaDevice *device) {
 		SAFE_IO_required = r_str_startswith(version, "15") || r_str_startswith(version, "16");
 		g_free (version);
 	}
+#endif
 	return r_sys_getenv_asbool ("R2FRIDA_SAFE_IO") || SAFE_IO_required;
 }
 
