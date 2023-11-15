@@ -121,11 +121,13 @@ function _readableHits(hits: SearchHit[]) {
 function _searchPatternJson(pattern: string) {
     return r2.hostCmdj('ej')
         .then((r2cfg: any) => {
+            const fromAddress = new NativePointer(r2cfg['search.from']);
+            const toAddress = new NativePointer(r2cfg['search.to']);
             const flags = r2cfg['search.flags'];
             const prefix = r2cfg['search.prefix'] || 'hit';
             const count = r2cfg['search.count'] || 0;
             const kwidx = r2cfg['search.kwidx'] || 0;
-            const ranges = _getRanges(r2cfg['search.from'], r2cfg['search.to']);
+            const ranges = _getRanges(fromAddress, toAddress);
             const nBytes = pattern.split(' ').length;
             qlog(`Searching ${nBytes} bytes: ${pattern}`);
             let results: SearchResult[] = [];
@@ -174,7 +176,7 @@ function _scanForPattern(address: any, size: any, pattern: any) {
     return Memory.scanSync(address, size, pattern);
 }
 
-function _getRanges(fromNum: any, toNum: any) {
+function _getRanges(fromAddress: NativePointer, toAddress: NativePointer) {
     const searchIn = _configParseSearchIn();
     if (searchIn.heap) {
         return Process.enumerateMallocRanges()
@@ -205,8 +207,8 @@ function _getRanges(fromNum: any, toNum: any) {
     }
     const first = ranges[0];
     const last = ranges[ranges.length - 1];
-    const from = (fromNum === -1) ? first.base : ptr(fromNum);
-    const to = (toNum === -1) ? last.base.add(last.size) : ptr(toNum);
+    const from = fromAddress.isNull() ? first.base : fromAddress;
+    const to = toAddress.isNull() ? last.base.add(last.size) : toAddress;
     return ranges.filter((range: any) => {
         return range.base.compare(to) <= 0 && range.base.add(range.size).compare(from) >= 0;
     }).map((range: any) => {
@@ -219,28 +221,31 @@ function _getRanges(fromNum: any, toNum: any) {
     });
 }
 
-function _configParseSearchIn() {
+function _configParseSearchIn(): SearchResult {
     const res: SearchResult = {
         current: false,
         perm: 'r--',
         path: null,
         heap: false
     };
-    const c = config.getString('search.in');
-    const cSplit = c.split(':');
-    const [scope, param] = cSplit;
-    if (scope === 'current') {
-        res.current = true;
-    }
-    if (scope === 'heap') {
-        res.heap = true;
-    }
-    if (scope === 'perm') {
-        res.perm = param;
-    }
-    if (scope === 'path') {
-        cSplit.shift();
-        res.path = cSplit.join('');
+    const searchConfig = config.getString('search.in');
+    const [scope, param] = searchConfig.split(':');
+    switch (scope) {
+        case "current":
+            res.current = true;
+            break;
+        case "heap":
+            res.heap = true;
+            break;
+        case "perm":
+            res.perm = param;
+            break;
+        case "path":
+            res.path = param;
+            break;
+        default:
+            res.current = true;
+            break;
     }
     return res;
 }

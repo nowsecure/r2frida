@@ -150,9 +150,9 @@ export function trunc4k(x: NativePointer) {
 
 export function rwxstr(x: number): string {
     let str = '';
-    str += (x & 1) ? 'r' : '-';
+    str += (x & 4) ? 'r' : '-';
     str += (x & 2) ? 'w' : '-';
-    str += (x & 4) ? 'x' : '-';
+    str += (x & 1) ? 'x' : '-';
     return str;
 }
 
