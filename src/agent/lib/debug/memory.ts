@@ -3,8 +3,7 @@ import { r2frida } from "../../plugin.js";
 
 import { filterPrintable, rwxstr, padPointer, sanitizeString, getPtr, rwxint } from '../utils.js';
 
-
-const allocPool = new Map<any, any>(); // : MapNativePointer[] = [];
+const allocPool: Map<string, NativePointer> = new Map<string, NativePointer>();
 
 export function listMemoryRanges(): string {
     return listMemoryRangesJson()
@@ -23,11 +22,21 @@ export function listMemoryRangesR2(): string {
         .join('\n') + '\n';
 }
 
-export function listMemoryRangesJson() {
+export function listMemoryRangesJson(): RangeDetails[] {
     return getMemoryRanges('---');
 }
 
-export async function changeMemoryProtection(args: string[]) {
+export function getMemoryRanges(protection: string): RangeDetails[] {
+    if (r2frida.hookedRanges !== null) {
+        return r2frida.hookedRanges(protection);
+    }
+    return Process.enumerateRanges({
+        protection,
+        coalesce: false
+    });
+}
+
+export async function changeMemoryProtection(args: string[]): Promise<string> {
     const [addr, size, protection] = args;
     if (args.length !== 3 || protection.length > 3) {
         return 'Usage: :dmp [address] [size] [rwx]';
@@ -38,24 +47,24 @@ export async function changeMemoryProtection(args: string[]) {
     return '';
 }
 
-export function listMemoryRangesHere(args: string[]) {
+export function listMemoryRangesHere(args: string[]): string {
     if (args.length !== 1) {
         args = [r2frida.offset];
     }
     const addr = ptr(args[0]);
     return listMemoryRangesJson()
-        .filter((a: any) => addr.compare(a.base) >= 0 && addr.compare(a.base.add(a.size)) < 0)
-        .map((a: any) => [
-            padPointer(a.base),
+        .filter((range: RangeDetails) => addr.compare(range.base) >= 0 && addr.compare(range.base.add(range.size)) < 0)
+        .map((range: RangeDetails) => [
+            padPointer(range.base),
             '-',
-            padPointer(a.base.add(a.size)),
-            a.protection
-        ].concat((a.file !== undefined) ? [a.file.path] : [])
+            padPointer(range.base.add(range.size)),
+            range.protection
+        ].concat((range.file !== undefined) ? [range.file.path] : [])
             .join(' '))
         .join('\n') + '\n';
 }
 
-export function listMemoryMaps() {
+export function listMemoryMaps(): string {
     return _squashRanges(listMemoryRangesJson())
         .filter(_ => _.file)
         .map(({ base, size, protection, file }) => [padPointer(base), '-', padPointer(base.add(size)), protection]
@@ -64,7 +73,7 @@ export function listMemoryMaps() {
         .join('\n') + '\n';
 }
 
-export function listMemoryMapsR2() {
+export function listMemoryMapsR2(): string {
     const maps = _squashRanges(listMemoryRangesJson())
         .filter(_ => _.file)
         .map(({ base, size, protection, file }) => [
@@ -78,20 +87,8 @@ export function listMemoryMapsR2() {
     return "fs+maps\n" + maps + "fs-\n";
 }
 
-export function listMallocRanges(args: string[]) {
-    return _squashRanges(listMallocRangesJson(args))
-        .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
-}
-
-export function listMallocRangesJson(args: string[]) {
-    return Process.enumerateMallocRanges();
-}
-
-export function listMallocRangesR2(args: string[]) {
-    const chunks = listMallocRangesJson(args)
-        .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
-    return chunks + _squashRanges(listMallocRangesJson(args))
-        .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
+export function listMemoryMapsJson(): RangeDetails[] {
+    return _squashRanges(listMemoryRangesJson()).filter(_ => _.file)
 }
 
 export function listMemoryMapsHere(args: string[]) {
@@ -111,12 +108,28 @@ export function listMemoryMapsHere(args: string[]) {
         .join('\n') + '\n';
 }
 
-export function listMallocMaps(args: string[]) {
+export function listMallocRangesJson(args: string[]): RangeDetails[] {
+    return Process.enumerateMallocRanges();
+}
+
+export function listMallocRanges(args: string[]): string {
+    return _squashRanges(listMallocRangesJson(args))
+        .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
+}
+
+export function listMallocRangesR2(args: string[]): string {
+    const chunks = listMallocRangesJson(args)
+        .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
+    return chunks + _squashRanges(listMallocRangesJson(args))
+        .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
+}
+
+export function listMallocMaps(args: string[]): string {
     const heaps = _squashRanges(listMallocRangesJson(args));
-    function inRange(x: any) {
+    function inRange(memoryRange: RangeDetails) {
         for (const heap of heaps) {
-            if (x.base.compare(heap.base) >= 0 &&
-                x.base.add(x.size).compare(heap.base.add(heap.size))) {
+            if (memoryRange.base.compare(heap.base) >= 0 &&
+                memoryRange.base.add(memoryRange.size).compare(heap.base.add(heap.size))) {
                 return true;
             }
         }
@@ -131,34 +144,34 @@ export function listMallocMaps(args: string[]) {
         .join('\n') + '\n';
 }
 
-export function allocSize(args: string[]) {
+export function allocSize(args: string[]): string {
     const size = +args[0];
     if (size > 0) {
         const a = Memory.alloc(size);
         return _addAlloc(a);
     }
-    return 0;
+    return '';
 }
 
-export function allocString(args: string[]) {
-    const theString = args.join(' ');
-    if (theString.length > 0) {
-        const a = Memory.allocUtf8String(theString);
-        return _addAlloc(a);
+export function allocString(args: string[]): string {
+    const strToAllocate = args.join(' ');
+    if (strToAllocate.length > 0) {
+        const allocPtr = Memory.allocUtf8String(strToAllocate);
+        return _addAlloc(allocPtr);
     }
     throw new Error('Usage: dmas [string]');
 }
 
-export function allocWstring(args: string[]) {
-    const theString = args.join(' ');
-    if (theString.length > 0) {
-        const a = Memory.allocUtf16String(theString);
-        return _addAlloc(a);
+export function allocWstring(args: string[]): string {
+    const strToAllocate = args.join(' ');
+    if (strToAllocate.length > 0) {
+        const allocPtr = Memory.allocUtf16String(strToAllocate);
+        return _addAlloc(allocPtr);
     }
     throw new Error('Usage: dmaw [string]');
 }
 
-export function allocDup(args: string[]) {
+export function allocDup(args: string[]): string {
     if (args.length < 2) {
         throw new Error('Missing argument');
     }
@@ -168,51 +181,43 @@ export function allocDup(args: string[]) {
         const a = Memory.dup(ptr(addr), size);
         return _addAlloc(a);
     }
-    return 0;
+    return '';
 }
 
-export function listAllocs(args: string[]) {
-    return Object.values(allocPool)
-        .sort()
-        .map((x: NativePointer) => {
-            const bytes = x.readByteArray(60);
-            const printables = filterPrintable(bytes);
-            return `${x}\t"${printables}"`;
-        })
-        .join('\n') + '\n';
+export function listAllocs(): string {
+    if (allocPool === null) {
+        return '';
+    }
+    let res = "";
+    for (let [addr, allocPtr] of allocPool) {
+        const bytes = allocPtr.readByteArray(60);
+        const printables = filterPrintable(bytes);
+        res += `${addr}\t"${printables}"\n`;
+    }
+
+    return res;
 }
 
-export function removeAlloc(args: string[]) {
+export function removeAlloc(args: string[]): string {
     if (args.length === 0) {
         _clearAllocs();
     } else {
         for (const addr of args) {
-            _delAlloc(ptr(addr));
+            _delAlloc(addr);
         }
     }
     return '';
 }
 
-export function getMemoryRanges(protection: string): RangeDetails[] {
-    if (r2frida.hookedRanges !== null) {
-        return r2frida.hookedRanges(protection);
-    }
-    return Process.enumerateRanges({
-        protection,
-        coalesce: false
-    });
-}
-
-function _delAlloc(addr: NativePointer) {
+function _delAlloc(addr: string) {
     allocPool.delete(addr);
 }
 
-function _clearAllocs() {
-    Object.keys(allocPool)
-        .forEach(addr => allocPool.delete(addr));
+function _clearAllocs(): void {
+    allocPool.clear();
 }
 
-function _addAlloc(allocPtr: NativePointer) {
+function _addAlloc(allocPtr: NativePointer): string {
     const key = allocPtr.toString();
     if (!allocPtr.isNull()) {
         allocPool.set(key, allocPtr);
@@ -221,47 +226,33 @@ function _addAlloc(allocPtr: NativePointer) {
 }
 
 function _squashRanges(ranges: any): RangeDetails[] {
-    const res: RangeDetails[] = [];
-    let begin = ptr(0);
-    let end = ptr(0);
-    let lastPerm = 0;
-    let lastFile = {path:"", size:0, offset: 0};
-    let first = true;
-    for (const r of ranges) {
-        if (begin.equals(ptr(0))) {
-            begin = r.base;
-            end = r.base.add(r.size);
-            lastFile = r.file;
-        }
-        if (first || !r.file || r.file.path === lastFile.path) {
-            // do nothing
-            if (end.equals(r.base)) {
-                end = r.base.add(r.size);
-            } else {
-                end = r.base.add(r.size);
-                // gap
-            }
-            lastFile = r.file;
+    const squashedRanges: RangeDetails[] = [];
+    if (ranges.length === 0) {
+        return ranges;
+    }
+    const firstRange = ranges.shift();
+    let begin = firstRange.base;
+    let end = firstRange.base.add(firstRange.size);
+    let storedRangeProtection = rwxint(firstRange.protection);
+    let storedRangeFile: FileMapping = firstRange.file;
+    for (const range of ranges) {
+        const shouldSquash = range.file && range.file.path === storedRangeFile.path;
+        if (shouldSquash) {
+            storedRangeProtection |= rwxint(range.protection);
         } else {
-            // append
-            res.push({
+            // add the previous range to the squash list and update beginning of the range and file information
+            squashedRanges.push({
                 base: begin,
                 size: end.sub(begin).toUInt32(),
-                protection: rwxstr(lastPerm),
-                file: lastFile
-            });
-            begin = r.base;
-            end = r.base.add(r.size);
-            lastFile = r.file;
-            first = true;
-            lastPerm = 0;
+                protection: rwxstr(storedRangeProtection),
+                file: storedRangeFile
+            } as RangeDetails);
+            begin = range.base;
+            storedRangeFile = range.file;
+            storedRangeProtection = rwxint(range.protection);
         }
-        // lastFile = r.file;
-        lastPerm |= rwxint(r.protection);
-        first = false;
+        end = range.base.add(range.size);
     }
-    if (!begin.equals(ptr(0))) {
-        res.push({ base: begin, size: end.sub(begin).toUInt32(), protection: rwxstr(lastPerm), file: lastFile });
-    }
-    return res;
+    squashedRanges.push({ base: begin, size: end.sub(begin).toUInt32(), protection: rwxstr(storedRangeProtection), file: storedRangeFile });
+    return squashedRanges;
 }

@@ -39,7 +39,7 @@ export function hostCmds(commands: string[]): any {
     return sendOne();
 }
 
-export function hostCmd(cmd: string) {
+export async function hostCmd(cmd: string): Promise<string> {
     return new Promise((resolve) => {
         const serial = cmdSerial;
         cmdSerial++;
@@ -48,11 +48,9 @@ export function hostCmd(cmd: string) {
     });
 }
 
-export function hostCmdj(cmd: string): any {
-    return hostCmd(cmd)
-        .then((output: any) => {
-            return JSON.parse(output);
-        });
+export async function hostCmdj(cmd: string): Promise<JSON> {
+    const output = await hostCmd(cmd);
+    return JSON.parse(output);
 }
 
 export function onCmdResp(params: any) {

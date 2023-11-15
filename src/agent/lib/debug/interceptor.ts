@@ -8,7 +8,7 @@ function interceptHelp(args: string[]) : string {
         "div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n";
 }
 
-function interceptFunHelp(args: string[]) {
+function interceptFunHelp(args: string[]): string {
     return "Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n"+
         "dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n" +
         "dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n" +
