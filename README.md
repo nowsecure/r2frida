@@ -1,8 +1,6 @@
 # r2frida
 
-Radare2 and Frida better together.
-
-[![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
+Radare2 and Frida better together [![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
 
 <p align="center">
   <img src="r2frida.png" width="414px" height="248px">
@@ -10,12 +8,13 @@ Radare2 and Frida better together.
 
 ## Description
 
-This is a self-contained plugin for [radare2](https://www.radare.org) that
-allows to instrument remote processes using [frida](https://www.frida.re). 
+Self-contained plugin for [radare2](https://www.radare.org) that ships
+[frida](https://www.frida.re) and allows to instrument local or remote
+processes using r2 commands instead (but not limited to) Frida scripts.
 
-The radare project brings a complete toolchain for reverse engineering,
-providing well maintained functionalities and extend its features with
-other programming languages and tools.
+The radare project provides a complete toolchain for reverse engineering,
+it's actively maintained and it is providing well maintained functionalities
+and extend its features with other programming languages and tools.
 
 Frida is a dynamic instrumentation toolkit that makes it easy to inspect
 and manipulate running processes by injecting your own JavaScript, and
