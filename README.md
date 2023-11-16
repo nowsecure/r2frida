@@ -5,7 +5,7 @@ Radare2 and Frida better together.
 [![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="r2frida.png">
+  <img src="r2frida.png" width="621px" height="372px">
 </p>
 
 ## Description
