@@ -10,6 +10,14 @@ function haveVolatileApi() {
     return false;
 }
 
+function getFirstReadableRange() {
+    const range = Process.enumerateRanges('r-x')[0];
+    return {
+        start: range.base,
+        end: range.base.add(range.size)
+    }
+}
+
 const config: any[string] = {
     'java.wait': false,
     'want.swift': false,
@@ -17,6 +25,9 @@ const config: any[string] = {
     'io.volatile': haveVolatileApi(),
     'patch.code': true,
     'search.in': 'perm:r--',
+    'search.from': getFirstReadableRange().start.toString(),
+    'search.to': getFirstReadableRange().end.toString(),
+    'search.kwidx': 0,
     'search.quiet': false,
     'stalker.event': 'compile',
     'stalker.timeout': 5 * 60,
@@ -37,6 +48,8 @@ const configHelp: any[string] = {
     'io.safe': _configHelpIoSafe,
     'io.volatile': _configHelpIoVolatile,
     'search.in': _configHelpSearchIn,
+    'search.from': _configHelpSearchFrom,
+    'search.to': _configHelpSearchTo,
     'stalker.event': _configHelpStalkerEvent,
     'stalker.timeout': _configHelpStalkerTimeout,
     'stalker.in': _configHelpStalkerIn,
@@ -56,6 +69,8 @@ const configValidator: any[string] = {
     'io.safe': _configValidateBoolean,
     'io.volatile': _configValidateBoolean,
     'search.in': _configValidateSearchIn,
+    'search.from': _configValidateSearchFrom,
+    'search.to': _configValidateSearchTo,
     'stalker.event': _configValidateStalkerEvent,
     'stalker.timeout': _configValidateStalkerTimeout,
     'stalker.in': _configValidateStalkerIn,
@@ -91,6 +106,14 @@ current         search the range containing current offset
 heap            search inside the heap allocated regions
 path:pattern    search ranges mapping paths containing 'pattern'
   `;
+}
+
+function _configHelpSearchFrom() {
+    return `Specify the start address to search in`;
+}
+
+function _configHelpSearchTo() {
+    return `Specify the end address to search in`;
 }
 
 function _configHelpStalkerEvent() {
@@ -185,6 +208,17 @@ function _isTrue(x: any): boolean {
 
 function _isFalse(x: any): boolean {
     return (x === false || x === 0 || x === '0' || (/(false)/i).test(x));
+}
+
+function _configValidateSearchFrom(addr: string): boolean {
+    const minAddr = Process.enumerateRanges('r--')[0].base;
+    return ptr(addr).compare(minAddr) >= 0;
+}
+
+function _configValidateSearchTo(addr: string): boolean {
+    const ranges = Process.enumerateRanges('r--');
+    const maxAddr = ranges[ranges.length - 1].base;
+    return ptr(addr).compare(maxAddr) <= 0;
 }
 
 function _configValidateSearchIn(val: string): boolean {
@@ -297,11 +331,13 @@ export function get(k: string) {
 }
 
 export const getBoolean = (k: string) => _isTrue(config[k]);
+export const getNumber = (k: string) => typeof config[k] === "number" ? config[k] : 0;
 export { config as values };
 export default {
     values: config,
     getBoolean,
     getString,
+    getNumber,
     evalConfigR2,
     evalConfig,
     evalConfigSearch,

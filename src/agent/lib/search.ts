@@ -6,8 +6,8 @@ import { r2frida } from "../plugin.js";
 import { getMemoryRanges, listMallocRangesJson } from './debug/memory.js';
 import { normHexPairs, filterPrintable, toWidePairs, byteArrayToHex, ptrMin, ptrMax, padPointer, toHexPairs, renderEndian, hexPtr } from './utils.js';
 
-export async function search(args: string[]): Promise<string> {
-    const hits = await searchJson(args);
+export function search(args: string[]): string {
+    const hits = searchJson(args);
     return _getReadableHitsToString(hits);
 }
 
@@ -27,22 +27,21 @@ export function searchInstancesJson(args: string[]): SearchHit[] {
              const instances: SearchHit[] = [];
              Java.choose(className, {
                 onMatch: function(instance){
-                    instances.push({ address: ptr(0x0), content: instance.className, size: 0 } as SearchHit);
+                    instances.push({ address: instance.$h, content: instance.className, size: 0 } as SearchHit);
                 },
                 onComplete:function() {
                     console.log("search done");
                 }
             });
-            //const results: any = Java.use(className);
             return instances;
         });
     }
     return [];
 }
 
-export async function searchJson(args: string[]): Promise<SearchHit[]> {
+export function searchJson(args: string[]): SearchHit[] {
     const pattern = toHexPairs(args.join(' '));
-    const hits = await _searchPatternJson(pattern);
+    const hits = _searchPatternJson(pattern);
     hits.forEach(hit => {
         try {
             const bytes = io.read({
@@ -56,30 +55,29 @@ export async function searchJson(args: string[]): Promise<SearchHit[]> {
     return hits.filter((hit: SearchHit) => hit.content !== undefined);
 }
 
-export async function searchHex(args: string[]): Promise<string> {
-    const hits = await searchHexJson(args);
+export function searchHex(args: string[]): string {
+    const hits = searchHexJson(args);
     return _getReadableHitsToString(hits);
 }
 
-export async function searchHexJson(args: string[]): Promise<SearchHit[]> {
+export function searchWide(args: string[]) {
+    const hits = searchWideJson(args);
+    return _getReadableHitsToString(hits);
+}
+
+export function searchWideJson(args: string[]): SearchHit[] {
+    const pattern = toWidePairs(args.join(' '));
+    return searchHexJson([pattern]);
+}
+
+export function searchHexJson(args: string[]): SearchHit[]{
     const pattern = normHexPairs(args.join(''));
-    const hits = await _searchPatternJson(pattern);
+    const hits = _searchPatternJson(pattern);
     hits.forEach((hit: SearchHit) => {
         const bytes = hit.address.readByteArray(hit.size);
         hit.content = byteArrayToHex(bytes);
     });
     return hits;
-}
-
-export function searchWide(args: string[]) {
-    return searchWideJson(args).then(hits => {
-        return _getReadableHitsToString(hits);
-    });
-}
-
-export function searchWideJson(args: string[]): Promise<SearchHit[]> {
-    const pattern = toWidePairs(args.join(' '));
-    return searchHexJson([pattern]);
 }
 
 export function searchValueImpl(width: number) {
@@ -114,61 +112,46 @@ function _getReadableHitsToString(hits: SearchHit[]): string {
     return output.join('\n') + '\n';
 }
 
-async function getr2Config(): Promise<r2Config> {
-    const r2cfg = await r2.hostCmdj('ej') as unknown as r2Config;
-    return r2cfg;
-}
-
-function  _searchPatternJson(pattern: string): Promise<SearchHit[]> {
+function  _searchPatternJson(pattern: string): SearchHit[] {
+    const prefix = "hit";
     let searchHits: SearchHit[] = [];
-    return getr2Config().then((r2cfg: r2Config)  => {
-        const fromAddress = new NativePointer(r2cfg.search.from);
-        const toAddress = new NativePointer(r2cfg.search.to);
-        const flags = r2cfg.search.flags;
-        const prefix = r2cfg.search.prefix || 'hit';
-        const count = r2cfg.search.count || 0;
-        const kwidx = r2cfg.search.kwidx || 0;
-        const ranges = _getRangesToSearch(fromAddress, toAddress);
-        const nBytes = pattern.split(' ').length;
-        qlog(`Searching ${nBytes} bytes: ${pattern}`);
-        const commands: string[] = [];
-        let idx = 0;
-        for (const range of ranges) {
-            if (range.size === 0) {
-                continue;
-            }
-            const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
-            qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
-            try {
-                const {address, size} = range;
-                const partial: MemoryScanMatch[] = Memory.scanSync(address, size, pattern);
-                partial.forEach((match: MemoryScanMatch) => {
-                    const hit = {} as SearchHit;
-                    hit.flag = `${prefix}${kwidx}_${idx + count}`;
-                    hit.address = match.address;
-                    hit.size = match.size;
-                    if (flags) {
-                        commands.push('fs+searches');
-                        commands.push(`f ${hit.flag} ${hit.size} ${hexPtr(hit.address)}`);
-                        commands.push('fs-');
-                    }
-                    idx += 1;
-                    searchHits.push(hit);
-                });
-            } catch (e) {
-                console.error('Search error', e);
-            }
+    const fromAddress = new NativePointer(config.getString('search.from'));
+    const toAddress = new NativePointer(config.getString('search.to'));
+    const ranges = _getRangesToSearch(fromAddress, toAddress);
+    const nBytes = pattern.split(' ').length;
+    qlog(`Searching ${nBytes} bytes: ${pattern}`);
+    const kwidx = config.getNumber("search.kwidx");
+    let count = 0;
+    for (const range of ranges) {
+        if (range.size === 0) {
+            continue;
         }
-        qlog(`hits: ${searchHits.length}`);
-        commands.push(`e search.kwidx=${kwidx + 1}`);
-        r2.hostCmds(commands);
-        return searchHits;
-    });
+        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
+        try {
+            const {address, size} = range;
+            const partial: MemoryScanMatch[] = Memory.scanSync(address, size, pattern);
+            partial.forEach((match: MemoryScanMatch) => {
+                const hit = {} as SearchHit;
+                hit.flag = `${prefix}${kwidx}_${count}`;
+                hit.address = match.address;
+                hit.size = match.size;
+                count += 1;
+                searchHits.push(hit);
+                r2.hostCmd(`fs+searches; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
+            });
+        } catch (e) {
+            console.error('Search error', e);
+        }
+    }
+    config.set("search.kwidx", kwidx + 1);
+    qlog(`hits: ${searchHits.length}`);
+    return searchHits;
 };
 
 function qlog(message: string) {
     if (!config.getBoolean('search.quiet')) {
-        console.log(message);
+        console.log(`${message}\n`);
     }
 }
 
