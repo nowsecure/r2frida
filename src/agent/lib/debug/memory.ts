@@ -27,9 +27,6 @@ export function listMemoryRangesJson(): RangeDetails[] {
 }
 
 export function getMemoryRanges(protection: string): RangeDetails[] {
-    if (r2frida.hookedRanges !== null) {
-        return r2frida.hookedRanges(protection);
-    }
     return Process.enumerateRanges({
         protection,
         coalesce: false
@@ -108,24 +105,24 @@ export function listMemoryMapsHere(args: string[]) {
         .join('\n') + '\n';
 }
 
-export function listMallocRangesJson(args: string[]): RangeDetails[] {
+export function listMallocRangesJson(): RangeDetails[] {
     return Process.enumerateMallocRanges();
 }
 
 export function listMallocRanges(args: string[]): string {
-    return _squashRanges(listMallocRangesJson(args))
+    return _squashRanges(listMallocRangesJson())
         .map(_ => '' + _.base + ' - ' + _.base.add(_.size) + '  (' + _.size + ')').join('\n') + '\n';
 }
 
 export function listMallocRangesR2(args: string[]): string {
-    const chunks = listMallocRangesJson(args)
+    const chunks = listMallocRangesJson()
         .map(_ => 'f chunk.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
-    return chunks + _squashRanges(listMallocRangesJson(args))
+    return chunks + _squashRanges(listMallocRangesJson())
         .map(_ => 'f heap.' + _.base + ' ' + _.size + ' ' + _.base).join('\n');
 }
 
 export function listMallocMaps(args: string[]): string {
-    const heaps = _squashRanges(listMallocRangesJson(args));
+    const heaps = _squashRanges(listMallocRangesJson());
     function inRange(memoryRange: RangeDetails) {
         for (const heap of heaps) {
             if (memoryRange.base.compare(heap.base) >= 0 &&
