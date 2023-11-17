@@ -21,7 +21,7 @@ import sys from './lib/sys.js';
 import * as swift from './lib/darwin/swift.js';
 import * as trace from './lib/debug/trace.js';
 import * as utils from './lib/utils.js';
-import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValueImpl, searchValueImplJson, searchWide, searchWideJson } from './lib/search.js';
+import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValue1, searchValue2, searchValue4, searchValue8, searchValueJson1, searchValueJson2, searchValueJson4, searchValueJson8, searchWide, searchWideJson } from './lib/search.js';
 
 import { r2frida, PutsFunction } from "./plugin.js";
 
@@ -48,14 +48,14 @@ const commandHandlers = {
     '/xj': [searchHexJson, 'same as /x but using json'],
     '/w': [searchWide, 'same as / but for wide strings (utf16)', '[str]'],
     '/wj': searchWideJson,
-    '/v1': [searchValueImpl(1), 'search 1 byte of given numeric value'],
-    '/v2': [searchValueImpl(2), 'search 2 byte (little endian) number in memory'],
-    '/v4': [searchValueImpl(4), 'search 4 byte (dword, 32bit LE value in memory)'],
-    '/v8': [searchValueImpl(8), 'search 8 byte (qword 64bit LE value)'],
-    '/v1j': searchValueImplJson(1),
-    '/v2j': searchValueImplJson(2),
-    '/v4j': searchValueImplJson(4),
-    '/v8j': searchValueImplJson(8),
+    '/v1': [searchValue1, 'search 1 byte of given numeric value'],
+    '/v2': [searchValue2, 'search 2 byte (little endian) number in memory'],
+    '/v4': [searchValue4, 'search 4 byte (dword, 32bit LE value in memory)'],
+    '/v8': [searchValue8, 'search 8 byte (qword 64bit LE value)'],
+    '/v1j': searchValueJson1,
+    '/v2j': searchValueJson2,
+    '/v4j': searchValueJson4,
+    '/v8j': searchValueJson8,
     '?V': [fridaVersion, 'show frida version'],
     '?Vj': [fridaVersionJson, 'show frida version in JSON'],
     // '.': // this is implemented in C

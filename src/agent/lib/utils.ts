@@ -94,13 +94,13 @@ export function byteArrayToHex(arr: any) {
     return hexs.join('');
 }
 
-export function renderEndian(value: NativePointer, bigEndian: boolean, width: number) {
+export function renderEndian(value: NativePointer, bigEndian: boolean, width: number): NativePointer[] {
     const bytes = [];
     for (let i = 0; i !== width; i++) {
         if (bigEndian) {
-            bytes.push(value.shr((width - i - 1) * 8).and(0xff).toUInt32());
+            bytes.push(value.shr((width - i - 1)).and(0xff));
         } else {
-            bytes.push(value.shr(i * 8).and(0xff).toUInt32());
+            bytes.push(value.shr(i).and(0xff));
         }
     }
     return bytes;

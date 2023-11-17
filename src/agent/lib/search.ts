@@ -56,7 +56,7 @@ export function searchJson(args: string[]): SearchHit[] {
 }
 
 export function searchHex(args: string[]): string {
-    const hits = searchHexJson(args);
+    const hits = searchHexJson(args.join(''));
     return _getReadableHitsToString(hits);
 }
 
@@ -67,11 +67,11 @@ export function searchWide(args: string[]) {
 
 export function searchWideJson(args: string[]): SearchHit[] {
     const pattern = toWidePairs(args.join(' '));
-    return searchHexJson([pattern]);
+    return searchHexJson(pattern);
 }
 
-export function searchHexJson(args: string[]): SearchHit[]{
-    const pattern = normHexPairs(args.join(''));
+export function searchHexJson(args: string): SearchHit[]{
+    const pattern = normHexPairs(args);
     const hits = _searchPatternJson(pattern);
     hits.forEach((hit: SearchHit) => {
         const bytes = hit.address.readByteArray(hit.size);
@@ -80,26 +80,47 @@ export function searchHexJson(args: string[]): SearchHit[]{
     return hits;
 }
 
-export function searchValueImpl(width: number) {
-    return function (args: string[]) {
-        return _searchValueJson(args, width).then((hits: any) => {
-            return _getReadableHitsToString(hits);
-        });
-    };
+export function searchValue1(args: string[]): string {
+    return searchValueImpl(1, args);
 }
 
-export function searchValueImplJson(width: number) {
-    return function (args: string[]) {
-        return _searchValueJson(args, width);
-    };
+export function searchValue2(args: string[]): string {
+    return searchValueImpl(2, args);
 }
 
-async function _searchValueJson(args: string[], width: number) {
-    let value = args.join('');
-    const r2Config =  await r2.hostCmdj('ej') as unknown as r2Config;
-    const bigEndian = r2Config.cfg.bigendian;
-    const bytes = renderEndian(ptr(value), bigEndian, width);
-    return searchHexJson([toHexPairs(bytes)]);
+export function searchValue4(args: string[]): string {
+    return searchValueImpl(4, args);
+}
+
+export function searchValue8(args: string[]): string {
+    return searchValueImpl(8, args);
+}
+
+export function searchValueJson1(args: string[]): SearchHit[] {
+    return _searchValueJson(1, args);
+}
+
+export function searchValueJson2(args: string[]): SearchHit[] {
+    return _searchValueJson(2, args);
+}
+export function searchValueJson4(args: string[]): SearchHit[] {
+    return _searchValueJson(4, args);
+}
+export function searchValueJson8(args: string[]): SearchHit[] {
+    return _searchValueJson(8, args);
+}
+
+export function searchValueImpl(width: number, args: string[]): string {
+    const hits = _searchValueJson(width,args);
+    return _getReadableHitsToString(hits);
+}
+
+function _searchValueJson(width: number, args: string[]): SearchHit[] {
+    const pattern = args.join('').slice(0, width * 2);
+    //const bigEndian = config.getBoolean('search.bigendian');
+    // TODO - refactor renderEndian
+    //const bytes = renderEndian(pattern, bigEndian, width);
+    return searchHexJson(pattern);
 }
 
 function _getReadableHitsToString(hits: SearchHit[]): string {
