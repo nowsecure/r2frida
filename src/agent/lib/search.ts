@@ -56,7 +56,7 @@ export function searchJson(args: string[]): SearchHit[] {
 }
 
 export function searchHex(args: string[]): string {
-    const hits = searchHexJson(args);
+    const hits = searchHexJson(args.join(''));
     return _getReadableHitsToString(hits);
 }
 
@@ -67,11 +67,11 @@ export function searchWide(args: string[]) {
 
 export function searchWideJson(args: string[]): SearchHit[] {
     const pattern = toWidePairs(args.join(' '));
-    return searchHexJson([pattern]);
+    return searchHexJson(pattern);
 }
 
-export function searchHexJson(args: string[]): SearchHit[]{
-    const pattern = normHexPairs(args.join(''));
+export function searchHexJson(args: string): SearchHit[]{
+    const pattern = normHexPairs(args);
     const hits = _searchPatternJson(pattern);
     hits.forEach((hit: SearchHit) => {
         const bytes = hit.address.readByteArray(hit.size);
@@ -116,10 +116,11 @@ export function searchValueImpl(width: number, args: string[]): string {
 }
 
 function _searchValueJson(width: number, args: string[]): SearchHit[] {
-    let value = args.join('');
-    const bigEndian = config.getBoolean('search.bigendian');
-    const bytes = renderEndian(ptr(value), bigEndian, width);
-    return searchHexJson([toHexPairs(bytes)]);
+    const pattern = args.join('').slice(0, width * 2);
+    //const bigEndian = config.getBoolean('search.bigendian');
+    // TODO - refactor renderEndian
+    //const bytes = renderEndian(pattern, bigEndian, width);
+    return searchHexJson(pattern);
 }
 
 function _getReadableHitsToString(hits: SearchHit[]): string {
