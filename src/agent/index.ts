@@ -489,6 +489,7 @@ function _normalizeValue(value: any | null) {
 
 r2frida.hostCmd = r2.hostCmd;
 r2frida.hostCmdj = r2.hostCmdj;
+r2frida.hostCmds = r2.hostCmds;
 r2frida.logs = log.logs;
 r2frida.log = log.traceLog;
 r2frida.emit = log.traceEmit;
