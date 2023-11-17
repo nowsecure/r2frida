@@ -67,7 +67,7 @@ export function isSuspended() : boolean {
     return suspended;
 }
 
-export function setSuspended(v: boolean) {
+export function setSuspended(v: boolean): void {
     suspended = v;
 }
 
