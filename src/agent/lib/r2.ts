@@ -131,7 +131,12 @@ function _radareCommandString(cmd: string): string {
 }
 
 export interface r2Config {
-    search: r2SearchConfig
+    search: r2SearchConfig,
+    cfg: r2Cfg
+}
+
+export interface r2Cfg {
+    bigendian: boolean;
 }
 
 export interface r2SearchConfig {
