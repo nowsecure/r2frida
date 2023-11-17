@@ -24,6 +24,7 @@ const config: any[string] = {
     'io.safe': false,
     'io.volatile': haveVolatileApi(),
     'patch.code': true,
+    'search.bigendian': false,
     'search.in': 'perm:r--',
     'search.from': getFirstReadableRange().start.toString(),
     'search.to': getFirstReadableRange().end.toString(),
@@ -47,6 +48,7 @@ const configHelp: any[string] = {
     'java.wait': _configHelpJavaWait,
     'io.safe': _configHelpIoSafe,
     'io.volatile': _configHelpIoVolatile,
+    'search.bigendian': _configHelpSearchEndian,
     'search.in': _configHelpSearchIn,
     'search.from': _configHelpSearchFrom,
     'search.to': _configHelpSearchTo,
@@ -68,6 +70,7 @@ const configValidator: any[string] = {
     'java.wait': _configValidateBoolean,
     'io.safe': _configValidateBoolean,
     'io.volatile': _configValidateBoolean,
+    'search.bigendian': _configValidateBoolean,
     'search.in': _configValidateSearchIn,
     'search.from': _configValidateSearchFrom,
     'search.to': _configValidateSearchTo,
@@ -97,6 +100,10 @@ function _configHelpIoSafe() {
 
 function _configHelpJavaWait() {
     return 'Wait for Java classloader to be ready (boolean)';
+}
+
+function _configHelpSearchEndian() {
+    return `Specify the endianness`;
 }
 
 function _configHelpSearchIn() {
