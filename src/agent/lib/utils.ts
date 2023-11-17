@@ -130,7 +130,7 @@ function _toPairs(hex: string): string {
     }
     const pairs = [];
     for (let i = 0; i !== hex.length; i += 2) {
-        pairs.push(hex.substring(i, 2));
+        pairs.push(hex.substring(i, i + 2));
     }
     return pairs.join(' ').toLowerCase();
 }
