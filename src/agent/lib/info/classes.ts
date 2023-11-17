@@ -210,7 +210,7 @@ export function listClassesWhere(args: string[], mode: string) {
                 if (mode === 'ivars') {
                     for (const a of ins) {
                         out += 'instance ' + padPointer(a.address) + '\n';
-                        const i = new ObjC.Object(ptr(a.address));
+                        const i = new ObjC.Object(a.address);
                         out += (JSON.stringify(i.$ivars)) + '\n';
                     }
                 }
@@ -298,7 +298,7 @@ export function listClassesJson(args?: string[], mode?: string): any[] {
         out += klassName + ': ';
         for (const i of ins) {
             out += 'instance ' + padPointer(i.address) + ': ';
-            const ii = new ObjC.Object(ptr(i.address));
+            const ii = new ObjC.Object(i.address);
             out += JSON.stringify(ii.$ivars, null, '  ');
         }
         return [out];

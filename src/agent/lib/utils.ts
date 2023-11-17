@@ -24,18 +24,18 @@ export function wrapStanza(name: string, stanza: any) {
     };
 }
 
-export function hexPtr(p: UInt64 | any) {
+export function hexPtr(p: UInt64 | any): string {
     if (p instanceof UInt64) {
         return `0x${p.toString(16)}`;
     }
     return p.toString();
 }
 
-export function ptrMax(a: NativePointer, b: NativePointer) {
+export function ptrMax(a: NativePointer, b: NativePointer): NativePointer {
     return a.compare(b) > 0 ? a : b;
 }
 
-export function ptrMin(a: NativePointer, b: NativePointer) {
+export function ptrMin(a: NativePointer, b: NativePointer): NativePointer {
     return a.compare(b) < 0 ? a : b;
 }
 
