@@ -295,8 +295,8 @@ export function evalConfig(args: string[]) {
         return s;
     }
     const kv = argstr.split(/=/);
-    const [k, v] = [kv[0].trim(), kv[1].trim()];
     if (kv.length === 2) {
+        const [k, v] = [kv[0].trim(), kv[1].trim()];
         if (get(k) !== undefined) {
             if (v === '?') {
                 return helpFor(kv[0]);
