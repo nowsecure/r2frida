@@ -344,6 +344,8 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	add_offset_parameter (builder, io->off);
 	json_builder_set_member_name (builder, "count");
 	json_builder_add_int_value (builder, count);
+	json_builder_set_member_name (builder, "fast");
+	json_builder_add_boolean_value (builder, false);
 
 	JsonObject *result = perform_request (rf, builder, NULL, &bytes);
 	if (!result) {

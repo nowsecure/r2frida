@@ -45,8 +45,9 @@ export function searchJson(args: string[]): SearchHit[] {
     hits.forEach(hit => {
         try {
             const bytes = io.read({
-                offset: hit.address,
-                count: 60
+                offset: hit.address.toString(),
+                count: 60,
+                fast : false
             })[1];
             hit.content = filterPrintable(bytes);
         } catch (e) {
