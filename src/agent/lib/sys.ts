@@ -121,6 +121,9 @@ function getEnvJson() {
 }
 
 export function dlopen(args: string[]) {
+    if (args.length < 1) {
+        return "Usage: dl [path]";
+    }
     const path = transformVirtualPath(args[0]);
     if (exist(path)) {
         return Module.load(path);
