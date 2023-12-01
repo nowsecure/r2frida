@@ -20,7 +20,7 @@
   "devDependencies": {
     "@frida/events": "^4.0.4",
     "@types/frida-gum": "^18.5.1",
-    "@types/node": "^18.15.11",
+    "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^5.51.0",
     "@typescript-eslint/parser": "^5.51.0",
     "eslint": "^8.34.0",
