@@ -33,7 +33,7 @@ export async function dumpInfoR2() {
 }
 
 export async function dumpInfoJson() {
-    const firstModule = Process.enumerateModules()[0];
+    const firstModule = Process.mainModule;
     const res : any = {
         arch: r2.getArch(Process.arch),
         bits: Process.pointerSize * 8,
@@ -140,7 +140,7 @@ export function listEntrypointJson(args?: string[]) {
             return [at];
         }
     }
-    const firstModule = Process.enumerateModules()[0];
+    const firstModule = Process.mainModule;
     return firstModule.enumerateSymbols()
         .filter((symbol) => {
             return isEntrypoint(symbol);
@@ -185,7 +185,7 @@ export function listImportsR2(args: string[]) {
     const stubSize = Process.arch === 'x64' ? 6 : 8;
     if (Process.platform === 'darwin') {
         try {
-            const baseAddr = Process.enumerateModules()[0].base;
+            const baseAddr = Process.mainModule.base;
             const machoHeader = parseMachoHeader(baseAddr);
             const segments = getSegments(baseAddr, machoHeader.ncmds);
             for (const seg of segments) {
@@ -370,7 +370,7 @@ export function listSegments(args: string[]) {
 export function listSegmentsJson(args: string[]) {
     let baseAddr: NativePointer = ptr(0);
     if (Process.platform === 'darwin') {
-        const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
+        const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.mainModule.base;
         return listMachoSegments(baseAddr);
     }
     if (Process.platform === 'linux') {
@@ -423,7 +423,7 @@ export function listSections(args: string[]) : string {
 export function listSectionsJson(args: string[]): any {
     let baseAddr : NativePointer = ptr(0);
     if (Process.platform === 'darwin') {
-        const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.enumerateModules()[0].base;
+        const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.mainModule.base;
         return listMachoSections(baseAddr);
     }
     if (Process.platform === 'linux') {

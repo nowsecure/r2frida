@@ -176,7 +176,7 @@ function _initModules(config: any) {
     inModules.splice(0, -1);
     switch (config.stalkin) {
         case 'app': {
-            const appModule = Process.enumerateModules()[0];
+            const appModule = Process.mainModule;
             inModules.push([appModule.base, appModule.base.add(appModule.size)]);
             return;
         }
