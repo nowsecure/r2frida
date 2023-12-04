@@ -114,9 +114,9 @@ export function padString(text: string, length: number) {
 
 export function padPointer(value: string | NativePointer) {
     if (value.toString().indexOf('ArrayBuffer') !== -1) {
-        value = arrayBufferToHex(value);
+        value = arrayBufferToHex(value).toString();
     }
-    let result = (+value).toString(16);
+    let result = (new NativePointer(value)).toString(16);
     const paddedLength = 2 * Process.pointerSize;
     while (result.length < paddedLength) {
         result = '0' + result;
