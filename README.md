@@ -89,14 +89,12 @@ $ make user-install
 
 ### Windows
 
-* Unzip the radare2 release zip in the root directory of the r2frida source
-* rename it to `radare2` (instead of radare2-x.y.z)
-* To make the VS compiler available in PATH run this batch (or r2's preconfigure.bat)
-
-```
-[Visual Studio Path]\VC\Auxiliary\Build\vcvarsall.bat [Your arch]
-.\build.bat install
-```
+* Install meson and Visual Studio
+* Unzip the latest radare2 release zip in the r2frida root directory
+* Rename it to `radare2` (instead of radare2-x.y.z)
+* To make the VS compiler available in PATH (`preconfigure.bat`)
+* Run `configure.bat` and then `make.bat`
+* Copy the `b\r2frida.dll` into `r2 -H R2_USER_PLUGINS`
 
 ## Usage
 
