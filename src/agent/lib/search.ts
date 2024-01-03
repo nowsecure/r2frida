@@ -56,6 +56,11 @@ export function searchJson(args: string[]): SearchHit[] {
     return hits.filter((hit: SearchHit) => hit.content !== undefined);
 }
 
+export function searchStrings(args: string[]): string {
+    const hits = searchStringsJson(args.join(''));
+    return _getReadableHitsToString(hits);
+}
+
 export function searchHex(args: string[]): string {
     const hits = searchHexJson(args.join(''));
     return _getReadableHitsToString(hits);
@@ -69,6 +74,63 @@ export function searchWide(args: string[]) {
 export function searchWideJson(args: string[]): SearchHit[] {
     const pattern = toWidePairs(args.join(' '));
     return searchHexJson(pattern);
+}
+
+class StringFinder {
+    let results: SearchHit[];
+    let minLen = 0;
+    let maxLen = 0;
+
+    constructor (minLen: number = 0, maxLen: number = 128) {
+       this.minLen = minLen;
+       this.maxLen = maxLen;
+    }
+
+    feed(ch: string) {
+       // TODO: implement string search algorithm in this class
+       for (let i = 0; i < blockSize; i++) {
+           sf.feed(data[i]);
+       }
+    }
+
+    hits(): SearchHit[] {
+        return this.results;
+    }
+}
+
+export function searchStringsJson(args: string): SearchHit[]{
+    const prefix = "hit";
+    let searchHits: SearchHit[] = [];
+    const fromAddress = new NativePointer(config.getString('search.from'));
+    const toAddress = new NativePointer(config.getString('search.to'));
+    const ranges = _getRangesToSearch(fromAddress, toAddress);
+    const nBytes = pattern.split(' ').length;
+    qlog(`Searching ${nBytes} bytes: ${pattern}`);
+    const kwidx = config.getNumber("search.kwidx");
+    const blockSize = 4096;
+    let count = 0;
+    for (const range of ranges) {
+        if (range.size === 0) {
+            continue;
+        }
+        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
+        const cur = range.address;
+        const end = range.address.add (range.size);
+        const sf = new StringFinder();
+        while (cur.compare(end)) {
+            const data = cur.read(blockSize);
+            // sf.feed(data);
+            cur = cur.add(blockSize);
+        }
+        sf.hits().forEach((hit) => {
+            r2.hostCmd(`fs+searches; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
+            searchHits.push(hit);
+        });
+    }
+    config.set("search.kwidx", kwidx + 1);
+    qlog(`hits: ${searchHits.length}`);
+    return searchHits;
 }
 
 export function searchHexJson(args: string): SearchHit[]{

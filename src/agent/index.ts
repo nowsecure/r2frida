@@ -21,7 +21,7 @@ import sys from './lib/sys.js';
 import * as swift from './lib/darwin/swift.js';
 import * as trace from './lib/debug/trace.js';
 import * as utils from './lib/utils.js';
-import { search, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValue1, searchValue2, searchValue4, searchValue8, searchValueJson1, searchValueJson2, searchValueJson4, searchValueJson8, searchWide, searchWideJson } from './lib/search.js';
+import { search, searchStrings, searchStringsJson, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValue1, searchValue2, searchValue4, searchValue8, searchValueJson1, searchValueJson2, searchValueJson4, searchValueJson8, searchWide, searchWideJson } from './lib/search.js';
 
 import { r2frida, PutsFunction } from "./plugin.js";
 
@@ -44,6 +44,8 @@ const commandHandlers = {
     '/i': [searchInstances, 'search instances of given type', '[type]'],
     '/ij': searchInstancesJson,
     '/j': [searchJson, 'same as /, but output is in json'],
+    '/z': [searchStrings, 'find all strings', '[minlen] [maxlen]'],
+    '/zj': [searchStringsJson, 'find all strings', '[minlen] [maxlen]'],
     '/x': [searchHex, 'find hexadecimal string', '[hexstr]'],
     '/xj': [searchHexJson, 'same as /x but using json'],
     '/w': [searchWide, 'same as / but for wide strings (utf16)', '[str]'],
