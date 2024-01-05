@@ -77,20 +77,46 @@ export function searchWideJson(args: string[]): SearchHit[] {
 }
 
 class StringFinder {
-    let results: SearchHit[];
-    let minLen = 0;
-    let maxLen = 0;
+    results : SearchHit[] = [];
+    minLen = 0;
+    maxLen = 0;
+    curstr = "";
+    curaddr = ptr(0);
+    nth = 0;
 
     constructor (minLen: number = 0, maxLen: number = 128) {
        this.minLen = minLen;
        this.maxLen = maxLen;
     }
 
-    feed(ch: string) {
-       // TODO: implement string search algorithm in this class
-       for (let i = 0; i < blockSize; i++) {
-           sf.feed(data[i]);
+    feed(cur: NativePointer, data: Uint8Array) {
+       for (let i = 0; i < data.byteLength; i++) {
+           this.feedByte(cur, data[i]);
        }
+    }
+
+    possibleEndOfString() {
+        const strlen = this.curstr.length;
+        if (strlen >= this.minLen && strlen <= this.maxLen) {
+            this.results.push({
+                address: this.curaddr,
+                content: this.curstr,
+                size: strlen,
+                flag: "hit.string." + this.results.length
+            });
+        }
+        this.curstr = "";
+    }
+
+    feedByte(cur: NativePointer, char: number) {
+        if (char > 0x20 && char < 0x7f) {
+            if (this.curstr === "") {
+                this.curaddr = cur;
+            }
+            this.curstr += String.fromCharCode(char);
+        } else if (char == 0) {
+            this.possibleEndOfString();
+        }
     }
 
     hits(): SearchHit[] {
@@ -104,8 +130,6 @@ export function searchStringsJson(args: string): SearchHit[]{
     const fromAddress = new NativePointer(config.getString('search.from'));
     const toAddress = new NativePointer(config.getString('search.to'));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
-    const nBytes = pattern.split(' ').length;
-    qlog(`Searching ${nBytes} bytes: ${pattern}`);
     const kwidx = config.getNumber("search.kwidx");
     const blockSize = 4096;
     let count = 0;
@@ -114,13 +138,16 @@ export function searchStringsJson(args: string): SearchHit[]{
             continue;
         }
         const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
-        qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
-        const cur = range.address;
+        let cur = range.address;
         const end = range.address.add (range.size);
-        const sf = new StringFinder();
+        const sf = new StringFinder(9, 128);
         while (cur.compare(end)) {
-            const data = cur.read(blockSize);
-            // sf.feed(data);
+            const data = cur.readByteArray(blockSize);
+            if (data === null) {
+                break;
+            }
+            const bytes = new Uint8Array(data);
+            sf.feed(cur, bytes);
             cur = cur.add(blockSize);
         }
         sf.hits().forEach((hit) => {
