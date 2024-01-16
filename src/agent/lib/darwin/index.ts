@@ -301,6 +301,9 @@ export class IOSPathTransform extends PathTransform {
     }
 
     _fillVirtualDirs(): void {
+        if (!hasMainLoop()) {
+          return;
+	}
         const pool = this.api.NSAutoreleasePool.alloc().init();
         const appHome: string = new ObjC.Object(this.api.NSHomeDirectory()).toString();
         const appBundle: string = this.api.NSBundle.mainBundle().bundlePath().toString();
