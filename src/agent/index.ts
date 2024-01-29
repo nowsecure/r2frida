@@ -85,7 +85,7 @@ const commandHandlers = {
     'ii*': info.listImportsR2,
     iij: info.listImportsJson,
     il: [info.listModules, 'list libraries'],
-    'il.': info.listModulesHere,
+    'il.': [info.listModulesHere, 'list libraries of current offset'],
     'il*': info.listModulesR2,
     ilq: info.listModulesQuiet,
     ilj: info.listModulesJson,
