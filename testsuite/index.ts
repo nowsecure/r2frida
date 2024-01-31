@@ -13,7 +13,7 @@ async function test(name: string, uri: string, check: Function) {
 }
 
 async function r2fridaTestArgs() {
-    // the behaviour shuold be the same as frida://attach/123 but it's not.. because the pid is not processed yet so cant be valid
+    // the behaviour should be the same as frida://attach/123 but it's not.. because the pid is not processed yet so cant be valid
     await testuri('frida://923999', `local-device
 device: local
 pname: 923999
