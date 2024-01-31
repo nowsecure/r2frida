@@ -301,8 +301,11 @@ android-arm: radare2-android-arm-libs
 		LDFLAGS="-L$(R2A_DIR)/lib $(LDFLAGS) $(PLUGIN_LDFLAGS)" SO_EXT=so
 
 clean:
-	$(RM) src/*.o src/_agent.js src/_agent.h
+	$(RM) src/*.o src/_agent.js src/_agent.h config.h
 	$(RM) -f src/r2frida-compile src/frida-compile
+	$(RM) -rf ext
+	$(RM) -f frida-sdk.tar.xz
+	$(RM) -f src/io_frida.dylib src/io_frida.so
 	$(RM) -rf $(R2A_DIR)
 
 mrproper: clean
