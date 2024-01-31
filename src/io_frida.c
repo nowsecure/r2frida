@@ -1587,14 +1587,12 @@ static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes 
 
 static void on_stanza(RIOFrida *rf, JsonObject *stanza, GBytes *bytes) {
 	g_mutex_lock (&rf->lock);
-	if (rf->reply_stanza || rf->reply_bytes) {
-		rf->received_reply = true;
-		rf->reply_stanza = stanza;
-		rf->reply_bytes = bytes? g_bytes_ref (bytes): NULL;
-	} else {
+	rf->received_reply = true;
+	rf->reply_stanza = stanza;
+	rf->reply_bytes = bytes? g_bytes_ref (bytes): NULL;
+	if (!rf->reply_stanza && !rf->reply_bytes) {
 		// some messages don't require an ack. let's just move on
-		rf->received_reply = true;
-		R_LOG_WARN ("rf->reply_{stanza(%p) & bytes(%p)} are null",
+		R_LOG_DEBUG ("rf->reply_{stanza(%p) & bytes(%p)} are null",
 				rf->reply_stanza, rf->reply_bytes);
 	}
 	g_cond_signal (&rf->cond);
