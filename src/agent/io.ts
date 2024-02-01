@@ -77,6 +77,11 @@ export function read(params: R2FIOReadParameters) {
     return [{}, []];
 }
 
+function isWriteable(address: NativePointer) : boolean {
+    const currentRange = Process.getRangeByAddress(address);
+    return currentRange.protection.indexOf('w') !== -1;
+}
+
 function isExecutable(address: NativePointer) : boolean {
     const currentRange = Process.getRangeByAddress(address);
     return currentRange.protection.indexOf('x') !== -1;
@@ -105,6 +110,9 @@ export function write(params: R2FIOWriteParameters, data: any) {
             ptroff.writeByteArray(data);
         }
     } else {
+        if (!isWriteable(ptroff)) {
+            console.error(`ERROR: The page at ${ptroff} is not writeable. Run ':dmp ${ptroff} 4096 rwx' to fix that error.`);
+        }
         ptroff.writeByteArray(data);
     }
     return [{}, null];
