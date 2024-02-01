@@ -10,7 +10,7 @@ export function listMemoryRanges(): string {
         .map((a: any) => [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
             .concat((a.file !== undefined) ? [a.file.path] : [])
             .join(' '))
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function listMemoryRangesR2(): string {
@@ -19,7 +19,7 @@ export function listMemoryRangesR2(): string {
             'f', 'map.' + padPointer(a.base) + '.' + a.protection.replace(/-/g, '_'), a.size, a.base,
             '#', a.protection
         ].concat((a.file !== undefined) ? [a.file.path] : []).join(' '))
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function listMemoryRangesJson(): RangeDetails[] {
@@ -58,7 +58,7 @@ export function listMemoryRangesHere(args: string[]): string {
             range.protection
         ].concat((range.file !== undefined) ? [range.file.path] : [])
             .join(' '))
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function listMemoryMaps(): string {
@@ -67,7 +67,7 @@ export function listMemoryMaps(): string {
         .map(({ base, size, protection, file }) => [padPointer(base), '-', padPointer(base.add(size)), protection]
             .concat((file !== undefined) ? [(file as any).path] : [])
             .join(' '))
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function listMemoryMapsR2(): string {
@@ -80,8 +80,8 @@ export function listMemoryMapsR2(): string {
             padPointer(base)
         ]
             .join(' '))
-        .join('\n') + '\n';
-    return "fs+maps\n" + maps + "fs-\n";
+        .join('\n');
+    return "fs+maps\n" + maps + "fs-";
 }
 
 export function listMemoryMapsJson(): RangeDetails[] {
@@ -102,7 +102,7 @@ export function listMemoryMapsHere(args: string[]) {
                 (file as any).path
             ].join(' ');
         })
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function listMallocRangesJson(): RangeDetails[] {
@@ -138,7 +138,7 @@ export function listMallocMaps(args: string[]): string {
             [padPointer(a.base), '-', padPointer(a.base.add(a.size)), a.protection]
                 .concat((a.file !== undefined) ? [a.file.path] : [])
                 .join(' '))
-        .join('\n') + '\n';
+        .join('\n');
 }
 
 export function allocSize(args: string[]): string {
