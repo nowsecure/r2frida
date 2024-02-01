@@ -93,7 +93,6 @@ interface R2FIOReadParameters {
 
 export function write(params: R2FIOWriteParameters, data: any) {
     const ptroff = ptr(params.offset);
-    console.log(typeof data);
     if (typeof r2frida.hookedWrite === 'function') {
         return r2frida.hookedWrite(ptroff, data);
     }
