@@ -233,7 +233,10 @@ function _squashRanges(ranges: any): RangeDetails[] {
     let storedRangeProtection = rwxint(firstRange.protection);
     let storedRangeFile: FileMapping = firstRange.file;
     for (const range of ranges) {
-        const shouldSquash = range.file && range.file.path === storedRangeFile.path;
+        let shouldSquash = false;
+        if (range.file && storedRangeFile) {
+            shouldSquash = range.file.path === storedRangeFile.path;
+        }
         if (shouldSquash) {
             storedRangeProtection |= rwxint(range.protection);
         } else {
