@@ -201,6 +201,12 @@ export function breakpointNativeCommand(args: string[]) {
     }
 }
 
+export function breakpointUnsetAll(args: string[]) {
+    for (const [address, bp] of newBreakpoints.entries()) {
+        breakpointUnset([address]);
+    }
+}
+
 export function breakpointUnset(args: string[]) {
     const addr = getPtr(args[0]).toString();
     const bp = newBreakpoints.get(addr);

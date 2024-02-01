@@ -71,6 +71,7 @@ const commandHandlers = {
     dbj: debug.breakpointJson,
     dbc: [debug.breakpointNativeCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
     'db-': [debug.breakpointUnset, 'unset the native breakpoint in the given address', '[addr]'],
+    'db-*': [debug.breakpointUnsetAll, 'unset all the breakpoints'],
     dc: [debug.breakpointContinue, 'continue execution of the interrupted child'],
     dcu: [debug.breakpointContinueUntil, 'continue execution until given address', '[addr]'],
     dk: [debug.sendSignal, 'send signal to process in the target process', '[signal]|([pid] [signum])'],
