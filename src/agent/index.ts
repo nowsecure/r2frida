@@ -207,7 +207,7 @@ const commandHandlers = {
     'dt.': [trace.traceHere, 'show trace in current offset'],
     'dt-': [trace.clearTrace, 'delete trace at given address', '[addr]'],
     'dt-*': [trace.clearAllTrace, 'clear all traces'],
-    dtr: [trace.traceRegs, 'add a trace to show register value when calling a function', '[addr|name] [reg...]'],
+    dtr: [trace.traceRegs, 'add a trace to show register value when calling a function', '[addr] [reg...]'],
     dtl: [trace.traceLogDump, 'trace log dump'],
     'dtl*': trace.traceLogDumpR2,
     dtlq: trace.traceLogDumpQuiet,
@@ -303,14 +303,17 @@ function getHelpMessage(prefix: string): string {
         })
         .filter((k) => {
             // TODO: only filter those for top level commands, maybe handy to show them too
-            return !(k.endsWith('?') || k.endsWith('j') || k.endsWith('*') || k.endsWith('q')); //  || k.endsWith('.'));
+            return !(k.endsWith('?') || k.endsWith('j') || k.endsWith('q')); //  || k.endsWith('.'));
         })
         .map((k) => {
             const fcn = (commandHandlers as any)[k];
-            const desc = (typeof fcn === 'object') ? fcn[1] : '';
-            const args = (typeof fcn === 'object' && fcn[2]) ? fcn[2] : '';
-            const cmd = k + ' ' + args;
-            return ':' + utils.padString(cmd, 25) + desc;
+	    if (typeof fcn === "object") {
+                const desc = fcn[1];
+                const args = fcn[2] || "";
+                const cmd = k + ' ' + args;
+                return ':' + utils.padString(cmd, 25) + desc;
+	    }
+            return ":" + k;
         }).join('\n');
 }
 
