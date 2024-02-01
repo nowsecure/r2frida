@@ -286,13 +286,13 @@ export function evalConfig(args: string[]) {
     const argstr = args.join(' ');
     if (argstr.endsWith('.')) {
         // list k=v of all the keys starting with argstr
-        let s = '';
+        const lines = [];
         for (const k of Object.keys(config)) {
             if (k.startsWith(argstr)) {
-                s += ':e ' + k + ' = ' + config[k] + '\n';
+                lines.push(`:e ${k} = ${config[k]}`);
             }
         }
-        return s;
+        return lines.join("\n");
     }
     const kv = argstr.split(/=/);
     if (kv.length === 2) {
