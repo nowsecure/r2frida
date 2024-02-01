@@ -413,10 +413,11 @@ export function listSectionsR2(args: string[]) {
 }
 
 export function listSections(args: string[]) : string {
-    const headers = "vaddr    \tvsize\tperm\tname\n".concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
+    const headers = "vaddr               vsize              perm  name\n".concat('―――――――――――――――――――――――――――――――――――――――――――――――――――――――\n');
     const data = listSectionsJson(args)
         .map((a: any) => {
-            return [a.vmaddr, a.vmsize, a.perm, a.name].join('\t');
+            const perm = a.perm? a.perm: "---";
+            return [padPointer(a.vmaddr), padPointer(a.vmsize), perm, a.name].join("  ");
         })
         .join('\n');
     return headers.concat(data);
