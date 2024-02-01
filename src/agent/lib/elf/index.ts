@@ -33,6 +33,7 @@ function listElfSections(baseAddr: NativePointer) {
             return parseSectionHeaders(baseAddr, segment.vmaddr, segment.vmsize, segments);
         }
     }
+    return [];
 }
 
 function _isElfHeaderAtOffset(offset: NativePointer) : boolean {
@@ -59,15 +60,18 @@ function parseSectionHeaders(baseAddr: NativePointer, PTDynamicAddr: NativePoint
         cursor = cursor.add(16);
     }
     // HASH Section
+    let nchain = 0;
     const hashTablePtr = dynamicEntries[dynamicTags.DT_HASH].value;
-    const nbucket = hashTablePtr.readU32();
-    const nchain = hashTablePtr.add(4).readU32();
-    sections.push(new Section(
-        dynamicEntries[dynamicTags.DT_HASH].name,
-        hashTablePtr,
-        (nbucket * 4) + (nchain * 4) + 8,
-        JSON.stringify(utils.belongsTo(segments, hashTablePtr).map((x:any) => x.perm))
-    ));
+    if (hashTablePtr) {
+        const nbucket = hashTablePtr.readU32();
+        nchain = hashTablePtr.add(4).readU32();
+        sections.push(new Section(
+            dynamicEntries[dynamicTags.DT_HASH].name,
+            hashTablePtr,
+            (nbucket * 4) + (nchain * 4) + 8,
+            JSON.stringify(utils.belongsTo(segments, hashTablePtr).map((x:any) => x.perm))
+        ));
+    }
     // STRTAB Section
     sections.push(new Section(
         dynamicEntries[dynamicTags.DT_STRTAB].name,
