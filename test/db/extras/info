@@ -1,0 +1,19 @@
+NAME=r2frida info bits
+FILE=frida://0
+CMDS=<<EOF
+:i~bits
+EOF
+EXPECT=<<EOF
+bits                64
+EOF
+RUN
+
+NAME=libraries
+FILE=frida://0
+CMDS=<<EOF
+:il~radare?
+EOF
+EXPECT=<<EOF
+1
+EOF
+RUN
