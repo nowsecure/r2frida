@@ -1,7 +1,7 @@
 NAME=libraries
 FILE=frida://0
 CMDS=<<EOF
-:e
+:e~!0x~!unred
 EOF
 EXPECT=<<EOF
 :e java.wait=false
@@ -11,8 +11,6 @@ EXPECT=<<EOF
 :e patch.code=true
 :e search.bigendian=false
 :e search.in=perm:r--
-:e search.from=0x10035c000
-:e search.to=0x100360000
 :e search.kwidx=0
 :e search.quiet=false
 :e stalker.event=compile
@@ -25,7 +23,6 @@ EXPECT=<<EOF
 :e hook.usecmd=
 :e file.log=
 :e symbols.module=
-:e symbols.unredact=true
 EOF
 RUN
 
