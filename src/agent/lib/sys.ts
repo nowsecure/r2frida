@@ -67,10 +67,14 @@ export function getPid(): number {
 
 export function getOrSetEnv(args: string[]) {
     if (args.length === 0) {
-        return getEnv()!.join('\n') + '\n';
+        const environment = getEnv();
+	if (environment === null) {
+            return "";
+	}
+        return environment.join('\n');
     }
-    const { key, value } = getOrSetEnvJson(args);
-    return key + '=' + value;
+    const { value } = getOrSetEnvJson(args);
+    return (args[0].indexOf("=") === -1)? value: "";
 }
 
 function getOrSetEnvJson(args: string[]): any {
@@ -87,31 +91,37 @@ function getOrSetEnvJson(args: string[]): any {
             key: k,
             value: v
         };
-    } else {
-        return {
-            key: kv,
-            value: getenv(kv)
-        };
     }
+    return {
+        key: kv,
+        value: getenv(kv)
+    };
 }
 
 function getEnv(): string[] | null {
     const result: any = [];
     const enva = Module.findExportByName(null, 'environ');
-    if (enva === null) {
+    if (enva === null || enva.isNull()) {
         return null;
     }
     let envp = enva.readPointer();
-    let env;
-    while (!envp.isNull() && !(env = envp.readPointer()).isNull()) {
+    while (!envp.isNull()) {
+	const env = envp.readPointer();
+	if (env.isNull()) {
+            break;
+	}
         result.push(env.readCString());
         envp = envp.add(Process.pointerSize);
     }
-    return result.join("\n");
+    return result;
 }
 
 function getEnvJson() {
-    return getEnv()!.map(kv => {
+    const environment = getEnv();
+    if (environment === null) {
+        return {};
+    }
+    return environment.map(kv => {
         const eq = kv.indexOf('=');
         return {
             key: kv.substring(0, eq),

@@ -192,6 +192,7 @@ const commandHandlers = {
     drp: [debug.dumpRegisterProfile, 'display register profile of target process cpu'],
     dr8: [debug.dumpRegisterArena, 'dump the register arena contents in hexpairs'],
     drj: [debug.dumpRegistersJson, 'display register values in json format'],
+    '%': [sys.getOrSetEnv, 'same as the :env command'],
     env: [sys.getOrSetEnv, 'get or set environment variables', '[k] ([v])'],
     envj: [sys.getOrSetEnvJson, 'display target process environment variables in json format'],
     dl: [sys.dlopen, 'dlopen a library in the target process', '[path/lib.so]'],

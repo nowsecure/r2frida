@@ -551,8 +551,11 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
 	} else if (r_str_startswith (command, "%")) {
-		eprintf ("%s\n", helpmsg);
-		return false;
+		// this shortcut should be implemented inside the js code
+		r_core_cmdf (rf->r2core, ":env %s", command + 1);
+		return NULL;
+	} else if (r_str_startswith (command, "???")) {
+		return strdup (helpmsg);
 	} else if (r_str_startswith (command, "o/")) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
