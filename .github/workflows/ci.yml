@@ -26,6 +26,8 @@ jobs:
         sudo dpkg -i radare2-dev_5.8.4_amd64.deb
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
+    - name: Testing r2frida
+      run: make -C test
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
@@ -131,7 +133,6 @@ jobs:
         if-no-files-found: error
         name: build-windows
         path: r2frida-${{env.R2V}}-w64.zip
-
 
   check_release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}

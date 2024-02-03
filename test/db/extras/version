@@ -1,0 +1,29 @@
+NAME=r2frida version
+FILE=frida://0
+CMDS=<<EOF
+:?V
+EOF
+EXPECT=<<EOF
+16.1.11
+EOF
+RUN
+
+NAME=r2frida version
+FILE=frida://0
+CMDS=<<EOF
+: Frida.version
+EOF
+EXPECT=<<EOF
+16.1.11
+EOF
+RUN
+
+NAME=hello world
+FILE=frida://0
+CMDS=<<EOF
+:?e hello world
+EOF
+EXPECT=<<EOF
+hello world
+EOF
+RUN

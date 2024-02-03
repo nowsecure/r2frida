@@ -1,0 +1,28 @@
+NAME=libraries
+FILE=frida://0
+CMDS=<<EOF
+:e~!0x~!unred
+EOF
+EXPECT=<<EOF
+:e java.wait=false
+:e want.swift=false
+:e io.safe=false
+:e io.volatile=true
+:e patch.code=true
+:e search.bigendian=false
+:e search.in=perm:r--
+:e search.kwidx=0
+:e search.quiet=false
+:e stalker.event=compile
+:e stalker.timeout=300
+:e stalker.in=raw
+:e hook.backtrace=false
+:e hook.verbose=true
+:e hook.logs=true
+:e hook.output=simple
+:e hook.usecmd=
+:e file.log=
+:e symbols.module=
+EOF
+RUN
+
