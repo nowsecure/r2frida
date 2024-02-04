@@ -122,7 +122,8 @@ export async function dumpInfoJson() {
     return res;
 }
 
-export function listEntrypointJson(args?: string[]) {
+// XXX not clear what's the return type for this function
+export function listEntrypointJson(args?: string[]) : any[] {
     function isEntrypoint(s: any) {
         if (s.type === 'section') {
             switch (s.name) {
@@ -138,6 +139,10 @@ export function listEntrypointJson(args?: string[]) {
         const at = DebugSymbol.fromName('main');
         if (at) {
             return [at];
+        }
+        const st = DebugSymbol.fromName('_start');
+        if (st) {
+            return [st];
         }
     }
     const firstModule = Process.mainModule;
