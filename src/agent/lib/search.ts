@@ -151,7 +151,7 @@ export function searchStringsJson(args: string): SearchHit[]{
             cur = cur.add(blockSize);
         }
         sf.hits().forEach((hit) => {
-            r2.hostCmd(`fs+searches; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
+            r2.hostCmd(`fs+search; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
             searchHits.push(hit);
         });
     }
@@ -223,7 +223,7 @@ function _getReadableHitsToString(hits: SearchHit[]): string {
     return output.join('\n') + '\n';
 }
 
-function  _searchPatternJson(pattern: string): SearchHit[] {
+function _searchPatternJson(pattern: string): SearchHit[] {
     const prefix = "hit";
     let searchHits: SearchHit[] = [];
     const fromAddress = new NativePointer(config.getString('search.from'));
@@ -233,6 +233,7 @@ function  _searchPatternJson(pattern: string): SearchHit[] {
     qlog(`Searching ${nBytes} bytes: ${pattern}`);
     const kwidx = config.getNumber("search.kwidx");
     let count = 0;
+    let script = "";
     for (const range of ranges) {
         if (range.size === 0) {
             continue;
@@ -247,14 +248,15 @@ function  _searchPatternJson(pattern: string): SearchHit[] {
                 hit.flag = `${prefix}${kwidx}_${count}`;
                 hit.address = match.address;
                 hit.size = match.size;
-                count += 1;
                 searchHits.push(hit);
-                r2.hostCmd(`fs+searches; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
+                count++;
+                script += `fs+search; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-;\n`;
             });
         } catch (e) {
             console.error('Search error', e);
         }
     }
+    r2.hostCmd(script);
     config.set("search.kwidx", kwidx + 1);
     qlog(`hits: ${searchHits.length}`);
     return searchHits;
@@ -357,4 +359,3 @@ export interface SearchRange {
     address: NativePointer;
     size: number;
 }
-

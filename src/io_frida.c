@@ -1642,6 +1642,7 @@ static void on_cmd(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_assert (!rf->pending_cmd);
 	if (cmd_stanza) {
 		rf->pending_cmd = pending_cmd_create (cmd_stanza);
+		R_LOG_DEBUG ("r2f.hostCmd(%s)", rf->pending_cmd->cmd_string);
 	} else {
 		rf->pending_cmd = R_NEW0 (RFPendingCmd);
 	}
