@@ -162,6 +162,10 @@ export function searchStringsJson(args: string): SearchHit[]{
 
 export function searchHexJson(args: string): SearchHit[]{
     const pattern = normHexPairs(args);
+    if (pattern === null) {
+        console.error("Invalid hex string");
+        return [];
+    }
     const hits = _searchPatternJson(pattern);
     hits.forEach((hit: SearchHit) => {
         const bytes = hit.address.readByteArray(hit.size);

@@ -61,12 +61,12 @@ export function toWidePairs(raw: string): string {
     return pairs.join(' ');
 }
 
-export function normHexPairs(raw: string) {
+export function normHexPairs(raw: string) : string | null {
     const norm = raw.replace(/ /g, '');
     if (_isHex(norm)) {
         return _toPairs(norm.replace(/\./g, '?'));
     }
-    throw new Error('Invalid hex string');
+    return null;
 }
 
 export function filterPrintable(arr: any) {
@@ -124,11 +124,12 @@ export function padPointer(value: string | NativePointer) {
     return '0x' + result;
 }
 
-function _toPairs(hex: string): string {
+function _toPairs(hex: string): string | null {
     if ((hex.length % 2) !== 0) {
-        throw new Error('Odd-length string');
+        return null;
+        // throw new Error('Odd-length string');
     }
-    const pairs = [];
+    const pairs : string[] = [];
     for (let i = 0; i !== hex.length; i += 2) {
         pairs.push(hex.substring(i, i + 2));
     }
