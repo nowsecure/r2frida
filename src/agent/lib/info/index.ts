@@ -161,7 +161,7 @@ export function listEntrypointR2(args: string[]) : string {
         .map((entry) => {
             return 'f entry' + (n++) + ' = ' + entry.address;
         }).join('\n');
-    return "fs+symbols\n" + entries + "\nfs-\n";
+    return "fs+symbols\n" + entries + "\nfs-";
 }
 
 export function listEntrypointQuiet(args: string[]) {
@@ -174,7 +174,8 @@ export function listEntrypointQuiet(args: string[]) {
 export function listEntrypoint(args: string[]) {
     return listEntrypointJson()
         .map((entry) => {
-            return entry.address + ' ' + entry.name; //  + '  # ' + entry.moduleName;
+            //  + '  # ' + entry.moduleName;
+            return entry.address + ' ' + entry.name;
         }).join('\n');
 }
 
@@ -209,7 +210,7 @@ export function listImportsR2(args: string[]) {
             // ignore
         }
     }
-    return listImportsJson(args).map((x : any) => {
+    const res = listImportsJson(args).map((x : any) => {
         const flags = [];
         if (!seen.has(x.address)) {
             seen.add(x.address);
@@ -226,8 +227,9 @@ export function listImportsR2(args: string[]) {
                 flags.push('f sym.imp.' + sanitizeString(x.name) + ` = ${pltaddr}`);
             }
         }
-        return "fs+symbols\n" + flags.join('\n') + "\nfs-\n";
+        return flags.join('\n');
     }).join('\n');
+    return "fs+symbols\n" + res + "\nfs-";
 }
 
 export function listImportsJson(args: string[]) {
@@ -276,7 +278,7 @@ export function listModulesR2() {
     const libs = Process.enumerateModules()
         .map(m => 'f lib.' + sanitizeString(m.name) + ' = ' + padPointer(m.base))
         .join('\n');
-    return "fs+libs\n" + libs + "\nfs-\n";
+    return "fs+libs\n" + libs + "\nfs-";
 }
 
 export function listModulesJson() {
@@ -482,7 +484,7 @@ export function listAllSymbolsR2(args: string[]) {
         .map(({ type, name, address }) => {
             return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
         }).join('\n');
-    return 'fs symbols\n' + symbols + '\nfs-\n';
+    return "fs symbols\n" + symbols + "\nfs-";
 }
 
 export function listSymbols(args: string[]) {
@@ -501,7 +503,7 @@ export function listSymbolsR2(args: string[]) {
             return ['f', 'sym.' + sanitizeString(name), '=', address].join(' ');
         })
         .join('\n');
-    return 'fs symbols\n' + symbols + '\nfs-\n';
+    return "fs symbols\n' + symbols + "\nfs-";
 }
 
 export function listSymbolsJson(args: string[]) {
