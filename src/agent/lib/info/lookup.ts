@@ -46,32 +46,43 @@ export function lookupSymbolHere(args: string[]) {
     return lookupAddress([r2frida.offset.toString()]);
 }
 
+interface ExportType {
+    library: string;
+    name: string;
+    address: NativePointer;
+}
+
 export function lookupExport(args: string[]) {
     return lookupExportJson(args)
         // .map(({library, name, address}) => [library, name, address].join(' '))
-        .map(({ address }) => '' + address)
+        .map(({ address }) => "" + address)
         .join('\n');
 }
 
 export function lookupExportR2(args: string[]) {
-    return lookupExportJson(args)
+    const exports = lookupExportJson(args)
         .map(({ name, address }) => ['f', 'sym.' + name, '=', address].join(' '))
         .join('\n');
+    return "fs symbols\n" + exports + "\nfs-";
 }
 
-export function lookupExportJson(args: string[]) {
+export function lookupExportJson(args: string[]) : ExportType[] {
     if (args.length === 2) {
         const [moduleName, exportName] = args;
         const address = Module.findExportByName(moduleName, exportName);
         if (address === null) {
             return [];
         }
-        const m = getModuleByAddress(address);
-        return [{
-            library: m.name,
+        const res = {
+            library: "",
             name: exportName,
             address: address
-        }];
+        };
+        const m = getModuleByAddress(address);
+        if (m !== null) {
+            res.library = m.name;
+        }
+        return [res];
     } else {
         const exportName = args[0];
         let prevAddress: NativePointer | null = null;
@@ -194,15 +205,23 @@ function _getModuleAt(addr: NativePointer | null) {
     return modules.length > 0 ? modules[0] : null;
 }
 
-export function getModuleByAddress(addr: NativePointer): any {
+export function getModuleByAddress(addr: NativePointer): Module | null {
     const m = config.getString('symbols.module');
-    if (m !== '') {
-        return Process.getModuleByName(m);
+    if (m !== "") {
+        try {
+            return Process.getModuleByName(m);
+        } catch (e) {
+            return null;
+        }
     }
     try {
         return Process.getModuleByAddress(addr);
     } catch (e) {
-        return Process.getModuleByAddress(ptr(r2frida.offset));
+        try {
+            return Process.getModuleByAddress(ptr(r2frida.offset));
+        } catch (e) {
+            return null;
+        }
     }
 }
 

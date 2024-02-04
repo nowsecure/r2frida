@@ -150,7 +150,10 @@ export function listEntrypointJson(args?: string[]) : any[] {
         .filter((symbol) => {
             return isEntrypoint(symbol);
         }).map((symbol) => {
-            (symbol as any).moduleName = getModuleByAddress(symbol.address).name;
+            const mod = getModuleByAddress(symbol.address);
+            if (mod !== null) {
+                (symbol as any).moduleName = mod.name;
+            }
             return symbol;
         });
 }
@@ -234,7 +237,7 @@ export function listImportsR2(args: string[]) {
 
 export function listImportsJson(args: string[]) {
     const alen = args.length;
-    let result = [];
+    let result : any = [];
     let moduleName : string | null = null;
     if (alen === 2) {
         moduleName = args[0];
@@ -334,11 +337,14 @@ export function listAllExportsR2(args: string[]) {
         .join('\n');
 }
 
-export function listExportsJson(args: string[]) {
+export function listExportsJson(args: string[]) : any | null {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
         : getModuleByAddress(ptr(r2frida.offset));
-    return currentModule.enumerateExports();
+    if (currentModule !== null) {
+        return currentModule.enumerateExports();
+    }
+    return [];
 }
 
 export function listSegmentsHere() {
@@ -503,14 +509,18 @@ export function listSymbolsR2(args: string[]) {
             return ['f', 'sym.' + sanitizeString(name), '=', address].join(' ');
         })
         .join('\n');
-    return "fs symbols\n' + symbols + "\nfs-";
+    return "fs symbols\n" + symbols + "\nfs-";
 }
 
 export function listSymbolsJson(args: string[]) {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
         : getModuleByAddress(ptr(r2frida.offset));
-    const symbols = Process.getModuleByName(currentModule.name).enumerateSymbols();
+    if (currentModule === null) {
+        return [];
+    }
+    // const symbols = Process.getModuleByName(currentModule.name).enumerateSymbols();
+    const symbols = currentModule.enumerateSymbols();
     return symbols.map(sym => {
         if (config.getBoolean('symbols.unredact') && sym.name.indexOf('redacted') !== -1) {
             const dbgSym = DebugSymbol.fromAddress(sym.address);
