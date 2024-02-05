@@ -125,12 +125,14 @@ class StringFinder {
 }
 
 export function searchStringsJson(args: string): SearchHit[]{
+	console.log("search string");
     const prefix = "hit";
     let searchHits: SearchHit[] = [];
     const fromAddress = new NativePointer(config.getString('search.from'));
     const toAddress = new NativePointer(config.getString('search.to'));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
     const kwidx = config.getNumber("search.kwidx");
+    const align = config.getNumber('search.align');
     const blockSize = 4096;
     let count = 0;
     for (const range of ranges) {
@@ -151,6 +153,12 @@ export function searchStringsJson(args: string): SearchHit[]{
             cur = cur.add(blockSize);
         }
         sf.hits().forEach((hit) => {
+            if (align > 1) {
+                const base = Number(hit.address.and(0xffff));
+                if ((base % align) !== 0) {
+                    return;
+                }
+            }
             r2.hostCmd(`fs+search; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
             searchHits.push(hit);
         });
@@ -230,6 +238,7 @@ function _getReadableHitsToString(hits: SearchHit[]): string {
 function _searchPatternJson(pattern: string): SearchHit[] {
     const prefix = "hit";
     let searchHits: SearchHit[] = [];
+    const align = config.getNumber('search.align');
     const fromAddress = new NativePointer(config.getString('search.from'));
     const toAddress = new NativePointer(config.getString('search.to'));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
@@ -248,6 +257,12 @@ function _searchPatternJson(pattern: string): SearchHit[] {
             const {address, size} = range;
             const partial: MemoryScanMatch[] = Memory.scanSync(address, size, pattern);
             partial.forEach((match: MemoryScanMatch) => {
+                if (align > 1) {
+                    const base = Number(match.address.and(0xffff));
+                    if ((base % align) !== 0) {
+                        return;
+                    }
+                }
                 const hit = {} as SearchHit;
                 hit.flag = `${prefix}${kwidx}_${count}`;
                 hit.address = match.address;

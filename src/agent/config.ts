@@ -29,6 +29,7 @@ const config: any[string] = {
     'search.from': getFirstReadableRange().start.toString(),
     'search.to': getFirstReadableRange().end.toString(),
     'search.kwidx': 0,
+    'search.align': 0,
     'search.quiet': false,
     'stalker.event': 'compile',
     'stalker.timeout': 5 * 60,
@@ -52,6 +53,7 @@ const configHelp: any[string] = {
     'search.in': _configHelpSearchIn,
     'search.from': _configHelpSearchFrom,
     'search.to': _configHelpSearchTo,
+    'search.align': _configHelpSearchAlign,
     'stalker.event': _configHelpStalkerEvent,
     'stalker.timeout': _configHelpStalkerTimeout,
     'stalker.in': _configHelpStalkerIn,
@@ -71,6 +73,7 @@ const configValidator: any[string] = {
     'io.safe': _configValidateBoolean,
     'io.volatile': _configValidateBoolean,
     'search.bigendian': _configValidateBoolean,
+    'search.align': _configValidateNumber,
     'search.in': _configValidateSearchIn,
     'search.from': _configValidateSearchFrom,
     'search.to': _configValidateSearchTo,
@@ -121,6 +124,10 @@ function _configHelpSearchFrom() {
 
 function _configHelpSearchTo() {
     return `Specify the end address to search in`;
+}
+
+function _configHelpSearchAlign() {
+    return `Only accept matches hitting on aligned addresses`;
 }
 
 function _configHelpStalkerEvent() {
@@ -203,6 +210,10 @@ function _configValidateStalkerIn(val: string): boolean {
 }
 function _configValidateString(val: any): boolean {
     return typeof (val) === 'string';
+}
+
+function _configValidateNumber(val: any): boolean {
+    return !isNaN(Number(val));
 }
 
 function _configValidateBoolean(val: any): boolean {
@@ -338,7 +349,7 @@ export function get(k: string) {
 }
 
 export const getBoolean = (k: string) => _isTrue(config[k]);
-export const getNumber = (k: string) => typeof config[k] === "number" ? config[k] : 0;
+export const getNumber = (k: string) => isNaN(Number(config[k])) ? 0: config[k];
 export { config as values };
 export default {
     values: config,
