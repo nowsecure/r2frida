@@ -162,7 +162,7 @@ const commandHandlers = {
     dm: [memory.listMemoryRanges, 'list ranges of memory maps'],
     'dm*': [memory.listMemoryRangesR2, 'add a flag in r2 for every memory range by name .:dm*'],
     dmj: [memory.listMemoryRangesJson, 'list memory ranges like `:dm` but in json format'],
-    dmp: [memory.changeMemoryProtection, 'display and change the memory protection bits (rwx) of a memory range', '[addr] [size] [rwx]'],
+    dmp: [memory.changeMemoryProtection, 'show or change the memory protection (rwx)', '[at] [sz] [rwx]'],
     'dm.': [memory.listMemoryRangesHere, 'show information about the memory map in the current offset'],
     dmm: [memory.listMemoryMaps, 'like :dm but easier to read as it groups consecutive maps'],
     'dmm*': [memory.listMemoryMapsR2, 'add a flag in r2 for every memory map'],
