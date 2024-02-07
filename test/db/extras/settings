@@ -12,6 +12,7 @@ EXPECT=<<EOF
 :e search.bigendian=false
 :e search.in=perm:r--
 :e search.kwidx=0
+:e search.align=0
 :e search.quiet=false
 :e stalker.event=compile
 :e stalker.timeout=300
