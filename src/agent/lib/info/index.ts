@@ -125,13 +125,11 @@ export async function dumpInfoJson() {
 // XXX not clear what's the return type for this function
 export function listEntrypointJson(args?: string[]) : any[] {
     function isEntrypoint(s: any) {
-        if (s.type === 'section') {
-            switch (s.name) {
-                case '_start':
-                case 'start':
-                case 'main':
-                    return true;
-            }
+        switch (s.name) {
+            case '_start':
+            case 'start':
+            case 'main':
+                return true;
         }
         return false;
     }
@@ -145,8 +143,7 @@ export function listEntrypointJson(args?: string[]) : any[] {
             return [st];
         }
     }
-    const firstModule = Process.mainModule;
-    return firstModule.enumerateSymbols()
+    const res = Process.mainModule.enumerateExports()
         .filter((symbol) => {
             return isEntrypoint(symbol);
         }).map((symbol) => {
@@ -156,6 +153,7 @@ export function listEntrypointJson(args?: string[]) : any[] {
             }
             return symbol;
         });
+    return res;
 }
 
 export function listEntrypointR2(args: string[]) : string {
