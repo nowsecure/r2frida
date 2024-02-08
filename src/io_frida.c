@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2023 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2024 - pancake, oleavr, mrmacete, murphy */
 
 #define R_LOG_ORIGIN "r2frida"
 
@@ -1341,6 +1341,8 @@ static bool resolve4(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	return false;
 }
 
+#include "urimaker.inc.c"
+
 static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	const char *first_field = pathname + 8;
 	// local, usb, remote
@@ -1368,6 +1370,13 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 		return false;
 	}
 	char *a = strdup (pathname + uri_len);
+	if (!strcmp (a, "-")) {
+		char *newa = construct_uri (rf);
+		if (newa) {
+			free (a);
+			a = newa;
+		}
+	}
 	if (*a == '/' || !strncmp (a, "./", 2)) {
 		// frida:///path/to/file
 		lo->spawn = true;
