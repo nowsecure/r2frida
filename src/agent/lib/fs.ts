@@ -516,7 +516,6 @@ export function flatify(result: any, vEnt: any, rootPath = "") {
     const myPath = normalize(path.join(rootPath, vEnt.name));
     if (vEnt.hasActualPath()) {
         result[myPath] = vEnt.actualPath;
-        return;
     }
     result[myPath] = vEnt.subEnts;
     for (const sub of vEnt.subEnts) {
