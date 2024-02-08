@@ -106,39 +106,39 @@ export function getCwd(): string {
     return '';
 }
 
-export function _ls(path: string) {
+export function _ls(srcPath: string) {
     if (fs === null) {
         fs = new FridaFS();
     }
-    return fs.ls(_debase(path));
+    return fs.ls(_debase(srcPath));
 }
 
-export function _cat(path: string, mode?: string, offset?: number, size?: number) {
+export function _cat(srcPath: string, mode?: string, offset?: number, size?: number) {
     if (fs === null) {
         fs = new FridaFS();
     }
-    return fs.cat(_debase(path), mode, offset, size);
+    return fs.cat(_debase(srcPath), mode, offset, size);
 }
 
-export function _open(path: string): any {
+export function _open(srcPath: string): any {
     if (fs === null) {
         fs = new FridaFS();
     }
-    return fs.open(_debase(path));
+    return fs.open(_debase(srcPath));
 }
 
-export function transformVirtualPath(path: string) {
+export function transformVirtualPath(srcPath: string) {
     if (fs === null) {
         fs = new FridaFS();
     }
-    return fs.transformVirtualPath(normalize(path));
+    return fs.transformVirtualPath(normalize(srcPath));
 }
 
-export function exist(path: string): boolean {
+export function exist(srcPath: string): boolean {
     if (fs === null) {
         fs = new FridaFS();
     }
-    return fs.exist(_debase(path));
+    return fs.exist(_debase(srcPath));
 }
 
 export class FridaFS {
@@ -152,13 +152,13 @@ export class FridaFS {
         this._transform = null;
     }
 
-    exist(path: string): boolean {
-        return this.api.getFileSize(path) >= 0;
+    exist(srcPath: string): boolean {
+        return this.api.getFileSize(srcPath) >= 0;
     }
 
-    ls(path: string): string {
+    ls(srcPath: string): string {
         const result = [];
-        const actualPath = this.transform.toActual(path);
+        const actualPath = this.transform.toActual(srcPath);
         if (actualPath !== null) {
             const entryBuf = Memory.alloc(Process.pageSize);
             const resultPtr = Memory.alloc(Process.pointerSize);
@@ -175,7 +175,7 @@ export class FridaFS {
             }
             this.api.closedir(dir);
         } else {
-            const virtualDir = this.transform.getVirtualDir(path);
+            const virtualDir = this.transform.getVirtualDir(srcPath);
             for (const entry of virtualDir) {
                 result.push(`d ${entry.name}`);
             }
@@ -183,8 +183,8 @@ export class FridaFS {
         return result.join('\n');
     }
 
-    cat(path: string, mode: string, offset: number, size: number) {
-        const actualPath = this.transform.toActual(path);
+    cat(srcPath: string, mode: string, offset: number, size: number) {
+        const actualPath = this.transform.toActual(srcPath);
         if (actualPath !== null) {
             const fileSize = this.api.getFileSize(actualPath);
             if (fileSize < 0) {
@@ -221,12 +221,12 @@ export class FridaFS {
             const format = (mode === '*') ? 'hex' : 'utf8';
             return encodeBuf(buf, size, format);
         }
-        console.log('ERROR: no path ' + path);
+        console.log('ERROR: no path ' + srcPath);
         return '';
     }
 
-    open(path: string): string {
-        const actualPath = this.transform.toActual(path);
+    open(srcPath: string): string {
+        const actualPath = this.transform.toActual(srcPath);
         if (actualPath !== null) {
             const size = this.api.getFileSize(actualPath);
             if (size < 0) {
@@ -238,19 +238,19 @@ export class FridaFS {
         return '';
     }
 
-    transformVirtualPath(path: string): string {
+    transformVirtualPath(srcPath: string): string {
         for (const vPrefix of this.transform._mappedPrefixes) {
-            const index = path.indexOf(vPrefix);
+            const index = srcPath.indexOf(vPrefix);
             if (index >= 0) {
-                path = path.slice(index);
+                srcPath = srcPath.slice(index);
                 break;
             }
         }
-        const actualPath = this.transform.toActual(path);
+        const actualPath = this.transform.toActual(srcPath);
         if (actualPath !== null) {
             return actualPath;
         }
-        return path;
+        return srcPath;
     }
     _transform: any | null;
     get transform() {
@@ -311,8 +311,8 @@ export class PathTransform {
         return virtualPath;
     }
 
-    getVirtualDir(virtualPath: string) {
-        const result = this._virtualDirs[virtualPath];
+    getVirtualDir(virtualPath: string): string[] {
+        const result: string[] = this._virtualDirs[virtualPath];
         if (result === undefined) {
             return [];
         }
@@ -383,8 +383,8 @@ export class PosixFSApi {
         return this._api;
     }
 
-    opendir(path: string): any | null {
-        const result = this.api.opendir(Memory.allocUtf8String(path));
+    opendir(srcPath: string): any | null {
+        const result = this.api.opendir(Memory.allocUtf8String(srcPath));
         if (result.isNull()) {
             return null;
         }
@@ -404,8 +404,8 @@ export class PosixFSApi {
         return this.api.closedir(dir);
     }
 
-    fopen(path: string, mode: string) {
-        return this.api.fopen(Memory.allocUtf8String(path), Memory.allocUtf8String(mode));
+    fopen(srcPath: string, mode: string) {
+        return this.api.fopen(Memory.allocUtf8String(srcPath), Memory.allocUtf8String(mode));
     }
 
     fclose(f: any) {
@@ -420,9 +420,9 @@ export class PosixFSApi {
         return this.api.fseek(f, offset, whence);
     }
 
-    getFileSize(path: string) {
+    getFileSize(srcPath: string) {
         const statPtr = Memory.alloc(Process.pageSize);
-        const pathStr = Memory.allocUtf8String(path);
+        const pathStr = Memory.allocUtf8String(srcPath);
         if (this.api.stat !== null) {
             const res = this.api.stat(pathStr, statPtr);
             if (res === -1) {
@@ -512,8 +512,8 @@ export function resolveExports(names: string[]) {
     }, {});
 }
 
-export function flatify(result: any, vEnt: any, path = "") {
-    const myPath = normalize(`${path}/${vEnt.name}`);
+export function flatify(result: any, vEnt: any, rootPath = "") {
+    const myPath = normalize(path.join(rootPath, vEnt.name));
     if (vEnt.hasActualPath()) {
         result[myPath] = vEnt.actualPath;
         return;
