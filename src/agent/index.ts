@@ -5,6 +5,7 @@ import * as android from './lib/java/android.js';
 import * as classes from './lib/info/classes.js';
 import * as darwin from './lib/darwin/index.js';
 import * as debug from './lib/debug/index.js';
+import * as system from './lib/debug/system.js';
 import disasm from './lib/disasm.js';
 import expr from './lib/expr.js';
 import * as fs from './lib/fs.js';
@@ -37,6 +38,7 @@ global.r2pipe = {
 };
 
 const commandHandlers = {
+    '!': [system.runSystemCommand, 'execute program with system'],
     '?': [expr.evalNum, 'evaluate number'],
     '?e': [echo, 'print message'],
     '?E': [uiAlert, 'popup alert dialog on target app'],
@@ -331,7 +333,10 @@ function getHelpMessage(prefix: string): string {
 }
 
 function perform(params: any) {
-    const { command } = params;
+    let { command } = params;
+    if (command.startsWith("!")) {
+        command = "! " + command.substr(1);
+    }
     const tokens = command.split(/ /).map((c: any) => c.trim()).filter((x: any) => x);
     const [name, ...args] = tokens;
     if (typeof name === 'undefined') {
