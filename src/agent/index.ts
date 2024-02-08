@@ -269,6 +269,7 @@ s r2f.modulebase
 .:dmm*
 .:dm*
 .:il*
+.:ic* ViewController 2> /dev/null
 m /r2f io 0
 s entry0 2> /dev/null`;
 }
