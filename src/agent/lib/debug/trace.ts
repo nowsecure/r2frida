@@ -234,64 +234,112 @@ export function traceRegs(args: string[]) {
     if (haveTraceAt(address)) {
         return "There's already a trace in here";
     }
-    const context: any = {};
-    const rest = args.slice(1);
+    //const context: any;
+    const registers = args.slice(1);
     const currentModule = getModuleByAddress(address);
-    const listener = Interceptor.attach(address, traceFunction);
-    function traceFunction(_: any) {
-        traceListener.hits++;
-        const regState: any = {};
-        rest.forEach((r) => {
-            let regName = r;
-            let regValue = ""
-            if (r.indexOf('=') !== -1) {
-                const kv = r.split('=', 2);
-                regName = kv[0];
-                regValue = kv[1];
-                context[regName] = ptr(regValue); // set register value
-            } else {
+    const listener = Interceptor.attach(address, {
+        onEnter() {
+            const context: CpuContext = this.context;
+            traceListener.hits++;
+            const regState: any = {};
+            registers.forEach((r) => {
+                if (r[0] === '%') {
+                    return;
+                }
+                let regName = "", regValue = "";
+                regName = r;
+                // set a new register value
+                if (r.indexOf('=') !== -1) {
+                    [regName, regValue] = r.split('=');
+                    context[regName as keyof CpuContext] = ptr(regValue);
+                }
                 try {
-                    const rv = ptr(context[r]);
-                    regValue = rv.toString();
-                    let tail = rv.readCString();
+                    regValue = context[r as keyof CpuContext].toString();
+                    let tail = context[r as keyof CpuContext].readUtf8String();
                     if (tail) {
-                        tail = ' (' + tail + ')';
-                        regValue += tail;
+                        regValue += ' (' + tail + ')';
                     }
                 } catch (e: any) {
                     // do nothing
                 }
-            }
-            regState[regName] = regValue;
-        });
-        const traceMessage = {
-            source: 'dtr',
-            address: address,
-            timestamp: new Date(),
-            values: regState,
-            backtrace: [] as any[]
-        };
-        if (config.getBoolean('hook.backtrace')) {
-            traceMessage.backtrace = Thread.backtrace(context).map(DebugSymbol.fromAddress);
-        }
-        if (config.getString('hook.output') === "json") {
-            log.traceEmit(JSON.stringify(traceMessage));
-        } else {
-            let msg = `[dtr][${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
+                regState[regName] = regValue;
+            });
+            const traceMessage = {
+                source: 'dtr',
+                address: address,
+                timestamp: new Date(),
+                values: regState,
+                backtrace: [] as any[]
+            };
             if (config.getBoolean('hook.backtrace')) {
-                msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+                traceMessage.backtrace = Thread.backtrace(context).map(DebugSymbol.fromAddress);
             }
-            log.traceEmit(msg);
+            if (config.getString('hook.output') === "json") {
+                log.traceEmit(JSON.stringify(traceMessage));
+            } else {
+                let msg = `[dtr][${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
+                if (config.getBoolean('hook.backtrace')) {
+                    msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+                }
+                log.traceEmit(msg);
+            }
+        },
+        onLeave() {
+            const context: CpuContext = this.context;
+            traceListener.hits++;
+            const regState: any = {};
+            registers.forEach((r) => {
+                if (r[0] !== '%') {
+                    return;
+                }
+                r = r.slice(1); // Removes the Token %
+                let regName = "", regValue = "";
+                regName = r;
+                // set a new register value
+                if (r.indexOf('=') !== -1) {
+                    [regName, regValue] = r.split('=');
+                    context[regName as keyof CpuContext] = ptr(regValue);
+                }
+                try {
+                    regValue = context[r as keyof CpuContext].toString();
+                    let tail = context[r as keyof CpuContext].readUtf8String();
+                    if (tail) {
+                        regValue += ' (' + tail + ')';
+                    }
+                } catch (e: any) {
+                    // do nothing
+                }
+                regState[regName] = regValue;
+            });
+            const traceMessage = {
+                source: 'dtr',
+                address: address,
+                timestamp: new Date(),
+                values: regState,
+                backtrace: [] as any[]
+            };
+            if (config.getBoolean('hook.backtrace')) {
+                traceMessage.backtrace = Thread.backtrace(context).map(DebugSymbol.fromAddress);
+            }
+            if (config.getString('hook.output') === "json") {
+                log.traceEmit(JSON.stringify(traceMessage));
+            } else {
+                let msg = `[dtr](onLeave)[${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
+                if (config.getBoolean('hook.backtrace')) {
+                    msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
+                }
+                log.traceEmit(msg);
+            }
         }
-    }
+    });
     const traceListener = {
         source: 'dtr',
         hits: 0,
         at: address,
         moduleName: currentModule ? currentModule.name : 'unknown',
-        name: args[0],
+        name:args[0],
         listener: listener,
-        args: rest
+        args: registers
     };
     traceListeners.push(traceListener);
     return '';
