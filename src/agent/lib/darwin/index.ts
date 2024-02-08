@@ -303,7 +303,7 @@ export class IOSPathTransform extends PathTransform {
     _fillVirtualDirs(): void {
         if (!hasMainLoop()) {
           return;
-	}
+	    }
         const pool = this.api.NSAutoreleasePool.alloc().init();
         const appHome: string = new ObjC.Object(this.api.NSHomeDirectory()).toString();
         const appBundle: string = this.api.NSBundle.mainBundle().bundlePath().toString();
@@ -338,16 +338,12 @@ export class IOSPathTransform extends PathTransform {
         const key = this.api.NSString.stringWithString_('com.apple.security.application-groups');
         const ids = this.api.SecTaskCopyValueForEntitlement(task, key, NULL);
         if (ids.isNull()) {
-            this.api.CFRelease(key);
-            this.api.CFRelease(task);
             return [];
         }
         const idsObj = new ObjC.Object(ids).autorelease();
         const names: string[] = nsArrayMap(idsObj, (group: any) => {
             return group.toString();
         });
-        this.api.CFRelease(key);
-        this.api.CFRelease(task);
         return names;
     }
 
