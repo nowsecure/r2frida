@@ -8,6 +8,7 @@ static char *choose_action(RIOFrida *rf) {
 	r_list_append (items, strdup ("attach"));
 	r_list_append (items, strdup ("spawn"));
 	r_list_append (items, strdup ("launch"));
+	r_list_append (items, strdup ("system"));
 	char *res = r_cons_hud (items, "[r2frida] Action:");
 	r_list_free (items);
 	return res;
@@ -36,8 +37,6 @@ static char *choose_target(RIOFrida *rf) {
 
 static char *choose_app(RIOFrida *rf) {
 	RList *items = r_list_newf (free);
-	r_list_append (items, strdup ("Weather"));
-	r_list_append (items, strdup ("Notes"));
 	gint i;
 	GError *error = NULL;
 
@@ -112,29 +111,65 @@ repeat:;
 		r_cons_any_key ("");
 		goto repeat;
 	}
+	if (!strcmp (action, "attach") || !strcmp (action, "spawn") || !strcmp (action, "launch")) {
+		// valid action, move forward
+	} else {
+		goto repeat;
+	}
+repeat_device:;
 	char *device = choose_device (rf);
 	if (device) {
 		GError *error = NULL;
 		rf->device = get_device_manager (rf->device_manager, device, NULL, &error);
+		if (!rf->device) {
+			r_cons_any_key ("Invalid device");
+			goto repeat_device;
+		}
 	} else {
 		goto repeat;
 	}
+	char *pid = NULL;
+	char *app = NULL;
+	char *fil = NULL;
 	char *target = choose_target (rf);
 	if (!target) {
 		r_cons_clear00 ();
-		r_cons_printf ("Nope");
-		r_cons_any_key ("");
+		r_cons_any_key ("Nope");
 		goto repeat;
 	}
 	if (!strcmp (target, "apps")) {
-		choose_app (rf);
+		app = choose_app (rf);
+		if (R_STR_ISEMPTY (app)) {
+			goto repeat;
+		}
+		char *sp = strchr (app, ' ');
+		if (sp) {
+			r_str_cpy (app, sp + 1);
+			sp = strchr (app, ' ');
+			if (sp) {
+				*sp = 0;
+			}
+		}
+	} else if (!strcmp (target, "pids")) {
+		pid = choose_pid (rf);
+		if (R_STR_ISEMPTY (pid)) {
+			goto repeat;
+		}
+		char *sp = strchr (pid, ' ');
+		if (sp) {
+			*sp = 0;
+		}
+	} else if (!strcmp (target, "file")) {
+		fil = r_cons_hud_file ("");
+	} else {
 		goto repeat;
 	}
-	if (!strcmp (target, "pids")) {
-		choose_pid (rf);
-		goto repeat;
+	if (!strcmp (device, "local")) {
+		char *res = r_str_newf ("%s", fil);
+		free (action);
+		return res;
 	}
-	char *res = r_str_newf ("?");
+	char *res = r_str_newf ("%s/%s//%s", action, device, app? app: pid);
 	free (action);
 	return res;
 }
