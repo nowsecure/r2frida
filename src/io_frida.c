@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2023 - pancake, oleavr, mrmacete */
+/* radare2 - MIT - Copyright 2016-2024 - pancake, oleavr, mrmacete, murphy */
 
 #define R_LOG_ORIGIN "r2frida"
 
@@ -103,8 +103,8 @@ static const char * const helpmsg = ""\
 	"* device = '' | host:port | device-id\n"
 	"* target = pid | appname | process-name | program-in-path | abspath\n"
 	"Local:\n"
+	"* frida://                         # visual mode to select action+device+program\n"
 	"* frida://?                        # show this help\n"
-	"* frida://                         # list local processes\n"
 	"* frida://0                        # attach to frida-helper (no spawn needed)\n"
 	"* frida:///usr/local/bin/rax2      # abspath to spawn\n"
 	"* frida://rax2                     # same as above, considering local/bin is in PATH\n"
@@ -1341,6 +1341,8 @@ static bool resolve4(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	return false;
 }
 
+#include "urimaker.inc.c"
+
 static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	const char *first_field = pathname + 8;
 	// local, usb, remote
@@ -1356,7 +1358,16 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 	if (strncmp (pathname, "frida://", uri_len)) {
 		return false;
 	}
+	char *a = strdup (pathname + uri_len);
 	if (!pathname[uri_len]) {
+#if 1
+		char *newa = construct_uri (rf);
+		if (newa) {
+			free (a);
+			R_LOG_INFO ("Redirecting to frida://%s", newa);
+			a = newa;
+		}
+#else
 		GError *error = NULL;
 		FridaDevice *device = get_device_manager (rf->device_manager, "local", cancellable, &error);
 		if (device) {
@@ -1366,8 +1377,17 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 			R_LOG_ERROR ("Cannot find device.\n");
 		}
 		return false;
+#endif
 	}
-	char *a = strdup (pathname + uri_len);
+#if 0
+	if (!strcmp (a, "-")) {
+		char *newa = construct_uri (rf);
+		if (newa) {
+			free (a);
+			a = newa;
+		}
+	}
+#endif
 	if (*a == '/' || !strncmp (a, "./", 2)) {
 		// frida:///path/to/file
 		lo->spawn = true;
