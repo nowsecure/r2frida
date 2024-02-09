@@ -111,6 +111,9 @@ repeat:;
 		r_cons_any_key ("");
 		goto repeat;
 	}
+	if (!strcmp (action, "system")) {
+		return strdup ("0");
+	}
 	if (!strcmp (action, "attach") || !strcmp (action, "spawn") || !strcmp (action, "launch")) {
 		// valid action, move forward
 	} else {
