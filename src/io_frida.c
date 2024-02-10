@@ -1360,24 +1360,22 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 	}
 	char *a = strdup (pathname + uri_len);
 	if (!pathname[uri_len]) {
-#if 1
+		char *r2coreptr = r_sys_getenv ("R2COREPTR");
+		const bool in_iaito = R_STR_ISNOTEMPTY (r2coreptr);
+		free (r2coreptr);
+		if (in_iaito) {
+			eprintf ("%s\n", helpmsg);
+			return false;
+		}
 		char *newa = construct_uri (rf);
 		if (newa) {
 			free (a);
 			R_LOG_INFO ("Redirecting to frida://%s", newa);
 			a = newa;
-		}
-#else
-		GError *error = NULL;
-		FridaDevice *device = get_device_manager (rf->device_manager, "local", cancellable, &error);
-		if (device) {
-			dumpProcesses (device, cancellable);
-			g_object_unref (device);
 		} else {
-			R_LOG_ERROR ("Cannot find device.\n");
+			eprintf ("%s\n", helpmsg);
+			return false;
 		}
-		return false;
-#endif
 	}
 #if 0
 	if (!strcmp (a, "-")) {
