@@ -117,6 +117,17 @@ function _interceptFunRet(target: string, value: string | number, paramTypes: st
     });
 }
 
+export function interceptDetachAll(args: string[]) {
+    Interceptor.detachAll();
+}
+
+export function interceptRevert(args: string[]) {
+    if (args.length > 0) {
+        const p = getPtr(args[0])
+        Interceptor.revert(p)
+    }
+}
+
 export default {
     interceptHelp,
     interceptFunHelp,
@@ -132,5 +143,7 @@ export default {
     interceptFunRet0,
     interceptFunRet1,
     interceptFunRetInt,
-    interceptFunRet_1
+    interceptFunRet_1,
+    interceptDetachAll,
+    interceptRevert
 };

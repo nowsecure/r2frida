@@ -236,6 +236,8 @@ const commandHandlers = {
     dii: [interceptor.interceptRetInt, 'force early return with given number', '[addr] [num]'],
     'di-1': [interceptor.interceptRet_1, 'force function to return -1'],
     div: [interceptor.interceptRetVoid, 'early return for a void function()'],
+    'di-*': [interceptor.interceptDetachAll, 'remove (detach) all interceptor handles'],
+    dir: [interceptor.interceptRevert, 'revert a trace at the given function', '[addr|java:]'],
     // intercept ret after calling the function
     difs: [interceptor.interceptFunRetString, 'replace function return string', '[addr] [str]'],
     dif0: [interceptor.interceptFunRet0, 'replace function return 0 (after running the function code)', '[addr]'],
