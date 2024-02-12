@@ -135,13 +135,17 @@ export function listEntrypointJson(args?: string[]) : any[] {
     }
     if (Process.platform === 'linux') {
         const at = DebugSymbol.fromName('main');
-        if (at) {
+        if (at && !at.address.isNull()) {
             return [at];
         }
         const st = DebugSymbol.fromName('_start');
-        if (st) {
+        if (at && !st.address.isNull()) {
             return [st];
         }
+        try {
+            const headers = listHeadersJson([]);
+            return [{address:headers.entrypoint, name:"entry0"}];
+        } catch (e) {}
     }
     const res = Process.mainModule.enumerateExports()
         .filter((symbol) => {
