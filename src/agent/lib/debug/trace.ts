@@ -65,14 +65,14 @@ export function traceFormat(args: any) {
                     timestamp: new Date(),
                     values: this.myArgs
                 };
-                if (config.getBoolean('hook.backtrace')) {
+                if (config.getBoolean('hook.backtrace') || this.myBacktrace != undefined) {
                     traceMessage.backtrace = Thread.backtrace(this.context).map(DebugSymbol.fromAddress);
                 }
                 if (config.getString('hook.output') === 'json') {
                     log.traceEmit(JSON.stringify(traceMessage));
                 } else {
                     let msg = `[dtf onEnter][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}`;
-                    if (config.getBoolean('hook.backtrace')) {
+                    if (config.getBoolean('hook.backtrace') || this.myBacktrace != undefined) {
                         msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
                     }
                     for (let i = 0; i < this.myDumps.length; i++) {
