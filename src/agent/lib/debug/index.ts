@@ -305,7 +305,7 @@ function _resolveSyscallNumber(name: string): number | string {
     return '' + name;
 }
 
-export function listThreads() {
+export function listThreads() : string {
     return Process.enumerateThreads().map((thread) => {
         const threadName = _getThreadName(thread.id);
         return [thread.id, threadName].join(' ');
@@ -317,7 +317,7 @@ export function listThreadsJson() {
         .map(thread => thread.id);
 }
 
-export function dumpRegisters(args: string[]) {
+export function dumpRegisters(args: string[]) : string {
     return _getThreads(args[0])
         .map(thread => {
             const { id, state, context } = thread;
@@ -342,8 +342,13 @@ function _getThreads(threadid: string) {
         .filter(thread => tid === undefined || thread.id === tid);
 }
 
-export function dumpRegistersEsil(args: string[]) {
+export function dumpRegistersEsil(args: string[]) : string {
     const threads = Process.enumerateThreads();
+    if (threads.length === 0) {
+        // TODO: when process is spawned but not being executed, there are no threads
+        // ODOT: available therefor the list is empty and we cant generate a regprofile
+        return "";
+    }
     const [tid] = args;
     const context = tid ? threads.filter(th => th.id === +tid) : threads[0].context;
     if (!context) {
@@ -365,8 +370,13 @@ export function dumpRegistersEsil(args: string[]) {
     return values.join(',');
 }
 
-export function dumpRegistersR2(args: string[]) {
+export function dumpRegistersR2(args: string[]) : string {
     const threads = Process.enumerateThreads();
+    if (threads.length === 0) {
+        // TODO: when process is spawned but not being executed, there are no threads
+        // ODOT: available therefor the list is empty and we cant generate a regprofile
+        return "";
+    }
     const [tid] = args;
     const context = tid ? threads.filter(th => th.id === +tid) : threads[0].context;
     if (!context) {
@@ -388,7 +398,7 @@ export function dumpRegistersR2(args: string[]) {
     return values.join('');
 }
 
-export function dumpRegistersRecursively(args: string[]) {
+export function dumpRegistersRecursively(args: string[]) : string {
     const [tid] = args;
     Process.enumerateThreads()
         .filter(thread => !tid || !+tid || +tid === thread.id)
@@ -408,8 +418,13 @@ export function dumpRegistersRecursively(args: string[]) {
     return ''; // nothing to see here
 }
 
-export function dumpRegisterProfile(args: string[]) {
+export function dumpRegisterProfile(args: string[]) : string {
     const threads = Process.enumerateThreads();
+    if (threads.length === 0) {
+        // TODO: when process is spawned but not being executed, there are no threads
+        // ODOT: available therefor the list is empty and we cant generate a regprofile
+        return "";
+    }
     const context = threads[0].context;
     const names = Object.keys(JSON.parse(JSON.stringify(context)))
         .filter(_ => _ !== 'pc' && _ !== 'sp');
@@ -426,7 +441,7 @@ export function dumpRegisterProfile(args: string[]) {
 
 export function dumpRegisterArena(args: string[]) {
     const threads = Process.enumerateThreads();
-    if (threads.length < 1) {
+    if (threads.length === 0) {
         return "";
     }
     let tidx = +args[0];
