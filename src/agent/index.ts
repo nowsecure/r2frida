@@ -272,7 +272,8 @@ s r2f.modulebase
 .:dm*
 .:il*
 m /r2f io 0
-s entry0 2> /dev/null`;
+?q entry0-0 2> /dev/null
+?? s entry0`;
 }
 
 if (Process.platform === 'darwin') {
