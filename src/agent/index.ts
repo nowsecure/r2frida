@@ -312,28 +312,37 @@ function getHelpMessage(prefix: string): string {
             return !prefix || k.startsWith(prefix);
         })
         .filter((k) => {
-            // TODO: only filter those for top level commands, maybe handy to show them too
-            return !(k.endsWith('?') || k.endsWith('j') || k.endsWith('q')); //  || k.endsWith('.'));
+            const lastChar = k.substring (k.length -1);
+            switch (lastChar) {
+            case '?':
+            case 'j':
+            case 'q':
+            case '.':
+            case '*':
+                return false;
+            }
+            return true;
         })
         .filter((k) => {
             const fcn = (commandHandlers as any)[k];
-	    return (typeof fcn === "object");
+            return (typeof fcn === "object");
         })
         .map((k) => {
             const fcn = (commandHandlers as any)[k];
-	    if (typeof fcn === "object") {
+            if (typeof fcn === "object") {
                 const desc = fcn[1];
                 const args = fcn[2] || "";
                 const haveJson = (commandHandlers as any)[k + 'j'];
                 const haveR2 = (commandHandlers as any)[k + '*'];
-		let mods = "";
-		if (haveJson || haveR2) {
-                    mods = "[" + (haveJson?"j":"") + (haveR2?"*":"") + "]";
-		}
+                const haveDot = (commandHandlers as any)[k + '.'];
+                let mods = "";
+                if (haveDot || haveJson || haveR2) {
+                    mods = "[" + (haveJson?"j":"") + (haveR2?"*":"") + (haveDot?".":"") + "]";
+                }
                 const cmd = k + mods + ' ' + args;
-		// show subcommands if any (check for 'j' and '*')
+                // show subcommands if any (check for 'j' and '*')
                 return ':' + utils.padString(cmd, 20) + desc;
-	    }
+            }
             return ":" + k;
         }).join('\n');
 }

@@ -508,6 +508,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		":eval code..                Evaluate Javascript code in agent side\n"
 		":fd[*j] <address>           Inverse symbol resolution\n"
 		":i                          Show target information\n"
+		":ih[j*]                     Parse binary headers of the current module (see 'oba' command in r2)\n"
 		":iE[*] <lib>                Same as is, but only for the export global ones\n"
 		":iS[*]                      List sections\n"
 		":iS.                        Show section name at current address\n"
