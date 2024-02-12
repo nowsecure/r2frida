@@ -369,10 +369,10 @@ export function listExportsJson(args: string[]) : any | null {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
         : getModuleByAddress(ptr(r2frida.offset));
-    if (currentModule !== null) {
-        return currentModule.enumerateExports();
+    if (currentModule === null) {
+        return Process.mainModule.enumerateExports();
     }
-    return [];
+    return currentModule.enumerateExports();
 }
 
 export function listSegmentsHere() {
