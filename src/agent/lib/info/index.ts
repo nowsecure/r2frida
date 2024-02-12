@@ -165,6 +165,9 @@ export function listHeadersJson(args: string[]) : any {
     const baseAddr = Process.enumerateModules()
         .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
         .map(m => m.base)[0];
+    if (Process.platform === 'darwin') {
+	return parseMachoHeader(baseAddr);
+    }
     const headers = parseElfHeader(baseAddr);
     const entrypoint = ptr(headers.entrypoint);
     headers.entrypoint = entrypoint.add(baseAddr).toString();
@@ -177,7 +180,10 @@ export function listHeaders(args: string[]) : string {
 
 export function listHeadersR2(args: string[]) : string {
     const headers = listHeadersJson(args);
-    return `f entry0=${headers.entrypoint}`;
+    if (headers.hasOwnProperty("entrypoint")) {
+        return `f entry0=${headers.entrypoint}`;
+    }
+    return "";
 }
 
 export function listEntrypointR2(args: string[]) : string {
