@@ -2,6 +2,7 @@
 
 export const ELF_HEADER = 0x464c457f;
 export const EM_AARCH64 = 0xb7;
+export const EM_X86_64 = 0x3e;
 
 export class Elf64Dyn {
     name : string;
@@ -87,4 +88,4 @@ export const dynamicEntries :any= {
     33: new Elf64Dyn('DT_PREINIT_ARRAYSZ', 'val')
 };
 
-export default { ELF_HEADER, EM_AARCH64, dynamicTags, dynamicEntries };
+export default { ELF_HEADER, EM_AARCH64, EM_X86_64, dynamicTags, dynamicEntries };

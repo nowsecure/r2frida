@@ -1,5 +1,5 @@
 import * as utils from '../utils.js';
-import { dynamicEntries, dynamicTags, ELF_HEADER, EM_AARCH64 } from './elf_h.js';
+import { dynamicEntries, dynamicTags, ELF_HEADER, EM_AARCH64, EM_X86_64 } from './elf_h.js';
 
 class Section {
     name: string;
