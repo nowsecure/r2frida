@@ -186,7 +186,7 @@ function parseHeaderType(value: number) : string | null {
     return null;
 }
 
-function parseElfHeader(offset: NativePointer) {
+function parseElfHeader(offset: NativePointer) : any {
     const header = {
         magic: offset.readU32(),
         class: offset.add(0x4).readU8(),
@@ -206,12 +206,15 @@ function parseElfHeader(offset: NativePointer) {
         shNum: offset.add(0x3c).readU16(),
         shrStrndx: offset.add(0x3e).readU16()
     };
-    if (header.machine === EM_AARCH64) {
+    switch (header.machine) {
+    case EM_AARCH64:
+    case EM_X86_64:
         return header;
     }
-    throw new Error('Only support for 64-bit apps');
+    throw new Error('Only works on 64-bit arm/intel apps');
 }
 
 export { listElfSections };
 export { listElfSegments };
+export { parseElfHeader };
 export default { listElfSections, listElfSegments };

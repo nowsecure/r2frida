@@ -1,6 +1,6 @@
 import { getModuleByAddress } from './lookup.js';
 import config from '../../config.js';
-import elf, { listElfSections, listElfSegments } from '../elf/index.js';
+import { parseElfHeader, listElfSections, listElfSegments } from '../elf/index.js';
 import { getCwd } from '../fs.js';
 import {JavaAvailable, performOnJavaVM } from '../java/index.js';
 import r2 from '../r2.js';
@@ -154,6 +154,26 @@ export function listEntrypointJson(args?: string[]) : any[] {
             return symbol;
         });
     return res;
+}
+
+export function listHeadersJson(args: string[]) : any {
+    const here = ptr(r2frida.offset);
+    const baseAddr = Process.enumerateModules()
+        .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
+        .map(m => m.base)[0];
+    const headers = parseElfHeader(baseAddr);
+    const entrypoint = ptr(headers.entrypoint);
+    headers.entrypoint = entrypoint.add(baseAddr).toString();
+    return headers;
+}
+
+export function listHeaders(args: string[]) : string {
+    return JSON.stringify (listHeadersJson(args), null, 2);
+}
+
+export function listHeadersR2(args: string[]) : string {
+    const headers = listHeadersJson(args);
+    return `f entry0=${headers.entrypoint}`;
 }
 
 export function listEntrypointR2(args: string[]) : string {
@@ -573,6 +593,9 @@ export function listStrings(args: string[]) {
 }
 
 export default {
+    listHeaders,
+    listHeadersR2,
+    listHeadersJson,
     dumpInfo,
     dumpInfoR2,
     dumpInfoJson,
