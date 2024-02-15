@@ -239,7 +239,7 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
+	r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 endif
