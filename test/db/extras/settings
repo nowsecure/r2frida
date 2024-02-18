@@ -19,6 +19,7 @@ EXPECT=<<EOF
 :e stalker.in=raw
 :e hook.backtrace=false
 :e hook.verbose=true
+:e hook.time=true
 :e hook.logs=true
 :e hook.output=simple
 :e hook.usecmd=

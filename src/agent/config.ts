@@ -36,6 +36,7 @@ const config: any[string] = {
     'stalker.in': 'raw',
     'hook.backtrace': false,
     'hook.verbose': true,
+    'hook.time': true,
     'hook.logs': true,
     'hook.output': 'simple',
     'hook.usecmd': '',
@@ -59,6 +60,7 @@ const configHelp: any[string] = {
     'stalker.in': _configHelpStalkerIn,
     'hook.backtrace': _configHelpHookBacktrace,
     'hook.verbose': _configHelpHookVerbose,
+    'hook.time': _configHelpHookTime,
     'hook.usecmd': _configHelpHookUseCmd,
     'hook.logs': _configHelpHookLogs,
     'hook.output': _configHelpHookOutput,
@@ -82,6 +84,7 @@ const configValidator: any[string] = {
     'stalker.in': _configValidateStalkerIn,
     'hook.backtrace': _configValidateBoolean,
     'hook.verbose': _configValidateBoolean,
+    'hook.time': _configValidateBoolean,
     'hook.logs': _configValidateBoolean,
     'hook.output': _configValidateString,
     'file.log': _configValidateString,
@@ -159,6 +162,11 @@ function _configHelpHookUseCmd() {
 
 function _configHelpHookVerbose() {
     return `Show trace messages to the console. They are also logged in :dtl
+true | false    to enable or disable the option`;
+}
+
+function _configHelpHookTime() {
+    return `Show timestamp in trace logs
 true | false    to enable or disable the option`;
 }
 
