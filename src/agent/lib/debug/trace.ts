@@ -43,6 +43,7 @@ export function traceFormat(args: any) {
     const traceOnEnter = format.indexOf('^') !== -1;
     const traceBacktrace = format.indexOf('+') !== -1;
     const useCmd = config.getString('hook.usecmd');
+    const useTimestamp = config.getBoolean('hook.time');
     const currentModule = getModuleByAddress(ptr(address));
     const listener = Interceptor.attach(ptr(address), {
         onEnter(this: any, args: any): void {
@@ -71,7 +72,8 @@ export function traceFormat(args: any) {
                 if (config.getString('hook.output') === 'json') {
                     log.traceEmit(JSON.stringify(traceMessage));
                 } else {
-                    let msg = `[dtf onEnter][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}`;
+                    const tss = useTimestamp? `[${traceMessage.timestamp}]`: "";
+                    let msg = `[dtf onEnter]${tss} ${name}@${address} - args: ${this.myArgs.join(', ')}`;
                     if (config.getBoolean('hook.backtrace') || this.myBacktrace != undefined) {
                         msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
                     }
@@ -105,7 +107,8 @@ export function traceFormat(args: any) {
                 if (config.getString('hook.output') === 'json') {
                     log.traceEmit(JSON.stringify(traceMessage));
                 } else {
-                    let msg = `[dtf onLeave][${traceMessage.timestamp}] ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${fmtRet}`;
+                    const tss = useTimestamp? `[${traceMessage.timestamp}]`: "";
+                    let msg = `[dtf onLeave]${tss} ${name}@${address} - args: ${this.myArgs.join(', ')}. Retval: ${fmtRet}`;
                     if (config.getBoolean('hook.backtrace')) {
                         msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
                     }
@@ -237,6 +240,7 @@ export function traceRegs(args: string[]) {
     //const context: any;
     const registers = args.slice(1);
     const currentModule = getModuleByAddress(address);
+    const useTimestamp = config.getBoolean('hook.time');
     const listener = Interceptor.attach(address, {
         onEnter() {
             const context: CpuContext = this.context;
@@ -324,7 +328,8 @@ export function traceRegs(args: string[]) {
             if (config.getString('hook.output') === "json") {
                 log.traceEmit(JSON.stringify(traceMessage));
             } else {
-                let msg = `[dtr](onLeave)[${traceMessage.timestamp}] ${address} - registers: ${JSON.stringify(regState)}`;
+                const tss = useTimestamp? `[${traceMessage.timestamp}]`: "";
+                let msg = `[dtr](onLeave)${tss} ${address} - registers: ${JSON.stringify(regState)}`;
                 if (config.getBoolean('hook.backtrace')) {
                     msg += ` backtrace: ${traceMessage.backtrace.toString()}`;
                 }
@@ -396,7 +401,9 @@ export function traceReal(name: string, addressString?: string) {
         if (config.getString('hook.output') === 'json') {
             log.traceEmit(JSON.stringify(traceMessage));
         } else {
-            log.traceEmit(`[dt][${traceMessage.timestamp}] ${address} - args: ${JSON.stringify(values)}`);
+            const useTimestamp = config.getBoolean('hook.time');
+            const tss = useTimestamp? `[${traceMessage.timestamp}]`: "";
+            log.traceEmit(`[dt]${tss} ${address} - args: ${JSON.stringify(values)}`);
         }
     });
     const traceListener = {
