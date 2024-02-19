@@ -10,7 +10,8 @@ let globalSymCounter = 0;
 export function sanitizeString(str: string): string {
     if (str) {
         const specialChars = "^/\\`+-${}~|*,;:\"'#@&<> ()[]!?%";
-        return str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+        const nonspecial = str.split('').map(c => specialChars.indexOf(c) === -1 ? c : '_').join('');
+        return nonspecial.replace(/[\x00-\x1F\x7F]/g, "");
     } else {
         globalSymCounter++;
         return 'noname.' + globalSymCounter;

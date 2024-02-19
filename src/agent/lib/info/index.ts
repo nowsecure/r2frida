@@ -2,7 +2,7 @@ import { getModuleByAddress } from './lookup.js';
 import config from '../../config.js';
 import { parseElfHeader, listElfSections, listElfSegments } from '../elf/index.js';
 import { getCwd } from '../fs.js';
-import {JavaAvailable, performOnJavaVM } from '../java/index.js';
+import { JavaAvailable, performOnJavaVM } from '../java/index.js';
 import r2 from '../r2.js';
 import sys from '../sys.js';
 import { ObjCAvailable, getSections, getSegments, listMachoSections, listMachoSegments } from '../darwin/index.js';
