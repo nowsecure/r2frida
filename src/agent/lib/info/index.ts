@@ -192,6 +192,9 @@ export function listEntrypointR2(args: string[]) : string {
         .map((entry) => {
             return 'f entry' + (n++) + ' = ' + entry.address;
         }).join('\n');
+    if (entries === "") {
+      return "";
+    }
     return "fs+symbols\n" + entries + "\nfs-";
 }
 
@@ -260,6 +263,9 @@ export function listImportsR2(args: string[]) {
         }
         return flags.join('\n');
     }).join('\n');
+    if (res === "") {
+      return "";
+    }
     return "fs+symbols\n" + res + "\nfs-";
 }
 
@@ -309,6 +315,9 @@ export function listModulesR2() {
     const libs = Process.enumerateModules()
         .map(m => 'f lib.' + sanitizeString(m.name) + ' = ' + padPointer(m.base))
         .join('\n');
+    if (libs === "") {
+      return "";
+    }
     return "fs+libs\n" + libs + "\nfs-";
 }
 
@@ -518,6 +527,9 @@ export function listAllSymbolsR2(args: string[]) {
         .map(({ type, name, address }) => {
             return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
         }).join('\n');
+    if (symbols === "") {
+      return "";
+    }
     return "fs symbols\n" + symbols + "\nfs-";
 }
 
@@ -537,6 +549,9 @@ export function listSymbolsR2(args: string[]) {
             return ['f', 'sym.' + sanitizeString(name), '=', address].join(' ');
         })
         .join('\n');
+    if (symbols === "") {
+      return "";
+    }
     return "fs symbols\n" + symbols + "\nfs-";
 }
 
