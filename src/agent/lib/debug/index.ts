@@ -248,7 +248,7 @@ export function sendSignal(args: string[]) {
 function _breakpointList(args: string[]) {
     for (const [address, bp] of newBreakpoints.entries()) {
         if (bp.patches[0].address.equals(ptr(address))) {
-            console.log(address);
+            console.log(`${address}\n`);
         }
     }
 }
