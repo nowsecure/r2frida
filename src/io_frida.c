@@ -492,6 +492,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		":dp                         Show current pid\n"
 		":dpt                        Show threads\n"
 		":dr                         Show thread registers (see dpt)\n"
+		":dr.                        Show thread registers at the current thread\n"
 		":dt (<addr>|<sym>) ..       Trace list of addresses or symbols\n"
 		":dt- (<addr>|<sym>)         Clear trace\n"
 		":dt-*                       Clear all tracing\n"

@@ -6,6 +6,9 @@ import { autoType, getPtr, padPointer, byteArrayToHex } from '../utils.js';
 const newBreakpoints = new Map();
 let suspended = false;
 
+let currentThreadContext: CpuContext | null = null;
+
+
 const regProfileAliasForArm64 = `
 =PC pc
 =SP sp
@@ -72,7 +75,7 @@ export function setSuspended(v: boolean): void {
 }
 
 /* breakpoint handler */
-Process.setExceptionHandler(({ address }) => {
+Process.setExceptionHandler(({ address, context }) => {
     const bp = newBreakpoints.get(address.toString());
     if (!bp) {
         return false;
@@ -81,6 +84,7 @@ Process.setExceptionHandler(({ address }) => {
     if (index === 0) {
         send({ name: 'breakpoint-event', stanza: { cmd: bp.cmd } });
         let state = 'stopped';
+        currentThreadContext = context;
         if (config.getBoolean('hook.verbose')) {
             console.log(`Breakpoint ${address} hit`);
         }
@@ -92,6 +96,7 @@ Process.setExceptionHandler(({ address }) => {
                         break;
                     case 'resume':
                         state = 'running';
+                        currentThreadContext = null;
                         if (config.getBoolean('hook.verbose')) {
                             console.log('Continue thread(s).');
                         }
@@ -317,23 +322,35 @@ export function listThreadsJson() {
         .map(thread => thread.id);
 }
 
+export function dumpRegistersHere() : string {
+    if (currentThreadContext === null) {
+        return "No breakpoint set";
+    }
+    const values = _formatContext(currentThreadContext);
+    return values.join('');
+}
+
 export function dumpRegisters(args: string[]) : string {
+    return dumpRegistersJson(args).join('\n\n') + '\n';
+}
+
+function _formatContext(context: CpuContext): string[] {
+    const names = Object.keys(JSON.parse(JSON.stringify(context)));
+    names.sort(_compareRegisterNames);
+    const values = names
+        .map((name, index) => _alignRight(name, 3) + ' : ' + padPointer((context as any)[name]))
+        .map(_indent);
+    return values;
+}
+
+export function dumpRegistersJson(args: string[]) {
     return _getThreads(args[0])
         .map(thread => {
             const { id, state, context } = thread;
             const heading = `tid ${id} ${state}`;
-            const names = Object.keys(JSON.parse(JSON.stringify(context)));
-            names.sort(_compareRegisterNames);
-            const values = names
-                .map((name, index) => _alignRight(name, 3) + ' : ' + padPointer((context as any)[name]))
-                .map(_indent);
+            const values = _formatContext(context);
             return heading + '\n' + values.join('');
         })
-        .join('\n\n') + '\n';
-}
-
-export function dumpRegistersJson(args: string[]) {
-    return _getThreads(args[0]);
 }
 
 function _getThreads(threadid: string) {
