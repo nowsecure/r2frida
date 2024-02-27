@@ -1,12 +1,12 @@
 PKGNAME r2frida
-VERSION 5.8.8
+VERSION 5.8.9
 CONTACT pancake ; pancake@nowsecure.com
 
 USE_PKGCONFIG!
 
 LANG_C!
 
-EXEC R2_VERSION r2 -v ;
+EXEC! R2_VERSION r2 -v ;
 
 ARG_WITH PRECOMPILED_AGENT precompiled-agent do not require node/npm ;
 
