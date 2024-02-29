@@ -61,6 +61,8 @@ endif
 DESTDIR?=
 
 ifeq ($(shell uname),Darwin)
+# CFLAGS+=-arch arm64e -arch arm64
+# LDFLAGS+=-arch arm64e -arch arm64
 SO_EXT=dylib
 else
 SO_EXT=so

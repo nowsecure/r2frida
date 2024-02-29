@@ -145,10 +145,10 @@ repeat_device:;
 		if (R_STR_ISEMPTY (app)) {
 			goto repeat;
 		}
-		char *sp = strchr (app, ' ');
+		char *sp = strchr (app, '(');
 		if (sp) {
 			r_str_cpy (app, sp + 1);
-			sp = strchr (app, ' ');
+			sp = strchr (app, ')');
 			if (sp) {
 				*sp = 0;
 			}
