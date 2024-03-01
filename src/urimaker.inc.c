@@ -43,18 +43,28 @@ static char *choose_app(RIOFrida *rf) {
 	GCancellable *cancellable = NULL;
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (rf->device, NULL, cancellable, &error);
 	if (error != NULL) {
+		r_cons_any_key ("ERROR: Cannot list applications");
 		return NULL;
 	}
+	g_clear_error (&error);
 	gint num_applications = frida_application_list_size (list);
+	if (num_applications == 0) {
+		r_cons_any_key ("ERROR: No applications found");
+		return NULL;
+	}
 	for (i = 0; i != num_applications; i++) {
 		FridaApplication *application = frida_application_list_get (list, i);
 		guint pid = frida_application_get_pid (application);
 		const gchar *name = frida_application_get_name (application);
 		const gchar *iden = frida_application_get_identifier (application);
-		r_list_append (items, r_str_newf ("%d %s (%s)", pid, name, iden));
+		// remove () from app name and trim it down to something reasonable
+		char *fname = r_str_ndup (name, 32);
+		r_str_replace_char (fname, '(', '[');
+		r_str_replace_char (fname, ')', ']');
+		r_list_append (items, r_str_newf ("%d %s (%s)", pid, fname, iden));
+		free (fname);
 		g_object_unref (application); /* borrow it */
 	}
-	g_clear_error (&error);
 	g_clear_object (&list);
 
 	char *res = r_cons_hud (items, "[r2frida] Apps:");
@@ -70,7 +80,9 @@ static char *choose_pid(RIOFrida *rf) {
 	FridaProcessList *list = frida_device_enumerate_processes_sync (rf->device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			char *msg = r_str_newf ("ERROR: %s", error->message);
+			r_cons_any_key (msg);
+			free (msg);
 		}
 		return NULL;
 	}
@@ -143,19 +155,21 @@ repeat_device:;
 	if (!strcmp (target, "apps")) {
 		app = choose_app (rf);
 		if (R_STR_ISEMPTY (app)) {
+			r_cons_any_key ("No app selected");
 			goto repeat;
 		}
 		char *sp = strchr (app, '(');
 		if (sp) {
 			r_str_cpy (app, sp + 1);
-			sp = strchr (app, ')');
-			if (sp) {
-				*sp = 0;
+			if (*app) {
+				// assume last char is ')'. because bundle id can also contain ')'
+				app[strlen (app) - 1] = 0;
 			}
 		}
 	} else if (!strcmp (target, "pids")) {
 		pid = choose_pid (rf);
 		if (R_STR_ISEMPTY (pid)) {
+			r_cons_any_key ("No pid selected");
 			goto repeat;
 		}
 		char *sp = strchr (pid, ' ');
