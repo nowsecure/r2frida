@@ -163,15 +163,16 @@ export function breakpointInstruction() {
     return new Uint8Array([0xcc]).buffer;
 }
 
-export function breakpointNative(args: string[]) {
+export function breakpointNative(args: string[]) : string {
     if (args.length === 0) {
-        _breakpointList([]);
+        return _breakpointList([]);
     } else if (args[0].startsWith('-')) {
         const addr = args[0].substring(1);
         breakpointUnset([addr]);
     } else {
-        _breakpointSet(args);
+        return _breakpointSet(args);
     }
+    return "";
 }
 
 export function breakpointJson() {
@@ -230,9 +231,10 @@ export function breakpointContinue(args: string[]) {
 }
 
 export function breakpointContinueUntil(args: string[]) {
-    breakpointNative(args);
-    breakpointContinue([]);
-    breakpointNative(['-' + args[0]]);
+    if (breakpointNative(args) === "") {
+        breakpointContinue([]);
+        breakpointNative(['-' + args[0]]);
+    }
 }
 
 export function sendSignal(args: string[]) {
@@ -250,16 +252,22 @@ export function sendSignal(args: string[]) {
     return '';
 }
 
-function _breakpointList(args: string[]) {
+function _breakpointList(args: string[]) : string {
+    const bps = [];
     for (const [address, bp] of newBreakpoints.entries()) {
         if (bp.patches[0].address.equals(ptr(address))) {
-            console.log(`${address}\n`);
+            bps.push(`${address}`);
         }
     }
+    return bps.join("\n");
 }
 
-function _breakpointSet(args: string[]) {
-    const ptrAddr = getPtr(args[0]);
+function _breakpointSet(args: string[]) : string {
+    const address = args[0];
+    if (address.startsWith("java:")) {
+        return "Breakpoints only work on native code";
+    }
+    const ptrAddr = getPtr(address);
     const p1 = new CodePatch(ptrAddr) as any;
     const p2 = new CodePatch(p1.insn.next);
     const bp = {
@@ -268,6 +276,7 @@ function _breakpointSet(args: string[]) {
     newBreakpoints.set(p1.address.toString(), bp);
     newBreakpoints.set(p2.address.toString(), bp);
     p1.toggle();
+    return "";
 }
 
 export function dxCall(args: string[]) {
