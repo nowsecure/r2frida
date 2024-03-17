@@ -32,7 +32,9 @@ endif
 
 ifeq ($(frida_os),linux)
 HAVE_MUSL=$(shell (grep -q musl /bin/ls && test -x /lib/ld-musl*) && echo 1 || echo 0)
+R2FRIDA_COMPILE_FLAGS=-Wl,-z,noexecstack
 else
+R2FRIDA_COMPILE_FLAGS=
 HAVE_MUSL=0
 endif
 
@@ -373,7 +375,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/r2frida-compile: src/r2frida-compile.c
-	$(CC) -g src/r2frida-compile.c $(FRIDA_CFLAGS) \
+	$(CC) -g src/r2frida-compile.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
