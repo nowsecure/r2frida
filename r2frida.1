@@ -1,0 +1,143 @@
+.TH R2FRIDA 1 "17 March 2024" "version 1.0" "R2FRIDA MANPAGE"
+
+.SH NAME
+r2frida \- frida plugin for radare2.
+
+.SH SYNOPSIS
+.B r2 frida://[action]/[link]/[device]/[target]
+
+.SH DESCRIPTION
+This is a self-contained plugin for radare2 that allows to instrument remote processes using Frida. It combines the comprehensive analysis capabilities of radare2 with the dynamic instrumentation toolkit Frida, enabling the inspection and manipulation of running processes. With r2frida, users can execute scripts in multiple languages, attach to or spawn processes across various environments, and automate tasks using r2pipe.
+
+.SH INSTALLATION
+To install r2frida, the recommended method is via r2pm:
+.PP
+$ r2pm -ci r2frida
+.PP
+For manual compilation, dependencies include radare2, pkg-config, curl or wget, make, gcc.
+.PP
+Note that r2frida is self-contained, it will use the Typescript compiler from the Frida SDK and use the frida compiled inside the plugin so you don't need to install Python, Node or Frida in your system to use it.
+.PP
+r2frida runs on all systems supported by Frida. This is Linux, macOS, Windows, QNX, Android and iOS.
+
+.SH HELP
+.PP
+Use 'r2 "frida://?"' to get help on the URI format.
+.PP
+Run the ':?' command inside r2 to enumerate all the r2frida commands (executed and implemented inside the target process's agent)
+.PP
+.SH USAGE
+.B r2 frida://0
+Attaches to the pid0 in frida for a special session running locally. This can be used for testing and exploring r2frida commands.
+.Pp
+
+.B Launch/Spawn Options/Actions:
+.RS
+.TP
+.B list
+Lists processes or apps.
+.TP
+.B attach
+Attaches to a specific process.
+.TP
+.B spawn
+Spawns a new process. Use the ':dc' command to continue the execution of the process.
+.TP
+.B launch
+Spawns and resumes an app or process.
+.RE
+
+.SH COMMANDS
+The r2frida commands are prefixed with a colon ':'. This is because those commands are implemented in the io plugin itself, so they need to be routed through the selected IO plugin.
+.RS
+.TP
+.B :e
+Edit r2frida options.
+.TP
+.B :i
+Get architecture/bits info from the target.
+.TP
+.B :dt
+Trace list of addresses or symbols.
+.TP
+.B :db
+List or place breakpoints.
+.TP
+.B :dc
+Continue breakpoints or resume a spawned process.
+.TP
+.B :dx
+Call target symbol with given args.
+.RE
+.SH ENVIRONMENT
+Those environment variables can modify the behaviour of r2frida, use them with care.
+.PP
+.nf
+R2FRIDA_SCRIPTS_DIR=~/.local/share/radare2/r2frida/scripts
+.It
+R2FRIDA_SAFE_IO=0|1    # Workaround a Frida bug on Android/thumb
+.It
+R2FRIDA_DEBUG=0|1      # Used to trace internal r2frida C and JS calls
+.It
+R2FRIDA_RUNTIME=qjs|v8 # Select the javascript engine to use in the agent side (v8 is default)
+.It
+R2FRIDA_DEBUG_URI=0|1  # Trace uri parsing code and exit before doing any action
+.It
+R2FRIDA_COMPILER_DISABLE=0|1 # Disable the new frida typescript compiler (`:. foo.ts`)
+.It
+R2FRIDA_AGENT_SCRIPT=[file]  # path to file of the r2frida agent
+.SH CONFIGURATION
+.PP
+Run the ':e' command to list, read and change all the runtime configuration options of r2frida
+.PP
+.nf
+:e java.wait=false
+:e want.swift=false
+:e io.safe=false
+:e io.volatile=true
+:e patch.code=true
+:e search.bigendian=false
+:e search.in=perm:r--
+:e search.from=0x100be8000
+:e search.to=0x100bec000
+:e search.kwidx=0
+:e search.align=0
+:e search.quiet=false
+:e stalker.event=compile
+:e stalker.timeout=300
+:e stalker.in=raw
+:e hook.backtrace=false
+:e hook.verbose=true
+:e hook.time=true
+:e hook.logs=true
+:e hook.output=simple
+:e hook.usecmd=
+:e file.log=
+:e symbols.module=
+:e symbols.unredact=true
+
+.SH EXAMPLES
+.TP
+.B Attach to process
+$ r2 frida://attach/usb//12345
+.TP
+.B Spawn app
+$ r2 frida://spawn/usb//appname
+.TP
+.B List libraries
+$ r2 -c ':il' frida://0
+.TP
+.B Trace fread
+$ r2 -c ':dt fread' frida://0
+.TP
+.B Set breakpoint
+$ r2 -c ':db 0x12345678' -c ':dc' frida://0
+
+.SH "SEE ALSO"
+https://www.nowsecure.com
+.br
+https://www.radare.org
+.br
+https://www.frida.re
+.SH AUTHORS
+pancake <pancake@nowsecure.com>
