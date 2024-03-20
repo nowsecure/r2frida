@@ -31,7 +31,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-linux
         path: dist/debian/*.deb
@@ -62,7 +62,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-linux
         path: dist/debian/*.deb
@@ -75,7 +75,7 @@ jobs:
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Pub
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-agent
         path: src/_agent.js
@@ -93,7 +93,7 @@ jobs:
     - name: Packaging
       run: make -C dist/macos
     - name: Pub
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
         name: build-macos
@@ -128,7 +128,7 @@ jobs:
       shell: cmd
 # run: zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
       run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
         name: build-windows
