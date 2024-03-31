@@ -16,3 +16,5 @@ vim src/agent/plugin.ts
 jq ".version=\"$V\"" package.json > p
 mv p package.json
 vim make.bat
+mkdir -p node_modules
+npm i

@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 set frida_version=16.2.1
-set r2frida_version=5.8.9
+set r2frida_version=5.9.0
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
@@ -88,10 +88,12 @@ echo "powershell -command 'npm i frida-compile; node_modules\.bin\frida-compile.
 powershell -command "npm i frida-compile; node_modules/.bin/frida-compile.cmd -Sc -o src/_agent.txt src/agent/index.ts"
 dir %CD%\src
 
+echo Not creatring the header because gets stuck in the ci with r2 5.9.0
 cd src
 echo Creating the header...
-%R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
-powershell -command "Get-Content .\_agent.txt.hex | Select-String -Exclude Start 0x" > _agent.h
+REM %R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
+%R2_BASE%\bin\rax2 -i _agent.txt > _agent.txt.hex
+powershell -command "Get-Content .\_agent.txt.hex | Select-String -Pattern 0x" > _agent.h
 DEL _agent.txt.hex
 cd ..
 
