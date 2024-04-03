@@ -232,7 +232,7 @@ const commandHandlers = {
     di: [interceptor.interceptHelp, 'debug intercept commands'],
     dif: [interceptor.interceptFunHelp, 'intercept function'],
     // intercept ret function and dont call the function
-    dis: [interceptor.interceptRetString, 'intercept return string', '[addr]'],
+    dis: [interceptor.interceptRetString, 'intercept return string', '[addr] [str]'],
     dibf: [interceptor.interceptRetFalse, 'intercept return boolean false', '[java:]'],
     dibt: [interceptor.interceptRetTrue, 'intercept return boolean true', '[java:]'],
     di0: [interceptor.interceptRet0, 'intercept function call with a return 0', '[addr|java:]'],
