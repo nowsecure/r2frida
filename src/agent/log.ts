@@ -20,7 +20,29 @@ export function traceEmit(msg: string) {
     r2frida.logs = logs;
 }
 
-export function traceLog(msg: string) {
+function objtrim(msg: any, field: string) : string {
+    try {
+        const obj = JSON.parse(msg);
+        delete obj[field];
+        msg = JSON.stringify(obj);
+    } catch (e) {
+        try {
+            delete msg[field];
+        } catch (e2) {
+        }
+    }
+    return msg;
+}
+
+export function traceLog(msg: any|string) {
+    if (!config.getBoolean('hook.time')) {
+        msg = objtrim(msg, 'ts');
+    }
+    if (!config.getBoolean('hook.backtrace')) {
+        msg = objtrim(msg, 'backtrace');
+    }
+    msg = objtrim(msg, 'scope');
+    msg = objtrim(msg, 'type');
     if (config.getBoolean('hook.verbose')) {
         send(wrapStanza('log', {
             message: msg
