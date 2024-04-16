@@ -46,19 +46,16 @@ copy /y config.h.w64 config.h
 cd src
 
 mkdir frida > nul 2>&1
+
 cd frida
 
 set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/!frida_version!/frida-core-devkit-!frida_version!-windows-!frida_os_arch!.exe"
 
 if not exist .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe (
-	echo Downloading Frida Core Sdk
-
-	REM powershell -command "(New-Object System.Net.WebClient).DownloadFile($env:FRIDA_SDK_URL, frida-core-sdk.exe-!frida_version!-!frida_os_arch!)" ^
-	REM || wget -q --show-progress %FRIDA_SDK_URL% .\frida-core-sdk.exe -O .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
-	python -m wget %FRIDA_SDK_URL% -o frida-core-sdk-!frida_version!-!frida_os_arch!.exe
-
-	echo Extracting...
-	.\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
+    echo Downloading Frida Core Sdk
+    powershell -command "Invoke-WebRequest -Uri '%FRIDA_SDK_URL%' -OutFile 'frida-core-sdk-!frida_version!-!frida_os_arch!.exe'"
+    echo Extracting...
+    .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
 )
 cd ..
 
