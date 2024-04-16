@@ -94,7 +94,6 @@ $ make user-install
 * Rename it to `radare2` (instead of radare2-x.y.z)
 * To make the VS compiler available in PATH (`preconfigure.bat`)
 * Run `configure.bat` and then `make.bat`
-* Copy the `b\r2frida.dll` into `r2 -H R2_USER_PLUGINS`
 
 ## Usage
 
