@@ -12,17 +12,25 @@ if %ERRORLEVEL% == 0 (
 )
 git pull
 
-set VSARCH=x64
 set PLATFORM=x64
+
 REM VisualStudio uses HOST_TARGET syntax, so: x86_amd64 means 32bit compiler for 64bit target
 REM: Hosts: x86 amd64 x64
 REM: Targets: x86 amd64 x64 arm arm64
+
+:: Set VSARCH based on command line input or system architecture
 if "%*" == "x86" (
   set VSARCH=x86
-) ELSE (
-  set VSARCH=x86_amd64
+) else if "%*" == "x64" (
+  set VSARCH=x64
+) else (
+  :: Automatically determine the architecture if no argument is provided
+  if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
+    set VSARCH=x64
+  ) else (
+    set VSARCH=x86
+  )
 )
-set VSARCH=x86_amd64
 
 echo === Finding Visual Studio...
 cl --help > NUL 2> NUL
