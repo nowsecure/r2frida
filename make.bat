@@ -101,8 +101,17 @@ cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DR2FRIDA_VERSION_STRING="""!
 cd ..
 
 echo Distribution Zip...
-del r2frida-%R2V%-w64.zip
-rd /q /s r2frida-%R2V%-w64
+if exist r2frida-%R2V%-w64.zip (
+    del r2frida-%R2V%-w64.zip
+) else (
+    echo r2frida-%R2V%-w64.zip not deleted as Zip file not found.
+)
+
+if exist r2frida-%R2V%-w64 (
+    rd /q /s r2frida-%R2V%-w64
+) else (
+   echo Directory r2frida-%R2V%-w64 not found.
+)
 md r2frida-%R2V%-w64
 copy README.md r2frida-%R2V%-w64\
 copy src\r2frida-compile.exe r2frida-%R2V%-w64\
