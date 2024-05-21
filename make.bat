@@ -1,18 +1,13 @@
 @echo off
-setlocal EnableDelayedExpansion
+REM setlocal EnableDelayedExpansion
 set frida_version=16.2.5
 set r2frida_version=5.9.0
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
 if "%VSARCH%" == "" (
-  set VSARCH=x86_amd64
-  set PLATFORM=x64
-  REM call preconfigure.bat
-      pushd "C:\Program Files\Microsoft Visual Studio\"
-      cd "2022\Community\VC\Auxiliary\Build\"
-      vcvarsall.bat %VSARCH%
-      popd
+	echo VSARCH not set, please run preconfigure.bat
+	exit /b 1
 )
 set
 set R2_BASE=""
@@ -26,8 +21,9 @@ if exist radare2 (
 		exit /b 1
 	)
 )
-set PATH=%R2_BASE%\bin:%PATH%
+set "PATH=%R2_BASE%\bin;%PATH%"
 
+for /f %%i in ('cl /? ^| findstr Version') do set R2V=%%i
 for /f %%i in ('radare2 -qv') do set R2V=%%i
 for /f %%i in ('radare2 -H R2_USER_PLUGINS') do set R2_PLUGDIR=%%i
 
@@ -49,18 +45,25 @@ mkdir frida > nul 2>&1
 
 cd frida
 
-set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/!frida_version!/frida-core-devkit-!frida_version!-windows-!frida_os_arch!.exe"
+set FRIDA_SDK_URL="https://github.com/frida/frida/releases/download/%frida_version%/frida-core-devkit-%frida_version%-windows-%frida_os_arch%.exe"
 
-if not exist .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe (
+if not exist .\frida-core-sdk-%frida_version%-%frida_os_arch%.exe (
     echo Downloading Frida Core Sdk
-    powershell -command "Invoke-WebRequest -Uri '%FRIDA_SDK_URL%' -OutFile 'frida-core-sdk-!frida_version!-!frida_os_arch!.exe'"
+    powershell -command "Invoke-WebRequest -Uri '%FRIDA_SDK_URL%' -OutFile 'frida-core-sdk-%frida_version%-%frida_os_arch%.exe'"
     echo Extracting...
-    .\frida-core-sdk-!frida_version!-!frida_os_arch!.exe || (echo Failed to extract & exit /b 1)
+    .\frida-core-sdk-%frida_version%-%frida_os_arch%.exe || (echo Failed to extract & exit /b 1)
 )
 cd ..
 
 echo Building r2frida-compile...
-cl %DEBUG% /MT /nologo /Gy /DR2FRIDA_VERSION_STRING="""!r2frida_version!""" /DFRIDA_VERSION_STRING="""!frida_version!""" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c
+cl %DEBUG% /MT /nologo /Gy /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c /link /defaultlib:setupapi.lib
+if %ERRORLEVEL%==0 (
+	echo "Compilation successful"
+) else (
+	echo "ERROR"
+	cd ..
+	exit /b 1
+)
 cd ..
 
 REM REM       echo Building the Agent...
@@ -76,28 +79,38 @@ REM echo Downloading precompiled agent
 REM powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
 
 echo Building the agent with r2frida-compile...
-echo "powershell -command src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"
-powershell -command "src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"
-dir %CD%\src
+REM echo "powershell -command src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"
+echo src\r2frida-compile.exe -Sc -H src\_agent.h -o src\_agent.txt src\agent\index.ts
+src\r2frida-compile.exe -Sc -H src\_agent.h -o src\_agent.txt src\agent\index.ts
+if not %ERRORLEVEL%==0 (
+	echo COMPILE ERROR
+	cd ..
+	exit /b 1
+)
 
-echo Compiling the agent with frida-compile
-echo "powershell -command 'npm i frida-compile; node_modules\.bin\frida-compile.cmd -Sc -o src/_agent.txt src\agent\index.ts'"
-powershell -command "npm i frida-compile; node_modules/.bin/frida-compile.cmd -Sc -o src/_agent.txt src/agent/index.ts"
-dir %CD%\src
+REM dir %CD%\src
+REM echo Compiling the agent with frida-compile
+REM echo "powershell -command 'npm i frida-compile; node_modules\.bin\frida-compile.cmd -Sc -o src/_agent.txt src\agent\index.ts'"
+REM powershell -command "npm i frida-compile; node_modules/.bin/frida-compile.cmd -Sc -o src/_agent.txt src/agent/index.ts"
+REM dir %CD%\src
 
-echo Not creatring the header because gets stuck in the ci with r2 5.9.0
-cd src
-echo Creating the header...
-REM %R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
-%R2_BASE%\bin\rax2 -i _agent.txt > _agent.txt.hex
-powershell -command "Get-Content .\_agent.txt.hex | Select-String -Pattern 0x" > _agent.h
-DEL _agent.txt.hex
-cd ..
+REM echo Not creatring the header because gets stuck in the ci with r2 5.9.0
+REM cd src
+REM echo Creating the header...
+REM REM %R2_BASE%\bin\radare2 -nfqc "pcq~0x" _agent.txt > _agent.txt.hex
+REM %R2_BASE%\bin\rax2 -C < _agent.txt | findstr 0x > _agent.h
+REM REM powershell -command "Get-Content .\_agent.txt.hex | Select-String -Pattern 0x" > _agent.h
+REM REM DEL _agent.txt.hex
+REM cd ..
 
 echo Compiling the Plugin...
 cd src
-REM cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
-cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DR2FRIDA_VERSION_STRING="""!r2frida_version!""" /DFRIDA_VERSION_STRING="""!frida_version!""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib"
+REM cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""%frida_version%""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
+cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" /link /defaultlib:setupapi.lib
+if not %ERRORLEVEL%==0 (
+	echo COMPILE ERROR
+	exit /b 1
+)
 cd ..
 
 echo Distribution Zip...

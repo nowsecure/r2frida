@@ -41,6 +41,7 @@ for /f "delims=" %%i in ('radare2 -qv') do (
 if "%CURRENT_R2V%"=="%R2V%" (
 	echo OK
 	endlocal
+	set "R2_BASE=%CD%"
 	exit /b
 ) else (
 	echo Something went wrong
