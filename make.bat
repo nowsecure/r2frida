@@ -5,12 +5,11 @@ set r2frida_version=5.9.0
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
-if "%VSARCH%" == "" (
+cl
+if not %ERRORLEVEL%==0 (
 	echo VSARCH not set, please run preconfigure.bat
 	exit /b 1
 )
-set
-set R2_BASE=""
 if exist radare2 (
 	set R2_BASE=%CD%\radare2
 ) else (
