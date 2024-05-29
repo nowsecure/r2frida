@@ -1,10 +1,11 @@
-/* radare2 - MIT - Copyright 2022-2023 - pancake */
+/* radare2 - MIT - Copyright 2022-2024 - pancake */
 
 #include <stdio.h>
 #include <stdbool.h>
 #include "frida-core.h"
 #include <r_util.h>
 #include <r_util/r_print.h>
+#include "../config.h"
 
 #ifdef _MSC_VER
 #undef R2__WINDOWS__
@@ -192,7 +193,6 @@ int main(int argc, const char **argv) {
 		} else {
 			if (outfile) {
 #if R2__WINDOWS__
-eprintf ("Using windows dump\n");
 				HANDLE fh = CreateFile (outfile,
 					GENERIC_WRITE,
 					0, NULL, CREATE_ALWAYS,
@@ -202,7 +202,6 @@ eprintf ("Using windows dump\n");
 					rc = 1;
 				} else {
 					DWORD written = 0;
-eprintf ("Writing file %s\n", outfile);
 					BOOL res = WriteFile (fh, slurpedData, strlen (slurpedData), &written, NULL);
 					if (res == FALSE) {
 						R_LOG_ERROR ("Cannot write to %s", outfile);
@@ -210,7 +209,6 @@ eprintf ("Writing file %s\n", outfile);
 					} else {
 						rc = 0;
 					}
-eprintf ("Closing handl\n");
 					CloseHandle (fh);
 				}
 #else
