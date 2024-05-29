@@ -20,7 +20,6 @@ frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
 CFLAGS+=-DFRIDA_VERSION_STRING=\"${frida_version}\"
 CFLAGS+=-DFRIDA_VERSION_MAJOR=${frida_version_major}
-# CFLAGS+=-DR2FRIDA_VERSION_STRING=\"${VERSION}\"
 
 ifeq ($(strip $(frida_os)),)
 ifeq ($(shell uname -o 2> /dev/null),Android)
