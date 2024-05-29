@@ -2118,6 +2118,7 @@ RIOPlugin r_io_plugin_frida = {
 		.name = "frida",
 		.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
 		.license = "MIT",
+		.version = R2FRIDA_VERSION_STRING
 	},
 #else
 	.name = "frida",
