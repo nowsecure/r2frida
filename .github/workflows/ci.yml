@@ -175,48 +175,16 @@ jobs:
           path: dist/artifacts
       - name: Create GitHub release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@975c1b265e11dd76618af1c374e7981f9a6ff44a
         with:
+          name: ${{ steps.r2fv.outputs.branch }}
           tag_name: ${{ needs.check_release.outputs.tag_name }}
-          release_name: ${{ steps.r2fv.outputs.branch }}
           body_path: ./RELEASE_NOTES.md
           draft: false
           prerelease: false
-      - name: Upload asset for Linux
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-linux22/r2frida_${{ steps.r2fv.outputs.branch }}_amd64.deb
-          asset_name: r2frida_${{ steps.r2fv.outputs.branch }}_amd64.deb
-          asset_content_type: application/vnd.debian.binary-package
-      - name: Upload precompiled agent script
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-agent/_agent.js
-          asset_name: _agent.js
-          asset_content_type: application/javascript
-      - name: Upload asset for macOS
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-macos/r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
-          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-x64.pkg
-          asset_content_type: application/octet-stream
-      - name: Upload asset for Windows (w64)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/artifacts/build-windows/r2frida-${{env.R2V}}-w64.zip
-          asset_name: r2frida-${{ steps.r2fv.outputs.branch }}-w64.zip
-          asset_content_type: application/zip
+          generate_release_notes: false
+          files: |
+            dist/artifacts/build-linux22/r2frida_*_amd64.deb
+            dist/artifacts/build-agent/_agent.js
+            dist/artifacts/build-macos/r2frida-*-x64.pkg
+            dist/artifacts/build-windows/r2frida-*-w64.zip
