@@ -20,10 +20,10 @@ jobs:
       run: make -C dist/docker test
     - name: Installing radare2
       run: |
-        wget https://github.com/radareorg/radare2/releases/download/5.9.0/radare2_5.9.0_amd64.deb
-        wget https://github.com/radareorg/radare2/releases/download/5.9.0/radare2-dev_5.9.0_amd64.deb
-        sudo dpkg -i radare2_5.9.0_amd64.deb
-        sudo dpkg -i radare2-dev_5.9.0_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2_${{env.R2V}}_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2-dev_${{env.R2V}}_amd64.deb
+        sudo dpkg -i radare2_${{env.R2V}}_amd64.deb
+        sudo dpkg -i radare2-dev_${{env.R2V}}_amd64.deb
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Testing r2frida
@@ -41,10 +41,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: Installing radare2
       run: |
-        wget https://github.com/radareorg/radare2/releases/download/5.9.0/radare2_5.9.0_amd64.deb
-        wget https://github.com/radareorg/radare2/releases/download/5.9.0/radare2-dev_5.9.0_amd64.deb
-        sudo dpkg -i radare2_5.9.0_amd64.deb
-        sudo dpkg -i radare2-dev_5.9.0_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2_${{env.R2V}}_amd64.deb
+        wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2-dev_${{env.R2V}}_amd64.deb
+        sudo dpkg -i radare2_${{env.R2V}}_amd64.deb
+        sudo dpkg -i radare2-dev_${{env.R2V}}_amd64.deb
     - name: Building r2frida
       run: ./configure --with-precompiled-agent && make -j && sudo make install
     - name: Packaging
@@ -117,7 +117,7 @@ jobs:
     - name: install r2
       shell: bash
       run: |
-        python -m wget https://github.com/radareorg/radare2/releases/download/${R2V}/radare2-${{env.R2V}}-w64.zip -o r2.zip
+        python -m wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2-${{env.R2V}}-w64.zip -o r2.zip
         unzip r2.zip
         mv radare2-${{env.R2V}}-w64 radare2 || mv radare2-w64-${{env.R2V}} radare2
         pwd

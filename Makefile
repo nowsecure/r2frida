@@ -2,7 +2,7 @@ include config.mk
 
 PREFIX?=/usr/local
 R2V=$(VERSION)
-R2V?=5.8.4
+R2V?=5.9.2
 frida_version=16.3.0
 #frida_version=15.2.2
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
@@ -14,7 +14,7 @@ else
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
-R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/5.8.2/_agent.js
+R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/$(VERSION)/_agent.js
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
 
