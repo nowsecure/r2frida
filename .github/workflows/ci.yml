@@ -168,7 +168,7 @@ jobs:
         run: echo "##[set-output name=branch;]$( ./configure -qV )"
         id: r2fv
       - name: Prepare release notes
-        run: echo Release > ./RELEASE_NOTES.md
+        run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
