@@ -127,6 +127,7 @@ PLUGIN_LDFLAGS+=-Wl,-exported_symbol,_radare_plugin
   ifeq ($(frida_os),macos)
 FRIDA_LDFLAGS+=-Wl,-no_compact_unwind
 FRIDA_LIBS+=-framework Foundation
+FRIDA_LIBS+=-framework IOKit
   endif
   ifeq ($(frida_os),ios)
 FRIDA_LIBS+=-framework UIKit
