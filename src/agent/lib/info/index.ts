@@ -430,9 +430,14 @@ export function listSegmentsJson(args: string[]) {
             baseAddr = ptr(args[0]);
         } else {
             const here = ptr(r2frida.offset);
-            baseAddr = Process.enumerateModules()
+            bases = Process.enumerateModules()
                 .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
-                .map(m => m.base)[0];
+                .map(m => m.base);
+	    if (bases.length > 0) {
+                baseAddr = bases[0];
+	    } else {
+                throw new Error('Cannot find base address');
+            }
         }
         return listElfSegments(baseAddr);
     }
