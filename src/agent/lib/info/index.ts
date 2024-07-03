@@ -430,7 +430,7 @@ export function listSegmentsJson(args: string[]) {
             baseAddr = ptr(args[0]);
         } else {
             const here = ptr(r2frida.offset);
-            bases = Process.enumerateModules()
+            const bases = Process.enumerateModules()
                 .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
                 .map(m => m.base);
 	    if (bases.length > 0) {
