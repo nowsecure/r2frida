@@ -136,6 +136,7 @@ FRIDA_LIBS+=-framework Foundation
   else
   ifeq ($(frida_os),macos)
 FRIDA_LIBS+=-lbsm
+FRIDA_LIBS+=-framework Security
 endif
   endif
   ifeq ($(frida_os),macos)
