@@ -3,7 +3,7 @@ include config.mk
 PREFIX?=/usr/local
 R2V=$(VERSION)
 R2V?=5.9.2
-frida_version=16.4.1
+frida_version=16.4.2
 #frida_version=15.2.2
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
