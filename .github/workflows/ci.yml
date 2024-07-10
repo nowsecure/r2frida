@@ -80,7 +80,7 @@ jobs:
         name: build-agent
         path: src/_agent.js
   build-macos:
-    runs-on: macos-12
+    runs-on: macos-14
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
