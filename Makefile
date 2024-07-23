@@ -3,7 +3,7 @@ include config.mk
 PREFIX?=/usr/local
 R2V=$(VERSION)
 R2V?=5.9.2
-frida_version=16.4.2
+frida_version=16.4.7
 #frida_version=15.2.2
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
@@ -246,7 +246,8 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
+	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts || \
+		src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 endif
