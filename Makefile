@@ -246,7 +246,8 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
-	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
+	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts || \
+		src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 endif
