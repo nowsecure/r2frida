@@ -119,6 +119,7 @@ static const char * const helpmsg = ""\
 	"Remote:\n"
 	"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
 	"Environment: (Use the `%` command to change the environment at runtime)\n"
+	"  R2FRIDA_R2SCRIPT=~/.r2fridarc\n"
 	"  R2FRIDA_SCRIPTS_DIR="R2_DATDIR"/r2frida/scripts\n"
 	"  R2FRIDA_SCRIPTS_DIR=~/.local/share/radare2/r2frida/scripts\n"
 	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
@@ -552,16 +553,20 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		R_LOG_DEBUG ("empty command (.:i*)");
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
-	} else if (r_str_startswith (command, "%")) {
+	}
+	if (r_str_startswith (command, "%")) {
 		// this shortcut should be implemented inside the js code
 		r_core_cmdf (rf->r2core, ":env %s", command + 1);
 		return NULL;
-	} else if (r_str_startswith (command, "???")) {
+	}
+	if (r_str_startswith (command, "???")) {
 		return strdup (helpmsg);
-	} else if (r_str_startswith (command, "o/")) {
+	}
+	if (r_str_startswith (command, "o/")) {
 		r_core_cmd0 (rf->r2core, "?E Yay!");
 		return NULL;
-	} else if (r_str_startswith (command, "d.")) {
+	}
+	if (r_str_startswith (command, "d.")) {
 #if WANT_SESSION_DEBUGGER
 		int port = 0; // 9229
 		if (command[2] == ' ') {
@@ -1055,6 +1060,14 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	r2frida_launchopt_free (lo);
 
 	/* load scripts */
+	{
+		char *r2fridarc = r_file_home (".r2fridarc");
+		if (r_file_exists (r2fridarc)) {
+			r_core_cmdf (rf->r2core, "-i %s", r2fridarc);
+		}
+		free (r2fridarc);
+	}
+
 	RCore *core = rf->r2core;
 	load_scripts (core, fd, R2_DATDIR "/r2frida/scripts");
 
