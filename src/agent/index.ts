@@ -144,6 +144,8 @@ const commandHandlers = {
     'fd*': lookup.lookupAddressR2,
     fdj: lookup.lookupAddressJson,
     ic: [classes.listClasses, 'list classes associated with the binary at current address'],
+    'ic.': classes.listClassesHere,
+    'icj.': classes.listClassesHereJson,
     ich: [classes.listClassesHooks, 'list class hooks'],
     icw: [classes.listClassesWhere, 'list classes where'],
     icv: [classes.listClassVariables, 'list class variables'],

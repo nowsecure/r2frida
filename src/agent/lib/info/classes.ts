@@ -2,6 +2,7 @@ import { ObjCAvailable } from '../darwin/index.js';
 import { JavaAvailable, listJavaClassesJson } from '../java/index.js';
 import {searchInstancesJson} from '../search.js';
 import {padPointer} from '../utils.js';
+import r2 from '../r2.js';
 
 export function listClassesLoadedJson(args: string[]) {
     if (JavaAvailable) {
@@ -231,6 +232,32 @@ export function listClasses(args : string[]) {
             return [padPointer(address), methodName].join(' ');
         })
         .join('\n');
+}
+
+export async function listClassesHere() {
+    const mmap = new ModuleMap();
+    const currAddr = await r2.hostCmd("?v $$");
+    const currMod = mmap.find(new NativePointer(currAddr.replace("\n","")));
+    const localClasses:string[] = [];
+
+    if(currMod) {
+        ObjC.enumerateLoadedClasses({
+            onMatch(name:string, owner:string) {
+                if(owner === currMod.path) {
+                    localClasses.push(name);
+                }
+            },
+            onComplete() {
+
+            }
+        });
+    }
+    return localClasses.join("\n");
+}
+
+export async function listClassesHereJson() {
+    const localClasses = await listClassesHere();
+    return JSON.stringify(localClasses.split("\n"));
 }
 
 export function listClassesR2(args: string[]) {
