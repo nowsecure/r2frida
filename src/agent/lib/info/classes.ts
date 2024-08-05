@@ -1,8 +1,8 @@
 import { ObjCAvailable } from '../darwin/index.js';
 import { JavaAvailable, listJavaClassesJson } from '../java/index.js';
-import {searchInstancesJson} from '../search.js';
-import {padPointer} from '../utils.js';
-import r2 from '../r2.js';
+import { searchInstancesJson } from '../search.js';
+import { padPointer } from '../utils.js';
+import { r2frida } from "../../plugin.js";
 
 export function listClassesLoadedJson(args: string[]) {
     if (JavaAvailable) {
@@ -234,11 +234,14 @@ export function listClasses(args : string[]) {
         .join('\n');
 }
 
-export async function listClassesHere() {
+export function listClassesHere() {
+    return listClassesHereJson().join('\n')
+}
+
+export function listClassesHereJson(): any[] {
     const mmap = new ModuleMap();
-    const currAddr = await r2.hostCmd("?v $$");
-    const currMod = mmap.find(new NativePointer(currAddr.replace("\n","")));
-    const localClasses:string[] = [];
+    const currMod = mmap.find(ptr(r2frida.offset));
+    const localClasses : string[] = [];
 
     if(currMod) {
         ObjC.enumerateLoadedClasses({
@@ -252,12 +255,8 @@ export async function listClassesHere() {
             }
         });
     }
-    return localClasses.join("\n");
-}
+    return localClasses;
 
-export async function listClassesHereJson() {
-    const localClasses = await listClassesHere();
-    return JSON.stringify(localClasses.split("\n"));
 }
 
 export function listClassesR2(args: string[]) {
