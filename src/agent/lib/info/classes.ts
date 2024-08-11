@@ -1,5 +1,6 @@
 import { ObjCAvailable } from '../darwin/index.js';
-import { JavaAvailable, listJavaClassesJson, getPackageName } from '../java/index.js';
+import { JavaAvailable, listJavaClassesJson } from '../java/index.js';
+import { getPackageName } from '../java/android.js';
 import { searchInstancesJson } from '../search.js';
 import { padPointer } from '../utils.js';
 import { r2frida } from "../../plugin.js";
