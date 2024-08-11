@@ -288,3 +288,13 @@ function _dumpJavaArguments(args: string[]): string {
     }
     return res;
 }
+
+export function getPackageName(): string {
+    let result = "";
+    javaPerform(function() {
+        const ActivityThread = Java.use('android.app.ActivityThread');
+        const application = ActivityThread.currentApplication();
+        result = application.getPackageName();
+    })
+    return result;
+}
