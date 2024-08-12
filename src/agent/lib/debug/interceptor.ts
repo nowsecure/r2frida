@@ -1,3 +1,4 @@
+import { traceEmit } from '../../../agent/log.js';
 import config from '../../config.js';
 import { parseTargetJavaExpression, interceptFunRetJava, interceptRetJava } from '../java/index.js';
 import { getPtr } from '../utils.js';
@@ -97,6 +98,7 @@ function _interceptRet(target: any, value: any) {
     const funcPtr = getPtr(target);
     const useCmd = config.getString('hook.usecmd');
     Interceptor.replace(funcPtr, new NativeCallback(function () {
+        traceEmit(`[INTERCEPT][${new Date()}] Intercept return for ${target.toString()} with ${value.toString()}`);
         if (useCmd.length > 0) {
             console.log('[r2cmd]' + useCmd);
         }
@@ -112,6 +114,7 @@ function _interceptFunRet(target: string, value: string | number, paramTypes: st
     const p = getPtr(target);
     Interceptor.attach(p, {
         onLeave(retval) {
+            traceEmit(`Target: ${target.toString()} was called, intercepting return value.`)
             retval.replace(ptr(value));
         }
     });
@@ -119,12 +122,14 @@ function _interceptFunRet(target: string, value: string | number, paramTypes: st
 
 export function interceptDetachAll(args: string[]) {
     Interceptor.detachAll();
+    console.log(`Reverted all hooks`)
 }
 
 export function interceptRevert(args: string[]) {
     if (args.length > 0) {
         const p = getPtr(args[0])
         Interceptor.revert(p)
+        console.log(`Reverted hooks at ${p.toString()}`)
     }
 }
 
