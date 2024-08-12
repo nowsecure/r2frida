@@ -98,7 +98,7 @@ function _interceptRet(target: any, value: any) {
     const funcPtr = getPtr(target);
     const useCmd = config.getString('hook.usecmd');
     Interceptor.replace(funcPtr, new NativeCallback(function () {
-        traceEmit(`[INTERCEPT][${new Date()}] Intercept return for ${target.toString()} with ${value.toString()}`);
+        traceEmit(`Intercept return for ${target.toString()} with ${value.toString()}`);
         if (useCmd.length > 0) {
             console.log('[r2cmd]' + useCmd);
         }
