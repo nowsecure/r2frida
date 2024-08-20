@@ -175,6 +175,163 @@ export function breakpointNative(args: string[]) : string {
     return "";
 }
 
+// Required to access the register in a map like fashion...
+interface Arm64CpuContextAccessible extends Arm64CpuContext {
+    [key: string]: any;
+}
+
+function handleBranchOrCall(operands: string[]) {
+    // For b and bl, the destination is in the first operand.
+    const targetAddress = operands[0];
+    console.log(`Branch or call to: ${targetAddress}`);
+    return targetAddress;
+}
+
+function handleBranchToRegister(context: Arm64CpuContext, operands: string[]) {
+    // For br, the destination is to the address held by the register name, denoted in the first operand.
+    const registerName = operands[0];
+    const registerValue = (context as Arm64CpuContextAccessible)[registerName];
+    console.log(`Branch to reg: ${registerName}, i.e. ${registerValue}`);
+    return registerValue;
+}
+
+function handleConditionalBranch(context: Arm64CpuContext, instruction: Instruction, operands: string[]) {
+    const parts = instruction.mnemonic.split(".")
+    if (!parts.length) return null
+
+    const condition = parts[1];
+    const targetAddress = operands[1];
+
+    // Evaluate the condition to determine if the branch will be taken
+    if (evaluateCondition(context, condition)) {
+        return targetAddress;
+    }
+
+    return instruction.next;
+}
+
+function handleTestAndBranch(context: Arm64CpuContext, instruction: Instruction, operands: string[]) {
+    if (operands.length < 3) {
+        return null;
+    }
+
+    const bitPosition = parseInt(operands[1]);
+    const targetAddress = operands[2];
+    const registerName = operands[0];
+    const registerValue = (context as Arm64CpuContextAccessible)[registerName];
+
+    const mnemonic = instruction.mnemonic;
+
+    const bitIsZero = (registerValue & (1 << bitPosition)) === 0;
+
+    if ((mnemonic === "tbz" && bitIsZero) || (mnemonic === "tbnz" && !bitIsZero)) {
+        return targetAddress;
+    } else {
+        return instruction.next;
+    }
+}
+
+function evaluateCondition(context: Arm64CpuContext, condition: string): boolean {
+    const nzcv = context.nzcv;
+    const n = (nzcv & 0x80000000) != 0;
+    const z = (nzcv & 0x40000000) != 0;
+    const c = (nzcv & 0x20000000) != 0;
+    const v = (nzcv & 0x10000000) != 0;
+
+    console.log(`Evaluating condition: ${condition}, nzcv: ${nzcv}`);
+    
+    switch (condition) {
+        case "eq": return z;              // Equal
+        case "ne": return !z;             // Not equal
+        case "hs": return c;              // Unsigned higher or same (carry set)
+        case "lo": return !c;             // Unsigned lower (carry clear)
+        case "mi": return n;              // Minus (negative)
+        case "pl": return !n;             // Plus (positive or zero)
+        case "vs": return v;              // Overflow
+        case "vc": return !v;             // No overflow
+        case "hi": return c && !z;        // Unsigned higher
+        case "ls": return !c || z;        // Unsigned lower or same
+        case "ge": return n == v;         // Signed greater than or equal
+        case "lt": return n != v;         // Signed less than
+        case "gt": return !z && (n == v); // Signed greater than
+        case "le": return z || (n != v);  // Signed less than or equal
+        default: return false;
+    }
+}
+
+export function breakpointStep() {
+    const isArm64 = Process.arch === "arm64";
+    if (!isArm64) {
+        console.log("Step is currently only implemented for arm64");
+        return;
+    }
+
+    if (!currentThreadContext) {
+        console.log("There is currently CPUContext set. Please ensure you have hit a breakpoint already, otherwise file a bug...");
+        return;
+    }
+
+    const arm64Context = currentThreadContext as Arm64CpuContext;
+
+    const pc = currentThreadContext.pc;
+    const currentInstruction = Instruction.parse(pc);
+    const { mnemonic, next, opStr } = currentInstruction;
+
+    const operands = opStr.split(/,(?![^\[]*\])/).map(operand => operand.trim());
+
+    /*
+        Attempt to evaluate the branches, tests, etc.
+        Possibly incomplete, but should be the majority of use-cases.
+    */
+    let nextAddress = null;
+    switch (mnemonic) {
+        case "b":    // Unconditional branch
+        case "bl":   // Branch with link (function call)
+            nextAddress = handleBranchOrCall(operands);
+            break;
+
+        case "br":   // Branch to value in register
+            nextAddress = handleBranchToRegister(arm64Context, operands);
+            break;
+
+        case "ret":  // Return from subroutine
+            nextAddress = arm64Context.lr;
+            break;
+
+        case "cbz":  // Compare and branch on zero
+        case "cbnz": // Compare and branch on non-zero
+        case "b.eq": // Conditional branch examples (there are several)
+        case "b.ne":
+        case "b.hs":
+        case "b.lo":
+            nextAddress = handleConditionalBranch(arm64Context, currentInstruction, operands);
+            break;
+        
+        case "tbz":  // Test and branch on zero
+        case "tbnz": // Test and branch on non-zero
+            handleTestAndBranch(arm64Context, currentInstruction, operands);
+            break;
+
+        default:     // Default to just instruction.next
+            nextAddress = next;
+            break;
+    }
+
+    if (nextAddress) {
+        const target = nextAddress.toString();
+        console.log(`Stepping to ${target}`);
+        _breakpointSet([target]);
+
+        console.log("Attempting to continue (:dc)");
+        breakpointContinue([]);
+
+        console.log(`Removing ephemeral bp @ ${target}`);
+        breakpointUnset([target]);
+    } else {
+        console.log("Couldn't figure out the next address...");
+    }
+}
+
 export function breakpointJson() {
     const json: any = {};
     for (const [address, bp] of newBreakpoints.entries()) {

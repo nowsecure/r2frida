@@ -70,6 +70,7 @@ const commandHandlers = {
     'e*': [config.evalConfigR2, 'display eval config vars in r2 format'],
     'e/': [config.evalConfigSearch, 'eval config search (?)'],
     db: [debug.breakpointNative, 'list or add a native breakpoint', '[addr]'],
+    ds: [debug.breakpointStep, 'step to next instruction'],
     dbj: debug.breakpointJson,
     dbc: [debug.breakpointNativeCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
     'db-': [debug.breakpointUnset, 'unset the native breakpoint in the given address', '[addr]'],
