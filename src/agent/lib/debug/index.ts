@@ -327,12 +327,15 @@ export function breakpointStep() {
         const target = nextAddress.toString();
         console.log(`Stepping to ${target}\n`);
         _breakpointSet([target]);
-
-        console.log("Attempting to continue (:dc)\n");
-        breakpointContinue([]);
+        setTimeout(() => {
+            breakpointUnset([target]);
+        }, 1000);
     } else {
         console.log("Couldn't figure out the next address...\n");
     }
+
+    console.log("Attempting to continue (:dc)\n");
+    breakpointContinue([]);
 }
 
 export function breakpointJson() {
