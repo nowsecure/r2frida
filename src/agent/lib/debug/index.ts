@@ -183,7 +183,7 @@ interface Arm64CpuContextAccessible extends Arm64CpuContext {
 function handleBranchOrCall(operands: string[]) {
     // For b and bl, the destination is in the first operand.
     const targetAddress = operands[0];
-    console.log(`Branch or call to: ${targetAddress}`);
+    console.log(`Branch or call to: ${targetAddress}\n`);
     return targetAddress;
 }
 
@@ -191,7 +191,7 @@ function handleBranchToRegister(context: Arm64CpuContext, operands: string[]) {
     // For br, the destination is to the address held by the register name, denoted in the first operand.
     const registerName = operands[0];
     const registerValue = (context as Arm64CpuContextAccessible)[registerName];
-    console.log(`Branch to reg: ${registerName}, i.e. ${registerValue}`);
+    console.log(`Branch to reg: ${registerName}, i.e. ${registerValue}\n`);
     return registerValue;
 }
 
@@ -238,7 +238,7 @@ function evaluateCondition(context: Arm64CpuContext, condition: string): boolean
     const c = (nzcv & 0x20000000) != 0;
     const v = (nzcv & 0x10000000) != 0;
 
-    console.log(`Evaluating condition: ${condition}, nzcv: ${nzcv}`);
+    console.log(`Evaluating condition: ${condition}, nzcv: ${nzcv}\n`);
     
     switch (condition) {
         case "eq": return z;              // Equal
@@ -267,17 +267,23 @@ export function breakpointStep() {
     }
 
     if (!currentThreadContext) {
-        console.log("There is currently CPUContext set. Please ensure you have hit a breakpoint already, otherwise file a bug...");
+        console.log("There is currently no CPUContext set. Please ensure you have hit a breakpoint already, otherwise file a bug...");
         return;
     }
 
     const arm64Context = currentThreadContext as Arm64CpuContext;
-
     const pc = currentThreadContext.pc;
+
+    // We need to unpatch pc, to be able to parse the instruction...
+    breakpointUnset([pc.toString()]);
+
     const currentInstruction = Instruction.parse(pc);
     const { mnemonic, next, opStr } = currentInstruction;
 
     const operands = opStr.split(/,(?![^\[]*\])/).map(operand => operand.trim());
+
+    // Re-set the breakpoint at PC since we removed it temporarily:
+    _breakpointSet([pc.toString()]);
 
     /*
         Attempt to evaluate the branches, tests, etc.
@@ -319,16 +325,13 @@ export function breakpointStep() {
 
     if (nextAddress) {
         const target = nextAddress.toString();
-        console.log(`Stepping to ${target}`);
+        console.log(`Stepping to ${target}\n`);
         _breakpointSet([target]);
 
-        console.log("Attempting to continue (:dc)");
+        console.log("Attempting to continue (:dc)\n");
         breakpointContinue([]);
-
-        console.log(`Removing ephemeral bp @ ${target}`);
-        breakpointUnset([target]);
     } else {
-        console.log("Couldn't figure out the next address...");
+        console.log("Couldn't figure out the next address...\n");
     }
 }
 
