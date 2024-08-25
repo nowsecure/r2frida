@@ -284,7 +284,9 @@ export function breakpointStep() {
     const pc = currentThreadContext.pc;
 
     // We need to unpatch pc, to be able to parse the instruction...
-    breakpointUnset([pc.toString()]);
+    if (newBreakpoints.has(pc.toString())) {
+        breakpointUnset([pc.toString()]);
+    }
 
     const currentInstruction = Instruction.parse(pc);
     const { mnemonic, next, opStr } = currentInstruction;
