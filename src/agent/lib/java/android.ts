@@ -1,3 +1,5 @@
+import { javaPerform } from "./index.js";
+
 export function uiAlert(args: string[]) {
     if (args.length < 2) {
         return 'Usage: ?E title message';
@@ -53,4 +55,14 @@ export function uiAlert(args: string[]) {
             return this.onCreate.overload('android.os.Bundle').call(this, savedInstanceState);
         };
     });
+}
+
+export function getPackageName(): string {
+    let result = "";
+    javaPerform(function() {
+        const ActivityThread = Java.use("android.app.ActivityThread");
+        const application = ActivityThread.currentApplication();
+        result = application.getPackageName();
+    })
+    return result;
 }

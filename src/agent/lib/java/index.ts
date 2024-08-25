@@ -3,7 +3,7 @@ import log from '../../log.js';
 
 export const JavaAvailable = Java && Java.available;
 
-export function javaUse(name: string): any {
+export function javaUse(name: string): Java.Wrapper | null {
     // XXX this is broken and needs to be rewritten
     /*
     const initialLoader = Java.classFactory.loader;
@@ -26,12 +26,12 @@ export function javaUse(name: string): any {
     let res = null;
     try {
         res = Java.use(name);
-    } catch (e) {
+    } catch (err) {
     }
     return res;
 }
 
-export function javaTraceExample() {
+export function javaTraceExample(): void {
     javaPerform(function () {
         const System = Java.use('java.lang.System');
         System.loadLibrary.implementation = function (library: string) {
@@ -49,7 +49,7 @@ export function javaTraceExample() {
     });
 }
 
-export function waitForJava() {
+export function waitForJava(): void {
     javaPerform(function () {
         const ActivityThread = Java.use('android.app.ActivityThread');
         const app = ActivityThread.currentApplication();
@@ -58,7 +58,7 @@ export function waitForJava() {
     });
 }
 
-export function performOnJavaVM(fn: any) {
+export function performOnJavaVM(fn: any): Promise<unknown> {
     return new Promise((resolve, reject) => {
         javaPerform(function () {
             try {
@@ -74,22 +74,24 @@ export function performOnJavaVM(fn: any) {
 /* this ugly sync method with while+settimeout is needed because
 returning a promise is not properly handled yet and makes r2
 lose track of the output of the command so you cant grep on it */
-export function listJavaClassesJsonSync(args: string[]) {
+export function listJavaClassesJsonSync(args: string[]): string[] | null {
     if (args.length === 1) {
-        let methods;
+        let methods = null;
         /* list methods */
         javaPerform(function () {
             const obj = javaUse(args[0]);
-            methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
+            if (obj !== null) {
+                methods = Object.getOwnPropertyNames(Object.getPrototypeOf(obj));
+            }
             // methods = Object.keys(obj).map(x => x + ':' + obj[x] );
         });
         // eslint-disable-next-line
-        while (methods === undefined) {
+        while (methods === null) {
             setTimeout(() => {/* wait here */ }, 0);
         }
         return methods;
     }
-    let classes;
+    let classes = null;
     javaPerform(function () {
         try {
             classes = Java.enumerateLoadedClassesSync();
@@ -100,27 +102,31 @@ export function listJavaClassesJsonSync(args: string[]) {
     return classes;
 }
 
-// eslint-disable-next-line
-export function listJavaClassesJson(args: string[], classMethodsOnly?: boolean) {
-    let res: any[] = [];
+export function listJavaClassesJson(args: string[], classMethodsOnly?: boolean): string[] {
+    let res: string[] = [];
     if (args.length === 1) {
         javaPerform(function () {
             try {
                 const arg = args[0];
-                const handle = javaUse(arg);
-                if (handle === null || !handle.class) {
+                const handle: Java.Wrapper | null = javaUse(arg);
+                if (handle === null || handle.class) {
                     throw new Error('Cannot find a classloader for this class');
                 }
-                const klass = handle.class;
+                const klass: Java.Wrapper = handle.class;
                 try {
                     if (classMethodsOnly) {
-                        klass.getMethods().filter((x: any) => x.toString().indexOf(arg) !== -1).map((_: any) => res.push(_.toString()));
+                        klass.getMethods()
+                            .filter((x: any) => x.toString().indexOf(arg) !== -1)
+                            .map((_: any) => res.push(_.toString()));
                     } else {
-                        klass.getMethods().map((_: any) => res.push(_.toString()));
+                        klass.getMethods()
+                            .map((_: any) => res.push(_.toString()));
                     }
-                    klass.getFields().map((_: any) => res.push(_.toString()));
+                    klass.getFields()
+                        .map((_: any) => res.push(_.toString()));
                     try {
-                        klass.getConstructors().map((_: any) => res.push(_.toString()));
+                        klass.getConstructors()
+                            .map((_: any) => res.push(_.toString()));
                     } catch (ignore: unknown) {
                     }
                 } catch (e: any) {
@@ -143,31 +149,31 @@ export function listJavaClassesJson(args: string[], classMethodsOnly?: boolean) 
     return res;
 }
 
-export function javaPerform(fn: any) {
+export function javaPerform(fn: any): void {
     if (config.getBoolean('java.wait')) {
         return Java.perform(fn);
     }
     return Java.performNow(fn);
 }
 
-export function traceJava(klass: string, method: string) {
+export function traceJava(klassName: string, method: string): void {
     javaPerform(function () {
         const Throwable = Java.use('java.lang.Throwable');
-        const k = javaUse(klass);
-        if (k == null) {
-            log.traceEmit('Didn\'t find class "' + klass + '"');
+        const klass = javaUse(klassName);
+        if (klass == null) {
+            log.traceEmit('Didn\'t find class "' + klassName + '"');
             return;
         }
 
-        for (var i = 0; i < k[method].overloads.length; i++) {
-            k[method].overloads[i].implementation = function () {
+        for (var i = 0; i < klass[method].overloads.length; i++) {
+            klass[method].overloads[i].implementation = function () {
                 const res = this[method].apply(this, arguments);
                 const bt = config.getBoolean('hook.backtrace')
                     ? Throwable.$new().getStackTrace().map((_: any) => _.toString())
                     : [];
                 const traceMessage = {
                     source: 'dt',
-                    klass: klass,
+                    klass: klassName,
                     method: method,
                     backtrace: bt,
                     timestamp: new Date(),
@@ -177,7 +183,7 @@ export function traceJava(klass: string, method: string) {
                 if (config.getString('hook.output') === 'json') {
                     log.traceEmit(JSON.stringify(traceMessage));
                 } else {
-                    let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klass}:${method} - args: ${JSON.stringify(arguments)}. Return value: ${res.toString()}`;
+                    let msg = `[JAVA TRACE][${traceMessage.timestamp}] ${klassName}:${method} - args: ${JSON.stringify(arguments)}. Return value: ${res.toString()}`;
                     if (config.getBoolean('hook.backtrace')) {
                         msg += ` backtrace: \n${traceMessage.backtrace.toString().split(',').join('\nat ')}\n`;
                     }
@@ -200,65 +206,73 @@ export function parseTargetJavaExpression(target: string) {
     throw new Error('Error: Wrong java method syntax');
 }
 
-export function interceptRetJava(klass: string, method: string, value: any) {
+export function interceptRetJava(klass: string, method: string, value: any): void {
     javaPerform(function () {
         const targetClass = javaUse(klass);
-        targetClass[method].implementation = function (library: string) {
-            const timestamp = new Date();
-            if (config.getString('hook.output') === 'json') {
-                const msg = JSON.stringify({
-                    source: 'java',
-                    class: klass,
-                    method,
-                    returnValue: value,
-                    timestamp
-                });
-                log.traceEmit(msg);
-            } else {
-                log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
-            }
-            switch (value) {
-                case 0: return false;
-                case 1: return true;
-                case -1: return -1; // TODO should throw an error?
-                case true: return Java.use('java.lang.Boolean').$new(true);
-                case false: return Java.use('java.lang.Boolean').$new(false);
-                case null: return;
-            }
-            return value;
-        };
+        if (targetClass !== null) {
+            targetClass[method].implementation = function (library: string) {
+                const timestamp = new Date();
+                if (config.getString('hook.output') === 'json') {
+                    const msg = JSON.stringify({
+                        source: 'java',
+                        class: klass,
+                        method,
+                        returnValue: value,
+                        timestamp
+                    });
+                    log.traceEmit(msg);
+                } else {
+                    log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${klass}:${method} with ${value}`);
+                }
+                switch (value) {
+                    case 0: return false;
+                    case 1: return true;
+                    case -1: return -1; // TODO should throw an error?
+                    case true: return Java.use('java.lang.Boolean').$new(true);
+                    case false: return Java.use('java.lang.Boolean').$new(false);
+                    case null: return;
+                }
+                return value;
+            };
+        }
     });
 }
 
-export function interceptFunRetJava(className: string, methodName: string, value: any, paramTypes: string) {
+export function interceptFunRetJava(className: string, methodName: string, value: any, paramTypes: string): void {
     javaPerform(function () {
         const targetClass = javaUse(className);
-        targetClass[methodName].overload(paramTypes).implementation = function (args: string[]) {
-            const timestamp = new Date();
-            if (config.getString('hook.output') === 'json') {
-                const msg = JSON.stringify({
-                    source: 'java',
-                    class: className,
-                    methodName,
-                    returnValue: value,
-                    timestamp
-                });
-                log.traceEmit(msg);
-            } else {
-                log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
-            }
-            this[methodName](args);
-            switch (value) {
-                case 0: return false;
-                case 1: return true;
-                case -1: return -1; // TODO should throw an error?
-            }
-            return value;
-        };
+        if (targetClass !== null) {
+            targetClass[methodName].overload(paramTypes).implementation = function (args: string[]) {
+                const timestamp = new Date();
+                if (config.getString('hook.output') === 'json') {
+                    const msg = JSON.stringify({
+                        source: 'java',
+                        class: className,
+                        methodName,
+                        returnValue: value,
+                        timestamp
+                    });
+                    log.traceEmit(msg);
+                } else {
+                    log.traceEmit(`[JAVA TRACE][${timestamp}] Intercept return for ${className}:${methodName} with ${value}`);
+                }
+                this[methodName](args);
+                switch (value) {
+                    case 0: return false;
+                    case 1: return true;
+                    case -1: return -1; // TODO should throw an error?
+                }
+                return value;
+            };
+        }
     });
 }
 
-export function traceJavaConstructors(className: string) {
+export function traceJavaConstructors(className: string): void {
+    if (className === "") {
+        console.error("className cannot be null");
+        return;
+    }
     javaPerform(function () {
         const foo = Java.use(className).$init.overloads;
         foo.forEach((over) => {
@@ -276,11 +290,11 @@ export function traceJavaConstructors(className: string) {
 }
 
 function _dumpJavaArguments(args: string[]): string {
-    let res = '';
+    let res = "";
     try {
-        for (const a of args) {
+        for (const arg of args) {
             try {
-                res += a.toString() + ' ';
+                res += arg.toString() + " ";
             } catch (ee) {
             }
         }
