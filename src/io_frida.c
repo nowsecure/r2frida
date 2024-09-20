@@ -774,7 +774,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	const char *value = json_object_get_string_member (result, "value");
 	char *sys_result = NULL;
 	if (value && strcmp (value, "undefined")) {
-		const bool is_fs_io = command[0] == 'm';
+		const bool is_fs_io = command[0] == 'm' || command[0] == 'd';
 		if (is_fs_io) {
 			sys_result = strdup (value);
 		} else {
