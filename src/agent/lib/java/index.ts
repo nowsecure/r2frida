@@ -109,7 +109,7 @@ export function listJavaClassesJson(args: string[], classMethodsOnly?: boolean):
             try {
                 const arg = args[0];
                 const handle: Java.Wrapper | null = javaUse(arg);
-                if (handle === null || handle.class) {
+                if (handle === null || handle.class === null) {
                     throw new Error('Cannot find a classloader for this class');
                 }
                 const klass: Java.Wrapper = handle.class;
