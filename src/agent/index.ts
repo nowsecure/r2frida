@@ -71,6 +71,8 @@ const commandHandlers = {
     'e/': [config.evalConfigSearch, 'eval config search (?)'],
     db: [debug.breakpointNative, 'list or add a native breakpoint', '[addr]'],
     dbj: debug.breakpointJson,
+    dbw: [debug.watchpointNative, 'list or add watchpoints'],
+    'dbw-': [debug.watchpointNativeRemove, 'remove watchpoints'],
     dbc: [debug.breakpointNativeCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
     'db-': [debug.breakpointUnset, 'unset the native breakpoint in the given address', '[addr]'],
     'db-*': [debug.breakpointUnsetAll, 'unset all the breakpoints'],

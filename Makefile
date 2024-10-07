@@ -400,7 +400,7 @@ endif
 	#mv ext/frida ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-vs:
+vs vsc:
 	open -a "Visual Studio Code" .
 
 update:
