@@ -37,6 +37,17 @@ global.r2pipe = {
     }
 };
 
+function r2pipe2(arg: string) {
+    const query = JSON.parse(arg);
+    const cmd = query.cmd;
+    const res: any = perform({ command: cmd });
+    const objres = {
+        res: res[0].value,
+        code: 0
+    }
+    console.log(JSON.stringify(objres));
+}
+
 const commandHandlers = {
     '!': [system.runSystemCommand, 'execute program with system'],
     '?': [expr.evalNum, 'evaluate number'],
@@ -354,6 +365,9 @@ function perform(params: any) {
     let { command } = params;
     if (command.startsWith("!")) {
         command = "! " + command.substr(1);
+    }
+    if (command.startsWith("{")) {
+        return r2pipe2(command);
     }
     const tokens = command.split(/ /).map((c: any) => c.trim()).filter((x: any) => x);
     const [name, ...args] = tokens;
