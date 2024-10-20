@@ -190,6 +190,84 @@ export function breakpointJson() {
     return JSON.stringify(json);
 }
 
+interface Watchpoint {
+    id: number,
+    addr: NativePointer,
+    size: number,
+    perm: HardwareWatchpointConditions,
+}
+
+const watchpoints: Watchpoint[] = [];
+let wpid : number = 1;
+
+function currentThread() : ThreadDetails {
+    return Process.enumerateThreads()[0];
+}
+
+export function watchpointNativeRemove(args: string[]) {
+    if (args.length >= 1) {
+        const id = Number(args[0]);
+        for (const wp of watchpoints) {
+            if (wp.id === id) {
+                currentThread().unsetHardwareWatchpoint(wp.id);
+                watchpoints.splice(watchpoints.indexOf(wp), 1);
+                break;
+            }
+        }
+    } else {
+        console.error('Usage: dbw-[id]');
+    }
+}
+
+function enumerateWatchpoints(){
+    watchpoints.forEach(function(wp) {
+        console.log([wp.id, wp.addr, wp.size, wp.perm].join("  "));
+    });
+}
+
+function setupWatchpointHandler() {
+    Process.setExceptionHandler(e => {
+        const addr = e.context.pc;
+        console.error(`=== Exception Handler got ${e.type} exception at ${addr}`);
+        if (['breakpoint', 'single-step'].includes(e.type)) {
+            // currentThread().unsetHardwareWatchpoint();
+            return true;
+        }
+        return false; // pass exception to app
+    });
+}
+
+function addWatchpoint(args: string[]) {
+    if (wpid === 0) {
+        setupWatchpointHandler();
+    }
+    const addr = ptr(args[0]);
+    const size = Number(args[1]);
+    const perm = args[2] as HardwareWatchpointConditions;
+    wpid++;
+    const wp: Watchpoint = {
+        id: wpid, addr, size, perm
+    }
+    // TODO: check addr/size/perm
+    currentThread().setHardwareWatchpoint(wpid, addr, size, perm);
+    watchpoints.push(wp);
+}
+
+export function watchpointNative(args: string[]) {
+    const argsLength = args.length;
+    switch (argsLength) {
+        case 0:
+            enumerateWatchpoints();
+            break;
+        case 3:
+            addWatchpoint(args);
+            break;
+        default:
+            console.error('Usage: dbw [address] [size] [rwx]');
+            break;
+    }
+}
+
 export function breakpointNativeCommand(args: string[]) {
     if (args.length >= 2) {
         const address = args[0];
