@@ -1,6 +1,6 @@
 @echo off
 REM setlocal EnableDelayedExpansion
-set frida_version=16.5.7
+set frida_version=16.5.9
 set r2frida_version=5.9.6
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
