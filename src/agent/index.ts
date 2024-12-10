@@ -96,7 +96,7 @@ const commandHandlers = {
     ie: [info.listEntrypoint, 'show entrypoint of binary in current offset'],
     ieq: info.listEntrypointQuiet,
     'ie*': info.listEntrypointR2,
-    ies: info.listEntrypointSymbols,
+    ies: [info.listEntrypointSymbols, "List the potential entrypoints of the binary (Darwin only)"],
     iej: info.listEntrypointJson,
     afs: [anal.analFunctionSignature, 'Show function signature', '[klass] [method]'],
     ii: [info.listImports, 'list imports'],
