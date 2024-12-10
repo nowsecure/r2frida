@@ -11,6 +11,7 @@ import strings from '../strings.js';
 import { belongsTo, padPointer, sanitizeString } from '../utils.js';
 import { parseMachoHeader, hasMainLoop } from '../darwin/index.js';
 import { r2frida } from "../../plugin.js";
+import { listClassesLoaded } from './classes.js';
 
 
 export async function dumpInfo() {
@@ -186,6 +187,44 @@ export function listHeadersR2(args: string[]) : string {
     return "";
 }
 
+interface Symbol {
+    name: string;
+    address: string;
+}
+
+export function listEntrypointSymbols(args: string[]): string {
+    const validEntrypoints = [
+        "UIApplicationMain",
+    ];
+    const symbols = new Array<Symbol>();
+    if (ObjC.available) {
+        const classes = ObjC.classes;
+        Object.keys(classes).forEach(function (className: string) {
+            var cls = ObjC.classes[className];
+            var methods = cls.$methods; // $ownMethods?
+            methods.forEach(function (methodName) {
+                try {
+                    var address = cls[methodName].implementation; // Get the implementation address
+                    console.log("  Method: " + methodName + " | Address: " + address);
+                    if (validEntrypoints.includes(methodName)) {
+                        symbols.push({ name: methodName, address: address });
+                    }
+                } catch (e) {
+                    console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
+                }
+            });
+        });
+    }
+
+    if (symbols.length === 0) {
+        return "";
+    }
+    const entries = symbols
+        .map((entry) => {
+            return 'f entry.' + entry.name + ' = ' + entry.address;
+        }).join('\n');
+    return "fs+symbols\n" + entries + "\nfs-";
+}
 export function listEntrypointR2(args: string[]) : string {
     let n = 0;
     const entries = listEntrypointJson()
@@ -631,6 +670,7 @@ export default {
     dumpInfoJson,
     listEntrypointJson,
     listEntrypointR2,
+    listEntrypointSymbols,
     listEntrypointQuiet,
     listEntrypoint,
     listImports,
