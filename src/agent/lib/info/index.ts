@@ -234,16 +234,18 @@ export function listEntrypointSymbols(args: string[]): string {
         const classes = ObjC.classes;
         Object.keys(classes).forEach(function (className: string) {
             var cls = ObjC.classes[className];
+            if (cls.$moduleName !== null && cls.$moduleName !== "main") {
+                return;
+            }
             var methods = cls.$methods; // $ownMethods?
             methods.forEach(function (methodName) {
                 try {
                     var address = cls[methodName].implementation; // Get the implementation address
-                    console.log("  Method: " + methodName + " | Address: " + address);
                     if (validEntrypoints.includes(methodName)) {
                         symbols.push({ name: className + "." + methodName, address: address });
                     }
                 } catch (e) {
-                    console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
+                   // ignored console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
                 }
             });
         });
@@ -253,8 +255,8 @@ export function listEntrypointSymbols(args: string[]): string {
         return "";
     }
     const entries = symbols
-        .map((entry) => {
-            return 'f entry.' + entry.name + ' = ' + entry.address;
+        .map((symbol) => {
+            return 'f entry.' + symbol.name + ' = ' + symbol.address;
         }).join('\n');
     return "fs+symbols\n" + entries + "\nfs-";
 }
