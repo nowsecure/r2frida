@@ -249,6 +249,9 @@ export function listEntrypointSymbols(args: string[]): string {
                 }
             });
         });
+    } else {
+        console.log("This command is only available on darwin.");
+        return "";
     }
 
     if (symbols.length === 0) {
