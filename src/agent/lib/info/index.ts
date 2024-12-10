@@ -194,7 +194,40 @@ interface Symbol {
 
 export function listEntrypointSymbols(args: string[]): string {
     const validEntrypoints = [
+        "main", "_start", "_main", "Main",
+        "WinMain", "wmain", "DllMain", "wWinMain",
         "UIApplicationMain",
+        "applicationDidFinishLaunching",
+        "application:didFinishLaunchingWithOptions",
+        "applicationWillResignActive",
+        "applicationDidEnterBackground",
+        "applicationWillEnterForeground",
+        "applicationDidBecomeActive",
+        "applicationWillTerminate",
+        "application:configurationForConnectingSceneSession:options",
+        "application:didDiscardSceneSessions",
+        "application:openURL:options",
+        "application:performFetchWithCompletionHandler",
+        "application:didReceiveRemoteNotification:fetchCompletionHandler",
+        "application:handleEventsForBackgroundURLSession:completionHandler",
+        "application:shouldSaveSecureApplicationState",
+        "application:shouldRestoreSecureApplicationState",
+        "application:didRegisterForRemoteNotificationsWithDeviceToken",
+        "application:didFailToRegisterForRemoteNotificationsWithError",
+        "application:didReceiveRemoteNotification",
+        "application:handleOpenURL",
+        "application:continueUserActivity:restorationHandler",
+        "application:didUpdateUserActivity",
+        "scene:willConnectToSession:options",
+        "sceneDidDisconnect",
+        "sceneDidBecomeActive",
+        "sceneWillResignActive",
+        "sceneWillEnterForeground",
+        "sceneDidEnterBackground",
+        "application:handleWatchKitExtensionRequest:reply",
+        "main",
+        "loadView",
+        "viewDidLoad"
     ];
     const symbols = new Array<Symbol>();
     if (ObjC.available) {
@@ -207,7 +240,7 @@ export function listEntrypointSymbols(args: string[]): string {
                     var address = cls[methodName].implementation; // Get the implementation address
                     console.log("  Method: " + methodName + " | Address: " + address);
                     if (validEntrypoints.includes(methodName)) {
-                        symbols.push({ name: methodName, address: address });
+                        symbols.push({ name: className + "." + methodName, address: address });
                     }
                 } catch (e) {
                     console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
