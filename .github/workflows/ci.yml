@@ -6,8 +6,9 @@ env:
 on:
   push:
     branches:
-      - master
+    - master
   pull_request:
+
 
 jobs:
   build-linux20:
@@ -80,7 +81,7 @@ jobs:
         name: build-agent
         path: src/_agent.js
   build-macos:
-    runs-on: macos-12
+    runs-on: macos-14
     steps:
     - uses: actions/checkout@v4
     - name: Install dependencies
@@ -125,7 +126,7 @@ jobs:
       run: make.bat
     - name: zip
       shell: cmd
-# run: zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
+      # run: zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
       run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe
     - uses: actions/upload-artifact@v4
       with:
@@ -139,51 +140,51 @@ jobs:
       is_release: ${{ steps.release.outputs.is }}
       tag_name: ${{ steps.release.outputs.tag }}
     needs:
-      - build-linux20
-      - build-linux22
-      - build-macos
-      - build-windows
-      - build-agent
+    - build-linux20
+    - build-linux22
+    - build-macos
+    - build-windows
+    - build-agent
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Download all git history and tags
-      - name: Check if is a release
-        run: git describe --exact-match --tags ${{ github.sha }} | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "::set-output name=is::"r;print "::set-output name=tag::"tag}'
-        id: release
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Download all git history and tags
+    - name: Check if is a release
+      run: git describe --exact-match --tags ${{ github.sha }} | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "::set-output name=is::"r;print "::set-output name=tag::"tag}'
+      id: release
   release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check_release.outputs.is_release == 'yes' }}
     needs:
-      - check_release
+    - check_release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Download all git history and tags
-      - name: Extract r2f version
-        run: echo "##[set-output name=branch;]$( ./configure -qV )"
-        id: r2fv
-      - name: Prepare release notes
-        run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/artifacts
-      - name: Create GitHub release
-        id: create_release
-        uses: softprops/action-gh-release@0a7d9cdbe44d16ac5fe9788836ca8af96266902e
-        with:
-          name: ${{ steps.r2fv.outputs.branch }}
-          tag_name: ${{ needs.check_release.outputs.tag_name }}
-          body_path: ./RELEASE_NOTES.md
-          draft: false
-          prerelease: false
-          generate_release_notes: false
-          files: |
-            dist/artifacts/build-linux22/r2frida_*_amd64.deb
-            dist/artifacts/build-agent/_agent.js
-            dist/artifacts/build-macos/r2frida-*-x64.pkg
-            dist/artifacts/build-windows/r2frida-*-w64.zip
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Download all git history and tags
+    - name: Extract r2f version
+      run: echo "##[set-output name=branch;]$( ./configure -qV )"
+      id: r2fv
+    - name: Prepare release notes
+      run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/artifacts
+    - name: Create GitHub release
+      id: create_release
+      uses: softprops/action-gh-release@0a7d9cdbe44d16ac5fe9788836ca8af96266902e
+      with:
+        name: ${{ steps.r2fv.outputs.branch }}
+        tag_name: ${{ needs.check_release.outputs.tag_name }}
+        body_path: ./RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+        generate_release_notes: false
+        files: |
+          dist/artifacts/build-linux22/r2frida_*_amd64.deb
+          dist/artifacts/build-agent/_agent.js
+          dist/artifacts/build-macos/r2frida-*-x64.pkg
+          dist/artifacts/build-windows/r2frida-*-w64.zip
