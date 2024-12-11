@@ -35,7 +35,7 @@ export async function dumpInfoR2() {
 
 export async function dumpInfoJson() {
     const firstModule = Process.mainModule;
-    const res : any = {
+    const res: any = {
         arch: r2.getArch(Process.arch),
         bits: Process.pointerSize * 8,
         os: Process.platform,
@@ -124,7 +124,7 @@ export async function dumpInfoJson() {
 }
 
 // XXX not clear what's the return type for this function
-export function listEntrypointJson(args?: string[]) : any[] {
+export function listEntrypointJson(args?: string[]): any[] {
     function isEntrypoint(s: any) {
         switch (s.name) {
             case '_start':
@@ -145,8 +145,8 @@ export function listEntrypointJson(args?: string[]) : any[] {
         }
         try {
             const headers = listHeadersJson([]);
-            return [{address:headers.entrypoint, name:"entry0"}];
-        } catch (e) {}
+            return [{ address: headers.entrypoint, name: "entry0" }];
+        } catch (e) { }
     }
     const res = Process.mainModule.enumerateExports()
         .filter((symbol) => {
@@ -161,13 +161,13 @@ export function listEntrypointJson(args?: string[]) : any[] {
     return res;
 }
 
-export function listHeadersJson(args: string[]) : any {
+export function listHeadersJson(args: string[]): any {
     const here = ptr(r2frida.offset);
     const baseAddr = Process.enumerateModules()
         .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
         .map(m => m.base)[0];
     if (Process.platform === 'darwin') {
-	return parseMachoHeader(baseAddr);
+        return parseMachoHeader(baseAddr);
     }
     const headers = parseElfHeader(baseAddr);
     const entrypoint = ptr(headers.entrypoint);
@@ -175,11 +175,11 @@ export function listHeadersJson(args: string[]) : any {
     return headers;
 }
 
-export function listHeaders(args: string[]) : string {
-    return JSON.stringify (listHeadersJson(args), null, 2);
+export function listHeaders(args: string[]): string {
+    return JSON.stringify(listHeadersJson(args), null, 2);
 }
 
-export function listHeadersR2(args: string[]) : string {
+export function listHeadersR2(args: string[]): string {
     const headers = listHeadersJson(args);
     if (headers.hasOwnProperty("entrypoint")) {
         return `f entry0=${headers.entrypoint}`;
@@ -189,7 +189,7 @@ export function listHeadersR2(args: string[]) : string {
 
 interface Symbol {
     name: string;
-    address: string;
+    address: NativePointer | string;
 }
 
 export function listEntrypointSymbols(args: string[]): string {
@@ -230,6 +230,47 @@ export function listEntrypointSymbols(args: string[]): string {
         "viewDidLoad"
     ];
     const symbols = new Array<Symbol>();
+    if (Java.available) {
+        Java.perform(() => {
+            console.log("Enumerating app-specific entry-point methods and JNI symbols...");
+
+            // Get the application's package name
+            const currentPackage = Java.use("android.app.ActivityThread").currentApplication().getPackageName();
+            console.log(`Current package: ${currentPackage}`);
+
+            // Entry-point method patterns
+            const entryPoints = ["onCreate(", "onReceive(", "onStart(", "onResume(", "onPause(", "onDestroy("];
+
+            // Enumerate loaded classes
+            const loadedClasses = Java.enumerateLoadedClassesSync();
+
+            loadedClasses.forEach((className) => {
+                // Filter classes by package name
+                if (className.startsWith(currentPackage)) {
+                    try {
+                        const clazz = Java.use(className);
+                        const methods = clazz.class.getDeclaredMethods();
+
+                        methods.forEach((method: any) => {
+                            const methodName = method.getName();
+                            if (entryPoints.some((entry) => methodName.includes(entry))) {
+                                symbols.push({ name: className + "." + methodName, address: methodName });
+                            }
+                        });
+                    } catch (error) {
+                        // console.error(`  [Error accessing class ${className}]: ${error}`);
+                    }
+                }
+            });
+        });
+        Process.enumerateModules().forEach((mod) => {
+            mod.enumerateExports().forEach((exp) => {
+                if (exp.name.startsWith("Java_")) {
+                    symbols.push({ name: "entry.jni." + exp.name, address: exp.address.toString() });
+                }
+            });
+        });
+    }
     if (ObjC.available) {
         const classes = ObjC.classes;
         Object.keys(classes).forEach(function (className: string) {
@@ -245,7 +286,7 @@ export function listEntrypointSymbols(args: string[]): string {
                         symbols.push({ name: className + "." + methodName, address: address });
                     }
                 } catch (e) {
-                   // ignored console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
+                    // ignored console.error("  [Error getting implementation address for method " + methodName + "]: " + e);
                 }
             });
         });
@@ -263,14 +304,14 @@ export function listEntrypointSymbols(args: string[]): string {
         }).join('\n');
     return "fs+symbols\n" + entries + "\nfs-";
 }
-export function listEntrypointR2(args: string[]) : string {
+export function listEntrypointR2(args: string[]): string {
     let n = 0;
     const entries = listEntrypointJson()
         .map((entry) => {
             return 'f entry' + (n++) + ' = ' + entry.address;
         }).join('\n');
     if (entries === "") {
-      return "";
+        return "";
     }
     return "fs+symbols\n" + entries + "\nfs-";
 }
@@ -321,7 +362,7 @@ export function listImportsR2(args: string[]) {
             // ignore
         }
     }
-    const res = listImportsJson(args).map((x : any) => {
+    const res = listImportsJson(args).map((x: any) => {
         const flags = [];
         if (!seen.has(x.address)) {
             seen.add(x.address);
@@ -341,15 +382,15 @@ export function listImportsR2(args: string[]) {
         return flags.join('\n');
     }).join('\n');
     if (res === "") {
-      return "";
+        return "";
     }
     return "fs+symbols\n" + res + "\nfs-";
 }
 
 export function listImportsJson(args: string[]) {
     const alen = args.length;
-    let result : any = [];
-    let moduleName : string | null = null;
+    let result: any = [];
+    let moduleName: string | null = null;
     if (alen === 2) {
         moduleName = args[0];
         const importName = args[1];
@@ -369,7 +410,7 @@ export function listImportsJson(args: string[]) {
             result = currentModule.enumerateImports() || [];
         }
     }
-    result.forEach((x:any, i:any) => {
+    result.forEach((x: any, i: any) => {
         if (x.index === undefined) {
             x.index = i;
         }
@@ -393,7 +434,7 @@ export function listModulesR2() {
         .map(m => 'f lib.' + sanitizeString(m.name) + ' = ' + padPointer(m.base))
         .join('\n');
     if (libs === "") {
-      return "";
+        return "";
     }
     return "fs+libs\n" + libs + "\nfs-";
 }
@@ -428,15 +469,15 @@ export function listExportsR2(args: string[]) {
 
 export function listAllExportsJson(args: string[]) {
     const modules = (args.length === 0) ? Process.enumerateModules().map(m => m.path) : [args.join(' ')];
-    return modules.reduce((result:any, moduleName: string) => {
+    return modules.reduce((result: any, moduleName: string) => {
         const exports = Process.getModuleByName(moduleName).enumerateExports();
         return result.concat(exports);
     }, []);
 }
 
-export function listAllExports(args:string[]) {
+export function listAllExports(args: string[]) {
     return listAllExportsJson(args)
-        .map((a:any) => {
+        .map((a: any) => {
             return [a.address, a.type[0], a.name].join(' ');
         })
         .join('\n');
@@ -451,7 +492,7 @@ export function listAllExportsR2(args: string[]) {
         .join('\n');
 }
 
-export function listExportsJson(args: string[]) : any | null {
+export function listExportsJson(args: string[]): any | null {
     const currentModule = (args.length > 0)
         ? Process.getModuleByName(args[0])
         : getModuleByAddress(ptr(r2frida.offset));
@@ -478,7 +519,7 @@ export function listSegmentsHere() {
 export function listSegmentsR2(args: string[]) {
     let i = 0;
     return listSegmentsJson(args)
-        .filter((s:any) => s.name !== undefined)
+        .filter((s: any) => s.name !== undefined)
         .map((a: any) => {
             return [`f segment.${i++}.${sanitizeString(a.name)} ${a.vmsize} ${a.vmaddr}`].join(' ');
         })
@@ -487,10 +528,10 @@ export function listSegmentsR2(args: string[]) {
 
 export function listSegments(args: string[]) {
     const headers = 'vaddr               vsize               perm name\n'
-       .concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
+        .concat('――――――――――――――――――――――――――――――――――――――――――――――\n');
     return headers.concat(listSegmentsJson(args)
         .map((a: any) => {
-            const perm = a.perm? a.perm: "---";
+            const perm = a.perm ? a.perm : "---";
             return [padPointer(a.vmaddr), padPointer(a.vmsize), perm, a.name].join('  ');
         })
         .join('\n'));
@@ -510,9 +551,9 @@ export function listSegmentsJson(args: string[]) {
             const bases = Process.enumerateModules()
                 .filter(m => here.compare(m.base) >= 0 && here.compare(m.base.add(m.size)) < 0)
                 .map(m => m.base);
-	    if (bases.length > 0) {
+            if (bases.length > 0) {
                 baseAddr = bases[0];
-	    } else {
+            } else {
                 throw new Error('Cannot find base address');
             }
         }
@@ -544,11 +585,11 @@ export function listSectionsR2(args: string[]) {
         .join('\n');
 }
 
-export function listSections(args: string[]) : string {
+export function listSections(args: string[]): string {
     const headers = "vaddr               vsize              perm  name\n".concat('―――――――――――――――――――――――――――――――――――――――――――――――――――――――\n');
     const data = listSectionsJson(args)
         .map((a: any) => {
-            const perm = a.perm? a.perm: "---";
+            const perm = a.perm ? a.perm : "---";
             return [padPointer(a.vmaddr), padPointer(a.vmsize), perm, a.name].join("  ");
         })
         .join('\n');
@@ -556,7 +597,7 @@ export function listSections(args: string[]) : string {
 }
 
 export function listSectionsJson(args: string[]): any {
-    let baseAddr : NativePointer = ptr(0);
+    let baseAddr: NativePointer = ptr(0);
     if (Process.platform === 'darwin') {
         const baseAddr = (args.length === 1) ? ptr(args[0]) : Process.mainModule.base;
         return listMachoSections(baseAddr);
@@ -610,7 +651,7 @@ export function listAllSymbolsR2(args: string[]) {
             return ['f', 'sym.' + type.substring(0, 3) + '.' + sanitizeString(name), '=', address].join(' ');
         }).join('\n');
     if (symbols === "") {
-      return "";
+        return "";
     }
     return "fs symbols\n" + symbols + "\nfs-";
 }
@@ -632,7 +673,7 @@ export function listSymbolsR2(args: string[]) {
         })
         .join('\n');
     if (symbols === "") {
-      return "";
+        return "";
     }
     return "fs symbols\n" + symbols + "\nfs-";
 }

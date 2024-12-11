@@ -19,13 +19,13 @@
   },
   "devDependencies": {
     "@frida/events": "^4.0.4",
-    "@types/frida-gum": "^18.5.1",
-    "@types/node": "^20.0.0",
+    "@types/frida-gum": "^18.7.1",
+    "@types/node": "^22.10.1",
     "@typescript-eslint/eslint-plugin": "^5.51.0",
     "@typescript-eslint/parser": "^5.51.0",
     "eslint": "^8.34.0",
     "frida-compile": "^16.2.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.7.2"
   },
   "exports": {
     "require": "./src/agent/index.js",
