@@ -189,7 +189,7 @@ export function listHeadersR2(args: string[]): string {
 
 interface Symbol {
     name: string;
-    address: string;
+    address: NativePointer | string;
 }
 
 export function listEntrypointSymbols(args: string[]): string {
@@ -251,7 +251,7 @@ export function listEntrypointSymbols(args: string[]): string {
                         const clazz = Java.use(className);
                         const methods = clazz.class.getDeclaredMethods();
 
-                        methods.forEach((method) => {
+                        methods.forEach((method: any) => {
                             const methodName = method.getName();
                             if (entryPoints.some((entry) => methodName.includes(entry))) {
                                 symbols.push({ name: className + "." + methodName, address: methodName });
@@ -263,19 +263,13 @@ export function listEntrypointSymbols(args: string[]): string {
                 }
             });
         });
-        const modules = Module.enumerateModules();
-        modules.forEach((module) => {
-            const exports = Module.findExportByName(module.name, null);
-
-            if (exports) {
-                exports.forEach((exp) => {
-                    if (exp.name.startsWith("Java_")) {
-                        symbols.push({ name: "entry.jni." + exp.name, address: exp.address });
-                    }
-                });
-            }
+        Process.enumerateModules().forEach((mod) => {
+            mod.enumerateExports().forEach((exp) => {
+                if (exp.name.startsWith("Java_")) {
+                    symbols.push({ name: "entry.jni." + exp.name, address: exp.address.toString() });
+                }
+            });
         });
-
     }
     if (ObjC.available) {
         const classes = ObjC.classes;
