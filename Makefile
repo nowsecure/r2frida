@@ -3,9 +3,9 @@ include config.mk
 PREFIX?=/usr/local
 R2V=$(VERSION)
 R2V?=5.9.4
-# frida_version=16.5.7
+# frida_version=16.5.9
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
-#frida_version=15.2.2
+#frida_version=16.5.9
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 
 ifeq ($(frida_major),15)
