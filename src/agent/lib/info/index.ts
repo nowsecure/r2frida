@@ -265,7 +265,7 @@ export function listEntrypointSymbols(args: string[]): string {
         });
         Process.enumerateModules().forEach((mod) => {
             mod.enumerateExports().forEach((exp) => {
-                if (exp.name.startsWith("Java_")) {
+                if (exp.name.startsWith("Java_") || exp.name.startsWith("JNI_OnLoad")) {
                     symbols.push({ name: "entry.jni." + exp.name, address: exp.address.toString() });
                 }
             });
