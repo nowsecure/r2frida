@@ -25,6 +25,7 @@ EXPECT=<<EOF
 :e hook.usecmd=
 :e file.log=
 :e symbols.module=
+:e dbg.hwbp=true
 EOF
 RUN
 

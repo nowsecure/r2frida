@@ -1,6 +1,7 @@
 import config from '../../config.js';
 import disasm from '../disasm.js';
 import * as debug from './index.js';
+import * as breakpoints from './breakpoints.js';
 import * as utils from '../utils.js';
 /* eslint-disable comma-dangle */
 
@@ -323,7 +324,7 @@ function _stalkFunctionAndGetEvents(args:string[], eventsHandler:any) {
         .then((events) => {
             return eventsHandler(isBlock, events);
         });
-    debug.breakpointContinue([]);
+    breakpoints.breakpointContinue([]);
     return operation;
 }
 
@@ -340,7 +341,7 @@ function _stalkEverythingAndGetEvents(args:string[], eventsHandler:any) {
         .then((events) => {
             return eventsHandler(isBlock, events);
         });
-    debug.breakpointContinue([]);
+    breakpoints.breakpointContinue([]);
     return operation;
 }
 
