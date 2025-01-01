@@ -42,7 +42,8 @@ const config: any[string] = {
     'hook.usecmd': '',
     'file.log': '',
     'symbols.module': '',
-    'symbols.unredact': Process.platform === 'darwin'
+    'symbols.unredact': Process.platform === 'darwin',
+    'dbg.hwbp': 'true'
 };
 
 const configHelp: any[string] = {

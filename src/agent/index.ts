@@ -5,6 +5,7 @@ import * as android from './lib/java/android.js';
 import * as classes from './lib/info/classes.js';
 import * as darwin from './lib/darwin/index.js';
 import * as debug from './lib/debug/index.js';
+import * as breakpoints from './lib/debug/breakpoints.js';
 import * as system from './lib/debug/system.js';
 import disasm from './lib/disasm.js';
 import expr from './lib/expr.js';
@@ -80,13 +81,14 @@ const commandHandlers = {
     e: [config.evalConfig, 'configure the agent with these eval vars'],
     'e*': [config.evalConfigR2, 'display eval config vars in r2 format'],
     'e/': [config.evalConfigSearch, 'eval config search (?)'],
-    db: [debug.breakpointNative, 'list or add a native breakpoint', '[addr]'],
-    dbj: debug.breakpointJson,
-    dbc: [debug.breakpointNativeCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
-    'db-': [debug.breakpointUnset, 'unset the native breakpoint in the given address', '[addr]'],
-    'db-*': [debug.breakpointUnsetAll, 'unset all the breakpoints'],
-    dc: [debug.breakpointContinue, 'continue execution of the interrupted child'],
-    dcu: [debug.breakpointContinueUntil, 'continue execution until given address', '[addr]'],
+    db: [breakpoints.setBreakpoint, 'list or add a native breakpoint', '[addr]'],
+    dbj: breakpoints.breakpointJson,
+    dbc: [breakpoints.setBreakpointCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
+    dbs: [breakpoints.toggleBreakpoint, 'Enable/Disable a breakpoint', '[addr] [cmd]'],
+    'db-': [breakpoints.unsetBreakpoint, 'unset the native breakpoint in the given address', '[addr]'],
+    'db-*': [breakpoints.breakpointUnsetAll, 'unset all the breakpoints'],
+    dc: [breakpoints.breakpointContinue, 'continue execution of the interrupted child'],
+    dcu: [breakpoints.setBreakpointContinueUntil, 'continue execution until given address', '[addr]'],
     dk: [debug.sendSignal, 'send signal to process in the target process', '[signal]|([pid] [signum])'],
     s: [r2.seek, 'seek, change the current offset reference inside the agent', '[addr]'],
     r: [r2.cmd, 'run an r2 command inside the agent (requires dlopen r_core, creates new instance)', '[cmd]'],
@@ -313,7 +315,7 @@ const requestHandlers = {
 
 function state(params: any, data: any) {
     r2frida.offset = params.offset;
-    debug.setSuspended(params.suspended);
+    breakpoints.setSuspended(params.suspended);
     return [{}, null];
 }
 
