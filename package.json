@@ -15,7 +15,7 @@
   },
   "license": "LGPL-3.0",
   "engines": {
-    "node": ">=14.16"
+    "node": ">=20.0"
   },
   "devDependencies": {
     "@frida/events": "^4.0.4",
