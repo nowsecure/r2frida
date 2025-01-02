@@ -50,6 +50,8 @@ function r2pipe2(arg: string) {
 }
 
 const commandHandlers = {
+    '.': [null, 'Run Frida script in agent side', '[path]'], // this is implemented in C
+    eval: [expr.evalCode, 'evaluate Javascript code in agent side', '[code]'],
     '!': [system.runSystemCommand, 'execute program with system'],
     '?': [expr.evalNum, 'evaluate number'],
     '?e': [echo, 'print message'],
@@ -74,13 +76,10 @@ const commandHandlers = {
     '/v8j': searchValueJson8,
     '?V': [fridaVersion, 'show frida version'],
     '?Vj': [fridaVersionJson, 'show frida version in JSON'],
-    // '.': // this is implemented in C
-    i: [info.dumpInfo, 'show information about the target process'],
-    'i*': [info.dumpInfoR2, 'use .:i* to import r2frida target process info into r2'],
-    ij: [info.dumpInfoJson, 'json version of :i'],
-    e: [config.evalConfig, 'configure the agent with these eval vars'],
-    'e*': [config.evalConfigR2, 'display eval config vars in r2 format'],
-    'e/': [config.evalConfigSearch, 'eval config search (?)'],
+    afs: [anal.analFunctionSignature, 'Show function signature', '[klass] [method]'],
+    cat: [fs.fsCat, 'show contents of a file'],
+    cd: [fs.chDir, 'change directory'],
+    chcon: [sys.changeSelinuxContext, 'change selinux context'],
     db: [breakpoints.setBreakpoint, 'list or add a native breakpoint', '[addr]'],
     dbj: breakpoints.breakpointJson,
     dbc: [breakpoints.setBreakpointCommand, 'associate an r2 command when the native breakpoint is hit', '[addr] [cmd]'],
@@ -90,8 +89,102 @@ const commandHandlers = {
     dc: [breakpoints.breakpointContinue, 'continue execution of the interrupted child'],
     dcu: [breakpoints.setBreakpointContinueUntil, 'continue execution until given address', '[addr]'],
     dk: [debug.sendSignal, 'send signal to process in the target process', '[signal]|([pid] [signum])'],
-    s: [r2.seek, 'seek, change the current offset reference inside the agent', '[addr]'],
-    r: [r2.cmd, 'run an r2 command inside the agent (requires dlopen r_core, creates new instance)', '[cmd]'],
+    dd: [fs.listFileDescriptors, 'list filedescriptors in use in the target process'],
+    ddj: [fs.listFileDescriptorsJson, 'same as `dd` but in json format'],
+    'dd-': [fs.closeFileDescriptors, 'close given file descriptor', '[fd]'],
+    dm: [memory.listMemoryRanges, 'list ranges of memory maps'],
+    'dm*': [memory.listMemoryRangesR2, 'add a flag in r2 for every memory range by name .:dm*'],
+    dmj: [memory.listMemoryRangesJson, 'list memory ranges like `:dm` but in json format'],
+    dmp: [memory.changeMemoryProtection, 'show or change the memory protection (rwx)', '[at] [sz] [rwx]'],
+    'dm.': [memory.listMemoryRangesHere, 'show information about the memory map in the current offset'],
+    dmm: [memory.listMemoryMaps, 'like :dm but easier to read as it groups consecutive maps'],
+    'dmm*': [memory.listMemoryMapsR2, 'add a flag in r2 for every memory map'],
+    'dmmj': [memory.listMemoryMapsJson, 'list memory maps in json format'],
+    'dmm.': [memory.listMemoryMapsHere, 'show memory map name at current address (see `dm.`)'],
+    dmh: [memory.listMallocRanges, 'list memory'],
+    'dmh*': memory.listMallocRangesR2,
+    dmhj: memory.listMallocRangesJson,
+    dmhm: [memory.listMallocMaps, 'print all heap allocations (EXPERIMENTAL)'],
+    dma: [memory.allocSize, 'allocate N bytes'],
+    dmas: [memory.allocString, 'allocate a string and print the address in heap', '[str]'],
+    dmaw: [memory.allocWstring, 'allocate a string in utf16 / wide string', '[wstr]'],
+    dmad: [memory.allocDup, 'create a new buffer of [size] with contents at given address', '[addr] [size]'],
+    dmal: [memory.listAllocs, 'list all allocations'],
+    'dma-': [memory.removeAlloc, 'free given heap pointer', '[addr]'],
+    dp: [sys.getPid, 'get process id'],
+    dxc: [debug.dxCall, 'call function with arguments', '[addr] [args..]'],
+    dxo: [darwin.callObjcMethod, 'call objc function with args', '[sym] [id]'],
+    dxs: [debug.dxSyscall, 'inject and execute a syscall', '[sysnum] [args..]'],
+    dpj: [sys.getPidJson, 'print target process id in json'],
+    dpt: [debug.listThreads, 'display threads of the target process'],
+    dptj: [debug.listThreadsJson, 'list threads in json format'],
+    dr: [debug.dumpRegisters, 'show register values'],
+    'dr.': [debug.dumpRegistersHere, 'show register values of the current thread'],
+    'dr*': [debug.dumpRegistersR2, 'Import register values of target process as flags .:dr*'],
+    dre: [debug.dumpRegistersEsil, 'Show register values as an esil expression'],
+    drr: [debug.dumpRegistersRecursively, 'telescope registers dump'],
+    drp: [debug.dumpRegisterProfile, 'display register profile of target process cpu'],
+    dr8: [debug.dumpRegisterArena, 'dump the register arena contents in hexpairs'],
+    drj: [debug.dumpRegistersJson, 'display register values in json format'],
+    '%': [sys.getOrSetEnv, 'same as the :env command'],
+    env: [sys.getOrSetEnv, 'get or set environment variables', '[k] ([v])'],
+    envj: [sys.getOrSetEnvJson, 'display target process environment variables in json format'],
+    dl: [sys.dlopen, 'dlopen a library in the target process', '[path/lib.so]'],
+    dlf: [darwin.loadFrameworkBundle, 'load Darwin framework bundle', '[path]'],
+    'dlf-': [darwin.unloadFrameworkBundle, 'unload Darwin framework'],
+    dtf: [trace.traceFormat, 'add a trace parsing arguments using a format string', '[addr] [fmt]'],
+    dth: [trace.traceHook, 'list or add trace hook'],
+    dt: [trace.trace, 'inject a trace in the given native address (or java:method)', '([addr])'],
+    dtj: trace.traceJson,
+    dtq: trace.traceQuiet,
+    'dt*': trace.traceR2,
+    'dt.': [trace.traceHere, 'show trace in current offset'],
+    'dt-': [trace.clearTrace, 'delete trace at given address', '[addr]'],
+    'dt-*': [trace.clearAllTrace, 'clear all traces'],
+    dtr: [trace.traceRegs, 'add a trace to show register value when calling a function', '[addr] [reg...]'],
+    dtl: [trace.traceLogDump, 'trace log dump'],
+    'dtl*': trace.traceLogDumpR2,
+    dtlq: trace.traceLogDumpQuiet,
+    dtlj: trace.traceLogDumpJson,
+    'dtl-': [trace.traceLogClear, 'clear trace logs'],
+    'dtl-*': trace.traceLogClearAll,
+    dts: [stalker.stalkTraceEverything, 'trace everything using the stalker (EXPERIMENTAL)'],
+    'dts?': stalker.stalkTraceEverythingHelp,
+    dtsj: stalker.stalkTraceEverythingJson,
+    'dts*': stalker.stalkTraceEverythingR2,
+    dtsf: [stalker.stalkTraceFunction, 'stalk trace a function (EXPERIMENTAL)'],
+    dtsfj: stalker.stalkTraceFunctionJson,
+    'dtsf*': stalker.stalkTraceFunctionR2,
+    di: [interceptor.interceptHelp, 'debug replace commands'],
+    dif: [interceptor.interceptFunHelp, 'debug intercept commands'],
+    // intercept ret function and dont call the function
+    dis: [interceptor.interceptRetString, 'replace the original implementation and return a string', '[addr] [str]'],
+    dibf: [interceptor.interceptRetFalse, 'replace the original implementation and return a boolean false value', '[java:]'],
+    dibt: [interceptor.interceptRetTrue, 'replace the original implementation and return a boolean true value', '[java:]'],
+    di0: [interceptor.interceptRet0, 'replace the original implementation and return 0', '[addr|java:]'],
+    di1: [interceptor.interceptRet1, 'replace the original implementation and return 1', '[addr|java:]'],
+    dii: [interceptor.interceptRetInt, 'replace the original implementation and return an integer', '[addr] [num]'],
+    'di-1': [interceptor.interceptRet_1, 'replace the original implementation and return -1'],
+    div: [interceptor.interceptRetVoid, 'replace the original implementation and return void'],
+    'di-*': [interceptor.interceptDetachAll, 'remove (detach) all interceptor handles'],
+    dir: [interceptor.interceptRevert, 'revert a trace at the given function', '[addr|java:]'],
+    // intercept ret after calling the function
+    difs: [interceptor.interceptFunRetString, 'intercept the return value and replace it with the specified string', '[addr] [str]'],
+    dif0: [interceptor.interceptFunRet0, 'intercept the return value and replace it with 0', '[addr]'],
+    dif1: [interceptor.interceptFunRet1, 'intercept the return value and replace it with 1', '[addr]'],
+    difi: [interceptor.interceptFunRetInt, 'intercept the return value and replace it with the specified integer', '[addr] [num]'],
+    'dif-1': [interceptor.interceptFunRet_1, 'intercept the return value and replace it with -1', '[addr]'],
+    e: [config.evalConfig, 'configure the agent with these eval vars'],
+    'e*': [config.evalConfigR2, 'display eval config vars in r2 format'],
+    'e/': [config.evalConfigSearch, 'eval config search (?)'],
+    fD: [lookup.lookupDebugInfo, 'lookup debug information'],
+    fd: [lookup.lookupAddress, 'describe flag name at current address'],
+    'fd.': [lookup.lookupAddress, 'same as fd but using current offset instead of taking it as argument'],
+    'fd*': lookup.lookupAddressR2,
+    fdj: lookup.lookupAddressJson,
+    i: [info.dumpInfo, 'show information about the target process'],
+    'i*': [info.dumpInfoR2, 'use .:i* to import r2frida target process info into r2'],
+    ij: [info.dumpInfoJson, 'json version of :i'],
     ih: [info.listHeaders, "Show binary headers"],
     ihj: [info.listHeadersJson, "Show binary headers"],
     "ih*": [info.listHeadersR2, "Show binary headers"],
@@ -100,7 +193,6 @@ const commandHandlers = {
     'ie*': info.listEntrypointR2,
     ies: [info.listEntrypointSymbols, "List the potential entrypoints of the binary (Darwin only)"],
     iej: info.listEntrypointJson,
-    afs: [anal.analFunctionSignature, 'Show function signature', '[klass] [method]'],
     ii: [info.listImports, 'list imports'],
     'ii*': info.listImportsR2,
     iij: info.listImportsJson,
@@ -152,11 +244,6 @@ const commandHandlers = {
     'iAE*': info.listAllExportsR2,
     init: [initBasicInfoFromTarget, 'print initialization commands to import basic r2frida info into r2'],
     'init*': [initBasicInfoFromTarget, 'same as init'],
-    fD: [lookup.lookupDebugInfo, 'lookup debug information'],
-    fd: [lookup.lookupAddress, 'describe flag name at current address'],
-    'fd.': [lookup.lookupAddress, 'same as fd but using current offset instead of taking it as argument'],
-    'fd*': lookup.lookupAddressR2,
-    fdj: lookup.lookupAddressJson,
     ic: [classes.listClasses, 'list classes associated with the binary at current address'],
     'ic.': classes.listClassesHere,
     'icj.': classes.listClassesHereJson,
@@ -177,97 +264,8 @@ const commandHandlers = {
     ipj: [classes.listProtocolsJson, 'list objc protocols defined in json'],
     iz: [info.listStrings, 'find strings in current binary and print them'],
     izj: [info.listStringsJson, 'print strings in json format'],
-    dd: [fs.listFileDescriptors, 'list filedescriptors in use in the target process'],
-    ddj: [fs.listFileDescriptorsJson, 'same as `dd` but in json format'],
-    'dd-': [fs.closeFileDescriptors, 'close given file descriptor', '[fd]'],
-    dm: [memory.listMemoryRanges, 'list ranges of memory maps'],
-    'dm*': [memory.listMemoryRangesR2, 'add a flag in r2 for every memory range by name .:dm*'],
-    dmj: [memory.listMemoryRangesJson, 'list memory ranges like `:dm` but in json format'],
-    dmp: [memory.changeMemoryProtection, 'show or change the memory protection (rwx)', '[at] [sz] [rwx]'],
-    'dm.': [memory.listMemoryRangesHere, 'show information about the memory map in the current offset'],
-    dmm: [memory.listMemoryMaps, 'like :dm but easier to read as it groups consecutive maps'],
-    'dmm*': [memory.listMemoryMapsR2, 'add a flag in r2 for every memory map'],
-    'dmmj': [memory.listMemoryMapsJson, 'list memory maps in json format'],
-    'dmm.': [memory.listMemoryMapsHere, 'show memory map name at current address (see `dm.`)'],
-    dmh: [memory.listMallocRanges, 'list memory'],
-    'dmh*': memory.listMallocRangesR2,
-    dmhj: memory.listMallocRangesJson,
-    dmhm: [memory.listMallocMaps, 'print all heap allocations (EXPERIMENTAL)'],
-    dma: [memory.allocSize, 'allocate N bytes'],
-    dmas: [memory.allocString, 'allocate a string and print the address in heap', '[str]'],
-    dmaw: [memory.allocWstring, 'allocate a string in utf16 / wide string', '[wstr]'],
-    dmad: [memory.allocDup, 'create a new buffer of [size] with contents at given address', '[addr] [size]'],
-    dmal: [memory.listAllocs, 'list all allocations'],
-    'dma-': [memory.removeAlloc, 'free given heap pointer', '[addr]'],
-    dp: [sys.getPid, 'get process id'],
-    dxc: [debug.dxCall, 'call function with arguments', '[addr] [args..]'],
-    dxo: [darwin.callObjcMethod, 'call objc function with args', '[sym] [id]'],
-    dxs: [debug.dxSyscall, 'inject and execute a syscall', '[sysnum] [args..]'],
-    dpj: [sys.getPidJson, 'print target process id in json'],
-    dpt: [debug.listThreads, 'display threads of the target process'],
-    dptj: [debug.listThreadsJson, 'list threads in json format'],
-    dr: [debug.dumpRegisters, 'show register values'],
-    'dr.': [debug.dumpRegistersHere, 'show register values of the current thread'],
-    'dr*': [debug.dumpRegistersR2, 'Import register values of target process as flags .:dr*'],
-    dre: [debug.dumpRegistersEsil, 'Show register values as an esil expression'],
-    drr: [debug.dumpRegistersRecursively, 'telescope registers dump'],
-    drp: [debug.dumpRegisterProfile, 'display register profile of target process cpu'],
-    dr8: [debug.dumpRegisterArena, 'dump the register arena contents in hexpairs'],
-    drj: [debug.dumpRegistersJson, 'display register values in json format'],
-    '%': [sys.getOrSetEnv, 'same as the :env command'],
-    env: [sys.getOrSetEnv, 'get or set environment variables', '[k] ([v])'],
-    envj: [sys.getOrSetEnvJson, 'display target process environment variables in json format'],
-    dl: [sys.dlopen, 'dlopen a library in the target process', '[path/lib.so]'],
-    dlf: [darwin.loadFrameworkBundle, 'load Darwin framework bundle', '[path]'],
-    'dlf-': [darwin.unloadFrameworkBundle, 'unload Darwin framework'],
-    dtf: [trace.traceFormat, 'add a trace parsing arguments using a format string', '[addr] [fmt]'],
-    dth: [trace.traceHook, 'list or add trace hook'],
-    t: [swift.swiftTypes, 'list swift types'],
-    't*': swift.swiftTypesR2,
-    dt: [trace.trace, 'inject a trace in the given native address (or java:method)', '([addr])'],
-    dtj: trace.traceJson,
-    dtq: trace.traceQuiet,
-    'dt*': trace.traceR2,
-    'dt.': [trace.traceHere, 'show trace in current offset'],
-    'dt-': [trace.clearTrace, 'delete trace at given address', '[addr]'],
-    'dt-*': [trace.clearAllTrace, 'clear all traces'],
-    dtr: [trace.traceRegs, 'add a trace to show register value when calling a function', '[addr] [reg...]'],
-    dtl: [trace.traceLogDump, 'trace log dump'],
-    'dtl*': trace.traceLogDumpR2,
-    dtlq: trace.traceLogDumpQuiet,
-    dtlj: trace.traceLogDumpJson,
-    'dtl-': [trace.traceLogClear, 'clear trace logs'],
-    'dtl-*': trace.traceLogClearAll,
-    dts: [stalker.stalkTraceEverything, 'trace everything using the stalker (EXPERIMENTAL)'],
-    'dts?': stalker.stalkTraceEverythingHelp,
-    dtsj: stalker.stalkTraceEverythingJson,
-    'dts*': stalker.stalkTraceEverythingR2,
-    dtsf: [stalker.stalkTraceFunction, 'stalk trace a function (EXPERIMENTAL)'],
-    dtsfj: stalker.stalkTraceFunctionJson,
-    'dtsf*': stalker.stalkTraceFunctionR2,
-    di: [interceptor.interceptHelp, 'debug intercept commands'],
-    dif: [interceptor.interceptFunHelp, 'intercept function'],
-    // intercept ret function and dont call the function
-    dis: [interceptor.interceptRetString, 'intercept return string', '[addr] [str]'],
-    dibf: [interceptor.interceptRetFalse, 'intercept return boolean false', '[java:]'],
-    dibt: [interceptor.interceptRetTrue, 'intercept return boolean true', '[java:]'],
-    di0: [interceptor.interceptRet0, 'intercept function call with a return 0', '[addr|java:]'],
-    di1: [interceptor.interceptRet1, 'intercept function with a return 1', '[addr|java:]'],
-    dii: [interceptor.interceptRetInt, 'force early return with given number', '[addr] [num]'],
-    'di-1': [interceptor.interceptRet_1, 'force function to return -1'],
-    div: [interceptor.interceptRetVoid, 'early return for a void function()'],
-    'di-*': [interceptor.interceptDetachAll, 'remove (detach) all interceptor handles'],
-    dir: [interceptor.interceptRevert, 'revert a trace at the given function', '[addr|java:]'],
-    // intercept ret after calling the function
-    difs: [interceptor.interceptFunRetString, 'replace function return string', '[addr] [str]'],
-    dif0: [interceptor.interceptFunRet0, 'replace function return 0 (after running the function code)', '[addr]'],
-    dif1: [interceptor.interceptFunRet1, 'return 1 after running function', '[addr]'],
-    difi: [interceptor.interceptFunRetInt, 'replace function return int', '[addr] [num]'],
-    'dif-1': [interceptor.interceptFunRet_1, 'replace function return with -1', '[addr]'],
     // unix compat
     pwd: [fs.getCwd, 'print working directory inside the target process'],
-    cd: [fs.chDir, 'change directory'],
-    cat: [fs.fsCat, 'show contents of a file'],
     ls: [fs.fsList, 'list files in current directory as seen by the target'],
     // required for m-io
     md: [fs.fsList, 'list files in current directory (alias for `ls` for FS/IO)'],
@@ -275,9 +273,11 @@ const commandHandlers = {
     m: [fs.fsOpen, 'used by the FS/IO integration to open remote files'],
     pd: [disasm.disasmCode, 'disassemble code using only frida apis'],
     px: [utils.Hexdump, 'print memory contents in hexdump style'],
+    r: [r2.cmd, 'run an r2 command inside the agent (requires dlopen r_core, creates new instance)', '[cmd]'],
+    s: [r2.seek, 'seek, change the current offset reference inside the agent', '[addr]'],
+    t: [swift.swiftTypes, 'list swift types'],
+    't*': swift.swiftTypesR2,
     x: [utils.Hexdump, 'alias for `:px`'],
-    eval: [expr.evalCode, 'evaluate some javascript code'],
-    chcon: [sys.changeSelinuxContext, 'change selinux context'],
 };
 
 async function initBasicInfoFromTarget(args: string[]) : Promise<string> {
@@ -329,12 +329,16 @@ function getHelpMessage(prefix: string): string {
             return !prefix || k.startsWith(prefix);
         })
         .filter((k) => {
+            const firstChar = k.substring (0, 1);
             const lastChar = k.substring (k.length -1);
+            if (firstChar === '.' && lastChar === ".") {
+                return true;
+            }
             switch (lastChar) {
             case '?':
             case 'j':
-            case 'q':
             case '.':
+            case 'q':
             case '*':
                 return false;
             }
@@ -344,6 +348,7 @@ function getHelpMessage(prefix: string): string {
             const fcn = (commandHandlers as any)[k];
             return (typeof fcn === "object");
         })
+        .sort()
         .map((k) => {
             const fcn = (commandHandlers as any)[k];
             if (typeof fcn === "object") {
@@ -381,6 +386,12 @@ function perform(params: any) {
         }, null];
     }
     const cmdHandler = (commandHandlers as any)[name];
+    if (name === 'help' || name === '?') {
+        const value = getHelpMessage(args[0]);
+        return [{
+            value: _normalizeValue(value)
+        }, null];
+    }
     if (name.length > 0 && name.endsWith('?') && !cmdHandler) {
         const prefix = name.substring(0, name.length - 1);
         const value = getHelpMessage(prefix);
