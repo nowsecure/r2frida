@@ -1,7 +1,7 @@
 @echo off
 REM setlocal EnableDelayedExpansion
 set frida_version=16.5.9
-set r2frida_version=5.9.6
+set r2frida_version=5.9.8
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
 
@@ -65,14 +65,14 @@ if %ERRORLEVEL%==0 (
 )
 cd ..
 
-REM REM       echo Building the Agent...
-REM REM       del src\_agent.js
-REM REM       src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.js
-REM REM       echo Creating the header...
-REM REM       del src\_agent.js.hex
-REM REM       %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js.hex
-REM REM       powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
-REM REM       DEL src\_agent.js.hex
+REM REM echo Building the Agent...
+REM REM del src\_agent.js
+REM REM src\r2frida-compile.exe -Sc src\agent\index.ts > src\_agent.js
+REM REM echo Creating the header...
+REM REM del src\_agent.js.hex
+REM REM %R2_BASE%\bin\radare2 -nfqc "pcq~0x" src\_agent.js > src\_agent.js.hex
+REM REM powershell -command "Get-Content .\src\_agent.js.hex | Select-String -Exclude Start 0x" > src\_agent.h
+REM REM DEL src\_agent.js.hex
 
 REM echo Downloading precompiled agent
 REM powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"

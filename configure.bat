@@ -1,6 +1,6 @@
 @echo OFF
 setlocal
-set "R2V=5.9.6"
+set "R2V=5.9.8"
 set "R2ZIP=https://github.com/radareorg/radare2/releases/download/%R2V%/radare2-%R2V%-w64.zip"
 set "R2DIR=radare2"
 
