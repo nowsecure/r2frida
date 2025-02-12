@@ -11,9 +11,9 @@ on:
 
 
 jobs:
-  build-linux20:
+  build-linux22:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v4
@@ -34,10 +34,10 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v4
       with:
-        name: build-linux20
+        name: build-linux22
         path: dist/debian/*.deb
-  build-linux20-precompiled:
-    runs-on: ubuntu-20.04
+  build-linux22-precompiled:
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Installing radare2
@@ -50,8 +50,8 @@ jobs:
       run: ./configure --with-precompiled-agent && make -j && sudo make install
     - name: Packaging
       run: make -C dist/debian R2CFG_FLAGS=--with-precompiled-agent
-  build-linux22:
-    runs-on: ubuntu-22.04
+  build-linux24:
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
     - name: Building Radare2
@@ -65,7 +65,7 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v4
       with:
-        name: build-linux22
+        name: build-linux24
         path: dist/debian/*.deb
   build-agent:
     runs-on: ubuntu-22.04
@@ -140,8 +140,8 @@ jobs:
       is_release: ${{ steps.release.outputs.is }}
       tag_name: ${{ steps.release.outputs.tag }}
     needs:
-    - build-linux20
     - build-linux22
+    - build-linux24
     - build-macos
     - build-windows
     - build-agent
@@ -184,7 +184,7 @@ jobs:
         prerelease: false
         generate_release_notes: false
         files: |
-          dist/artifacts/build-linux22/r2frida_*_amd64.deb
+          dist/artifacts/build-linux24/r2frida_*_amd64.deb
           dist/artifacts/build-agent/_agent.js
           dist/artifacts/build-macos/r2frida-*-x64.pkg
           dist/artifacts/build-windows/r2frida-*-w64.zip
