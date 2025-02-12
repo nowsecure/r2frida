@@ -13,7 +13,7 @@ on:
 jobs:
   build-linux20:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
         name: build-linux20
         path: dist/debian/*.deb
   build-linux20-precompiled:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
     - name: Installing radare2
