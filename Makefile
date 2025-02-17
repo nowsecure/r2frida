@@ -91,6 +91,7 @@ LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
 endif
 R2_BINDIR=$(shell r2 -H R2_PREFIX)/bin
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
+R2PM_MANDIR=$(shell r2pm -H R2PM_MANDIR)
 R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 R2_PLUGSYS=$(shell r2 -H R2_LIBR_PLUGINS)
 ifeq ($(R2_PLUGDIR),)
@@ -331,8 +332,8 @@ user-install:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
-	-sudo mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
-	-sudo cp -f r2frida.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
+	-mkdir -p "$(DESTDIR)/$(R2PM_MANDIR)/man1"
+	-cp -f r2frida.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
 
 user-uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
