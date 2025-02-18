@@ -92,6 +92,10 @@ endif
 R2_BINDIR=$(shell r2 -H R2_PREFIX)/bin
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
 R2PM_MANDIR=$(shell r2pm -H R2PM_MANDIR)
+ifeq ($(R2PM_MANDIR),)
+R2PM_MANDIR := "$(R2PM_BINDIR)/../man"
+$(warning "r2pm does not export a directory for manpages. Using $(R2PM_MANDIR).")
+endif
 R2_PLUGDIR=$(shell r2 -H R2_USER_PLUGINS)
 R2_PLUGSYS=$(shell r2 -H R2_LIBR_PLUGINS)
 ifeq ($(R2_PLUGDIR),)
