@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2024 - pancake, oleavr, mrmacete, murphy */
+/* radare2 - MIT - Copyright 2016-2025 - pancake, oleavr, mrmacete, murphy */
 
 #define R_LOG_ORIGIN "r2frida"
 
