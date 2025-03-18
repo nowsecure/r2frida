@@ -452,3 +452,4 @@ function _alignRight(text: string, width: number) {
     }
     return result;
 }
+

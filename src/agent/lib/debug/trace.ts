@@ -20,6 +20,39 @@ export function trace(args: string[]) {
     return traceJson(args);
 }
 
+var Gobserver_modules : any = null;
+export function traceModules(args: string[]) {
+	if (Gobserver_modules !== null) {
+		return;
+	}
+	Gobserver_modules = Process.attachModuleObserver({
+		onAdded(module: any) {
+			console.log("[module-add]", module.base, module.path, "\n");
+		},
+		onRemoved(module: any) {
+			console.error("[module-delete]", module.path, "\n");
+		}
+	});
+}
+
+var Gobserver_threads : any = null;
+export function traceThreads(args: string[]) {
+	if (Gobserver_threads !== null) {
+		return;
+	}
+	Gobserver_threads = Process.attachThreadObserver({
+		onAdded(thread: any) {
+			console.error("[thread-add]", thread.id, thread.name, "\n");
+		},
+		onRemoved(thread: any) {
+			console.error("[thread-delete]", thread.id, thread.name, "\n");
+		},
+		onRenamed(thread: any, previousName: string) {
+			console.error("[thread-rename]", previousName, thread.name, "\n");
+		}
+	});
+}
+
 export function traceFormat(args: any) {
     if (args.length === 0) {
         return _traceList();
