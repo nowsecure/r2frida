@@ -60,6 +60,21 @@ const regProfileAliasForX86 = `
 =SN eax
 `;
 
+export function dlopenWait(args: string[]) {
+    const name = (args && args.length > 0) ? args[0] : "";
+    new Promise((resolve, reject) => {
+        const mo = Process.attachModuleObserver({
+            onAdded(module: Module) {
+                console.log("[module-add]", module.base, module.path, "\n");
+                if (module.path.indexOf(name) !== -1) {
+                    mo.detach();
+                    return resolve("" + module.base);
+                }
+            }
+        });
+    });
+}
+
 export function sendSignal(args: string[]) {
     const argsLength = args.length;
     console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');

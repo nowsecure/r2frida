@@ -138,10 +138,12 @@ const commandHandlers = {
     dl: [sys.dlopen, 'dlopen a library in the target process', '[path/lib.so]'],
     dlf: [darwin.loadFrameworkBundle, 'load Darwin framework bundle', '[path]'],
     'dlf-': [darwin.unloadFrameworkBundle, 'unload Darwin framework'],
-    // TODO dlw: [debug.dlopenWait, 'wait until a specific library is loaded'],
+    dlw: [debug.dlopenWait, 'wait until a specific library is loaded'],
     dtf: [trace.traceFormat, 'add a trace parsing arguments using a format string', '[addr] [fmt]'],
     dtm: [trace.traceModules, 'show modules when loaded or unloaded'],
+    'dtm-': [trace.untraceModules, 'stop tracing modules'],
     dtt: [trace.traceThreads, 'show threads when loaded or unloaded'],
+    'dtt-': [trace.untraceThreads, 'stop tracing threads'],
     dth: [trace.traceHook, 'list or add trace hook'],
     dt: [trace.trace, 'inject a trace in the given native address (or java:method)', '([addr])'],
     dtj: trace.traceJson,
@@ -391,21 +393,21 @@ function perform(params: any) {
     if (typeof name === 'undefined') {
         const value = getHelpMessage('');
         return [{
-            value: _normalizeValue(value)
+            value: stringify(value)
         }, null];
     }
     const cmdHandler = (commandHandlers as any)[name];
     if (name === 'help' || name === '?') {
         const value = getHelpMessage(args[0]);
         return [{
-            value: _normalizeValue(value)
+            value: stringify(value)
         }, null];
     }
     if (name.length > 0 && name.endsWith('?') && !cmdHandler) {
         const prefix = name.substring(0, name.length - 1);
         const value = getHelpMessage(prefix);
         return [{
-            value: _normalizeValue(value)
+            value: stringify(value)
         }, null];
     }
     const userHandler = r2frida.commandHandler(name);
@@ -423,12 +425,12 @@ function perform(params: any) {
         return new Promise((resolve, reject) => {
             return value.then((output: any) => {
                 resolve([{
-                    value: _normalizeValue(output)
+                    value: stringify(output)
                 }, null]);
             }).catch(reject);
         });
     }
-    const nv = _normalizeValue(value);
+    const nv = stringify(value);
     if (nv === '' || nv === 'null' || nv === undefined || nv === null) {
         return [{}, null];
     }
@@ -552,7 +554,7 @@ function initializePuts(): PutsFunction | null {
     };
 }
 
-function _normalizeValue(value: any | null) {
+function stringify(value: any | null) {
     if (value === null) {
         return null;
     }
