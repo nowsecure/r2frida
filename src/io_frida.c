@@ -127,7 +127,8 @@ static const char * const helpmsg = ""\
 	"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
 	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
 	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
-	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n";
+	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n"
+	"  FRIDA_HOST, FRIDA_DEVICE         # overrides host/port/device in uri handler if set\n";
 
 #define src__agent__js r_io_frida_agent_code
 
@@ -1013,6 +1014,18 @@ error:
 
 static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error) {
 #define D(x) if (debug) { printf ("%s\n", x); }
+	char *frida_target = r_sys_getenv ("FRIDA_DEVICE");
+	if (R_STR_ISNOTEMPTY (frida_target)) {
+		type = frida_target;
+	} else {
+		free (frida_target);
+		frida_target = r_sys_getenv ("FRIDA_HOST");
+		if (R_STR_ISNOTEMPTY (frida_target)) {
+			type = frida_target;
+		} else {
+			free (frida_target);
+		}
+	}
 	const bool debug = r2f_debug_uri ();
 	FridaDevice *device = NULL;
 	if (R_STR_ISEMPTY (type)) {
@@ -1031,6 +1044,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 		if (debug) printf ("device(%s)", type);
 		device = frida_device_manager_get_device_by_id_sync (manager, type, 0, cancellable, error);
 	}
+	free (frida_target);
 	return device;
 }
 
@@ -1038,21 +1052,6 @@ static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	r_return_val_if_fail (io && fd && command, NULL);
 	return __system_continuation (io, fd, command);
 }
-
-#if 0
-static bool is_process_action(const char *rest) {
-	if (!strcmp (rest, "attach")) {
-		return true;
-	}
-	if (!strcmp (rest, "spawn")) {
-		return true;
-	}
-	if (!strcmp (rest, "launch")) {
-		return true;
-	}
-	return false;
-}
-#endif
 
 /// uri parser ///
 
