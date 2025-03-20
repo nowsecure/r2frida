@@ -1018,9 +1018,12 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 	if (R_STR_ISNOTEMPTY (frida_target)) {
 		type = frida_target;
 	} else {
+		free (frida_target);
 		frida_target = r_sys_getenv ("FRIDA_HOST");
 		if (R_STR_ISNOTEMPTY (frida_target)) {
 			type = frida_target;
+		} else {
+			free (frida_target);
 		}
 	}
 	const bool debug = r2f_debug_uri ();
