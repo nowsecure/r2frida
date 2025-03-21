@@ -118,6 +118,7 @@ const commandHandlers = {
     dmal: [memory.listAllocs, 'list all allocations'],
     'dma-': [memory.removeAlloc, 'free given heap pointer', '[addr]'],
     dp: [sys.getPid, 'get process id'],
+    dpw: [debug.threadWait, 'wait until a new thread is created'],
     dxc: [debug.dxCall, 'call function with arguments', '[addr] [args..]'],
     dxo: [darwin.callObjcMethod, 'call objc function with args', '[sym] [id]'],
     dxs: [debug.dxSyscall, 'inject and execute a syscall', '[sysnum] [args..]'],

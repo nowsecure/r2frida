@@ -75,6 +75,20 @@ export function dlopenWait(args: string[]) {
     });
 }
 
+export function threadWait(args: string[]) {
+    const name = (args && args.length > 0) ? args[0] : "";
+    new Promise((resolve, reject) => {
+        const to = Process.attachThreadObserver({
+            onAdded(thread: any) {
+                console.log("[thread-add]", thread.id, thread.name, "\n");
+                if (thread.name.indexOf(name) !== -1) {
+                    to.detach();
+                    return resolve("" + thread.id);
+                }
+            }
+        });
+    });
+}
 export function sendSignal(args: string[]) {
     const argsLength = args.length;
     console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
