@@ -83,11 +83,11 @@ CFLAGS+=-g
 LDFLAGS+=-g
 
 # R2
-CFLAGS+=$(shell pkg-config --cflags r_core r_io r_util)
+CFLAGS+=$(shell r2pm -r pkg-config --cflags r_core r_io r_util)
 ifeq ($(frida_os),android)
 LDFLAGS+=$(subst -lssl,,$(shell pkg-config --libs r_core r_io r_util))
 else
-LDFLAGS+=$(shell pkg-config --libs r_core r_io r_util)
+LDFLAGS+=$(shell r2pm -r pkg-config --libs r_core r_io r_util)
 endif
 R2_BINDIR=$(shell r2 -H R2_PREFIX)/bin
 R2PM_BINDIR=$(shell r2pm -H R2PM_BINDIR)
