@@ -1504,9 +1504,9 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 		return;
 	}
 #if R2_VERSION_NUMBER >= 50909
-	char *output = COREBIND (rf->io).cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
-#else
 	char *output = COREBIND (rf->io).cmdStr (rf->r2core, rf->pending_cmd->cmd_string);
+#else
+	char *output = COREBIND (rf->io).cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
 #endif
 
 	ut64 serial = rf->pending_cmd->serial;
