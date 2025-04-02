@@ -56,7 +56,7 @@ CURL?=curl
 
 ifneq ($(shell $(WGET) --help 2> /dev/null),)
 USE_WGET=1
-DLCMD=$(WGET) -c -O
+DLCMD=$(WGET) -c -q -O
 else
 USE_WGET=0
 DLCMD=$(CURL) -Ls -o
