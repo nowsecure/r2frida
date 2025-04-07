@@ -255,9 +255,12 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_clear_object (&rf->device);
 
 	if (rf->device_manager) {
+#if 0
+		// commented because seems to be crashing inside Frida when no device is taken
 		if (!rf->detached) {
 			frida_device_manager_close_sync (rf->device_manager, NULL, NULL);
 		}
+#endif
 		g_object_unref (rf->device_manager);
 		rf->device_manager = NULL;
 	}
@@ -728,23 +731,23 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	GError *error = NULL;
+	RIOFrida *rf = NULL;
 
 	R2FridaLaunchOptions *lo = r2frida_launchopt_new (pathname);
 	if (!lo) {
 		return NULL;
 	}
 
+	if (!__check (io, pathname, false)) {
+		goto error;
+	}
 	frida_init ();
 
-	RIOFrida *rf = r_io_frida_new (io);
+	rf = r_io_frida_new (io);
 	if (!rf) {
 		goto error;
 	}
 	rf->device_manager = frida_device_manager_new ();
-	if (!__check (io, pathname, false)) {
-		goto error;
-	}
-
 	bool rc = resolve_target (rf, pathname, lo, rf->cancellable);
 	if (!rc) {
 		goto error;
@@ -765,7 +768,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			dumpProcesses (rf->device, rf->cancellable);
 		}
 	}
-	R_LOG_DEBUG ("");
 	if (r2f_debug_uri ()) {
 		printf ("device: %s\n", r_str_get (lo->device_id));
 		printf ("pname: %s\n", r_str_get (lo->process_specifier));
