@@ -255,12 +255,9 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_clear_object (&rf->device);
 
 	if (rf->device_manager) {
-#if 0
-		// commented because seems to be crashing inside Frida when no device is taken
 		if (!rf->detached) {
 			frida_device_manager_close_sync (rf->device_manager, NULL, NULL);
 		}
-#endif
 		g_object_unref (rf->device_manager);
 		rf->device_manager = NULL;
 	}
