@@ -175,7 +175,7 @@ jobs:
         path: dist/artifacts
     - name: Create GitHub release
       id: create_release
-      uses: softprops/action-gh-release@v2.2.1
+      uses: softprops/action-gh-release@v2.2.2
       with:
         name: ${{ steps.r2fv.outputs.branch }}
         tag_name: ${{ needs.check_release.outputs.tag_name }}
