@@ -147,7 +147,8 @@ function _resolveSyscallNumber(name: string): number | string {
 export function listThreads() : string {
     return Process.enumerateThreads().map((thread) => {
         const threadName = _getThreadName(thread.id);
-        return [thread.id, threadName].join(' ');
+        const threadEntrypoint = thread.entrypoint? thread.entrypoint.routine.toString(): "";
+        return [thread.id, threadName, threadEntrypoint].join(' ');
     }).join('\n') + '\n';
 }
 
