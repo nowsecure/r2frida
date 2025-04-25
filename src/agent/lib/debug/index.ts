@@ -1,6 +1,6 @@
 
 import sys from '../sys.js';
-import { autoType, getPtr, padPointer, byteArrayToHex } from '../utils.js';
+import { autoType, getPtr, padString, padPointer, byteArrayToHex } from '../utils.js';
 import { currentThreadContext } from "./breakpoints.js";
 
 const regProfileAliasForArm64 = `
@@ -148,7 +148,7 @@ export function listThreads() : string {
     return Process.enumerateThreads().map((thread) => {
         const threadName = _getThreadName(thread.id);
         const threadEntrypoint = thread.entrypoint? thread.entrypoint.routine.toString(): "";
-        return [thread.id, threadName, threadEntrypoint].join(' ');
+        return [padString(""+thread.id, 5), threadEntrypoint, threadName].join(' ');
     }).join('\n') + '\n';
 }
 
