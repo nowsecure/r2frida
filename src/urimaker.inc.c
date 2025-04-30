@@ -1,5 +1,11 @@
 
-
+static char *hud(RIOFrida *rf, RList *items, const char *text) {
+#if R2_VERSION_NUMBER >= 50909
+	return r_cons_hud (rf->r2core->cons, items, text);
+#else
+	return r_cons_hud (text);
+#endif
+}
 
 static char *choose_action(RIOFrida *rf) {
 	RList *items = r_list_newf (free);
@@ -9,7 +15,7 @@ static char *choose_action(RIOFrida *rf) {
 	r_list_append (items, strdup ("spawn"));
 	r_list_append (items, strdup ("launch"));
 	r_list_append (items, strdup ("system"));
-	char *res = r_cons_hud (items, "[r2frida] Action:");
+	char *res = hud (rf, items, "[r2frida] Action:");
 	r_list_free (items);
 	return res;
 }
@@ -19,7 +25,7 @@ static char *choose_device(RIOFrida *rf) {
 	r_list_append (items, strdup ("local"));
 	r_list_append (items, strdup ("usb"));
 	r_list_append (items, strdup ("tcp"));
-	char *res = r_cons_hud (items, "[r2frida] Device:");
+	char *res = hud (rf, items, "[r2frida] Device:");
 	r_list_free (items);
 	return res;
 }
@@ -30,7 +36,7 @@ static char *choose_target(RIOFrida *rf) {
 	r_list_append (items, strdup ("apps"));
 	r_list_append (items, strdup ("pids"));
 	r_list_append (items, strdup ("file"));
-	char *res = r_cons_hud (items, "[r2frida] Target:");
+	char *res = hud (rf, items, "[r2frida] Target:");
 	r_list_free (items);
 	return res;
 }
@@ -67,7 +73,7 @@ static char *choose_app(RIOFrida *rf) {
 	}
 	g_clear_object (&list);
 
-	char *res = r_cons_hud (items, "[r2frida] Apps:");
+	char *res = hud (rf, items, "[r2frida] Apps:");
 	r_list_free (items);
 	return res;
 }
@@ -99,7 +105,7 @@ static char *choose_pid(RIOFrida *rf) {
 	g_clear_error (&error);
 	g_clear_object (&list);
 
-	char *res = r_cons_hud (items, "[r2frida] Process:");
+	char *res = hud (rf, items, "[r2frida] Process:");
 	r_list_free (items);
 	return res;
 }
@@ -177,7 +183,11 @@ repeat_device:;
 			*sp = 0;
 		}
 	} else if (!strcmp (target, "file")) {
+#if R2_VERSION_NUMBER >= 50909
+		fil = r_cons_hud_file (rf->r2core->cons, "");
+#else
 		fil = r_cons_hud_file ("");
+#endif
 	} else {
 		goto repeat;
 	}
