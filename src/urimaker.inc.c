@@ -1,3 +1,10 @@
+static void any_key(RIOFrida *rf, const char *msg) {
+#if R2_VERSION_NUMBER >= 50909
+	r_cons_any_key (rf->r2core->cons, "ERROR: Cannot list applications");
+#else
+	r_cons_any_key ("ERROR: Cannot list applications");
+#endif
+}
 
 static char *hud(RIOFrida *rf, RList *items, const char *text) {
 #if R2_VERSION_NUMBER >= 50909
@@ -49,13 +56,13 @@ static char *choose_app(RIOFrida *rf) {
 	GCancellable *cancellable = NULL;
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (rf->device, NULL, cancellable, &error);
 	if (error != NULL) {
-		r_cons_any_key ("ERROR: Cannot list applications");
+		any_key (rf, "ERROR: Cannot list applications");
 		return NULL;
 	}
 	g_clear_error (&error);
 	gint num_applications = frida_application_list_size (list);
 	if (num_applications == 0) {
-		r_cons_any_key ("ERROR: No applications found");
+		any_key (rf, "ERROR: No applications found");
 		return NULL;
 	}
 	for (i = 0; i != num_applications; i++) {
@@ -87,7 +94,7 @@ static char *choose_pid(RIOFrida *rf) {
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			char *msg = r_str_newf ("ERROR: %s", error->message);
-			r_cons_any_key (msg);
+			any_key (rf, msg);
 			free (msg);
 		}
 		return NULL;
@@ -119,14 +126,14 @@ repeat:;
 	if (!strcmp (action, "help")) {
 		r_cons_clear00 ();
 		r_cons_printf ("%s\n", helpmsg);
-		r_cons_any_key ("");
+		any_key (rf, "");
 		goto repeat;
 	}
 	if (!strcmp (action, "devices")) {
 		// select device
 		r_cons_clear00 ();
 		dumpDevices (rf, NULL);
-		r_cons_any_key ("");
+		any_key (rf, "");
 		goto repeat;
 	}
 	if (!strcmp (action, "system")) {
@@ -143,7 +150,7 @@ repeat_device:;
 		GError *error = NULL;
 		rf->device = get_device_manager (rf->device_manager, device, NULL, &error);
 		if (!rf->device) {
-			r_cons_any_key ("Invalid device");
+			any_key (rf, "Invalid device");
 			goto repeat_device;
 		}
 	} else {
@@ -155,13 +162,13 @@ repeat_device:;
 	char *target = choose_target (rf);
 	if (!target) {
 		r_cons_clear00 ();
-		r_cons_any_key ("Nope");
+		any_key (rf, "Nope");
 		goto repeat;
 	}
 	if (!strcmp (target, "apps")) {
 		app = choose_app (rf);
 		if (R_STR_ISEMPTY (app)) {
-			r_cons_any_key ("No app selected");
+			any_key (rf, "No app selected");
 			goto repeat;
 		}
 		char *sp = strchr (app, '(');
@@ -175,7 +182,7 @@ repeat_device:;
 	} else if (!strcmp (target, "pids")) {
 		pid = choose_pid (rf);
 		if (R_STR_ISEMPTY (pid)) {
-			r_cons_any_key ("No pid selected");
+			any_key (rf, "No pid selected");
 			goto repeat;
 		}
 		char *sp = strchr (pid, ' ');
