@@ -1,8 +1,8 @@
 static void any_key(RIOFrida *rf, const char *msg) {
 #if R2_VERSION_NUMBER >= 50909
-	r_cons_any_key (rf->r2core->cons, "ERROR: Cannot list applications");
+	r_cons_any_key (rf->r2core->cons, msg);
 #else
-	r_cons_any_key ("ERROR: Cannot list applications");
+	r_cons_any_key (msg);
 #endif
 }
 
@@ -10,7 +10,7 @@ static char *hud(RIOFrida *rf, RList *items, const char *text) {
 #if R2_VERSION_NUMBER >= 50909
 	return r_cons_hud (rf->r2core->cons, items, text);
 #else
-	return r_cons_hud (text);
+	return r_cons_hud (items, text);
 #endif
 }
 
