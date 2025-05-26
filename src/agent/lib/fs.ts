@@ -507,7 +507,7 @@ export function direntHas64BitInode(dirEntPtr: NativePointer) {
 
 export function resolveExports(names: string[]) {
     return names.reduce((exports: any, name: string) => {
-        exports[name] = Module.findExportByName(null, name);
+        exports[name] = Module.getGlobalExportByName(name);
         return exports;
     }, {});
 }

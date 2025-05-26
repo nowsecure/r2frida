@@ -540,7 +540,7 @@ function onStanza(stanza: any, data: any) {
 }
 
 function initializePuts(): PutsFunction | null {
-    const putsAddress = Module.findExportByName(null, 'puts');
+    const putsAddress = Module.getGlobalExportByName('puts');
     if (putsAddress === null) {
         return null;
     }

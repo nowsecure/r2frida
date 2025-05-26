@@ -69,7 +69,8 @@ export function lookupExportR2(args: string[]) {
 export function lookupExportJson(args: string[]) : ExportType[] {
     if (args.length === 2) {
         const [moduleName, exportName] = args;
-        const address = Module.findExportByName(moduleName, exportName);
+        const module = Process.getModuleByName(moduleName);
+        const address = module.findExportByName(exportName);
         if (address === null) {
             return [];
         }
@@ -88,7 +89,8 @@ export function lookupExportJson(args: string[]) : ExportType[] {
         let prevAddress: NativePointer | null = null;
         return Process.enumerateModules()
             .reduce((result: any[], m) => {
-                const address = Module.findExportByName(m.path, exportName);
+                const module = Process.findModuleByName(m.path);
+                const address = module.findExportByName(exportName);
                 if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
                     result.push({
                         library: m.name,

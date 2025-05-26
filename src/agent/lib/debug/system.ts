@@ -4,7 +4,7 @@ import sys from '../sys.js';
 import { autoType, getPtr, padPointer, byteArrayToHex } from '../utils.js';
 
 export function runSystem(command: string) : string | null{
-    const systemSymbol = Module.findExportByName(null, 'system');
+    const systemSymbol = Module.getGlobalExportByName('system');
     if (systemSymbol === null) {
         return null;
     }

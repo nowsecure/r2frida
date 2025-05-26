@@ -24,14 +24,14 @@ if (Process.platform === 'windows') {
     _getuid = sym('getuid', 'int', []);
     _dup2 = sym('dup2', 'int', ['int', 'int']);
     _readlink = sym('readlink', 'int', ['pointer', 'pointer', 'int']);
-    _fstat = Module.findExportByName(null, 'fstat') ? sym('fstat', 'int', ['int', 'pointer']) : sym('__fxstat', 'int', ['int', 'pointer']);
+    _fstat = Module.getGlobalExportByName('fstat') ? sym('fstat', 'int', ['int', 'pointer']) : sym('__fxstat', 'int', ['int', 'pointer']);
     _close = sym('close', 'int', ['int']);
     _kill = sym('kill', 'int', ['int', 'int']);
 }
 
 export function sym(name: string, ret: NativeFunctionReturnType, arg: NativeFunctionArgumentType[]): any {
     try {
-        return new NativeFunction(Module.getExportByName(null, name), ret, arg);
+        return new NativeFunction(Module.getGlobalExportByName(name), ret, arg);
     } catch (e) {
         return null;
     }
@@ -39,7 +39,7 @@ export function sym(name: string, ret: NativeFunctionReturnType, arg: NativeFunc
 
 export function symf(name: string, ret: NativeFunctionReturnType, arg: NativeFunctionArgumentType[]): any {
     try {
-        return new SystemFunction(Module.getExportByName(null, name), ret, arg);
+        return new SystemFunction(Module.getGlobalExportByName(name), ret, arg);
     } catch (e) {
         return null;
     }
@@ -100,7 +100,7 @@ function getOrSetEnvJson(args: string[]): any {
 
 function getEnv(): string[] | null {
     const result: any = [];
-    const enva = Module.findExportByName(null, 'environ');
+    const enva = Module.getExportByName(null, 'environ');
     if (enva === null || enva.isNull()) {
         return null;
     }
