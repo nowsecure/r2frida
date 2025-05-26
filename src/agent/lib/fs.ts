@@ -573,7 +573,7 @@ export function listFileDescriptorsJson(args: string[]) {
             // TODO: port this to iOS
             const F_GETPATH = 50; // on macOS
             const buffer = Memory.alloc(PATH_MAX);
-            const addr = Module.getExportByName(null, 'fcntl');
+            const addr = Module.getGlobalExportByName('fcntl');
             const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
             fcntl(fd, F_GETPATH, buffer);
             return buffer.readCString();

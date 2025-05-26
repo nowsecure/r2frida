@@ -62,8 +62,8 @@ export async function dumpInfoJson() {
                 const v = id ? id.objectForKey_(k) : '';
                 return v ? v.toString() : '';
             }
-            const NSHomeDirectory = new NativeFunction(Module.getExportByName(null, 'NSHomeDirectory'), 'pointer', []);
-            const NSTemporaryDirectory = new NativeFunction(Module.getExportByName(null, 'NSTemporaryDirectory'), 'pointer', []);
+            const NSHomeDirectory = new NativeFunction(Module.getGlobalExportByName('NSHomeDirectory'), 'pointer', []);
+            const NSTemporaryDirectory = new NativeFunction(Module.getGlobalExportByName('NSTemporaryDirectory'), 'pointer', []);
             const bundleIdentifier = get('CFBundleIdentifier');
             if (bundleIdentifier) {
                 res.bundle = bundleIdentifier;
