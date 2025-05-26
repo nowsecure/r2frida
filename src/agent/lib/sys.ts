@@ -100,7 +100,7 @@ function getOrSetEnvJson(args: string[]): any {
 
 function getEnv(): string[] | null {
     const result: any = [];
-    const enva = Module.getExportByName(null, 'environ');
+    const enva = Module.getGlobalExportByName('environ');
     if (enva === null || enva.isNull()) {
         return null;
     }

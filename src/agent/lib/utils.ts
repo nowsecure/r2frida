@@ -257,7 +257,7 @@ export function getPtr(p: any) : NativePointer {
         // console.error(e);
     }
     // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
-    const res = Module.findExportByName(null, p);
+    const res = Module.getGlobalExportByName(p);
     if (res === null) {
       return ptr(0);
     }
@@ -289,7 +289,7 @@ export function autoType(args: string[]) {
             nfArgsData.push(+args[i]);
         } else {
             nfArgs.push('pointer');
-            const address = Module.getExportByName(null, args[i]);
+            const address = Module.getGlobalExportByName(args[i]);
             nfArgsData.push(address);
         }
     }
