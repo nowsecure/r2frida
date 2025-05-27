@@ -199,6 +199,10 @@ repeat_device:;
 		goto repeat;
 	}
 	if (!strcmp (device, "local")) {
+		if (!fil) {
+			R_LOG_ERROR ("No program selected");
+			return NULL;
+		}
 		char *res = r_str_newf ("%s", fil);
 		free (action);
 		return res;
