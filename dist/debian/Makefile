@@ -7,6 +7,7 @@ CROSSARCH=x64
 R2CFG_FLAGS?=
 PWD=$(shell pwd)
 PACKAGE_DIR?=${PWD}
+USE_FRIDA_TOOLS?=0
 
 R2_VERSION=$(shell r2 -qv)
 
@@ -26,7 +27,7 @@ ifeq ($(UNAME),Darwin)
 	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr $(R2CFG_FLAGS) ; npm i ; \
 	$(DOCKCROSS) --image dockcross/linux-$(CROSSARCH) bash -c 'sh dist/build.sh'
 else
-	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr $(R2CFG_FLAGS) ; make
+	cd ../.. && $(MAKE) clean ; ./configure --prefix=/usr $(R2CFG_FLAGS) ; make USE_FRIDA_TOOLS=$(USE_FRIDA_TOOLS)
 endif
 	mkdir -p root/$(R2PLUGDIR)
 	cp -f ../../io_frida.so root/$(R2PLUGDIR)

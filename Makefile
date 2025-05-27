@@ -2,7 +2,8 @@ include config.mk
 
 PREFIX?=/usr/local
 R2V=$(VERSION)
-R2V?=5.9.4
+R2V?=5.9.8
+USE_FRIDA_TOOLS=0
 # frida_version=16.5.9
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
 #frida_version=16.5.9
@@ -252,8 +253,13 @@ src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
+ifeq ($(USE_FRIDA_TOOLS),1)
+	frida-compile -o src/_agent.js -Sc src/agent/index.ts
+	rax2 -qC < src/_agent.js > src/_agent.h
+else
 	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts || \
 		src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
+endif
 	test -s src/_agent.js || rm -f src/_agent.js
 endif
 endif
