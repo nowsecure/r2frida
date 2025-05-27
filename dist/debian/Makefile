@@ -33,6 +33,8 @@ endif
 	cp -f ../../io_frida.so root/$(R2PLUGDIR)
 	mkdir -p root/usr/bin
 	cp -f ../../src/r2frida-compile root/usr/bin/
+	mkdir -p root/usr/share/man/man1
+	cp -f ../../r2frida.1 root/usr/share/man/man1
 
 purge: clean
 	rm -rf root
