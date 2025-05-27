@@ -329,6 +329,7 @@ clean:
 	$(RM) -rf $(R2A_DIR)
 
 mrproper: clean
+	$(RM) -rf node_modules
 	$(RM) $(FRIDA_SDK)
 	$(RM) -r ext/frida-$(frida_version)
 	$(RM) ext/frida
