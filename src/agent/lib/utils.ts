@@ -335,7 +335,13 @@ export function Hexdump(lenstr: number): string {
             // offset: global.r2frida.offset,
             length: len,
         };
-        return hexdump(ptroff, options) || '';
+        const dump = hexdump(ptroff, options);
+        return dump.split(/\n/g).map((x) => {
+		if (+x[0] > 0) {
+			return "0x" + x
+		}
+		return "  " + x;
+	}).join("\n");
     } catch (e: any) {
         return "Cannot read memory";
     }
