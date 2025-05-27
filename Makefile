@@ -382,11 +382,8 @@ release:
 	$(MAKE) android STRIP_SYMBOLS=yes
 	$(MAKE) -C dist/debian
 
-indent fix: node_modules
-	node_modules/.bin/semistandard --fix src/agent/*.js
-
-fmt:
-	deno fmt --indent-width 4 src/agent
+indent fmt:
+	deno fmt --indent-width 4 src/agent *.json
 
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida

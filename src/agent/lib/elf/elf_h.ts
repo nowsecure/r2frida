@@ -5,9 +5,9 @@ export const EM_AARCH64 = 0xb7;
 export const EM_X86_64 = 0x3e;
 
 export class Elf64Dyn {
-    name : string;
-    type : string | null;
-    value : string | null;
+    name: string;
+    type: string | null;
+    value: string | null;
     constructor(name: string, type: string | null) {
         this.name = name;
         this.type = type;
@@ -15,7 +15,7 @@ export class Elf64Dyn {
     }
 }
 
-export const dynamicTags : any= {
+export const dynamicTags: any = {
     DT_NULL: 0,
     DT_NEEDED: 1,
     DT_PLTRELSZ: 2,
@@ -48,44 +48,50 @@ export const dynamicTags : any= {
     DT_RUNPATH: 29,
     DT_FLAGS: 30,
     DT_PREINIT_ARRAY: 32,
-    DT_PREINIT_ARRAYSZ: 33
+    DT_PREINIT_ARRAYSZ: 33,
 };
 
 /* ELF Dynamic Array Tags */
-export const dynamicEntries :any= {
-    0: new Elf64Dyn('DT_NULL', null),
-    1: new Elf64Dyn('DT_NEEDED', 'val'),
-    2: new Elf64Dyn('DT_PLTRELSZ', 'val'),
-    3: new Elf64Dyn('DT_PLTGOT', 'ptr'),
-    4: new Elf64Dyn('DT_HASH', 'ptr'),
-    5: new Elf64Dyn('DT_STRTAB', 'ptr'),
-    6: new Elf64Dyn('DT_SYMTAB', 'ptr'),
-    7: new Elf64Dyn('DT_RELA', 'ptr'),
-    8: new Elf64Dyn('DT_RELASZ', 'val'),
-    9: new Elf64Dyn('DT_RELAENT', 'val'),
-    10: new Elf64Dyn('DT_STRSZ', 'val'),
-    11: new Elf64Dyn('DT_SYMENT', 'val'),
-    12: new Elf64Dyn('DT_INIT', 'ptr'),
-    13: new Elf64Dyn('DT_FINI', 'ptr'),
-    14: new Elf64Dyn('DT_SONAME', 'val'),
-    15: new Elf64Dyn('DT_RPATH', 'val'),
-    16: new Elf64Dyn('DT_SYMBOLIC', null),
-    17: new Elf64Dyn('DT_REL', 'ptr'),
-    18: new Elf64Dyn('DT_RELSZ', 'val'),
-    19: new Elf64Dyn('DT_RELENT', 'val'),
-    20: new Elf64Dyn('DT_PLTREL', 'val'),
-    21: new Elf64Dyn('DT_DEBUG', 'ptr'),
-    22: new Elf64Dyn('DT_TEXTREL', null),
-    23: new Elf64Dyn('DT_JMPREL', 'ptr'),
-    24: new Elf64Dyn('DT_BIND_NOW', null),
-    25: new Elf64Dyn('DT_INIT_ARRAY', 'ptr'),
-    26: new Elf64Dyn('DT_FINI_ARRAY', 'ptr'),
-    27: new Elf64Dyn('DT_INIT_ARRAYSZ', 'val'),
-    28: new Elf64Dyn('DT_FINI_ARRAYSZ', 'val'),
-    29: new Elf64Dyn('DT_RUNPATH', 'val'),
-    30: new Elf64Dyn('DT_FLAGS', 'val'),
-    32: new Elf64Dyn('DT_PREINIT_ARRAY', 'ptr'),
-    33: new Elf64Dyn('DT_PREINIT_ARRAYSZ', 'val')
+export const dynamicEntries: any = {
+    0: new Elf64Dyn("DT_NULL", null),
+    1: new Elf64Dyn("DT_NEEDED", "val"),
+    2: new Elf64Dyn("DT_PLTRELSZ", "val"),
+    3: new Elf64Dyn("DT_PLTGOT", "ptr"),
+    4: new Elf64Dyn("DT_HASH", "ptr"),
+    5: new Elf64Dyn("DT_STRTAB", "ptr"),
+    6: new Elf64Dyn("DT_SYMTAB", "ptr"),
+    7: new Elf64Dyn("DT_RELA", "ptr"),
+    8: new Elf64Dyn("DT_RELASZ", "val"),
+    9: new Elf64Dyn("DT_RELAENT", "val"),
+    10: new Elf64Dyn("DT_STRSZ", "val"),
+    11: new Elf64Dyn("DT_SYMENT", "val"),
+    12: new Elf64Dyn("DT_INIT", "ptr"),
+    13: new Elf64Dyn("DT_FINI", "ptr"),
+    14: new Elf64Dyn("DT_SONAME", "val"),
+    15: new Elf64Dyn("DT_RPATH", "val"),
+    16: new Elf64Dyn("DT_SYMBOLIC", null),
+    17: new Elf64Dyn("DT_REL", "ptr"),
+    18: new Elf64Dyn("DT_RELSZ", "val"),
+    19: new Elf64Dyn("DT_RELENT", "val"),
+    20: new Elf64Dyn("DT_PLTREL", "val"),
+    21: new Elf64Dyn("DT_DEBUG", "ptr"),
+    22: new Elf64Dyn("DT_TEXTREL", null),
+    23: new Elf64Dyn("DT_JMPREL", "ptr"),
+    24: new Elf64Dyn("DT_BIND_NOW", null),
+    25: new Elf64Dyn("DT_INIT_ARRAY", "ptr"),
+    26: new Elf64Dyn("DT_FINI_ARRAY", "ptr"),
+    27: new Elf64Dyn("DT_INIT_ARRAYSZ", "val"),
+    28: new Elf64Dyn("DT_FINI_ARRAYSZ", "val"),
+    29: new Elf64Dyn("DT_RUNPATH", "val"),
+    30: new Elf64Dyn("DT_FLAGS", "val"),
+    32: new Elf64Dyn("DT_PREINIT_ARRAY", "ptr"),
+    33: new Elf64Dyn("DT_PREINIT_ARRAYSZ", "val"),
 };
 
-export default { ELF_HEADER, EM_AARCH64, EM_X86_64, dynamicTags, dynamicEntries };
+export default {
+    ELF_HEADER,
+    EM_AARCH64,
+    EM_X86_64,
+    dynamicTags,
+    dynamicEntries,
+};

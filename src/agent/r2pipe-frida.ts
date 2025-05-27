@@ -14,9 +14,9 @@ function sym(name: string, ret: any, arg: any) {
 }
 
 function r2nakedSymbols() {
-    _r_core_new = sym('r_core_new', 'pointer', []);
-    _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
-    _r_core_free = sym('r_core_free', 'void', ['pointer']);
+    _r_core_new = sym("r_core_new", "pointer", []);
+    _r_core_cmd_str = sym("r_core_cmd_str", "pointer", ["pointer", "pointer"]);
+    _r_core_free = sym("r_core_free", "void", ["pointer"]);
 }
 
 // eslint-disable-next-line
@@ -26,7 +26,7 @@ export class R2PipeFridaNative {
         if (_r_core_new === null) {
             r2nakedSymbols();
             if (_r_core_new === null) {
-                throw new Error('Cannot find libr_core symbols');
+                throw new Error("Cannot find libr_core symbols");
             }
         }
         this.r2 = _r_core_new();
@@ -68,15 +68,15 @@ export class R2PipeFridaAgent {
 
 export let r2pipe: any = {
     open: (type: string): any => {
-        if (type === 'r2frida') {
+        if (type === "r2frida") {
             return new R2PipeFridaAgent();
         }
-        if (type === 'native') {
+        if (type === "native") {
             return new R2PipeFridaNative();
         }
         return new R2PipeFridaHost();
-    }
-}
+    },
+};
 
 /* example */
 /*

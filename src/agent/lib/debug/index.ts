@@ -1,6 +1,12 @@
-
-import sys from '../sys.js';
-import { autoType, getPtr, padString, padPointer, byteArrayToHex, getGlobalExportByName } from '../utils.js';
+import sys from "../sys.js";
+import {
+    autoType,
+    byteArrayToHex,
+    getGlobalExportByName,
+    getPtr,
+    padPointer,
+    padString,
+} from "../utils.js";
 import { currentThreadContext } from "./breakpoints.js";
 
 const regProfileAliasForArm64 = `
@@ -70,7 +76,7 @@ export function dlopenWait(args: string[]) {
                     mo.detach();
                     return resolve("" + module.base);
                 }
-            }
+            },
         });
     });
 }
@@ -85,13 +91,15 @@ export function threadWait(args: string[]) {
                     to.detach();
                     return resolve("" + thread.id);
                 }
-            }
+            },
         });
     });
 }
 export function sendSignal(args: string[]) {
     const argsLength = args.length;
-    console.error('WARNING: Frida hangs when signal is sent. But at least the process doesnt continue');
+    console.error(
+        "WARNING: Frida hangs when signal is sent. But at least the process doesnt continue",
+    );
     if (argsLength === 1) {
         const sig = +args[0];
         sys._kill!(Process.id, sig);
@@ -99,9 +107,9 @@ export function sendSignal(args: string[]) {
         const [pid, sig] = args;
         sys._kill!(+pid, +sig);
     } else {
-        return 'Usage: :dk ([pid]) [sig]';
+        return "Usage: :dk ([pid]) [sig]";
     }
-    return '';
+    return "";
 }
 
 export function dxCall(args: string[]) {
@@ -113,11 +121,11 @@ export function dxCall(args: string[]) {
     :dxc read 0 \`?v rsp\` 10
     `;
     }
-    const address = (args[0].substring(0, 2) === '0x')
+    const address = (args[0].substring(0, 2) === "0x")
         ? ptr(args[0])
         : getGlobalExportByName(args[0]);
     const [nfArgs, nfArgsData] = autoType(args.slice(1));
-    const fun = new NativeFunction(address, 'pointer', nfArgs as any);
+    const fun = new NativeFunction(address, "pointer", nfArgs as any);
     /* eslint prefer-spread: 0 */
     return fun.apply(null, nfArgsData as any); // makes typescript happy
     // return fun.apply(...nfArgsData); // makes eslint happy
@@ -125,76 +133,81 @@ export function dxCall(args: string[]) {
 
 export function dxSyscall(args: string[]) {
     if (args.length === 0) {
-        return 'Usage dxs [syscallname] [args ...]';
+        return "Usage dxs [syscallname] [args ...]";
     }
-    const syscallNumber = '' + _resolveSyscallNumber(args[0]);
-    return dxCall(['syscall', syscallNumber, ...args.slice(1)]);
+    const syscallNumber = "" + _resolveSyscallNumber(args[0]);
+    return dxCall(["syscall", syscallNumber, ...args.slice(1)]);
 }
 
 function _resolveSyscallNumber(name: string): number | string {
-    const ios = Process.arch === 'arm64';
+    const ios = Process.arch === "arm64";
     switch (name) {
-        case 'read':
+        case "read":
             return ios ? 3 : 0x2000003;
-        case 'write':
+        case "write":
             return ios ? 4 : 0x2000004;
-        case 'exit':
+        case "exit":
             return ios ? 1 : 0x2000001;
     }
-    return '' + name;
+    return "" + name;
 }
 
-export function listThreads() : string {
+export function listThreads(): string {
     return Process.enumerateThreads().map((thread) => {
         const threadName = _getThreadName(thread.id);
-        const threadEntrypoint = thread.entrypoint? thread.entrypoint.routine.toString(): "";
-        return [padString(""+thread.id, 5), threadEntrypoint, threadName].join(' ');
-    }).join('\n') + '\n';
+        const threadEntrypoint = thread.entrypoint
+            ? thread.entrypoint.routine.toString()
+            : "";
+        return [padString("" + thread.id, 5), threadEntrypoint, threadName]
+            .join(" ");
+    }).join("\n") + "\n";
 }
 
 export function listThreadsJson() {
     return Process.enumerateThreads()
-        .map(thread => thread.id);
+        .map((thread) => thread.id);
 }
 
-export function dumpRegistersHere() : string {
+export function dumpRegistersHere(): string {
     if (currentThreadContext === null) {
         return "No breakpoint set";
     }
     const values = _formatContext(currentThreadContext);
-    return values.join('');
+    return values.join("");
 }
 
-export function dumpRegisters(args: string[]) : string {
-    return dumpRegistersJson(args).join('\n\n') + '\n';
+export function dumpRegisters(args: string[]): string {
+    return dumpRegistersJson(args).join("\n\n") + "\n";
 }
 
 function _formatContext(context: CpuContext): string[] {
     const names = Object.keys(JSON.parse(JSON.stringify(context)));
     names.sort(_compareRegisterNames);
     const values = names
-        .map((name, index) => _alignRight(name, 3) + ' : ' + padPointer((context as any)[name]))
+        .map((name, index) =>
+            _alignRight(name, 3) + " : " + padPointer((context as any)[name])
+        )
         .map(_indent);
     return values;
 }
 
 export function dumpRegistersJson(args: string[]) {
     return _getThreads(args[0])
-        .map(thread => {
+        .map((thread) => {
             const { id, state, context } = thread;
             const heading = `tid ${id} ${state}`;
             const values = _formatContext(context);
-            return heading + '\n' + values.join('');
-        })
+            return heading + "\n" + values.join("");
+        });
 }
 
 function _getThreads(threadid: string) {
     const tid = threadid !== undefined ? parseInt(threadid, 10) : threadid;
     return Process.enumerateThreads()
-        .filter(thread => tid === undefined || thread.id === tid);
+        .filter((thread) => tid === undefined || thread.id === tid);
 }
 
-export function dumpRegistersEsil(args: string[]) : string {
+export function dumpRegistersEsil(args: string[]): string {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
         // TODO: when process is spawned but not being executed, there are no threads
@@ -202,27 +215,29 @@ export function dumpRegistersEsil(args: string[]) : string {
         return "";
     }
     const [tid] = args;
-    const context = tid ? threads.filter(th => th.id === +tid) : threads[0].context;
+    const context = tid
+        ? threads.filter((th) => th.id === +tid)
+        : threads[0].context;
     if (!context) {
-        return '';
+        return "";
     }
     const names = Object.keys(JSON.parse(JSON.stringify(context)));
     names.sort(_compareRegisterNames);
     const values = names
         .map((name, index) => {
-            if (name === 'pc' || name === 'sp') {
-                return '';
+            if (name === "pc" || name === "sp") {
+                return "";
             }
-            const value = '' + ((context as any)[name] || 0);
-            if (value.indexOf('object') !== -1) {
-                return '';
+            const value = "" + ((context as any)[name] || 0);
+            if (value.indexOf("object") !== -1) {
+                return "";
             }
             return `${value},${name},:=`;
         });
-    return values.join(',');
+    return values.join(",");
 }
 
-export function dumpRegistersR2(args: string[]) : string {
+export function dumpRegistersR2(args: string[]): string {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
         // TODO: when process is spawned but not being executed, there are no threads
@@ -230,47 +245,49 @@ export function dumpRegistersR2(args: string[]) : string {
         return "";
     }
     const [tid] = args;
-    const context = tid ? threads.filter(th => th.id === +tid) : threads[0].context;
+    const context = tid
+        ? threads.filter((th) => th.id === +tid)
+        : threads[0].context;
     if (!context) {
-        return '';
+        return "";
     }
     const names = Object.keys(JSON.parse(JSON.stringify(context)));
     names.sort(_compareRegisterNames);
     const values = names
         .map((name, index) => {
-            if (name === 'pc' || name === 'sp') {
-                return '';
+            if (name === "pc" || name === "sp") {
+                return "";
             }
-            const value = '' + ((context as any)[name] || 0);
-            if (value.indexOf('object') !== -1) {
-                return '';
+            const value = "" + ((context as any)[name] || 0);
+            if (value.indexOf("object") !== -1) {
+                return "";
             }
             return `ar ${name} = ${value}\n`;
         });
-    return values.join('');
+    return values.join("");
 }
 
-export function dumpRegistersRecursively(args: string[]) : string {
+export function dumpRegistersRecursively(args: string[]): string {
     const [tid] = args;
     Process.enumerateThreads()
-        .filter(thread => !tid || !+tid || +tid === thread.id)
-        .forEach(thread => {
+        .filter((thread) => !tid || !+tid || +tid === thread.id)
+        .forEach((thread) => {
             const { id, state, context } = thread;
-            const res = ['# thread ' + id + ' ' + state];
+            const res = ["# thread " + id + " " + state];
             for (const reg of Object.keys(context)) {
                 try {
                     const data = _regcursive(reg, (context as any)[reg]);
-                    res.push(reg + ': ' + data);
+                    res.push(reg + ": " + data);
                 } catch (e) {
                     res.push(reg);
                 }
             }
-            console.log(res.join('\n'));
+            console.log(res.join("\n"));
         });
-    return ''; // nothing to see here
+    return ""; // nothing to see here
 }
 
-export function dumpRegisterProfile(args: string[]) : string {
+export function dumpRegisterProfile(args: string[]): string {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
         // TODO: when process is spawned but not being executed, there are no threads
@@ -279,7 +296,7 @@ export function dumpRegisterProfile(args: string[]) : string {
     }
     const context = threads[0].context;
     const names = Object.keys(JSON.parse(JSON.stringify(context)))
-        .filter(_ => _ !== 'pc' && _ !== 'sp');
+        .filter((_) => _ !== "pc" && _ !== "sp");
     names.sort(_compareRegisterNames);
     let off = 0;
     const inc = Process.pointerSize;
@@ -305,7 +322,7 @@ export function dumpRegisterArena(args: string[]) {
     }
     const context: any = threads[tidx].context;
     const names = Object.keys(JSON.parse(JSON.stringify(context)))
-        .filter(_ => _ !== 'pc' && _ !== 'sp');
+        .filter((_) => _ !== "pc" && _ !== "sp");
     names.sort(_compareRegisterNames);
     let offset = 0;
     const regSize = Process.pointerSize;
@@ -316,7 +333,7 @@ export function dumpRegisterArena(args: string[]) {
     const buf = [];
     for (const reg of names) {
         const r = context[reg];
-        if (typeof r.and !== 'function') {
+        if (typeof r.and !== "function") {
             continue;
         }
         for (let i = 0; i < regSize; i++) {
@@ -357,16 +374,22 @@ function _getThreadName(tid: number) {
     let pthreadGetnameNp: any | null = null;
     let pthreadFromMachThreadNp: any | null = null;
     try {
-        const addr = getGlobalExportByName('pthread_getname_np');
-        const addr2 = getGlobalExportByName('pthread_from_mach_thread_np');
-        pthreadGetnameNp = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
-        pthreadFromMachThreadNp = new NativeFunction(addr2, 'pointer', ['uint']);
+        const addr = getGlobalExportByName("pthread_getname_np");
+        const addr2 = getGlobalExportByName("pthread_from_mach_thread_np");
+        pthreadGetnameNp = new NativeFunction(addr, "int", [
+            "pointer",
+            "pointer",
+            "int",
+        ]);
+        pthreadFromMachThreadNp = new NativeFunction(addr2, "pointer", [
+            "uint",
+        ]);
         canGetThreadName = true;
     } catch (e) {
         // do nothing
     }
     if (!canGetThreadName) {
-        return '';
+        return "";
     }
     const buffer = Memory.alloc(4096);
     const p = pthreadFromMachThreadNp(tid);
@@ -412,18 +435,18 @@ function _parseRegisterIndex(name: string) {
 
 function _regProfileAliasFor(arch: string): string {
     switch (arch) {
-        case 'arm64':
+        case "arm64":
             return regProfileAliasForArm64;
-        case 'arm':
+        case "arm":
             return regProfileAliasForArm;
-        case 'ia64':
-        case 'x64':
+        case "ia64":
+        case "x64":
             return regProfileAliasForX64;
-        case 'ia32':
-        case 'x86':
+        case "ia32":
+        case "x86":
             return regProfileAliasForX86;
     }
-    return '';
+    return "";
 }
 
 function _regcursive(regname: string, pregvalue: NativePointer) {
@@ -432,20 +455,20 @@ function _regcursive(regname: string, pregvalue: NativePointer) {
     try {
         const str = ptr(regvalue).readCString(32);
         if (str && str.length > 3) {
-            const printableString = str.replace(/[^\x20-\x7E]/g, '');
+            const printableString = str.replace(/[^\x20-\x7E]/g, "");
             data.push("'" + printableString + "'");
         }
         const p = ptr(regvalue).readPointer();
-        data.push('=>');
+        data.push("=>");
         data.push(_regcursive(regname, p));
     } catch (e) {
     }
     if (+regvalue === 0) {
-        data.push('NULL');
+        data.push("NULL");
     } else if (+regvalue === 0xffffffff) {
         data.push("-1");
-    } else if (+regvalue > ' '.charCodeAt(0) && +regvalue < 127) {
-        data.push('\'' + String.fromCharCode(+regvalue) + '\'');
+    } else if (+regvalue > " ".charCodeAt(0) && +regvalue < 127) {
+        data.push("'" + String.fromCharCode(+regvalue) + "'");
     }
     try {
         // XXX regvalue must be a NativePointer not a string
@@ -462,7 +485,7 @@ function _regcursive(regname: string, pregvalue: NativePointer) {
         }
     } catch (e) {
     }
-    return data.join(' ');
+    return data.join(" ");
 }
 
 function _indent(message: any, index: number) {
@@ -470,16 +493,15 @@ function _indent(message: any, index: number) {
         return message;
     }
     if ((index % 3) === 0) {
-        return '\n' + message;
+        return "\n" + message;
     }
-    return '\t' + message;
+    return "\t" + message;
 }
 
 function _alignRight(text: string, width: number) {
     let result = text;
     while (result.length < width) {
-        result = ' ' + result;
+        result = " " + result;
     }
     return result;
 }
-

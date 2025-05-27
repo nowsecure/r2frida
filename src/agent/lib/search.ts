@@ -1,10 +1,21 @@
-import config from '../config.js';
-import { ObjCAvailable } from './darwin/index.js';
-import io from '../io.js';
-import r2, { r2Config } from './r2.js';
+import config from "../config.js";
+import { ObjCAvailable } from "./darwin/index.js";
+import io from "../io.js";
+import r2, { r2Config } from "./r2.js";
 import { r2frida } from "../plugin.js";
-import { getMemoryRanges, listMallocRangesJson } from './debug/memory.js';
-import { normHexPairs, filterPrintable, toWidePairs, byteArrayToHex, ptrMin, ptrMax, padPointer, toHexPairs, renderEndian, hexPtr } from './utils.js';
+import { getMemoryRanges, listMallocRangesJson } from "./debug/memory.js";
+import {
+    byteArrayToHex,
+    filterPrintable,
+    hexPtr,
+    normHexPairs,
+    padPointer,
+    ptrMax,
+    ptrMin,
+    renderEndian,
+    toHexPairs,
+    toWidePairs,
+} from "./utils.js";
 import ObjC from "frida-objc-bridge";
 import Java from "frida-java-bridge";
 
@@ -18,22 +29,34 @@ export function searchInstances(args: string[]): string {
 }
 
 export function searchInstancesJson(args: string[]): SearchHit[] {
-    const className = args.join('');
+    const className = args.join("");
     if (ObjCAvailable) {
-        const instances: ObjC.Object[] = ObjC.chooseSync(ObjC.classes[className]);
+        const instances: ObjC.Object[] = ObjC.chooseSync(
+            ObjC.classes[className],
+        );
         return instances.map(function (res: ObjC.Object) {
-            return { address: res.handle, content: className, size: 0 } as SearchHit;
+            return {
+                address: res.handle,
+                content: className,
+                size: 0,
+            } as SearchHit;
         });
     } else {
         Java.performNow(function () {
-             const instances: SearchHit[] = [];
-             Java.choose(className, {
-                onMatch: function(instance){
-                    instances.push({ address: instance.$h, content: instance.className, size: 0 } as SearchHit);
+            const instances: SearchHit[] = [];
+            Java.choose(className, {
+                onMatch: function (instance) {
+                    instances.push(
+                        {
+                            address: instance.$h,
+                            content: instance.className,
+                            size: 0,
+                        } as SearchHit,
+                    );
                 },
-                onComplete:function() {
+                onComplete: function () {
                     console.log("search done");
-                }
+                },
             });
             return instances;
         });
@@ -42,14 +65,14 @@ export function searchInstancesJson(args: string[]): SearchHit[] {
 }
 
 export function searchJson(args: string[]): SearchHit[] {
-    const pattern = toHexPairs(args.join(' '));
+    const pattern = toHexPairs(args.join(" "));
     const hits = _searchPatternJson(pattern);
-    hits.forEach(hit => {
+    hits.forEach((hit) => {
         try {
             const bytes = io.read({
                 offset: hit.address.toString(),
                 count: 60,
-                fast : false
+                fast: false,
             })[1];
             hit.content = filterPrintable(bytes);
         } catch (e) {
@@ -59,12 +82,12 @@ export function searchJson(args: string[]): SearchHit[] {
 }
 
 export function searchStrings(args: string[]): string {
-    const hits = searchStringsJson(args.join(''));
+    const hits = searchStringsJson(args.join(""));
     return _getReadableHitsToString(hits);
 }
 
 export function searchHex(args: string[]): string {
-    const hits = searchHexJson(args.join(''));
+    const hits = searchHexJson(args.join(""));
     return _getReadableHitsToString(hits);
 }
 
@@ -74,27 +97,27 @@ export function searchWide(args: string[]) {
 }
 
 export function searchWideJson(args: string[]): SearchHit[] {
-    const pattern = toWidePairs(args.join(' '));
+    const pattern = toWidePairs(args.join(" "));
     return searchHexJson(pattern);
 }
 
 class StringFinder {
-    results : SearchHit[] = [];
+    results: SearchHit[] = [];
     minLen = 0;
     maxLen = 0;
     curstr = "";
     curaddr = ptr(0);
     nth = 0;
 
-    constructor (minLen: number = 0, maxLen: number = 128) {
-       this.minLen = minLen;
-       this.maxLen = maxLen;
+    constructor(minLen: number = 0, maxLen: number = 128) {
+        this.minLen = minLen;
+        this.maxLen = maxLen;
     }
 
     feed(cur: NativePointer, data: Uint8Array) {
-       for (let i = 0; i < data.byteLength; i++) {
-           this.feedByte(cur, data[i]);
-       }
+        for (let i = 0; i < data.byteLength; i++) {
+            this.feedByte(cur, data[i]);
+        }
     }
 
     possibleEndOfString() {
@@ -104,7 +127,7 @@ class StringFinder {
                 address: this.curaddr,
                 content: this.curstr,
                 size: strlen,
-                flag: "hit.string." + this.results.length
+                flag: "hit.string." + this.results.length,
             });
         }
         this.curstr = "";
@@ -126,24 +149,26 @@ class StringFinder {
     }
 }
 
-export function searchStringsJson(args: string): SearchHit[]{
-	console.log("search string");
+export function searchStringsJson(args: string): SearchHit[] {
+    console.log("search string");
     const prefix = "hit";
     let searchHits: SearchHit[] = [];
-    const fromAddress = new NativePointer(config.getString('search.from'));
-    const toAddress = new NativePointer(config.getString('search.to'));
+    const fromAddress = new NativePointer(config.getString("search.from"));
+    const toAddress = new NativePointer(config.getString("search.to"));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
     const kwidx = config.getNumber("search.kwidx");
-    const align = config.getNumber('search.align');
+    const align = config.getNumber("search.align");
     const blockSize = 4096;
     let count = 0;
     for (const range of ranges) {
         if (range.size === 0) {
             continue;
         }
-        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        const rangeStr = `[${padPointer(range.address)}-${
+            padPointer(range.address.add(range.size))
+        }]`;
         let cur = range.address;
-        const end = range.address.add (range.size);
+        const end = range.address.add(range.size);
         const sf = new StringFinder(9, 128);
         while (cur.compare(end)) {
             const data = cur.readByteArray(blockSize);
@@ -161,7 +186,11 @@ export function searchStringsJson(args: string): SearchHit[]{
                     return;
                 }
             }
-            r2.hostCmd(`fs+search; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-`);
+            r2.hostCmd(
+                `fs+search; f ${hit.flag} ${hit.size} ${
+                    hexPtr(hit.address)
+                };fs-`,
+            );
             searchHits.push(hit);
         });
     }
@@ -170,7 +199,7 @@ export function searchStringsJson(args: string): SearchHit[]{
     return searchHits;
 }
 
-export function searchHexJson(args: string): SearchHit[]{
+export function searchHexJson(args: string): SearchHit[] {
     const pattern = normHexPairs(args);
     if (pattern === null) {
         console.error("Invalid hex string");
@@ -215,12 +244,12 @@ export function searchValueJson8(args: string[]): SearchHit[] {
 }
 
 export function searchValueImpl(width: number, args: string[]): string {
-    const hits = _searchValueJson(width,args);
+    const hits = _searchValueJson(width, args);
     return _getReadableHitsToString(hits);
 }
 
 function _searchValueJson(width: number, args: string[]): SearchHit[] {
-    const pattern = args.join('').slice(0, width * 2);
+    const pattern = args.join("").slice(0, width * 2);
     //const bigEndian = config.getBoolean('search.bigendian');
     // TODO - refactor renderEndian
     //const bytes = renderEndian(pattern, bigEndian, width);
@@ -228,23 +257,23 @@ function _searchValueJson(width: number, args: string[]): SearchHit[] {
 }
 
 function _getReadableHitsToString(hits: SearchHit[]): string {
-    const output = hits.map(hit => {
-        if (typeof hit.flag === 'string') {
+    const output = hits.map((hit) => {
+        if (typeof hit.flag === "string") {
             return `${hexPtr(hit.address)} ${hit.flag} ${hit.content}`;
         }
         return `${hexPtr(hit.address)} ${hit.content}`;
     });
-    return output.join('\n') + '\n';
+    return output.join("\n") + "\n";
 }
 
 function _searchPatternJson(pattern: string): SearchHit[] {
     const prefix = "hit";
     let searchHits: SearchHit[] = [];
-    const align = config.getNumber('search.align');
-    const fromAddress = new NativePointer(config.getString('search.from'));
-    const toAddress = new NativePointer(config.getString('search.to'));
+    const align = config.getNumber("search.align");
+    const fromAddress = new NativePointer(config.getString("search.from"));
+    const toAddress = new NativePointer(config.getString("search.to"));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
-    const nBytes = pattern.split(' ').length;
+    const nBytes = pattern.split(" ").length;
     qlog(`Searching ${nBytes} bytes: ${pattern}`);
     const kwidx = config.getNumber("search.kwidx");
     let count = 0;
@@ -253,11 +282,17 @@ function _searchPatternJson(pattern: string): SearchHit[] {
         if (range.size === 0) {
             continue;
         }
-        const rangeStr = `[${padPointer(range.address)}-${padPointer(range.address.add(range.size))}]`;
+        const rangeStr = `[${padPointer(range.address)}-${
+            padPointer(range.address.add(range.size))
+        }]`;
         qlog(`Searching ${nBytes} bytes in ${rangeStr}`);
         try {
-            const {address, size} = range;
-            const partial: MemoryScanMatch[] = Memory.scanSync(address, size, pattern);
+            const { address, size } = range;
+            const partial: MemoryScanMatch[] = Memory.scanSync(
+                address,
+                size,
+                pattern,
+            );
             partial.forEach((match: MemoryScanMatch) => {
                 if (align > 1) {
                     const base = Number(match.address.and(0xffff));
@@ -271,25 +306,30 @@ function _searchPatternJson(pattern: string): SearchHit[] {
                 hit.size = match.size;
                 searchHits.push(hit);
                 count++;
-                script += `fs+search; f ${hit.flag} ${hit.size} ${hexPtr(hit.address)};fs-;\n`;
+                script += `fs+search; f ${hit.flag} ${hit.size} ${
+                    hexPtr(hit.address)
+                };fs-;\n`;
             });
         } catch (e) {
-            console.error('Search error', e);
+            console.error("Search error", e);
         }
     }
     r2.hostCmd(script);
     config.set("search.kwidx", kwidx + 1);
     qlog(`hits: ${searchHits.length}`);
     return searchHits;
-};
+}
 
 function qlog(message: string) {
-    if (!config.getBoolean('search.quiet')) {
+    if (!config.getBoolean("search.quiet")) {
         console.log(`${message}\n`);
     }
 }
 
-function _getRangesToSearch(fromAddress: NativePointer, toAddress: NativePointer): SearchRange[] {
+function _getRangesToSearch(
+    fromAddress: NativePointer,
+    toAddress: NativePointer,
+): SearchRange[] {
     const searchIn = _getSearchResultFromConfig();
     const ranges = getMemoryRangesFilteredBySearchResult(searchIn);
     if (ranges.length === 0) {
@@ -300,35 +340,41 @@ function _getRangesToSearch(fromAddress: NativePointer, toAddress: NativePointer
     const from = fromAddress.isNull() ? first.address : fromAddress;
     const to = toAddress.isNull() ? last.address.add(last.size) : toAddress;
     return ranges.filter((range: SearchRange) => {
-        return range.address.compare(from) >= 0 && range.address.add(range.size).compare(to) <= 0;
+        return range.address.compare(from) >= 0 &&
+            range.address.add(range.size).compare(to) <= 0;
     });
 }
 
-function getMemoryRangesFilteredBySearchResult(searchIn: SearchResult): SearchRange[] {
+function getMemoryRangesFilteredBySearchResult(
+    searchIn: SearchResult,
+): SearchRange[] {
     let memoryRanges;
     if (searchIn.heap) {
         memoryRanges = listMallocRangesJson();
     } else {
-        memoryRanges = getMemoryRanges(searchIn.perm).filter((range: RangeDetails) => {
-            const start = range.base;
-            const end = start.add(range.size);
-            const offPtr = ptr(r2frida.offset);
-            if (searchIn.current) {
-                return offPtr.compare(start) >= 0 && offPtr.compare(end) < 0;
-            }
-            if (searchIn.path !== null) {
-                if (range.file !== undefined) {
-                    return range.file.path.indexOf(searchIn.path) >= 0;
+        memoryRanges = getMemoryRanges(searchIn.perm).filter(
+            (range: RangeDetails) => {
+                const start = range.base;
+                const end = start.add(range.size);
+                const offPtr = ptr(r2frida.offset);
+                if (searchIn.current) {
+                    return offPtr.compare(start) >= 0 &&
+                        offPtr.compare(end) < 0;
                 }
-                return false;
-            }
-            return true;
-        });
+                if (searchIn.path !== null) {
+                    if (range.file !== undefined) {
+                        return range.file.path.indexOf(searchIn.path) >= 0;
+                    }
+                    return false;
+                }
+                return true;
+            },
+        );
     }
     return memoryRanges.map((range) => {
         return {
             address: range.base,
-            size: range.size
+            size: range.size,
         } as SearchRange;
     });
 }
@@ -336,12 +382,12 @@ function getMemoryRangesFilteredBySearchResult(searchIn: SearchResult): SearchRa
 function _getSearchResultFromConfig(): SearchResult {
     const res: SearchResult = {
         current: false,
-        perm: 'r--',
+        perm: "r--",
         path: null,
-        heap: false
+        heap: false,
     };
-    const searchConfig = config.getString('search.in');
-    const [scope, param] = searchConfig.split(':');
+    const searchConfig = config.getString("search.in");
+    const [scope, param] = searchConfig.split(":");
     switch (scope) {
         case "current":
             res.current = true;
@@ -370,10 +416,10 @@ export interface SearchHit {
 }
 
 export interface SearchResult {
-    current: boolean,
-    perm: string,
-    path: string | null,
-    heap: boolean
+    current: boolean;
+    perm: string;
+    path: string | null;
+    heap: boolean;
 }
 
 export interface SearchRange {

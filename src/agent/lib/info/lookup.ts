@@ -1,31 +1,33 @@
-import config from '../../config.js';
-import * as utils from '../utils.js';
+import config from "../../config.js";
+import * as utils from "../utils.js";
 import { r2frida } from "../../plugin.js";
 
-export function lookupDebugInfo(args: string[]) : void {
-    const o = DebugSymbol.fromAddress(ptr('' + args));
+export function lookupDebugInfo(args: string[]): void {
+    const o = DebugSymbol.fromAddress(ptr("" + args));
     console.log(o);
 }
 
-export function lookupAddress(args: string[]) : string {
+export function lookupAddress(args: string[]): string {
     if (args.length === 0) {
         args = [ptr(r2frida.offset).toString()];
     }
     return lookupAddressJson(args)
-        .map(({ type, name, address }) => [type, name, address].join(' '))
-        .join('\n');
+        .map(({ type, name, address }) => [type, name, address].join(" "))
+        .join("\n");
 }
 
-export function lookupAddressR2(args: string[]) : string {
+export function lookupAddressR2(args: string[]): string {
     const symbols = lookupAddressJson(args)
-        .map(({ type, name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '));
+        .map(({ type, name, address }) =>
+            ["f", "sym." + utils.sanitizeString(name), "=", address].join(" ")
+        );
     return ["fs+symbols", ...symbols, "fs-"].join("\n");
 }
 
 export function lookupAddressJson(args: string[]): any[] {
     const exportAddress = ptr(args[0]);
     const result: any[] = [];
-    const modules = Process.enumerateModules().map(m => m.path);
+    const modules = Process.enumerateModules().map((m) => m.path);
     return modules.reduce((result, moduleName) => {
         const exports = Process.getModuleByName(moduleName)!.enumerateExports();
         return result.concat(exports as any);
@@ -35,7 +37,7 @@ export function lookupAddressJson(args: string[]): any[] {
                 result.push({
                     type: obj.type,
                     name: obj.name,
-                    address: obj.address
+                    address: obj.address,
                 });
             }
             return result;
@@ -56,17 +58,19 @@ export function lookupExport(args: string[]) {
     return lookupExportJson(args)
         // .map(({library, name, address}) => [library, name, address].join(' '))
         .map(({ address }) => "" + address)
-        .join('\n');
+        .join("\n");
 }
 
 export function lookupExportR2(args: string[]) {
     const exports = lookupExportJson(args)
-        .map(({ name, address }) => ['f', 'sym.' + name, '=', address].join(' '))
-        .join('\n');
+        .map(({ name, address }) =>
+            ["f", "sym." + name, "=", address].join(" ")
+        )
+        .join("\n");
     return "fs symbols\n" + exports + "\nfs-";
 }
 
-export function lookupExportJson(args: string[]) : ExportType[] {
+export function lookupExportJson(args: string[]): ExportType[] {
     if (args.length === 2) {
         const [moduleName, exportName] = args;
         const module = Process.getModuleByName(moduleName);
@@ -77,7 +81,7 @@ export function lookupExportJson(args: string[]) : ExportType[] {
         const res = {
             library: "",
             name: exportName,
-            address: address
+            address: address,
         };
         const m = getModuleByAddress(address);
         if (m !== null) {
@@ -90,17 +94,20 @@ export function lookupExportJson(args: string[]) : ExportType[] {
         return Process.enumerateModules()
             .reduce((result: any[], m) => {
                 const module = Process.findModuleByName(m.path);
-		if (module !== null) {
-                const address = module.findExportByName(exportName);
-                if (address !== null && (prevAddress === null || address.compare(prevAddress))) {
-                    result.push({
-                        library: m.name,
-                        name: exportName,
-                        address: address
-                    });
-                    prevAddress = address;
+                if (module !== null) {
+                    const address = module.findExportByName(exportName);
+                    if (
+                        address !== null &&
+                        (prevAddress === null || address.compare(prevAddress))
+                    ) {
+                        result.push({
+                            library: m.name,
+                            name: exportName,
+                            address: address,
+                        });
+                        prevAddress = address;
+                    }
                 }
-		}
                 return result;
             }, []);
     }
@@ -109,14 +116,16 @@ export function lookupExportJson(args: string[]) : ExportType[] {
 // lookup symbols
 export function lookupSymbol(args: string[]) {
     return lookupSymbolJson(args)
-        .map(({ address }) => '' + address)
-        .join('\n');
+        .map(({ address }) => "" + address)
+        .join("\n");
 }
 
 export function lookupSymbolR2(args: string[]) {
     return lookupSymbolJson(args)
-        .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '))
-        .join('\n');
+        .map(({ name, address }) =>
+            ["f", "sym." + utils.sanitizeString(name), "=", address].join(" ")
+        )
+        .join("\n");
 }
 
 export function lookupSymbolManyJson(args: string[]) {
@@ -128,12 +137,14 @@ export function lookupSymbolManyJson(args: string[]) {
 }
 
 export function lookupSymbolMany(args: string[]) {
-    return lookupSymbolManyJson(args).map(({ address }) => address).join('\n');
+    return lookupSymbolManyJson(args).map(({ address }) => address).join("\n");
 }
 
 export function lookupSymbolManyR2(args: string[]) {
     const symbols = lookupSymbolManyJson(args)
-        .map(({ name, address }) => ['f', 'sym.' + utils.sanitizeString(name), '=', address].join(' '));
+        .map(({ name, address }) =>
+            ["f", "sym." + utils.sanitizeString(name), "=", address].join(" ")
+        );
     return ["fs+symbols", ...symbols, "fs-"].join("\n");
 }
 
@@ -157,15 +168,17 @@ export function lookupSymbolJson(args: string[]) {
             moduleName = res[0].name;
         }
         let address = ptr(0);
-        const m = Process.getModuleByName(moduleName).enumerateSymbols().filter(function (s) {
-            if (s.name === symbolName) {
-                address = s.address;
-            }
-        });
+        const m = Process.getModuleByName(moduleName).enumerateSymbols().filter(
+            function (s) {
+                if (s.name === symbolName) {
+                    address = s.address;
+                }
+            },
+        );
         return [{
             library: moduleName,
             name: symbolName,
-            address: address
+            address: address,
         }];
     } else {
         const [symbolName] = args;
@@ -173,14 +186,16 @@ export function lookupSymbolJson(args: string[]) {
         const mod = _getModuleAt(res);
         if (res) {
             return [{
-                library: mod ? mod.name : 'unknown',
+                library: mod ? mod.name : "unknown",
                 name: symbolName,
-                address: res
+                address: res,
             }];
         }
         const fcns = DebugSymbol.findFunctionsNamed(symbolName);
         if (fcns) {
-            return fcns.map((f) => { return { name: symbolName, address: f }; });
+            return fcns.map((f) => {
+                return { name: symbolName, address: f };
+            });
         }
         return [];
         /*
@@ -210,7 +225,7 @@ function _getModuleAt(addr: NativePointer | null) {
 }
 
 export function getModuleByAddress(addr: NativePointer): Module | null {
-    const m = config.getString('symbols.module');
+    const m = config.getString("symbols.module");
     if (m !== "") {
         try {
             return Process.getModuleByName(m);
@@ -244,5 +259,5 @@ export default {
     lookupDebugInfo,
     lookupAddress,
     lookupAddressR2,
-    getModuleByAddress
+    getModuleByAddress,
 };

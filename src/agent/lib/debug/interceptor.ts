@@ -1,16 +1,20 @@
-import { traceEmit } from '../../../agent/log.js';
-import config from '../../config.js';
-import { parseTargetJavaExpression, interceptFunRetJava, interceptRetJava } from '../java/index.js';
-import { getPtr } from '../utils.js';
+import { traceEmit } from "../../../agent/log.js";
+import config from "../../config.js";
+import {
+    interceptFunRetJava,
+    interceptRetJava,
+    parseTargetJavaExpression,
+} from "../java/index.js";
+import { getPtr } from "../utils.js";
 
-function interceptHelp(args: string[]) : string {
+function interceptHelp(args: string[]): string {
     return "Usage: di[0,1,-1,s,v] [addr] : intercept function method and replace the return value.\n" +
         "di0 0x808080  # when program calls this address, the original function is not called, then return value is replaced.\n" +
         "div java:org.ex.class.method  # when program calls this address, the original function is not called and no value is returned.\n";
 }
 
 function interceptFunHelp(args: string[]): string {
-    return "Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n"+
+    return "Usage: dif[0,1,-1,s] [addr] [str] [param_types]: intercepts function method, call it, and replace the return value.\n" +
         "dif0 0x808080  # when program calls this address, the original function is called, then return value is replaced.\n" +
         "dif0 java:com.example.MainActivity.method1 int,java.lang.String  # Only with JVM methods. You need to define param_types when overload a Java method.\n" +
         "dis 0x808080 str  #.\n";
@@ -87,7 +91,7 @@ export function interceptFunRet_1(args: string[]) {
 }
 
 function _interceptRet(target: any, value: any) {
-    if (target.startsWith('java:')) {
+    if (target.startsWith("java:")) {
         try {
             const javaTarget = parseTargetJavaExpression(target);
             return interceptRetJava(javaTarget[0], javaTarget[1], value);
@@ -96,40 +100,60 @@ function _interceptRet(target: any, value: any) {
         }
     }
     const funcPtr = getPtr(target);
-    const useCmd = config.getString('hook.usecmd');
-    Interceptor.replace(funcPtr, new NativeCallback(function () {
-        traceEmit(`Intercept return for ${target.toString()} with ${value.toString()}`);
-        if (useCmd.length > 0) {
-            console.log('[r2cmd]' + useCmd);
-        }
-        return ptr(value);
-    }, 'pointer', ['pointer']));
+    const useCmd = config.getString("hook.usecmd");
+    Interceptor.replace(
+        funcPtr,
+        new NativeCallback(
+            function () {
+                traceEmit(
+                    `Intercept return for ${target.toString()} with ${value.toString()}`,
+                );
+                if (useCmd.length > 0) {
+                    console.log("[r2cmd]" + useCmd);
+                }
+                return ptr(value);
+            },
+            "pointer",
+            ["pointer"],
+        ),
+    );
 }
 
-function _interceptFunRet(target: string, value: string | number, paramTypes: string) {
-    if (target.startsWith('java:')) {
+function _interceptFunRet(
+    target: string,
+    value: string | number,
+    paramTypes: string,
+) {
+    if (target.startsWith("java:")) {
         const javaTarget = parseTargetJavaExpression(target);
-        return interceptFunRetJava(javaTarget[0], javaTarget[1], value, paramTypes);
+        return interceptFunRetJava(
+            javaTarget[0],
+            javaTarget[1],
+            value,
+            paramTypes,
+        );
     }
     const p = getPtr(target);
     Interceptor.attach(p, {
         onLeave(retval) {
-            traceEmit(`Target: ${target.toString()} was called, intercepting return value.`)
+            traceEmit(
+                `Target: ${target.toString()} was called, intercepting return value.`,
+            );
             retval.replace(ptr(value));
-        }
+        },
     });
 }
 
 export function interceptDetachAll(args: string[]) {
     Interceptor.detachAll();
-    console.log(`Reverted all hooks`)
+    console.log(`Reverted all hooks`);
 }
 
 export function interceptRevert(args: string[]) {
     if (args.length > 0) {
-        const p = getPtr(args[0])
-        Interceptor.revert(p)
-        console.log(`Reverted hooks at ${p.toString()}`)
+        const p = getPtr(args[0]);
+        Interceptor.revert(p);
+        console.log(`Reverted hooks at ${p.toString()}`);
     }
 }
 
@@ -150,5 +174,5 @@ export default {
     interceptFunRetInt,
     interceptFunRet_1,
     interceptDetachAll,
-    interceptRevert
+    interceptRevert,
 };

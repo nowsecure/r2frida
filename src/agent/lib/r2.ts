@@ -1,5 +1,5 @@
-import { sym, getenv } from './sys.js';
-import { wrapStanza, getPtr } from './utils.js';
+import { getenv, sym } from "./sys.js";
+import { getPtr, wrapStanza } from "./utils.js";
 
 type CommandFunction = () => void;
 const pendingCmds: any = [];
@@ -15,22 +15,27 @@ let _free: any | null = null;
 
 export function getArch(arch: string): string {
     switch (arch) {
-        case 'ia32':
-        case 'x64':
-            return 'x86';
-        case 'arm64':
-            return 'arm';
+        case "ia32":
+        case "x64":
+            return "x86";
+        case "arm64":
+            return "arm";
     }
     return arch;
 }
 
 export async function hostCmds(commands: string[]): Promise<string[]> {
     let allPromises = [];
-    for (let i=0; i<commands.length; i++) {
+    for (let i = 0; i < commands.length; i++) {
         allPromises.push(hostCmd(commands[i]));
     }
-    const results = await Promise.allSettled(allPromises) as {status: 'fulfilled' | 'rejected', value: string}[];
-    const succeeded = results.filter(o => o.status === "fulfilled").map(e => e.value);
+    const results = await Promise.allSettled(allPromises) as {
+        status: "fulfilled" | "rejected";
+        value: string;
+    }[];
+    const succeeded = results.filter((o) => o.status === "fulfilled").map((e) =>
+        e.value
+    );
     return succeeded;
 }
 
@@ -56,7 +61,7 @@ export function onCmdResp(params: any) {
         delete pendingCmds[serial];
         Script.nextTick(() => onFinish(output));
     } else {
-        throw new Error('Command response out of sync');
+        throw new Error("Command response out of sync");
     }
     Script.nextTick(() => {
         if (!sendingCommand) {
@@ -72,9 +77,9 @@ export function onCmdResp(params: any) {
 function _sendCommand(cmd: string, serial: number): void {
     function sendIt() {
         sendingCommand = true;
-        send(wrapStanza('cmd', {
+        send(wrapStanza("cmd", {
             cmd: cmd,
-            serial: serial
+            serial: serial,
         }));
     }
     if (sendingCommand) {
@@ -84,20 +89,20 @@ function _sendCommand(cmd: string, serial: number): void {
     }
 }
 
-export function seek(args: string[]) : string {
-    const addr = getPtr('' + args);
-    return 's ' + (addr || '' + args);
+export function seek(args: string[]): string {
+    const addr = getPtr("" + args);
+    return "s " + (addr || "" + args);
 }
 
-export function cmd(args: string[]) : string {
-    const cmd = args.join(' ');
+export function cmd(args: string[]): string {
+    const cmd = args.join(" ");
     if (cmd.length === 0) {
-        return 'Usage: :r [cmd]';
+        return "Usage: :r [cmd]";
     }
     if (_radareCommandInit()) {
         return _radareCommandString(cmd);
     }
-    return ':dl /tmp/libr.dylib';
+    return ":dl /tmp/libr.dylib";
 }
 
 function _radareCommandInit(): boolean {
@@ -105,19 +110,24 @@ function _radareCommandInit(): boolean {
         return true;
     }
     if (!_r_core_new) {
-        _r_core_new = sym('r_core_new', 'pointer', []);
+        _r_core_new = sym("r_core_new", "pointer", []);
         if (!_r_core_new) {
-            console.error('ERROR: Cannot find r_core_new. Do :dl /tmp/libr.dylib');
+            console.error(
+                "ERROR: Cannot find r_core_new. Do :dl /tmp/libr.dylib",
+            );
             return false;
         }
-        _r_core_cmd_str = sym('r_core_cmd_str', 'pointer', ['pointer', 'pointer']);
-        _r_core_free = sym('r_core_free', 'void', ['pointer']);
-        _free = sym('free', 'void', ['pointer']);
+        _r_core_cmd_str = sym("r_core_cmd_str", "pointer", [
+            "pointer",
+            "pointer",
+        ]);
+        _r_core_free = sym("r_core_free", "void", ["pointer"]);
+        _free = sym("free", "void", ["pointer"]);
         const cpstr = getenv("R2CORE");
         if (cpstr !== null) {
-          _r2 = ptr(cpstr);
+            _r2 = ptr(cpstr);
         } else {
-          _r2 = _r_core_new();
+            _r2 = _r_core_new();
         }
     }
     return true;
@@ -131,13 +141,13 @@ function _radareCommandString(cmd: string): string {
         _free(ptr);
         return str;
     }
-    console.error('Warning: not calling back r2');
-    return '';
+    console.error("Warning: not calling back r2");
+    return "";
 }
 
 export interface r2Config {
-    search: r2SearchConfig,
-    cfg: r2Cfg
+    search: r2SearchConfig;
+    cfg: r2Cfg;
 }
 
 export interface r2Cfg {

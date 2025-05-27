@@ -1,20 +1,18 @@
-import { listClasses } from './info/classes.js';
-import { ObjCAvailable } from './darwin/index.js';
-import ObjC from 'frida-objc-bridge';
+import { listClasses } from "./info/classes.js";
+import { ObjCAvailable } from "./darwin/index.js";
+import ObjC from "frida-objc-bridge";
 
 enum METHOD_TYPE {
     CLASS,
-    INSTANCE
+    INSTANCE,
 }
 
-
-export function analFunctionSignature(args: string[]) : string {
-
+export function analFunctionSignature(args: string[]): string {
     if (!ObjCAvailable) {
-        return 'Error: afs is only implemented for ObjC methods.';
+        return "Error: afs is only implemented for ObjC methods.";
     }
     if (args.length !== 1) {
-        return 'Usage: afs [class].[+/-][method] (p.e. :afs ViewController.-isJailbroken)';
+        return "Usage: afs [class].[+/-][method] (p.e. :afs ViewController.-isJailbroken)";
     }
 
     let [klassName, methodName] = args[0].split(".");
@@ -22,7 +20,9 @@ export function analFunctionSignature(args: string[]) : string {
         return listClasses(args);
     }
 
-    const methodType = methodName[0] === "+" ? METHOD_TYPE.CLASS : METHOD_TYPE.INSTANCE;
+    const methodType = methodName[0] === "+"
+        ? METHOD_TYPE.CLASS
+        : METHOD_TYPE.INSTANCE;
     if (methodName[0].indexOf("+") === 0 || methodName[0].indexOf("-") === 0) {
         methodName = methodName.substring(1);
     }
@@ -30,11 +30,13 @@ export function analFunctionSignature(args: string[]) : string {
     const klass = ObjC.classes[klassName];
     if (!klass) {
         // try to resolve from DebugSymbol
-        const at = klassName.startsWith("0x") ? DebugSymbol.fromAddress(ptr(klassName)) : DebugSymbol.fromName(klassName);
+        const at = klassName.startsWith("0x")
+            ? DebugSymbol.fromAddress(ptr(klassName))
+            : DebugSymbol.fromName(klassName);
         if (at) {
             return JSON.stringify(at);
         }
-        return 'Cannot find class named ' + klassName;
+        return "Cannot find class named " + klassName;
     }
 
     let method = undefined;
@@ -44,13 +46,13 @@ export function analFunctionSignature(args: string[]) : string {
     } else {
         const instance = ObjC.chooseSync(klass)[0];
         if (!instance) {
-            return 'Cannot find any instance for ' + klassName;
+            return "Cannot find any instance for " + klassName;
         }
         methodName = `- ${methodName}`;
         method = instance[methodName];
     }
     if (!method) {
-        return 'Cannot find method ' + methodName + ' for class ' + klassName;
+        return "Cannot find method " + methodName + " for class " + klassName;
     }
-    return method.returnType + ' (' + method.argumentTypes.join(', ') + ');';
+    return method.returnType + " (" + method.argumentTypes.join(", ") + ");";
 }

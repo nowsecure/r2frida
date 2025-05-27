@@ -2,7 +2,7 @@ const commandHandlers: any[any] = {};
 
 function pluginRegister(name: string, ch: any) {
     if (name in commandHandlers) {
-        console.log('Cannot register the same handler twice');
+        console.log("Cannot register the same handler twice");
         return false;
     }
     commandHandlers[name] = ch;
@@ -20,7 +20,7 @@ function pluginUnregister(name: string) {
 function commandHandler(name: string) {
     for (const key of Object.keys(commandHandlers)) {
         const ch: any = commandHandlers[key];
-        if (typeof ch === 'function') {
+        if (typeof ch === "function") {
             const handler = ch(name);
             if (handler !== undefined) {
                 return handler;
@@ -31,31 +31,31 @@ function commandHandler(name: string) {
 }
 
 function pluginList() {
-    return Object.keys(commandHandlers).join('\n');
+    return Object.keys(commandHandlers).join("\n");
 }
 export type PutsFunction = (s: string) => void;
 
 // import packageJson from "./package.json" assert { type: "json" };
 export interface R2FridaPlugin {
-    version: string,
-    commandHandler: any,
-    pluginRegister: any,
-    pluginUnregister: any,
-    pluginList: any,
-    hookedRead: any,
-    hookedWrite: any,
-    hookedRanges: any,
-    hookedScan: any,
-    offset: string,
-    logs: string[],
-    hostCmd: any,
-    hostCmds: any,
-    hostCmdj: any,
-    cmd: any,
-    log: any,
-    emit: any,
-    module: string,
-    puts: PutsFunction | null,
+    version: string;
+    commandHandler: any;
+    pluginRegister: any;
+    pluginUnregister: any;
+    pluginList: any;
+    hookedRead: any;
+    hookedWrite: any;
+    hookedRanges: any;
+    hookedScan: any;
+    offset: string;
+    logs: string[];
+    hostCmd: any;
+    hostCmds: any;
+    hostCmdj: any;
+    cmd: any;
+    log: any;
+    emit: any;
+    module: string;
+    puts: PutsFunction | null;
 }
 
 export const r2frida: R2FridaPlugin = {

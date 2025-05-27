@@ -1,59 +1,59 @@
 import { toByteArray } from "./base64.js";
 import path from "path";
-import { sym, _readlink, _fstat, _dup2, _close } from "./sys.js";
+import { _close, _dup2, _fstat, _readlink, sym } from "./sys.js";
 import { getGlobalExportByName } from "./utils.js";
-import { isiOS, IOSPathTransform } from "./darwin/index.js";
+import { IOSPathTransform, isiOS } from "./darwin/index.js";
 
-function normalize(x: string) : string {
+function normalize(x: string): string {
     /* no-op */
     return x;
 }
 
 const { platform, pointerSize } = Process;
 let fs: any | null = null;
-let Gcwd = '/';
+let Gcwd = "/";
 const direntSpecs = {
-    'linux-32': {
-        d_name: [11, 'Utf8String'],
-        d_type: [10, 'U8']
+    "linux-32": {
+        d_name: [11, "Utf8String"],
+        d_type: [10, "U8"],
     },
-    'linux-64': {
-        d_name: [19, 'Utf8String'],
-        d_type: [18, 'U8']
+    "linux-64": {
+        d_name: [19, "Utf8String"],
+        d_type: [18, "U8"],
     },
-    'darwin-32': {
-        d_name: [21, 'Utf8String'],
-        d_type: [20, 'U8']
+    "darwin-32": {
+        d_name: [21, "Utf8String"],
+        d_type: [20, "U8"],
     },
-    'darwin-64': {
+    "darwin-64": {
         d_name: [
-            [8, 'Utf8String'],
-            [21, 'Utf8String']
+            [8, "Utf8String"],
+            [21, "Utf8String"],
         ],
         d_type: [
-            [6, 'U8'],
-            [20, 'U8']
-        ]
-    }
+            [6, "U8"],
+            [20, "U8"],
+        ],
+    },
 };
 const statSpecs = {
-    'linux-32': {
-        size: [44, 'S32']
+    "linux-32": {
+        size: [44, "S32"],
     },
-    'linux-64': {
-        size: [48, 'S64']
+    "linux-64": {
+        size: [48, "S64"],
     },
-    'darwin-32': {
-        size: [60, 'S64']
+    "darwin-32": {
+        size: [60, "S64"],
     },
-    'darwin-64': {
-        size: [96, 'S64']
-    }
+    "darwin-64": {
+        size: [96, "S64"],
+    },
 };
 const statxSpecs = {
-    'linux-64': {
-        size: [40, 'S64']
-    }
+    "linux-64": {
+        size: [40, "S64"],
+    },
 };
 const STATX_SIZE = 0x200;
 let has64BitInode: boolean | null = null;
@@ -66,11 +66,11 @@ export function fsList(args: string[]) {
 }
 
 export function fsGet(args: string[]) {
-    return _cat(args[0] || '', '*', +args[1] || 0, +args[2] || 0);
+    return _cat(args[0] || "", "*", +args[1] || 0, +args[2] || 0);
 }
 
 export function fsCat(args: string[]) {
-    return _cat(args[0] || '');
+    return _cat(args[0] || "");
 }
 
 export function fsOpen(args: string[]) {
@@ -78,21 +78,21 @@ export function fsOpen(args: string[]) {
 }
 
 export function chDir(args: string[]) {
-    const _chdir = sym('chdir', 'int', ['pointer']);
+    const _chdir = sym("chdir", "int", ["pointer"]);
     if (_chdir && args.length > 0) {
         const arg = Memory.allocUtf8String(args[0]);
         _chdir(arg);
         getCwd(); // update Gcwd
     }
-    return '';
+    return "";
 }
 
 export function getCwd(): string {
     let _getcwd: any | null = null;
     if (Process.platform === "windows") {
-        _getcwd = sym('_getcwd', 'pointer', ['pointer', 'int']);
+        _getcwd = sym("_getcwd", "pointer", ["pointer", "int"]);
     } else {
-        _getcwd = sym('getcwd', 'pointer', ['pointer', 'int']);
+        _getcwd = sym("getcwd", "pointer", ["pointer", "int"]);
     }
     if (_getcwd) {
         const PATH_MAX = 4096;
@@ -104,7 +104,7 @@ export function getCwd(): string {
             return str;
         }
     }
-    return '';
+    return "";
 }
 
 export function _ls(srcPath: string) {
@@ -114,7 +114,12 @@ export function _ls(srcPath: string) {
     return fs.ls(_debase(srcPath));
 }
 
-export function _cat(srcPath: string, mode?: string, offset?: number, size?: number) {
+export function _cat(
+    srcPath: string,
+    mode?: string,
+    offset?: number,
+    size?: number,
+) {
     if (fs === null) {
         fs = new FridaFS();
     }
@@ -149,7 +154,7 @@ export class FridaFS {
     constructor() {
         this._api = null;
         this._entryTypes = null;
-        this._excludeSet = new Set(['.', '..']);
+        this._excludeSet = new Set([".", ".."]);
         this._transform = null;
     }
 
@@ -165,13 +170,17 @@ export class FridaFS {
             const resultPtr = Memory.alloc(Process.pointerSize);
             const dir = this.api.opendir(actualPath);
             if (dir === null) {
-                return '';
+                return "";
             }
             let entry;
-            while ((entry = this.api.readdir(dir, entryBuf, resultPtr)) !== null) {
+            while (
+                (entry = this.api.readdir(dir, entryBuf, resultPtr)) !== null
+            ) {
                 if (!this._excludeSet.has(entry.name)) {
                     // result.push(`${this._getEntryType(entry.type)} ${entry.name}`);
-                    result.push([this._getEntryType(entry.type), entry.name].join(' '));
+                    result.push(
+                        [this._getEntryType(entry.type), entry.name].join(" "),
+                    );
                 }
             }
             this.api.closedir(dir);
@@ -181,7 +190,7 @@ export class FridaFS {
                 result.push(`d ${entry.name}`);
             }
         }
-        return result.join('\n');
+        return result.join("\n");
     }
 
     cat(srcPath: string, mode: string, offset: number, size: number) {
@@ -190,25 +199,27 @@ export class FridaFS {
             const fileSize = this.api.getFileSize(actualPath);
             if (fileSize < 0) {
                 console.log(`ERROR: cannot stat ${actualPath}`);
-                return '';
+                return "";
             }
             size = (size === null) ? fileSize : size;
             if (size < 0) {
                 console.log(`ERROR: invalid size ${size}`);
-                return '';
+                return "";
             }
             let weak = false;
             if (size === 0) {
-                console.log('weak');
+                console.log("weak");
                 weak = true;
                 size = 1024 * 32;
             }
             if (size > 1024 * 4096) {
-                console.log('ERROR: file chunk is too big. (' + size + ' bytes)');
-                return '';
+                console.log(
+                    "ERROR: file chunk is too big. (" + size + " bytes)",
+                );
+                return "";
             }
             const buf = Memory.alloc(size);
-            const f = this.api.fopen(actualPath, 'rb');
+            const f = this.api.fopen(actualPath, "rb");
             if (offset > 0) {
                 this.api.fseek(f, offset, 0);
             }
@@ -216,14 +227,14 @@ export class FridaFS {
             if (!weak && res !== size) {
                 console.log(`ERROR: reading ${actualPath} ${res} vs ${size}`);
                 this.api.fclose(f);
-                return '';
+                return "";
             }
             this.api.fclose(f);
-            const format = (mode === '*') ? 'hex' : 'utf8';
+            const format = (mode === "*") ? "hex" : "utf8";
             return encodeBuf(buf, size, format);
         }
-        console.log('ERROR: no path ' + srcPath);
-        return '';
+        console.log("ERROR: no path " + srcPath);
+        return "";
     }
 
     open(srcPath: string): string {
@@ -232,11 +243,11 @@ export class FridaFS {
             const size = this.api.getFileSize(actualPath);
             if (size < 0) {
                 console.log(`ERROR: cannot stat ${actualPath}`);
-                return '';
+                return "";
             }
             return `${size}`;
         }
-        return '';
+        return "";
     }
 
     transformVirtualPath(srcPath: string): string {
@@ -275,20 +286,20 @@ export class FridaFS {
     _getEntryType(entry: string) {
         if (this._entryTypes === null) {
             this._entryTypes = {
-                0: '?',
-                1: 'p',
-                2: 'c',
-                4: 'd',
-                6: 'b',
-                8: 'f',
-                10: 'l',
-                12: 's',
-                14: 'w' // DT_WHT - (W)hat the (H)ell is (T)his
+                0: "?",
+                1: "p",
+                2: "c",
+                4: "d",
+                6: "b",
+                8: "f",
+                10: "l",
+                12: "s",
+                14: "w", // DT_WHT - (W)hat the (H)ell is (T)his
             };
         }
         const result = this._entryTypes[entry];
         if (result === undefined) {
-            return '?';
+            return "?";
         }
         return result;
     }
@@ -302,7 +313,7 @@ export class PathTransform {
         this._mappedPrefixes = [];
     }
 
-    toActual(virtualPath: string) : string | null {
+    toActual(virtualPath: string): string | null {
         for (const vPrefix of this._mappedPrefixes) {
             if (virtualPath.indexOf(vPrefix) === 0) {
                 const replacement = this._virtualDirs[vPrefix];
@@ -356,29 +367,68 @@ export class PosixFSApi {
 
     get api() {
         if (this._api === null) {
-            const exports = resolveExports(['opendir', 'readdir_r', 'closedir', 'fopen', 'fclose', 'fread', 'fseek']);
-            const available = Object.keys(exports).filter(name => exports[name] === null).length === 0;
+            const exports = resolveExports([
+                "opendir",
+                "readdir_r",
+                "closedir",
+                "fopen",
+                "fclose",
+                "fread",
+                "fseek",
+            ]);
+            const available = Object.keys(exports).filter((name) =>
+                exports[name] === null
+            ).length === 0;
             if (!available) {
-                throw new Error('ERROR: is this a POSIX system?');
+                throw new Error("ERROR: is this a POSIX system?");
             }
             this._api = {
-                opendir: new NativeFunction(exports.opendir, 'pointer', ['pointer']),
-                readdir: new NativeFunction(exports.readdir_r, 'int', ['pointer', 'pointer', 'pointer']),
-                closedir: new NativeFunction(exports.closedir, 'int', ['pointer']),
-                fopen: new NativeFunction(exports.fopen, 'pointer', ['pointer', 'pointer']),
-                fclose: new NativeFunction(exports.fclose, 'int', ['pointer']),
-                fread: new NativeFunction(exports.fread, 'int', ['pointer', 'int', 'int', 'pointer']),
-                fseek: new NativeFunction(exports.fseek, 'int', ['pointer', 'int', 'int']),
+                opendir: new NativeFunction(exports.opendir, "pointer", [
+                    "pointer",
+                ]),
+                readdir: new NativeFunction(exports.readdir_r, "int", [
+                    "pointer",
+                    "pointer",
+                    "pointer",
+                ]),
+                closedir: new NativeFunction(exports.closedir, "int", [
+                    "pointer",
+                ]),
+                fopen: new NativeFunction(exports.fopen, "pointer", [
+                    "pointer",
+                    "pointer",
+                ]),
+                fclose: new NativeFunction(exports.fclose, "int", ["pointer"]),
+                fread: new NativeFunction(exports.fread, "int", [
+                    "pointer",
+                    "int",
+                    "int",
+                    "pointer",
+                ]),
+                fseek: new NativeFunction(exports.fseek, "int", [
+                    "pointer",
+                    "int",
+                    "int",
+                ]),
                 stat: null,
-                statx: null
+                statx: null,
             };
-            const stats = resolveExports(['stat', 'stat64', 'statx']);
+            const stats = resolveExports(["stat", "stat64", "statx"]);
             const stat = stats.stat64 || stats.stat;
             const { statx } = stats;
             if (stat !== null) {
-                this._api.stat = new NativeFunction(stat, 'int', ['pointer', 'pointer']);
+                this._api.stat = new NativeFunction(stat, "int", [
+                    "pointer",
+                    "pointer",
+                ]);
             } else if (statx !== null) {
-                this._api.statx = new NativeFunction(statx, 'int', ['int', 'pointer', 'int', 'int', 'pointer']);
+                this._api.statx = new NativeFunction(statx, "int", [
+                    "int",
+                    "pointer",
+                    "int",
+                    "int",
+                    "pointer",
+                ]);
             }
         }
         return this._api;
@@ -406,7 +456,10 @@ export class PosixFSApi {
     }
 
     fopen(srcPath: string, mode: string) {
-        return this.api.fopen(Memory.allocUtf8String(srcPath), Memory.allocUtf8String(mode));
+        return this.api.fopen(
+            Memory.allocUtf8String(srcPath),
+            Memory.allocUtf8String(mode),
+        );
     }
 
     fclose(f: any) {
@@ -429,13 +482,13 @@ export class PosixFSApi {
             if (res === -1) {
                 return -1;
             }
-            return readStatField(statPtr, 'size');
+            return readStatField(statPtr, "size");
         } else if (this.api.statx) {
             const res = this.api.statx(0, pathStr, 0, STATX_SIZE, statPtr);
             if (res === -1) {
                 return -1;
             }
-            return readStatxField(statPtr, 'size');
+            return readStatxField(statPtr, "size");
         }
     }
 }
@@ -444,14 +497,14 @@ class DirEnt {
     type: any;
     name: any;
     constructor(dirEntPtr: any) {
-        this.type = readDirentField(dirEntPtr, 'd_type');
-        this.name = readDirentField(dirEntPtr, 'd_name');
+        this.type = readDirentField(dirEntPtr, "d_type");
+        this.name = readDirentField(dirEntPtr, "d_name");
     }
 }
 
 function readDirentField(entry: any, name: string) {
     let spec = direntSpec[name];
-    if (platform === 'darwin') {
+    if (platform === "darwin") {
         if (direntHas64BitInode(entry)) {
             spec = spec[1];
         } else {
@@ -459,7 +512,9 @@ function readDirentField(entry: any, name: string) {
         }
     }
     const [offset, type] = spec;
-    const read = (typeof type === 'string') ? (Memory as any)['read' + type] : type;
+    const read = (typeof type === "string")
+        ? (Memory as any)["read" + type]
+        : type;
     const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
@@ -473,7 +528,9 @@ function readStatField(entry: NativePointer, name: string) {
         return undefined;
     }
     const [offset, type] = field;
-    const read = (typeof type === 'string') ? (Memory as any)['read' + type] : type;
+    const read = (typeof type === "string")
+        ? (Memory as any)["read" + type]
+        : type;
     const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
@@ -487,7 +544,9 @@ function readStatxField(entry: any, name: string) {
         return undefined;
     }
     const [offset, type] = field;
-    const read = (typeof type === 'string') ? (Memory as any)[('read' + type)] : type;
+    const read = (typeof type === "string")
+        ? (Memory as any)["read" + type]
+        : type;
     const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
@@ -534,7 +593,7 @@ export function nsArrayMap(array: any, callback: any): any[] {
 }
 
 export function encodeBuf(buf: NativePointer, size: number, encoding: string) {
-    if (encoding !== 'hex') {
+    if (encoding !== "hex") {
         return buf.readCString();
     }
     const result = [];
@@ -547,24 +606,24 @@ export function encodeBuf(buf: NativePointer, size: number, encoding: string) {
             result.push(valHex);
         }
     }
-    return result.join('');
+    return result.join("");
 }
 
 export function listFileDescriptors(args: string[]) {
     return listFileDescriptorsJson(args).map(([fd, name]: [any, any]) => {
-        return fd + ' ' + name;
-    }).join('\n');
+        return fd + " " + name;
+    }).join("\n");
 }
 
 export function listFileDescriptorsJson(args: string[]) {
     const PATH_MAX = 4096;
     function getFdName(fd: any) {
-        if (_readlink && Process.platform === 'linux') {
-            const fdPath = path.join('proc', '' + Process.id, 'fd', '' + fd);
+        if (_readlink && Process.platform === "linux") {
+            const fdPath = path.join("proc", "" + Process.id, "fd", "" + fd);
             const buffer = Memory.alloc(PATH_MAX);
             const source = Memory.alloc(PATH_MAX);
             source.writeUtf8String(fdPath);
-            buffer.writeUtf8String('');
+            buffer.writeUtf8String("");
             if (_readlink(source, buffer, PATH_MAX) !== -1) {
                 return buffer.readUtf8String();
             }
@@ -574,12 +633,16 @@ export function listFileDescriptorsJson(args: string[]) {
             // TODO: port this to iOS
             const F_GETPATH = 50; // on macOS
             const buffer = Memory.alloc(PATH_MAX);
-            const addr = getGlobalExportByName('fcntl');
-            const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
+            const addr = getGlobalExportByName("fcntl");
+            const fcntl = new NativeFunction(addr, "int", [
+                "int",
+                "int",
+                "pointer",
+            ]);
             fcntl(fd, F_GETPATH, buffer);
             return buffer.readCString();
         } catch (e) {
-            return '';
+            return "";
         }
     }
     if (args.length === 0) {
@@ -601,7 +664,7 @@ export function listFileDescriptorsJson(args: string[]) {
 
 export function closeFileDescriptors(args: string[]) {
     if (args.length === 0) {
-        return 'Please, provide a file descriptor';
+        return "Please, provide a file descriptor";
     }
     if (_close === null) {
         return "_close is null";
@@ -610,7 +673,7 @@ export function closeFileDescriptors(args: string[]) {
 }
 
 function _debase(a: any) {
-    if (a.startsWith('base64:')) {
+    if (a.startsWith("base64:")) {
         try {
             const data = toByteArray(a.slice(7));
             a = String.fromCharCode.apply(null, data as any);

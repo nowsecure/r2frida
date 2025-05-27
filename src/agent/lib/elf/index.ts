@@ -1,16 +1,27 @@
-import * as utils from '../utils.js';
-import { dynamicEntries, dynamicTags, ELF_HEADER, EM_AARCH64, EM_X86_64 } from './elf_h.js';
+import * as utils from "../utils.js";
+import {
+    dynamicEntries,
+    dynamicTags,
+    ELF_HEADER,
+    EM_AARCH64,
+    EM_X86_64,
+} from "./elf_h.js";
 
 class Section {
     name: string;
     vmaddr: NativePointer;
     vmsize: string | number;
     perm: string;
-    constructor(name: string, vmaddr: NativePointer, vmsize: number, perm: string) {
+    constructor(
+        name: string,
+        vmaddr: NativePointer,
+        vmsize: number,
+        perm: string,
+    ) {
         this.name = name;
         this.vmaddr = vmaddr;
         this.vmsize = `0x${vmsize.toString(16)}`;
-        this.perm = perm !== null ? perm : '---';
+        this.perm = perm !== null ? perm : "---";
     }
 }
 
@@ -19,7 +30,12 @@ function listElfSegments(baseAddr: NativePointer) {
         throw new Error(`Not a valid ELF module found at ${baseAddr}`);
     }
     const elfHeader = parseElfHeader(baseAddr);
-    return parseSegmentHeaders(baseAddr, elfHeader.phOff, elfHeader.phentSize, elfHeader.phNum);
+    return parseSegmentHeaders(
+        baseAddr,
+        elfHeader.phOff,
+        elfHeader.phentSize,
+        elfHeader.phNum,
+    );
 }
 
 function listElfSections(baseAddr: NativePointer) {
@@ -27,16 +43,26 @@ function listElfSections(baseAddr: NativePointer) {
         throw new Error(`Not a valid ELF module found at ${baseAddr}`);
     }
     const elfHeader = parseElfHeader(baseAddr);
-    const segments = parseSegmentHeaders(baseAddr, elfHeader.phOff, elfHeader.phentSize, elfHeader.phNum);
+    const segments = parseSegmentHeaders(
+        baseAddr,
+        elfHeader.phOff,
+        elfHeader.phentSize,
+        elfHeader.phNum,
+    );
     for (const segment of segments) {
         if (segment.name === "PT_DYNAMIC") {
-            return parseSectionHeaders(baseAddr, segment.vmaddr, segment.vmsize, segments);
+            return parseSectionHeaders(
+                baseAddr,
+                segment.vmaddr,
+                segment.vmsize,
+                segments,
+            );
         }
     }
     return [];
 }
 
-function _isElfHeaderAtOffset(offset: NativePointer) : boolean {
+function _isElfHeaderAtOffset(offset: NativePointer): boolean {
     const cursor = utils.trunc4k(offset);
     if (cursor.readU32() === ELF_HEADER) {
         return true;
@@ -44,17 +70,24 @@ function _isElfHeaderAtOffset(offset: NativePointer) : boolean {
     return false;
 }
 
-function parseSectionHeaders(baseAddr: NativePointer, PTDynamicAddr: NativePointer, PTDynamicSize: any, segments: any) {
+function parseSectionHeaders(
+    baseAddr: NativePointer,
+    PTDynamicAddr: NativePointer,
+    PTDynamicSize: any,
+    segments: any,
+) {
     let cursor = PTDynamicAddr;
     const sections = [];
 
     while (cursor < PTDynamicAddr.add(PTDynamicSize)) {
         const dTag = cursor.readU64().toNumber();
         if (dynamicEntries[dTag] !== undefined) {
-            if (dynamicEntries[dTag].type === 'val') {
+            if (dynamicEntries[dTag].type === "val") {
                 dynamicEntries[dTag].value = cursor.add(8).readU64();
             } else {
-                dynamicEntries[dTag].value = baseAddr.add(cursor.add(8).readPointer());
+                dynamicEntries[dTag].value = baseAddr.add(
+                    cursor.add(8).readPointer(),
+                );
             }
         }
         cursor = cursor.add(16);
@@ -65,77 +98,137 @@ function parseSectionHeaders(baseAddr: NativePointer, PTDynamicAddr: NativePoint
     if (hashTablePtr) {
         const nbucket = hashTablePtr.readU32();
         nchain = hashTablePtr.add(4).readU32();
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_HASH].name,
-            hashTablePtr,
-            (nbucket * 4) + (nchain * 4) + 8,
-            JSON.stringify(utils.belongsTo(segments, hashTablePtr).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_HASH].name,
+                hashTablePtr,
+                (nbucket * 4) + (nchain * 4) + 8,
+                JSON.stringify(
+                    utils.belongsTo(segments, hashTablePtr).map((x: any) =>
+                        x.perm
+                    ),
+                ),
+            ),
+        );
     }
     // STRTAB Section
-    sections.push(new Section(
-        dynamicEntries[dynamicTags.DT_STRTAB].name,
-        dynamicEntries[dynamicTags.DT_STRTAB].value,
-        dynamicEntries[dynamicTags.DT_STRSZ].value,
-        JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_STRTAB].value).map((x:any) => x.perm))
-    ));
+    sections.push(
+        new Section(
+            dynamicEntries[dynamicTags.DT_STRTAB].name,
+            dynamicEntries[dynamicTags.DT_STRTAB].value,
+            dynamicEntries[dynamicTags.DT_STRSZ].value,
+            JSON.stringify(
+                utils.belongsTo(
+                    segments,
+                    dynamicEntries[dynamicTags.DT_STRTAB].value,
+                ).map((x: any) => x.perm),
+            ),
+        ),
+    );
     // DYNSYM Section
     const symTabSize = nchain * dynamicEntries[dynamicTags.DT_SYMENT].value;
-    sections.push(new Section(
-        dynamicEntries[dynamicTags.DT_SYMTAB].name,
-        dynamicEntries[dynamicTags.DT_SYMTAB].value,
-        symTabSize,
-        JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_SYMTAB].value).map((x:any) => x.perm))
-    ));
+    sections.push(
+        new Section(
+            dynamicEntries[dynamicTags.DT_SYMTAB].name,
+            dynamicEntries[dynamicTags.DT_SYMTAB].value,
+            symTabSize,
+            JSON.stringify(
+                utils.belongsTo(
+                    segments,
+                    dynamicEntries[dynamicTags.DT_SYMTAB].value,
+                ).map((x: any) => x.perm),
+            ),
+        ),
+    );
     // DT_PREINIT_ARRAY Section (Optional)
     if (dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value !== null) {
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].name,
-            dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
-            dynamicEntries[dynamicTags.DT_PREINIT_ARRAYSZ].value,
-            JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].name,
+                dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
+                dynamicEntries[dynamicTags.DT_PREINIT_ARRAYSZ].value,
+                JSON.stringify(
+                    utils.belongsTo(
+                        segments,
+                        dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
+                    ).map((x: any) => x.perm),
+                ),
+            ),
+        );
     }
     // DT_INIT_ARRAY Section (Optional)
     if (dynamicEntries[dynamicTags.DT_INIT_ARRAY].value !== null) {
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_INIT_ARRAY].name,
-            dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
-            dynamicEntries[dynamicTags.DT_INIT_ARRAYSZ].value,
-            JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_INIT_ARRAY].value).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_INIT_ARRAY].name,
+                dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
+                dynamicEntries[dynamicTags.DT_INIT_ARRAYSZ].value,
+                JSON.stringify(
+                    utils.belongsTo(
+                        segments,
+                        dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
+                    ).map((x: any) => x.perm),
+                ),
+            ),
+        );
     }
     // DT_FINI_ARRAY Section (Optional)
     if (dynamicEntries[dynamicTags.DT_FINI_ARRAY].value !== null) {
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_FINI_ARRAY].name,
-            dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
-            dynamicEntries[dynamicTags.DT_FINI_ARRAYSZ].value,
-            JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_FINI_ARRAY].value).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_FINI_ARRAY].name,
+                dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
+                dynamicEntries[dynamicTags.DT_FINI_ARRAYSZ].value,
+                JSON.stringify(
+                    utils.belongsTo(
+                        segments,
+                        dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
+                    ).map((x: any) => x.perm),
+                ),
+            ),
+        );
     }
     // DT_REL Section (Optional)
     if (dynamicEntries[dynamicTags.DT_REL].value !== null) {
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_REL].name,
-            dynamicEntries[dynamicTags.DT_REL].value,
-            dynamicEntries[dynamicTags.DT_RELSZ].value,
-            JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_REL].value).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_REL].name,
+                dynamicEntries[dynamicTags.DT_REL].value,
+                dynamicEntries[dynamicTags.DT_RELSZ].value,
+                JSON.stringify(
+                    utils.belongsTo(
+                        segments,
+                        dynamicEntries[dynamicTags.DT_REL].value,
+                    ).map((x: any) => x.perm),
+                ),
+            ),
+        );
     }
     // DT_RELA Section (Optional)
     if (dynamicEntries[dynamicTags.DT_RELA].value !== null) {
-        sections.push(new Section(
-            dynamicEntries[dynamicTags.DT_RELA].name,
-            dynamicEntries[dynamicTags.DT_RELA].value,
-            dynamicEntries[dynamicTags.DT_RELASZ].value,
-            JSON.stringify(utils.belongsTo(segments, dynamicEntries[dynamicTags.DT_RELA].value).map((x:any) => x.perm))
-        ));
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_RELA].name,
+                dynamicEntries[dynamicTags.DT_RELA].value,
+                dynamicEntries[dynamicTags.DT_RELASZ].value,
+                JSON.stringify(
+                    utils.belongsTo(
+                        segments,
+                        dynamicEntries[dynamicTags.DT_RELA].value,
+                    ).map((x: any) => x.perm),
+                ),
+            ),
+        );
     }
     return sections;
 }
 
-function parseSegmentHeaders(baseAddr: NativePointer, phOffset: number, entrySize: number, entries: number) {
+function parseSegmentHeaders(
+    baseAddr: NativePointer,
+    phOffset: number,
+    entrySize: number,
+    entries: number,
+) {
     let cursor = baseAddr.add(phOffset);
     const segments: any[] = [];
     while (entries-- > 0) {
@@ -146,7 +239,7 @@ function parseSegmentHeaders(baseAddr: NativePointer, phOffset: number, entrySiz
             vmaddr: (cursor.add(0x10).readPointer()).add(baseAddr),
             filesize: cursor.add(0x20).readPointer(),
             vmsize: cursor.add(0x28).readPointer(),
-            align: cursor.add(0x30).readPointer()
+            align: cursor.add(0x30).readPointer(),
         };
         cursor = cursor.add(entrySize);
         if (segment.name !== undefined) {
@@ -156,37 +249,37 @@ function parseSegmentHeaders(baseAddr: NativePointer, phOffset: number, entrySiz
     return segments;
 }
 
-function parseHeaderType(value: number) : string | null {
+function parseHeaderType(value: number): string | null {
     switch (value) {
         case 0:
-            return 'PT_NULL';
+            return "PT_NULL";
         case 1:
-            return 'PT_LOAD';
+            return "PT_LOAD";
         case 2:
-            return 'PT_DYNAMIC';
+            return "PT_DYNAMIC";
         case 3:
-            return 'PT_INTERP';
+            return "PT_INTERP";
         case 4:
-            return 'PT_NOTE';
+            return "PT_NOTE";
         case 5:
-            return 'PT_SHLIB';
+            return "PT_SHLIB";
         case 6:
-            return 'PT_PHDR';
+            return "PT_PHDR";
         case 7:
-            return 'PT_TLS';
+            return "PT_TLS";
         case 0x60000000:
-            return 'PT_LOOS';
+            return "PT_LOOS";
         case 0x6FFFFFFF:
-            return 'PT_HIOS';
+            return "PT_HIOS";
         case 0x70000000:
-            return 'PT_LOPROC';
+            return "PT_LOPROC";
         case 0x7FFFFFFF:
-            return 'PT_HIPROC';
+            return "PT_HIPROC";
     }
     return null;
 }
 
-function parseElfHeader(offset: NativePointer) : any {
+function parseElfHeader(offset: NativePointer): any {
     const header = {
         magic: offset.readU32(),
         class: offset.add(0x4).readU8(),
@@ -204,14 +297,14 @@ function parseElfHeader(offset: NativePointer) : any {
         phNum: offset.add(0x38).readU16(),
         shentSize: offset.add(0x3a).readU16(),
         shNum: offset.add(0x3c).readU16(),
-        shrStrndx: offset.add(0x3e).readU16()
+        shrStrndx: offset.add(0x3e).readU16(),
     };
     switch (header.machine) {
-    case EM_AARCH64:
-    case EM_X86_64:
-        return header;
+        case EM_AARCH64:
+        case EM_X86_64:
+            return header;
     }
-    throw new Error('Only works on 64-bit arm/intel apps');
+    throw new Error("Only works on 64-bit arm/intel apps");
 }
 
 export { listElfSections };

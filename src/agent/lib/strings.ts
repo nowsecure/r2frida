@@ -10,7 +10,7 @@ function parseOptions(options: any) {
         base: new NativePointer(0),
         urls: false,
     };
-    if (typeof options === 'object') {
+    if (typeof options === "object") {
         for (const key of Object.keys(options)) {
             opts[key as keyof any] = options[key];
         }
@@ -20,12 +20,12 @@ function parseOptions(options: any) {
 export default function parseStrings(data: any, options: any) {
     const opt = parseOptions(options);
     const strs: any[] = []; // {base, text}
-    let str = '';
+    let str = "";
     let off = 0;
     let cur = 0;
     data.forEach((ch: number) => {
         if (isPrintable(ch)) {
-            if (str === '') {
+            if (str === "") {
                 cur = off;
             }
             str += String.fromCharCode(ch);
@@ -42,7 +42,7 @@ export default function parseStrings(data: any, options: any) {
                     strs.push({ base: opt.base.add(cur), text: str });
                 }
             }
-            str = '';
+            str = "";
         }
         off++;
     });
@@ -50,13 +50,13 @@ export default function parseStrings(data: any, options: any) {
 }
 
 function isValidString(s: string) {
-    if (s.indexOf('://') !== -1) {
+    if (s.indexOf("://") !== -1) {
         return false;
     }
     if (+s) {
         return false;
     }
-    const invalidChars = '<\\)?@)>{~}^()=/!-"*:]%\';` $';
+    const invalidChars = "<\\)?@)>{~}^()=/!-\"*:]%';` $";
     for (const ic of invalidChars) {
         if (s.indexOf(ic) !== -1) {
             return false;
@@ -66,10 +66,10 @@ function isValidString(s: string) {
 }
 
 function isValidURL(s: string) {
-    if (s.indexOf('://') === -1) {
+    if (s.indexOf("://") === -1) {
         return false;
     }
-    const invalidChars = '<\\)?)>{~}^()=!-"*]\'` $';
+    const invalidChars = "<\\)?)>{~}^()=!-\"*]'` $";
     for (const ic of invalidChars) {
         if (s.indexOf(ic) !== -1) {
             return false;

@@ -1,8 +1,8 @@
-import { ObjCAvailable } from '../darwin/index.js';
-import { JavaAvailable, listJavaClassesJson } from '../java/index.js';
-import { getPackageName } from '../java/android.js';
-import { searchInstancesJson } from '../search.js';
-import { padPointer } from '../utils.js';
+import { ObjCAvailable } from "../darwin/index.js";
+import { JavaAvailable, listJavaClassesJson } from "../java/index.js";
+import { getPackageName } from "../java/android.js";
+import { searchInstancesJson } from "../search.js";
+import { padPointer } from "../utils.js";
 import { r2frida } from "../../plugin.js";
 import ObjC from "frida-objc-bridge";
 import Java from "frida-java-bridge";
@@ -18,25 +18,25 @@ export function listClassesLoadedJson(args: string[]) {
 
 export function listClassesLoaders(args: string[]) {
     if (!JavaAvailable) {
-        return 'Error: icL is only available on Android targets.';
+        return "Error: icL is only available on Android targets.";
     }
-    let res = '';
+    let res = "";
     Java.perform(function () {
         function s2o(s: any) {
             let indent = 0;
-            let res = '';
+            let res = "";
             for (const ch of s.toString()) {
                 switch (ch) {
-                    case '[':
+                    case "[":
                         indent++;
-                        res += '[\n' + Array(indent + 1).join(' ');
+                        res += "[\n" + Array(indent + 1).join(" ");
                         break;
-                    case ']':
+                    case "]":
                         indent--;
-                        res += ']\n' + Array(indent + 1).join(' ');
+                        res += "]\n" + Array(indent + 1).join(" ");
                         break;
-                    case ',':
-                        res += ',\n' + Array(indent + 1).join(' ');
+                    case ",":
+                        res += ",\n" + Array(indent + 1).join(" ");
                         break;
                     default:
                         res += ch;
@@ -64,19 +64,19 @@ export function listClassesLoaded(args: string[]) {
         for (const module of Object.keys(results)) {
             loadedClasses.push(...results[module]);
         }
-        return loadedClasses.join('\n');
+        return loadedClasses.join("\n");
     }
     return [];
 }
 
 // only for java
 export function listAllClassesNatives(args: string[]) {
-    return listClassesNatives(['.']);
+    return listClassesNatives(["."]);
 }
 
 export function listClassesNatives(args: string[]) {
     const natives: any[] = [];
-    const vkn = args[0] || 'com';
+    const vkn = args[0] || "com";
     Java.perform(function () {
         const klasses = listClassesJson();
         for (let kn of klasses) {
@@ -86,22 +86,24 @@ export function listClassesNatives(args: string[]) {
                 continue;
             }
             try {
-                const handle : any = Java.use(kn);
+                const handle: any = Java.use(kn);
                 const klass = handle.class;
-                const klassNatives = klass.getMethods().map((_: any) => _.toString()).filter((_: any) => _.indexOf('static native') !== -1);
+                const klassNatives = klass.getMethods().map((_: any) =>
+                    _.toString()
+                ).filter((_: any) => _.indexOf("static native") !== -1);
                 if (klassNatives.length > 0) {
                     const kns = klassNatives.map((n: any) => {
-                        const p = n.indexOf('(');
-                        let sn = '';
+                        const p = n.indexOf("(");
+                        let sn = "";
                         if (p !== -1) {
                             const s = n.substring(0, p);
-                            const w = s.split(' ');
+                            const w = s.split(" ");
                             sn = w[w.length - 1];
                             return sn;
                         }
                         return n; // { name: sn, fullname: n };
                     });
-                    console.error(kns.join('\n'));
+                    console.error(kns.join("\n"));
                     for (const tkn of kns) {
                         if (natives.indexOf(tkn) === -1) {
                             natives.push(tkn);
@@ -116,60 +118,66 @@ export function listClassesNatives(args: string[]) {
 }
 
 export function listClassesAllMethods(args: string[]) {
-    return listClassesJson(args, 'all').join('\n');
+    return listClassesJson(args, "all").join("\n");
 }
 
 export function listClassSuperMethods(args: string[]) {
-    return listClassesJson(args, 'super').join('\n');
+    return listClassesJson(args, "super").join("\n");
 }
 
 export function listClassVariables(args: string[]) {
-    return listClassesJson(args, 'ivars').join('\n');
+    return listClassesJson(args, "ivars").join("\n");
 }
 
 export function listClassesHooks(args: string[], mode: string) {
     if (!ObjCAvailable) {
-        return 'ich only available on Objective-C environments.';
+        return "ich only available on Objective-C environments.";
     }
     if (args.length === 0) {
-        return 'Usage: :ich [className|moduleName]';
+        return "Usage: :ich [className|moduleName]";
     }
-    const moduleNames : any = {};
+    const moduleNames: any = {};
     const result = listClassesJson([]);
     if (ObjCAvailable) {
         for (const k of result) {
             moduleNames[k] = ObjC.classes[k].$moduleName;
         }
     }
-    let out = '';
+    let out = "";
     for (const klassname of result) {
         const modName = moduleNames[klassname];
-        if (klassname.indexOf(args[0]) !== -1 || (modName && modName.indexOf(args[0]) !== -1)) {
+        if (
+            klassname.indexOf(args[0]) !== -1 ||
+            (modName && modName.indexOf(args[0]) !== -1)
+        ) {
             const klass = ObjC.classes[klassname];
             if (klass) {
                 for (const methodName of klass.$ownMethods) {
                     // TODO: use instance.argumentTypes to generate the 'OOO'
-                    const normalizeMethodName = _normalizeToFridaMethod(methodName);
+                    const normalizeMethodName = _normalizeToFridaMethod(
+                        methodName,
+                    );
                     const method = klass[methodName];
                     if (method !== undefined) {
-                        let format = '';
+                        let format = "";
                         for (const arg of method.argumentTypes) {
                             switch (arg) {
-                                case 'pointer': // We return an hex pointer until a good type information is exposed by frida-objc-bridge
-                                    format += 'x';
+                                case "pointer": // We return an hex pointer until a good type information is exposed by frida-objc-bridge
+                                    format += "x";
                                     break;
-                                case 'uint64':
-                                    format += 'i';
+                                case "uint64":
+                                    format += "i";
                                     break;
-                                case 'bool': // TODO: Implement bool formatting at dtf
-                                    format += 'i';
+                                case "bool": // TODO: Implement bool formatting at dtf
+                                    format += "i";
                                     break;
                                 default:
-                                    format += 'x';
+                                    format += "x";
                                     break;
                             }
                         }
-                        out += `:dtf objc:${klassname}.^${normalizeMethodName}$ ${format}\n`;
+                        out +=
+                            `:dtf objc:${klassname}.^${normalizeMethodName}$ ${format}\n`;
                     }
                 }
             }
@@ -179,12 +187,12 @@ export function listClassesHooks(args: string[], mode: string) {
 }
 
 function _normalizeToFridaMethod(methodName: string): string {
-    return methodName.replace('- ', '').replace('+ ', '');
+    return methodName.replace("- ", "").replace("+ ", "");
 }
 
 export function listClassesWhere(args: string[], mode: string) {
-    let out = '';
-    const moduleNames : any = {};
+    let out = "";
+    const moduleNames: any = {};
     if (args.length === 0) {
         const result = listClassesJson([]);
         if (ObjCAvailable) {
@@ -195,7 +203,7 @@ export function listClassesWhere(args: string[], mode: string) {
         }
         for (const klass of result) {
             const modName = moduleNames[klass];
-            out += [modName, klass].join(' ') + '\n';
+            out += [modName, klass].join(" ") + "\n";
         }
     } else {
         const result = listClassesJson([]);
@@ -209,42 +217,44 @@ export function listClassesWhere(args: string[], mode: string) {
             const modName = moduleNames[k];
             if (modName && modName.indexOf(args[0]) !== -1) {
                 const ins = searchInstancesJson([k]);
-                const inss = ins.map((x: any) => { return x.address; }).join(' ');
-                out += k + ' # ' + inss + '\n';
-                if (mode === 'ivars') {
+                const inss = ins.map((x: any) => {
+                    return x.address;
+                }).join(" ");
+                out += k + " # " + inss + "\n";
+                if (mode === "ivars") {
                     for (const a of ins) {
-                        out += 'instance ' + padPointer(a.address) + '\n';
+                        out += "instance " + padPointer(a.address) + "\n";
                         const i = new ObjC.Object(a.address);
-                        out += (JSON.stringify(i.$ivars)) + '\n';
+                        out += (JSON.stringify(i.$ivars)) + "\n";
                     }
                 }
             }
         }
     }
-       return out;
+    return out;
 }
 
-export function listClasses(args : string[]) {
+export function listClasses(args: string[]) {
     const result = listClassesJson(args);
     if (result instanceof Array) {
-        return result.join('\n');
+        return result.join("\n");
     }
     return Object.keys(result)
-        .map(methodName => {
+        .map((methodName) => {
             const address = result[methodName];
-            return [padPointer(address), methodName].join(' ');
+            return [padPointer(address), methodName].join(" ");
         })
-        .join('\n');
+        .join("\n");
 }
 
 export function listClassesHere() {
-    return listClassesHereJson().join('\n')
+    return listClassesHereJson().join("\n");
 }
 
 export function listClassesHereJson(): string[] {
     const mmap = new ModuleMap();
     const currMod = mmap.find(ptr(r2frida.offset));
-    const localClasses : string[] = [];
+    const localClasses: string[] = [];
 
     if (JavaAvailable) {
         const packageName = getPackageName();
@@ -252,26 +262,24 @@ export function listClassesHereJson(): string[] {
             return klass.startsWith(packageName);
         });
     }
-    if(ObjCAvailable && currMod) {
+    if (ObjCAvailable && currMod) {
         ObjC.enumerateLoadedClasses({
-            onMatch(name:string, owner:string) {
-                if(owner === currMod.path) {
+            onMatch(name: string, owner: string) {
+                if (owner === currMod.path) {
                     localClasses.push(name);
                 }
             },
             onComplete() {
-
-            }
+            },
         });
     }
     return localClasses;
-
 }
 
 export function listClassesR2(args: string[]) {
     const className = args[0];
-    if (args.length === 0 || args[0].indexOf('*') !== -1) {
-        let methods = '';
+    if (args.length === 0 || args[0].indexOf("*") !== -1) {
+        let methods = "";
         if (ObjCAvailable) {
             for (const cn of Object.keys(ObjC.classes)) {
                 if (_classGlob(cn, args[0])) {
@@ -281,29 +289,31 @@ export function listClassesR2(args: string[]) {
         }
         return methods;
     }
-    const result : any = listClassesJson(args);
+    const result: any = listClassesJson(args);
     return Object.keys(result)
         .map((methodName: string) => {
             const address = result[methodName];
-            return ['f', flagName(methodName), '=', padPointer(address)].join(' ');
+            return ["f", flagName(methodName), "=", padPointer(address)].join(
+                " ",
+            );
         })
-        .join('\n') + '\n';
+        .join("\n") + "\n";
     function flagName(m: string) {
-        return 'sym.objc.' +
-            (className + '.' + m)
-                .replace(':', '')
-                .replace(' ', '')
-                .replace('-', '')
-                .replace('+', '');
+        return "sym.objc." +
+            (className + "." + m)
+                .replace(":", "")
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("+", "");
     }
 }
 
 export function listClassMethods(args: string[]) {
-    return listClassesJson(args, 'methods').join('\n');
+    return listClassesJson(args, "methods").join("\n");
 }
 
 export function listClassMethodsJson(args: string[]) {
-    return listClassesJson(args, 'methods');
+    return listClassesJson(args, "methods");
 }
 
 export function listClassesJson(args?: string[], mode?: string): string[] {
@@ -314,7 +324,7 @@ export function listClassesJson(args?: string[], mode?: string): string[] {
         mode = "";
     }
     if (JavaAvailable) {
-        return listJavaClassesJson(args, mode === 'methods');
+        return listJavaClassesJson(args, mode === "methods");
     }
     if (!ObjCAvailable) {
         return [];
@@ -325,26 +335,26 @@ export function listClassesJson(args?: string[], mode?: string): string[] {
     const klassName = args[0];
     const klass = ObjC.classes[klassName];
     if (klass === undefined) {
-        throw new Error('Class ' + klassName + ' not found');
+        throw new Error("Class " + klassName + " not found");
     }
-    let out = '';
-    if (mode === 'ivars') {
+    let out = "";
+    if (mode === "ivars") {
         const ins = searchInstancesJson([klassName]);
-        out += klassName + ': ';
+        out += klassName + ": ";
         for (const i of ins) {
-            out += 'instance ' + padPointer(i.address) + ': ';
+            out += "instance " + padPointer(i.address) + ": ";
             const ii = new ObjC.Object(i.address);
-            out += JSON.stringify(ii.$ivars, null, '  ');
+            out += JSON.stringify(ii.$ivars, null, "  ");
         }
         return [out];
     }
-    const methods: any[] = (mode === 'methods')
+    const methods: any[] = (mode === "methods")
         ? klass.$ownMethods
-        : (mode === 'super')
-            ? klass.$super.$ownMethods
-            : (mode === 'all')
-                ? klass.$methods
-                : klass.$ownMethods;
+        : (mode === "super")
+        ? klass.$super.$ownMethods
+        : (mode === "all")
+        ? klass.$methods
+        : klass.$ownMethods;
     const getImpl = ObjC.api.method_getImplementation;
     try {
         return methods
@@ -352,7 +362,10 @@ export function listClassesJson(args?: string[], mode?: string): string[] {
                 try {
                     result[methodName] = getImpl(klass[methodName].handle);
                 } catch (e) {
-                    console.error(e, ' in \'' + methodName + '\' of ' + klassName);
+                    console.error(
+                        e,
+                        " in '" + methodName + "' of " + klassName,
+                    );
                 }
                 return result;
             }, {});
@@ -363,7 +376,7 @@ export function listClassesJson(args?: string[], mode?: string): string[] {
 
 export function listProtocols(args: string[]) {
     return listProtocolsJson(args)
-        .join('\n');
+        .join("\n");
 }
 
 export function listProtocolsJson(args: string[]) {
@@ -375,7 +388,7 @@ export function listProtocolsJson(args: string[]) {
     } else {
         const protocol = ObjC.protocols[args[0]];
         if (protocol === undefined) {
-            throw new Error('Protocol not found');
+            throw new Error("Protocol not found");
         }
         return Object.keys(protocol.methods);
     }
@@ -385,5 +398,5 @@ function _classGlob(k: string, v: string) {
     if (!k || !v) {
         return true;
     }
-    return k.indexOf(v.replace(/\*/g, '')) !== -1;
+    return k.indexOf(v.replace(/\*/g, "")) !== -1;
 }
