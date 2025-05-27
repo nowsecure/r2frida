@@ -264,7 +264,7 @@ endif
 endif
 endif
 
-node_modules: package.json
+node_modules:
 	mkdir -p node_modules
 	npm i
 
