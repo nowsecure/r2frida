@@ -1,5 +1,6 @@
 import { SwiftAvailable } from "./darwin/swift.js";
 import { r2frida } from "../plugin.js";
+import ObjC from "frida-objc-bridge";
 
 declare let Swift: any;
 
@@ -257,11 +258,8 @@ export function getPtr(p: any) : NativePointer {
         // console.error(e);
     }
     // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
-    const res = Module.findExportByName(null, p);
-    if (res === null) {
-      return ptr(0);
-    }
-    return res;
+    const res = getGlobalExportByName(p);
+    return (res === null)? ptr(0): res;
 }
 
 export function autoType(args: string[]) {
@@ -289,7 +287,7 @@ export function autoType(args: string[]) {
             nfArgsData.push(+args[i]);
         } else {
             nfArgs.push('pointer');
-            const address = Module.getExportByName(null, args[i]);
+            const address = getGlobalExportByName(args[i]);
             nfArgsData.push(address);
         }
     }
@@ -345,6 +343,11 @@ export function Hexdump(lenstr: number): string {
     } catch (e: any) {
         return "Cannot read memory";
     }
+}
+
+export function getGlobalExportByName(name: string) : any {
+    // Frida16 // return Module.findExportByName(null, name);
+    return Module.findGlobalExportByName(name);
 }
 
 export default {

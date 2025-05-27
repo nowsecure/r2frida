@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2022-2024 - pancake */
+/* radare2 - MIT - Copyright 2022-2025 - pancake */
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -132,7 +132,6 @@ int main(int argc, const char **argv) {
 	if (compression) {
 		frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
 	}
-	//frida_compiler_options_set_project_root (fco, "../src/agent/"); // ".");
 
 	int i;
 	bool stdin_mode = false;
@@ -147,7 +146,7 @@ int main(int argc, const char **argv) {
 			if (!fgets (buf, sizeof (buf), stdin)) {
 				break;
 			}
-			buf[sizeof (buf) -1] = 0;
+			buf[sizeof (buf) - 1] = 0;
 			free (filename);
 			int len = strlen (buf);
 			if (len > 0) {
@@ -167,6 +166,14 @@ int main(int argc, const char **argv) {
 		}
 		if (R_STR_ISNOTEMPTY (proot)) {
 			frida_compiler_options_set_project_root (fco, proot);
+#if 0
+		} else {
+			char *absroot = r_sys_getdir ();
+			if (R_STR_ISNOTEMPTY (absroot)) {
+				frida_compiler_options_set_project_root (fco, absroot);
+			}
+			free (absroot);
+#endif
 		}
 #if 0
 		// eprintf ("DEFAULT PROJECT ROOT %s\n", frida_compiler_options_get_project_root (fco));

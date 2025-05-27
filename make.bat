@@ -1,6 +1,6 @@
 @echo off
 REM setlocal EnableDelayedExpansion
-set frida_version=16.7.19
+set frida_version=17.0.5
 set r2frida_version=5.9.8
 if "%PLATFORM%" == "x64" (set frida_os_arch=x86_64) else (set frida_os_arch=x86)
 set DEBUG=/O2
@@ -76,6 +76,14 @@ REM REM DEL src\_agent.js.hex
 
 REM echo Downloading precompiled agent
 REM powershell -command "iwr -OutFile src\_agent.txt https://github.com/nowsecure/r2frida/releases/download/5.8.0/_agent.js"
+REM
+if not exist node_modules (
+	echo node_modules not found, creating and installing dependencies...
+	mkdir node_modules
+	npm install
+) else (
+	echo node_modules already exists, skipping npm install.
+)
 
 echo Building the agent with r2frida-compile...
 REM echo "powershell -command src/r2frida-compile.exe -Sc -o src/_agent.txt src/agent/index.ts"

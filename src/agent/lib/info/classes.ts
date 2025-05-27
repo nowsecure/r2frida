@@ -4,6 +4,8 @@ import { getPackageName } from '../java/android.js';
 import { searchInstancesJson } from '../search.js';
 import { padPointer } from '../utils.js';
 import { r2frida } from "../../plugin.js";
+import ObjC from "frida-objc-bridge";
+import Java from "frida-java-bridge";
 
 export function listClassesLoadedJson(args: string[]) {
     if (JavaAvailable) {

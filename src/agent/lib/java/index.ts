@@ -1,5 +1,6 @@
 import config from '../../config.js';
 import log from '../../log.js';
+import Java from "frida-java-bridge";
 
 export const JavaAvailable = Java && Java.available;
 

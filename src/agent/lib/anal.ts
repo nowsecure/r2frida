@@ -1,5 +1,6 @@
 import { listClasses } from './info/classes.js';
 import { ObjCAvailable } from './darwin/index.js';
+import ObjC from 'frida-objc-bridge';
 
 enum METHOD_TYPE {
     CLASS,

@@ -24,10 +24,12 @@ import * as swift from './lib/darwin/swift.js';
 import * as trace from './lib/debug/trace.js';
 import * as utils from './lib/utils.js';
 import { search, searchStrings, searchStringsJson, searchHex, searchHexJson, searchInstances, searchInstancesJson, searchJson, searchValue1, searchValue2, searchValue4, searchValue8, searchValueJson1, searchValueJson2, searchValueJson4, searchValueJson8, searchWide, searchWideJson } from './lib/search.js';
+import ObjC from "frida-objc-bridge";
 
 import { r2frida, PutsFunction } from "./plugin.js";
 
-declare let global: any;
+// declare let global: any;
+var global : any = {};
 
 global.r2pipe = {
     open: () => {
@@ -540,7 +542,7 @@ function onStanza(stanza: any, data: any) {
 }
 
 function initializePuts(): PutsFunction | null {
-    const putsAddress = Module.findExportByName(null, 'puts');
+    const putsAddress = utils.getGlobalExportByName('puts');
     if (putsAddress === null) {
         return null;
     }
@@ -586,7 +588,8 @@ global.dump = function (x: any) {
     console.log(JSON.stringify(x, null, 2));
 }
 
-global._setUnhandledExceptionCallback((error: Error) => {
+declare let _setUnhandledExceptionCallback: any;
+_setUnhandledExceptionCallback((error: Error) => {
   const message = {
     type: 'error',
     error: '' + error,
@@ -612,7 +615,10 @@ global._setUnhandledExceptionCallback((error: Error) => {
     const lineNumber = (error as any).lineNumber;
     if (lineNumber !== undefined) {
       message.lineNumber = lineNumber;
-      message.columnNumber = 1;
+    }
+    const columnNumber = (error as any).columnNumber;
+    if (columnNumber !== undefined) {
+      message.columnNumber = columnNumber;
     }
   }
 

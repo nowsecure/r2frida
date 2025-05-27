@@ -10,7 +10,7 @@ let _r_core_free: any | null = null;
 // const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
 
 function sym(name: string, ret: any, arg: any) {
-    return new NativeFunction(Module.findExportByName(null, name)!, ret, arg);
+    return new NativeFunction(Module.findGlobalExportByName(name)!, ret, arg);
 }
 
 function r2nakedSymbols() {

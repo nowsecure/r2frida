@@ -1,6 +1,6 @@
 
 import sys from '../sys.js';
-import { autoType, getPtr, padString, padPointer, byteArrayToHex } from '../utils.js';
+import { autoType, getPtr, padString, padPointer, byteArrayToHex, getGlobalExportByName } from '../utils.js';
 import { currentThreadContext } from "./breakpoints.js";
 
 const regProfileAliasForArm64 = `
@@ -115,7 +115,7 @@ export function dxCall(args: string[]) {
     }
     const address = (args[0].substring(0, 2) === '0x')
         ? ptr(args[0])
-        : Module.getExportByName(null, args[0]);
+        : getGlobalExportByName(args[0]);
     const [nfArgs, nfArgsData] = autoType(args.slice(1));
     const fun = new NativeFunction(address, 'pointer', nfArgs as any);
     /* eslint prefer-spread: 0 */
@@ -357,8 +357,8 @@ function _getThreadName(tid: number) {
     let pthreadGetnameNp: any | null = null;
     let pthreadFromMachThreadNp: any | null = null;
     try {
-        const addr = Module.getExportByName(null, 'pthread_getname_np');
-        const addr2 = Module.getExportByName(null, 'pthread_from_mach_thread_np');
+        const addr = getGlobalExportByName('pthread_getname_np');
+        const addr2 = getGlobalExportByName('pthread_from_mach_thread_np');
         pthreadGetnameNp = new NativeFunction(addr, 'int', ['pointer', 'pointer', 'int']);
         pthreadFromMachThreadNp = new NativeFunction(addr2, 'pointer', ['uint']);
         canGetThreadName = true;

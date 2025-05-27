@@ -1744,7 +1744,7 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			R_LOG_ERROR ("Missing message: %s", message);
 		}
 	} else {
-		R_LOG_ERROR ("Unhandled message: %s", raw_message);
+		R_LOG_ERROR ("Unhandled message type '%s': %s", type, raw_message);
 	}
 
 	json_node_unref (message);

@@ -1,6 +1,7 @@
 import { toByteArray } from "./base64.js";
 import path from "path";
 import { sym, _readlink, _fstat, _dup2, _close } from "./sys.js";
+import { getGlobalExportByName } from "./utils.js";
 import { isiOS, IOSPathTransform } from "./darwin/index.js";
 
 function normalize(x: string) : string {
@@ -507,7 +508,7 @@ export function direntHas64BitInode(dirEntPtr: NativePointer) {
 
 export function resolveExports(names: string[]) {
     return names.reduce((exports: any, name: string) => {
-        exports[name] = Module.findExportByName(null, name);
+        exports[name] = getGlobalExportByName(name);
         return exports;
     }, {});
 }
@@ -573,7 +574,7 @@ export function listFileDescriptorsJson(args: string[]) {
             // TODO: port this to iOS
             const F_GETPATH = 50; // on macOS
             const buffer = Memory.alloc(PATH_MAX);
-            const addr = Module.getExportByName(null, 'fcntl');
+            const addr = getGlobalExportByName('fcntl');
             const fcntl = new NativeFunction(addr, 'int', ['int', 'int', 'pointer']);
             fcntl(fd, F_GETPATH, buffer);
             return buffer.readCString();
