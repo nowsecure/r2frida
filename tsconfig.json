@@ -3,7 +3,7 @@
     "baseUrl": ".",
     "target": "es2020",
     "lib": ["es2020"],
-    "module": "commonjs",
+    "module": "node16",
     "allowJs": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,

@@ -5,6 +5,8 @@ import r2, { r2Config } from './r2.js';
 import { r2frida } from "../plugin.js";
 import { getMemoryRanges, listMallocRangesJson } from './debug/memory.js';
 import { normHexPairs, filterPrintable, toWidePairs, byteArrayToHex, ptrMin, ptrMax, padPointer, toHexPairs, renderEndian, hexPtr } from './utils.js';
+import ObjC from "frida-objc-bridge";
+import Java from "frida-java-bridge";
 
 export function search(args: string[]): string {
     const hits = searchJson(args);

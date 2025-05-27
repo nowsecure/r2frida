@@ -384,11 +384,14 @@ release:
 indent fix: node_modules
 	node_modules/.bin/semistandard --fix src/agent/*.js
 
+fmt:
+	deno fmt --indent-width 4 src/agent
+
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-src/r2frida-compile: src/r2frida-compile.c
+src/r2frida-compile: src/r2frida-compile.c node_modules
 	$(CC) -g src/r2frida-compile.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@

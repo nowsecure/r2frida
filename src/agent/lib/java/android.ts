@@ -1,4 +1,5 @@
 import { javaPerform } from "./index.js";
+import Java from "frida-java-bridge";
 
 export function uiAlert(args: string[]) {
     if (args.length < 2) {

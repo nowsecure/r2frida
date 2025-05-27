@@ -8,10 +8,12 @@ import sys from '../sys.js';
 import { ObjCAvailable, getSections, getSegments, listMachoSections, listMachoSegments } from '../darwin/index.js';
 import { SwiftAvailable } from '../darwin/swift.js';
 import strings from '../strings.js';
-import { belongsTo, padPointer, sanitizeString } from '../utils.js';
+import { belongsTo, padPointer, sanitizeString, getGlobalExportByName } from '../utils.js';
 import { parseMachoHeader, hasMainLoop } from '../darwin/index.js';
 import { r2frida } from "../../plugin.js";
 import { listClassesLoaded } from './classes.js';
+import Java from "frida-java-bridge";
+import ObjC from "frida-objc-bridge";
 
 
 export async function dumpInfo() {
@@ -62,8 +64,8 @@ export async function dumpInfoJson() {
                 const v = id ? id.objectForKey_(k) : '';
                 return v ? v.toString() : '';
             }
-            const NSHomeDirectory = new NativeFunction(Module.getExportByName(null, 'NSHomeDirectory'), 'pointer', []);
-            const NSTemporaryDirectory = new NativeFunction(Module.getExportByName(null, 'NSTemporaryDirectory'), 'pointer', []);
+            const NSHomeDirectory = new NativeFunction(getGlobalExportByName('NSHomeDirectory'), 'pointer', []);
+            const NSTemporaryDirectory = new NativeFunction(getGlobalExportByName('NSTemporaryDirectory'), 'pointer', []);
             const bundleIdentifier = get('CFBundleIdentifier');
             if (bundleIdentifier) {
                 res.bundle = bundleIdentifier;
@@ -244,7 +246,7 @@ export function listEntrypointSymbols(args: string[]): string {
             // Enumerate loaded classes
             const loadedClasses = Java.enumerateLoadedClassesSync();
 
-            loadedClasses.forEach((className) => {
+            loadedClasses.forEach((className: string) => {
                 // Filter classes by package name
                 if (className.startsWith(currentPackage)) {
                     try {

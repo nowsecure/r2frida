@@ -19,13 +19,15 @@
   },
   "devDependencies": {
     "@frida/events": "^4.0.4",
-    "@types/frida-gum": "^18.8.0",
-    "@types/node": "^22.13.10",
+    "@types/frida-gum": "^19.0.0",
+    "@types/node": "^22.15.21",
     "@typescript-eslint/eslint-plugin": "^5.51.0",
     "@typescript-eslint/parser": "^5.51.0",
     "eslint": "^8.34.0",
-    "frida-compile": "^16.2.2",
-    "typescript": "^5.7.2"
+    "frida-compile": "^18.0.0",
+    "frida-java-bridge": "^7.0.1",
+    "frida-objc-bridge": "^8.0.4",
+    "typescript": "^5.8.3"
   },
   "exports": {
     "require": "./src/agent/index.js",

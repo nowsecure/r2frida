@@ -13,7 +13,7 @@ export function disasm(addr: NativePointer, len: number, initialOldName?: string
     }
     if (typeof addr === 'string') {
         try {
-            const newaddr = Module.findExportByName(null, addr);
+            const newaddr = Module.findGlobalExportByName(addr);
             if (newaddr === null) {
                 throw new Error();
             }

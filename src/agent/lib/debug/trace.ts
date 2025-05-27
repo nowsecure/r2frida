@@ -9,6 +9,7 @@ import * as java from '../java/index.js';
 import * as utils from '../utils.js';
 import { fromByteArray } from '../base64.js';
 import { r2frida } from "../../plugin.js";
+import ObjC from "frida-objc-bridge";
 
 const traceListeners: any[] = [];
 const tracehooks: any = {};

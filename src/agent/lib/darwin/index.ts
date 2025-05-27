@@ -1,6 +1,8 @@
-import { padPointer, trunc4k, autoType } from '../utils.js';
+import { getGlobalExportByName, padPointer, trunc4k, autoType } from '../utils.js';
 import { PathTransform, VirtualEnt, flatify, nsArrayMap } from '../fs.js';
 import { listClasses } from '../info/classes.js';
+import ObjC from "frida-objc-bridge";
+import Java from "frida-java-bridge";
 
 const MIN_PTR = ptr('0x100000000');
 const ISA_MASK = ptr('0x0000000ffffffff8');
@@ -116,10 +118,9 @@ export function callObjcMethod(args: string[]): string {
     }
     return '';
 }
-
 export function hasMainLoop(): boolean {
-    const getMainPtr = Module.findExportByName(null, 'CFRunLoopGetMain');
-    const copyCurrentModePtr = Module.findExportByName(null, 'CFRunLoopCopyCurrentMode');
+    const getMainPtr = getGlobalExportByName('CFRunLoopGetMain');
+    const copyCurrentModePtr = getGlobalExportByName('CFRunLoopCopyCurrentMode');
     if (getMainPtr === null || copyCurrentModePtr === null) {
         return false;
     }
@@ -354,11 +355,11 @@ export class IOSPathTransform extends PathTransform {
                 NSAutoreleasePool: ObjC.classes.NSAutoreleasePool,
                 NSBundle: ObjC.classes.NSBundle,
                 NSFileManager: ObjC.classes.NSFileManager,
-                NSHomeDirectory: new NativeFunction(Module.findExportByName(null, 'NSHomeDirectory')!, 'pointer', []),
+                NSHomeDirectory: new NativeFunction(getGlobalExportByName('NSHomeDirectory')!, 'pointer', []),
                 NSString: ObjC.classes.NSString,
-                SecTaskCreateFromSelf: new NativeFunction(Module.findExportByName(null, 'SecTaskCreateFromSelf')!, 'pointer', ['pointer']),
-                SecTaskCopyValueForEntitlement: new NativeFunction(Module.findExportByName(null, 'SecTaskCopyValueForEntitlement')!, 'pointer', ['pointer', 'pointer', 'pointer']),
-                CFRelease: new NativeFunction(Module.findExportByName(null, 'CFRelease')!, 'void', ['pointer'])
+                SecTaskCreateFromSelf: new NativeFunction(getGlobalExportByName('SecTaskCreateFromSelf')!, 'pointer', ['pointer']),
+                SecTaskCopyValueForEntitlement: new NativeFunction(getGlobalExportByName('SecTaskCopyValueForEntitlement')!, 'pointer', ['pointer', 'pointer', 'pointer']),
+                CFRelease: new NativeFunction(getGlobalExportByName('CFRelease')!, 'void', ['pointer'])
             };
         }
         return this._api;
