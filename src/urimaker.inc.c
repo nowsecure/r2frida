@@ -191,9 +191,9 @@ repeat_device:;
 		}
 	} else if (!strcmp (target, "file")) {
 #if R2_VERSION_NUMBER >= 50909
-		fil = r_cons_hud_file (rf->r2core->cons, "");
+		fil = r_cons_hud_path (rf->r2core->cons, "/", false);
 #else
-		fil = r_cons_hud_file ("");
+		fil = r_cons_hud_path ("/", false);
 #endif
 	} else {
 		goto repeat;
