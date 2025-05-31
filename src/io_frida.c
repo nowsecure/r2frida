@@ -70,6 +70,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable);
 static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **device, GCancellable *cancellable);
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable);
+static void log_filtered_frida_error(const gchar *message);
 static JsonBuilder *build_request(const char *type);
 static void add_offset_parameter(JsonBuilder *builder, ut64 off);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
@@ -382,7 +383,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
-		R_LOG_ERROR ("%s", error->message);
+		log_filtered_frida_error(error->message);
 		return false;
 	}
 	frida_script_load_sync (script, NULL, NULL);
@@ -775,49 +776,54 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		goto error;
 	}
 	if (!rc) {
-		goto error;
+		goto error; 
 	}
 	if (!rf->device) {
 		R_LOG_ERROR ("This should never happen");
 		// rf->device = get_device_manager (rf->device_manager, "local", rf->cancellable, &error);
 		goto error;
 	}
-	if (lo->spawn) {
-		char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
-		if (package_name) {
-			free (lo->process_specifier);
-			lo->process_specifier = package_name;
-		}
-		// try to resolve it as an app name too
-		char *a = strdup (lo->process_specifier);
-		char **argv = r_str_argv (a, NULL);
-		if (!argv) {
-			R_LOG_ERROR ("Invalid process specifier");
-			goto error;
-		}
-		if (!*argv) {
-			R_LOG_ERROR ("Invalid arguments for spawning");
-			r_str_argv_free (argv);
-			goto error;
-		}
-		const int argc = g_strv_length (argv);
-		FridaSpawnOptions *options = frida_spawn_options_new ();
-		if (argc > 1) {
-			frida_spawn_options_set_argv (options, argv, argc);
-		}
-		// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
-		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
-		g_object_unref (options);
-		r_str_argv_free (argv);
-		free (a);
+        if (lo->spawn) {
+            char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
+            if (package_name) {
+                free (lo->process_specifier);
+                lo->process_specifier = package_name;
+            }
+            // try to resolve it as an app name too
+            char *a = strdup (lo->process_specifier);
+            char **argv = r_str_argv (a, NULL);
+            if (!argv) {
+                R_LOG_ERROR ("Invalid process specifier");
+                goto error;
+            }
+            if (!*argv) {
+                R_LOG_ERROR ("Invalid arguments for spawning");
+                r_str_argv_free (argv);
+                goto error;
+            }
+            const int argc = g_strv_length (argv);
+            FridaSpawnOptions *options = frida_spawn_options_new ();
+            if (argc > 1) {
+                frida_spawn_options_set_argv (options, argv, argc);
+            }
+            // frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
+            
+           
+        
 
-		if (error) {
-			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				R_LOG_ERROR ("Cannot spawn: %s", error->message);
-			}
-			goto error;
-		}
-		rf->suspended = !lo->run;
+    
+            rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
+            g_object_unref (options);
+            r_str_argv_free (argv);
+            free (a);
+
+            if (error) {
+                if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+                   log_filtered_frida_error(error->message);
+                }
+                goto error;
+            }
+            rf->suspended = !lo->run;
 	} else {
 		rf->pid = lo->pid;
 		rf->suspended = false;
@@ -1349,7 +1355,7 @@ static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **de
 	*device = get_device_manager (manager, device_id, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		g_error_free (error);
 		return false;
@@ -1357,6 +1363,27 @@ static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **de
 
 	return true;
 }
+
+
+static bool warned_about_version = false;
+
+static void log_filtered_frida_error(const gchar *message) {
+	if (!message) {
+		return;
+	}
+
+	const gchar *host_version = frida_version_string ();
+	if (strstr (message, "Unable to communicate with remote frida-server")) {
+		if (!warned_about_version) {
+			R_LOG_ERROR ("Frida host <=> server version mismatch.");
+			R_LOG_INFO ("Expected remote frida-server version: %s", host_version);
+			warned_about_version = true;
+		}
+	} else {
+		R_LOG_ERROR ("%s", message);
+	}
+}
+
 
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	r_return_val_if_fail (device && lo, false);
@@ -1397,7 +1424,7 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 	}
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		g_error_free (error);
 		return false;
@@ -1760,7 +1787,7 @@ static void dumpDevices(RIOFrida *rf, GCancellable *cancellable) {
 	FridaDeviceList *list = frida_device_manager_enumerate_devices_sync (rf->device_manager, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		goto beach;
 	}
@@ -1793,7 +1820,7 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		goto beach;
 	}
@@ -1835,7 +1862,7 @@ static char *resolve_process_name_by_package_name(FridaDevice *device, GCancella
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		goto beach;
 	}
@@ -1877,7 +1904,7 @@ static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
 	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		goto beach;
 	}
@@ -1914,7 +1941,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	FridaProcessList *list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			R_LOG_ERROR ("%s", error->message);
+			log_filtered_frida_error(error->message);
 		}
 		goto beach;
 	}
