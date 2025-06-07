@@ -61,7 +61,6 @@ int main(int argc, const char **argv) {
 	const char *outfile = NULL;
 	const char *arg0 = argv[0];
 	int c, rc = 0;
-	GCancellable *cancellable = NULL;
 	GError *error = NULL;
 	if (argc < 2) {
 		return show_help (arg0, true);
@@ -111,7 +110,10 @@ int main(int argc, const char **argv) {
 	}
 
 	frida_init ();
-	FridaDeviceManager *device_manager = frida_device_manager_new ();
+	FridaDeviceManager *device_manager = NULL;
+#if FRIDA_VERSION_MAJOR < 17
+	GCancellable *cancellable = NULL;
+	device_manager = frida_device_manager_new ();
 	if (!device_manager) {
 		R_LOG_ERROR ("Cannot open device manager");
 		return 1;
@@ -121,6 +123,10 @@ int main(int argc, const char **argv) {
 		R_LOG_ERROR ("Cannot open local frida device");
 		return 1;
 	}
+#else
+	/* On Frida >= 17.1.0 frida-compiler accepts null */
+	device_manager = NULL;
+#endif
 	char buf[1024];
 	FridaCompiler *compiler = frida_compiler_new (device_manager);
 	// g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
@@ -243,6 +249,8 @@ int main(int argc, const char **argv) {
 		}
 	}
 	g_object_unref (compiler);
+#if FRIDA_VERSION_MAJOR < 17
 	g_object_unref (device_manager);
+#endif
 	return rc;
 }
