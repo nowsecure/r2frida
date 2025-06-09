@@ -531,6 +531,20 @@ const commandHandlers = {
 };
 
 async function initBasicInfoFromTarget(args: string[]): Promise<string> {
+    if (java.JavaAvailable) {
+        return `e dbg.backend = io
+e anal.autoname=true
+e cmd.fcn.new=aan
+.:i*
+s r2f.modulebase
+.:ie*
+.:dmm*
+.:dm*
+.:il*
+m /r2f io 0
+?q entry0-0 2> /dev/null
+?? s entry0`;
+    }
     return `e dbg.backend = io
 e anal.autoname=true
 e cmd.fcn.new=aan
