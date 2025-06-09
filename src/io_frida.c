@@ -187,10 +187,6 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 		return NULL;
 	}
 	RIOFrida *rf = R_NEW0 (RIOFrida);
-	if (!rf) {
-		return NULL;
-	}
-
 	rf->cancellable = g_cancellable_new (); // TODO: call cancel() when shutting down
 	rf->s = r_socket_new (false);
 	rf->sb = r_strbuf_new ("");
@@ -222,11 +218,7 @@ static bool request_safe_io(RIOFrida *rf, bool doset) {
 }
 
 static R2FridaLaunchOptions *r2frida_launchopt_new(const char *pathname) {
-	R2FridaLaunchOptions *lo = R_NEW0 (R2FridaLaunchOptions);
-	if (lo) {
-		// lo
-	}
-	return lo;
+	return R_NEW0 (R2FridaLaunchOptions);
 }
 
 static void r2frida_launchopt_free(R2FridaLaunchOptions *lo) {
@@ -280,11 +272,9 @@ static const char *detachReasonAsString(RIOFrida *rf) {
 
 static RFPendingCmd * pending_cmd_create(JsonObject * cmd_json) {
 	RFPendingCmd *pcmd = R_NEW0 (RFPendingCmd);
-	if (pcmd) {
-		pcmd->_cmd_json = json_object_ref (cmd_json);
-		pcmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
-		pcmd->serial = json_object_get_int_member (cmd_json, "serial");
-	}
+	pcmd->_cmd_json = json_object_ref (cmd_json);
+	pcmd->cmd_string = json_object_get_string_member (cmd_json, "cmd");
+	pcmd->serial = json_object_get_int_member (cmd_json, "serial");
 	return pcmd;
 }
 
