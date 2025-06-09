@@ -55,6 +55,7 @@ typedef struct {
 	FridaDeviceManager *device_manager;
 	RStrBuf *sb;
 	bool inputmode;
+	bool sysret;
 } RIOFrida;
 
 typedef enum {
@@ -66,6 +67,7 @@ typedef enum {
 #define RIOFRIDA_DEV(x) (((RIOFrida*)x->data)->device)
 #define RIOFRIDA_SESSION(x) (((RIOFrida*)x->data)->session)
 
+static char *__system_continuation(RIO *io, RIODesc *fd, const char *command);
 static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *type, GCancellable *cancellable, GError **error);
 static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable);
 static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **device, GCancellable *cancellable);
@@ -127,6 +129,7 @@ static const char * const helpmsg = ""\
 	"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
 	"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
 	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
+	"  R2FRIDA_STRICT_VERSION=0|1       # Ensure client/host are the very exact same version before continue\n"
 	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
 	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n"
 	"  FRIDA_HOST, FRIDA_DEVICE         # overrides host/port/device in uri handler if set\n";
@@ -139,6 +142,26 @@ static const gchar r_io_frida_agent_code[] = {
 
 static bool r2f_debug_uri(void) {
 	return r_sys_getenv_asbool ("R2FRIDA_DEBUG_URI");
+}
+
+static bool r2f_strict_version_check(RIOFrida *rf) {
+	if (r_sys_getenv_asbool ("R2FRIDA_STRICT_VERSION")) {
+		RIODesc fakedesc = { .data = rf };
+
+		const gchar *host_version = frida_version_string ();
+		rf->sysret = true;
+		char *server_version = __system_continuation (rf->io, &fakedesc, "?V");
+		rf->sysret = false;
+		if (server_version && host_version) {
+			r_str_trim (server_version);
+			if (strcmp (server_version, host_version)) {
+				R_LOG_ERROR ("R2FRIDA_STRICT_VERSION requires host (%s) <=> server (%s) versions to be the same", host_version, server_version);
+				return false;
+			}
+		}
+		return true;
+	}
+	return true;
 }
 
 static bool r2f_compiler(void) {
@@ -712,7 +735,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	}
 	const char *value = json_object_get_string_member (result, "value");
 	char *sys_result = NULL;
-	if (value && strcmp (value, "undefined")) {
+	if (rf->sysret) {
+		sys_result = strdup (value);
+	} else if (value && strcmp (value, "undefined")) {
 		const bool is_fs_io = command[0] == 'm' || command[0] == 'd';
 		if (is_fs_io) {
 			sys_result = strdup (value);
@@ -911,6 +936,9 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	// safe io is required at start time, otherwise frida-server
 	// locks in Memory.readByteArray() which locks the second shell
+	if (!r2f_strict_version_check (rf)) {
+		goto failure;
+	}
 	request_safe_io (rf, true);
 
 	const char *autocompletions[] = {
@@ -1567,7 +1595,7 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	return reply_stanza;
 }
 
-static void exec_pending_cmd_if_needed(RIOFrida * rf) {
+static void exec_pending_cmd_if_needed(RIOFrida *rf) {
 	if (!rf->pending_cmd) {
 		return;
 	}
@@ -1576,7 +1604,6 @@ static void exec_pending_cmd_if_needed(RIOFrida * rf) {
 #else
 	char *output = COREBIND (rf->io).cmdstr (rf->r2core, rf->pending_cmd->cmd_string);
 #endif
-
 	ut64 serial = rf->pending_cmd->serial;
 	pending_cmd_free (rf->pending_cmd);
 	rf->pending_cmd = NULL;
