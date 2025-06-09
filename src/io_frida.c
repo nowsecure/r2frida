@@ -289,6 +289,36 @@ static bool __check(RIO *io, const char *pathname, bool many) {
 	return g_str_has_prefix (pathname, "frida://");
 }
 
+static void print_key_value(gpointer key, gpointer value, gpointer user_data) {
+	const char *k = (const char *)key;
+	printf ("- %s:", k);
+	if (g_variant_is_of_type (value, G_VARIANT_TYPE_STRING)) {
+		const gchar *value_str = g_variant_get_string (value, NULL);
+		printf (" '%s'\n", value_str);
+	} else {
+		GVariantIter iter;
+		GVariant *v_value;
+		gchar *v_key;
+		g_variant_iter_init (&iter, value);
+		printf ("\n");
+		while (g_variant_iter_loop (&iter, "{sv}", &v_key, &v_value)) {
+			gchar *value_str = g_variant_print (v_value, TRUE);
+			printf("  - %s: %s\n", v_key, value_str);
+		}
+		g_variant_unref (value);
+	}
+}
+
+static void query_device(FridaDevice *device) {
+	GError *error = NULL;
+	GHashTable *params = frida_device_query_system_parameters_sync (device, NULL, &error);
+	if (error) {
+		R_LOG_ERROR ("QuerySystemParameters: %s", error->message);
+	} else {
+		g_hash_table_foreach (params, print_key_value, NULL);
+	}
+}
+
 static bool user_wants_safe_io(FridaDevice *device) {
 	bool SAFE_IO_required = false;
 #if 0
@@ -727,18 +757,18 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 
 	if (!__check (io, pathname, false)) {
-		goto error;
+		goto failure;
 	}
 	frida_init ();
 
 	rf = r_io_frida_new (io);
 	if (!rf) {
-		goto error;
+		goto failure;
 	}
 	rf->device_manager = frida_device_manager_new ();
 	bool rc = resolve_target (rf, pathname, lo, rf->cancellable);
 	if (!rc) {
-		goto error;
+		goto failure;
 	}
 	if (R_STR_ISEMPTY (lo->device_id)) {
 		free (lo->device_id);
@@ -748,7 +778,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	rc = resolve_device (rf, devid, &rf->device, rf->cancellable);
 	if (rc && rf->device) {
 		if (!lo->spawn && !resolve_process (rf->device, lo, rf->cancellable)) {
-			goto error;
+			goto failure;
 		}
 	}
 	if (R_STR_ISEMPTY (lo->process_specifier)) {
@@ -763,15 +793,15 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		printf ("spawn: %s\n", r_str_bool (lo->spawn));
 		printf ("run: %s\n", r_str_bool (lo->run));
 		printf ("pid_valid: %s\n", r_str_bool (lo->pid_valid));
-		goto error;
+		goto failure;
 	}
 	if (!rc) {
-		goto error; 
+		goto failure;
 	}
 	if (!rf->device) {
 		R_LOG_ERROR ("This should never happen");
 		// rf->device = get_device_manager (rf->device_manager, "local", rf->cancellable, &error);
-		goto error;
+		goto failure;
 	}
 		if (lo->spawn) {
 			char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
@@ -784,12 +814,12 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 			char **argv = r_str_argv (a, NULL);
 			if (!argv) {
 				R_LOG_ERROR ("Invalid process specifier");
-				goto error;
+				goto failure;
 			}
 			if (!*argv) {
 				R_LOG_ERROR ("Invalid arguments for spawning");
 				r_str_argv_free (argv);
-				goto error;
+				goto failure;
 			}
 			const int argc = g_strv_length (argv);
 			FridaSpawnOptions *options = frida_spawn_options_new ();
@@ -797,11 +827,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 				frida_spawn_options_set_argv (options, argv, argc);
 			}
 			// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
-			
-		   
-		
-
-	
 			rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
 			g_object_unref (options);
 			r_str_argv_free (argv);
@@ -809,9 +834,10 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 			if (error) {
 				if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-				   log_filtered_frida_error(error);
+					R_LOG_ERROR ("%s", error->message);
+					error = NULL;
 				}
-				goto error;
+				goto failure;
 			}
 			rf->suspended = !lo->run;
 	} else {
@@ -820,14 +846,14 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 	if (!rf->device) {
 		error = NULL;
-		goto error;
+		goto failure;
 	}
 	rf->session = frida_device_attach_sync (rf->device, rf->pid, NULL, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("Cannot attach: %s", error->message);
 		}
-		goto error;
+		goto failure;
 	}
 
 	FridaScriptOptions * options = frida_script_options_new ();
@@ -854,7 +880,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		code_malloc_data = malloc (code_size + 1);
 		if (!code_malloc_data) {
 			R_LOG_ERROR ("Cannot allocate enough memory for the agent");
-			goto error;
+			goto failure;
 		}
 		memcpy (code_malloc_data, r_io_frida_agent_code, code_size);
 		code_malloc_data[code_size] = 0;
@@ -869,7 +895,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("Cannot create script: %s", error->message);
 		}
-		goto error;
+		goto failure;
 	}
 
 	rf->onmsg_handler = g_signal_connect (rf->script, "message", G_CALLBACK (on_message), rf);
@@ -880,7 +906,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 			R_LOG_ERROR ("Cannot load script: %s", error->message);
 		}
-		goto error;
+		goto failure;
 	}
 
 	// safe io is required at start time, otherwise frida-server
@@ -999,7 +1025,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	return fd;
 
-error:
+failure:
 	g_clear_error (&error);
 	r2frida_launchopt_free (lo);
 	r_io_frida_free (rf);
@@ -1059,7 +1085,8 @@ typedef enum {
 
 typedef enum {
 	R2F_ACTION_UNKNOWN = -1,
-	R2F_ACTION_ATTACH = 0,
+	R2F_ACTION_QUERY = 0,
+	R2F_ACTION_ATTACH,
 	R2F_ACTION_SPAWN,
 	R2F_ACTION_LAUNCH,
 	R2F_ACTION_LIST_PIDS,
@@ -1069,6 +1096,9 @@ typedef enum {
 static R2FridaAction parse_action(const char *a) {
 	if (!strcmp (a, "attach")) {
 		return R2F_ACTION_ATTACH;
+	}
+	if (!strcmp (a, "query")) {
+		return R2F_ACTION_QUERY;
 	}
 	if (!strcmp (a, "spawn")) {
 		return R2F_ACTION_SPAWN;
@@ -1118,6 +1148,18 @@ static bool resolve2(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	const char *arg1 = r_list_get_n (args, 1);
 	R2FridaAction action = parse_action (arg0);
 	switch (action) {
+	case R2F_ACTION_QUERY:
+		{
+			GError *error = NULL;
+			const char *devid = (R_STR_ISEMPTY (arg1))? NULL: arg1;
+			FridaDevice *device = get_device_manager (rf->device_manager, devid, cancellable, &error);
+			if (device) {
+				query_device (device);
+			} else {
+				R_LOG_ERROR ("Cannot find peer");
+			}
+		}
+		break;
 	case R2F_ACTION_LIST_APPS:
 		{
 		GError *error = NULL;
@@ -1178,8 +1220,19 @@ static bool resolve3(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	R2FridaLink link = parse_link (arg1);
 	R_LOG_DEBUG ("action %d link %d\n", action, link);
 	if (!*arg2) {
+		if (action == R2F_ACTION_QUERY) {
+			GError *error = NULL;
+			const char *devid = (R_STR_ISEMPTY (arg1))? NULL: arg1;
+			FridaDevice *device = get_device_manager (rf->device_manager, devid, cancellable, &error);
+			if (device) {
+				query_device (device);
+			} else {
+				R_LOG_ERROR ("Cannot find peer");
+			}
+		} else {
 		// frida://attach/usb/
 		dumpDevices (rf, cancellable);
+		}
 	}
 	return false;
 }
@@ -1223,6 +1276,13 @@ static bool resolve4(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	case R2F_ACTION_LIST_PIDS:
 		if (device) {
 			dumpProcesses (device, cancellable);
+		} else {
+			R_LOG_ERROR ("Cannot find peer");
+		}
+		break;
+	case R2F_ACTION_QUERY:
+		if (device) {
+			query_device (device);
 		} else {
 			R_LOG_ERROR ("Cannot find peer");
 		}
@@ -1312,7 +1372,7 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 		}
 	}
 #endif
-	if (*a == '/' || !strncmp (a, "./", 2)) {
+	if (*a == '/' || r_str_startswith (a, "./")) {
 		// frida:///path/to/file
 		lo->spawn = true;
 		lo->process_specifier = a;
@@ -1324,12 +1384,15 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 
 	bool res = false;
 	switch (args_len) {
+	case 0:
+		R_LOG_ERROR ("Invalid URI %d", args_len);
+		break;
 	case 1: res = resolve1 (rf, args, lo, cancellable); break;
 	case 2: res = resolve2 (rf, args, lo, cancellable); break;
 	case 3: res = resolve3 (rf, args, lo, cancellable); break;
 	case 4: res = resolve4 (rf, args, lo, cancellable); break;
 	default:
-		R_LOG_ERROR ("Invalid URI");
+		R_LOG_ERROR ("Invalid URI %d", args_len);
 		break;
 	}
 
