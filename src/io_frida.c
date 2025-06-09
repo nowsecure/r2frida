@@ -70,7 +70,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOptions *lo, GCancellable *cancellable);
 static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **device, GCancellable *cancellable);
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable);
-static void log_filtered_frida_error(const GError *error);
+static void log_frida_error(FridaDevice *device, const GError *error);
 static JsonBuilder *build_request(const char *type);
 static void add_offset_parameter(JsonBuilder *builder, ut64 off);
 static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
@@ -313,7 +313,7 @@ static void query_device(FridaDevice *device) {
 	GError *error = NULL;
 	GHashTable *params = frida_device_query_system_parameters_sync (device, NULL, &error);
 	if (error) {
-		R_LOG_ERROR ("QuerySystemParameters: %s", error->message);
+		log_frida_error (device, error);
 	} else {
 		g_hash_table_foreach (params, print_key_value, NULL);
 	}
@@ -403,7 +403,7 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	FridaScript *script = frida_session_create_script_sync (rf->session,
 		agent_code, options, rf->cancellable, &error);
 	if (!script) {
-		log_filtered_frida_error(error);
+		log_frida_error (rf->device, error);
 		return false;
 	}
 	frida_script_load_sync (script, NULL, NULL);
@@ -1408,7 +1408,7 @@ static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **de
 	*device = get_device_manager (manager, device_id, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		g_error_free (error);
 		return false;
@@ -1417,32 +1417,17 @@ static bool resolve_device(RIOFrida *rf, const char *device_id, FridaDevice **de
 	return true;
 }
 
-
-static bool warned_about_version = false;
-
-static void log_filtered_frida_error(const GError *error) {
-	
-	const gchar *host_version = frida_version_string ();
-	
-	if (g_error_matches(error, FRIDA_ERROR, FRIDA_ERROR_PROTOCOL)) {
-		
-	   if (!warned_about_version) {
-			R_LOG_ERROR (error->message);
-			R_LOG_ERROR ("Frida host <=> server version mismatch.");
-			R_LOG_INFO ("Expected remote frida-server version: %s", host_version);
-			warned_about_version = true;
-		}
-	}    
-	else {
-		R_LOG_ERROR ("%s", error->message);
+static void log_frida_error(FridaDevice *device, const GError *error) {
+	const bool protocol_error = g_error_matches (error, FRIDA_ERROR, FRIDA_ERROR_PROTOCOL);
+	if (protocol_error) {
+		const gchar *host_version = frida_version_string ();
+		R_LOG_WARN ("Frida host <=> server version mismatch");
+		R_LOG_INFO ("Expected remote frida-server version: %s", host_version);
 	}
-
 }
-
 
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	r_return_val_if_fail (device && lo, false);
-	GError *error = NULL;
 
 	if (lo->pid_valid) {
 		return true;
@@ -1465,11 +1450,13 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 	if (!lo->process_specifier) {
 		return false;
 	}
+
+	GError *error = NULL;
 	FridaProcess *process = frida_device_get_process_by_name_sync (
 		device, lo->process_specifier, 0, cancellable, &error);
 	if (error != NULL) {
 		error = NULL;
-		char *procname = resolve_process_name_by_package_name(device, cancellable, lo->process_specifier);
+		char *procname = resolve_process_name_by_package_name (device, cancellable, lo->process_specifier);
 		if (procname) {
 			free (lo->process_specifier);
 			lo->process_specifier = procname;
@@ -1479,7 +1466,7 @@ static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCanc
 	}
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		g_error_free (error);
 		return false;
@@ -1842,7 +1829,7 @@ static void dumpDevices(RIOFrida *rf, GCancellable *cancellable) {
 	FridaDeviceList *list = frida_device_manager_enumerate_devices_sync (rf->device_manager, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+			R_LOG_ERROR ("%s", error->message);
 		}
 		goto beach;
 	}
@@ -1864,7 +1851,6 @@ beach:
 
 static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *process_name) {
 	char *res = NULL;
-	gint num_applications = 0;
 
 	if (r2f_debug_uri ()) {
 		printf ("resolve_package_name_by_process_name\n");
@@ -1874,12 +1860,11 @@ static char *resolve_package_name_by_process_name(FridaDevice *device, GCancella
 	GError *error = NULL;
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
-		}
+		// triggers the frida version mismatch error
+		log_frida_error (device, error);
 		goto beach;
 	}
-	num_applications = frida_application_list_size (list);
+	gint num_applications = frida_application_list_size (list);
 
 	GArray *applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
 	if (applications) {
@@ -1917,7 +1902,7 @@ static char *resolve_process_name_by_package_name(FridaDevice *device, GCancella
 	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+			log_frida_error (device, error);
 		}
 		goto beach;
 	}
@@ -1946,35 +1931,29 @@ beach:
 }
 
 static int dumpApplications(FridaDevice *device, GCancellable *cancellable) {
-	FridaApplicationList *list;
 	GArray *applications;
-	gint i, num_applications = 0;
+	gint i;
 	GError *error = NULL;
 
 	if (r2f_debug_uri ()) {
 		printf ("dump-apps\n");
 		return 0;
 	}
-
-	list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
+	gint num_applications = 0;
+	FridaApplicationList *list = frida_device_enumerate_applications_sync (device, NULL, cancellable, &error);
 	if (error != NULL) {
-		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+		log_frida_error (device, error);
+	} else {
+		num_applications = frida_application_list_size (list);
+		applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
+		for (i = 0; i != num_applications; i++) {
+			FridaApplication *application = frida_application_list_get (list, i);
+			g_array_append_val (applications, application);
+			g_object_unref (application); /* borrow it */
 		}
-		goto beach;
+		g_array_sort (applications, compareProcesses);
+		print_list (APPLICATIONS, applications, num_applications);
 	}
-	num_applications = frida_application_list_size (list);
-
-	applications = g_array_sized_new (FALSE, FALSE, sizeof (FridaApplication *), num_applications);
-	for (i = 0; i != num_applications; i++) {
-		FridaApplication *application = frida_application_list_get (list, i);
-		g_array_append_val (applications, application);
-		g_object_unref (application); /* borrow it */
-	}
-	g_array_sort (applications, compareProcesses);
-
-	print_list (APPLICATIONS, applications, num_applications);
-beach:
 	g_clear_error (&error);
 	g_clear_object (&list);
 
@@ -1996,7 +1975,7 @@ static void dumpProcesses(FridaDevice *device, GCancellable *cancellable) {
 	FridaProcessList *list = frida_device_enumerate_processes_sync (device, NULL, cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			log_filtered_frida_error(error);
+			log_frida_error (device, error);
 		}
 		goto beach;
 	}
