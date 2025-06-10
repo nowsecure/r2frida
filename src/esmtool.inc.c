@@ -4,78 +4,76 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <libgen.h>
 
 #define HEADER "\xF0\x9F\x93\xA6\n"
-#define MAX_PATH 4096
 
 static bool write_file(FILE *out, const char *path, const char *root) {
-	FILE *in = fopen (path, "rb");
-	if (!in) {
+	char *content = r_file_slurp (path, NULL);
+	if (!content) {
 		return false;
 	}
 
-	fseek (in, 0, SEEK_END);
-	long size = ftell (in);
-	fseek (in, 0, SEEK_SET);
+	size_t size = r_file_size (path);
 
-	char relpath[MAX_PATH];
-	snprintf (relpath, sizeof (relpath), "%s", path + strlen (root) + 1);
-
-	fprintf (out, "%ld /%s\n", size, relpath);
-	long i;
-	for (i = 0; i < size; i++) {
-		fputc (fgetc (in), out);
+	// Get relative path
+	const char *relpath = path + strlen (root);
+	if (*relpath == R_SYS_DIR[0]) {
+		relpath++;
 	}
+
+	// Normalize path separators to forward slashes for archive format
+	char *normalized_path = r_str_replace (strdup (relpath), R_SYS_DIR, "/", true);
+
+	fprintf (out, "%zu /%s\n", size, normalized_path);
+	fwrite (content, 1, size, out);
 	fputc ('\n', out);
 
-	fclose (in);
+	free (content);
+	free (normalized_path);
 	return true;
 }
 
 static bool walk_dir(FILE *out, const char *dir, const char *root) {
 	bool res = true;
-	DIR *d = opendir (dir);
-	if (!d) {
+	RList *files = r_sys_dir (dir);
+	if (!files) {
 		return false;
 	}
-	struct dirent *entry;
-	while ((entry = readdir (d))) {
-		if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, "..")) {
+
+	RListIter *iter;
+	char *entry;
+	r_list_foreach (files, iter, entry) {
+		if (!strcmp (entry, ".") || !strcmp (entry, "..")) {
 			continue;
 		}
 
-		char path[MAX_PATH];
-		snprintf (path, sizeof (path), "%s/%s", dir, entry->d_name);
-
-		struct stat st;
-		if (stat (path, &st) == -1) {
+		char *path = r_str_newf ("%s%s%s", dir, R_SYS_DIR, entry);
+		if (!path) {
+			res = false;
 			continue;
 		}
 
-		if (S_ISDIR (st.st_mode)) {
+		if (r_file_is_directory (path)) {
 			if (!walk_dir (out, path, root)) {
 				R_LOG_ERROR ("Cannot walk into %s", path);
 				res = false;
 			}
-		} else if (S_ISREG(st.st_mode)) {
+		} else if (r_file_exists (path)) {
 			if (!write_file (out, path, root)) {
-				R_LOG_ERROR ("Cannot write into %s", path);
+				R_LOG_ERROR ("Cannot write file %s", path);
 				res = false;
 			}
 		}
+		free (path);
 	}
-	closedir (d);
+	r_list_free (files);
 	return res;
 }
 
 static bool pack(const char *outfile, const char *indir) {
 	FILE *out = fopen (outfile, "wb");
 	if (!out) {
-		perror ("fopen");
+		R_LOG_ERROR ("Cannot open output file %s", outfile);
 		return false;
 	}
 	fputs (HEADER, out);
@@ -84,47 +82,33 @@ static bool pack(const char *outfile, const char *indir) {
 	return res;
 }
 
-static bool ensure_parent_dir(const char *path) {
-	char tmp[MAX_PATH];
-	snprintf (tmp, sizeof (tmp), "%s", path);
-	char *dir = dirname (tmp);
-	if (!dir) {
-		return false;
-	}
-	char buf[MAX_PATH];
-	snprintf (buf, sizeof (buf), "%s", dir);
-	for (char *p = buf + 1; *p; p++) {
-		if (*p == '/') {
-			*p = '\0';
-			mkdir (buf, 0755);
-			*p = '/';
-		}
-	}
-	mkdir (buf, 0755);
-	return true;
-}
-
-bool unpack(const char *infile, const char *outdir) {
+static bool unpack(const char *infile, const char *outdir) {
 	FILE *in = fopen (infile, "rb");
 	if (!in) {
-		perror ("fopen");
+		R_LOG_ERROR ("Cannot open input file %s", infile);
 		return false;
 	}
 
-	char line[MAX_PATH];
+	char line[4096];
 	if (!fgets (line, sizeof (line), in)) {
+		fclose (in);
 		return false;
 	}
 
 	while (fgets (line, sizeof (line), in)) {
+		// Skip empty lines
+		if (line[0] == '\n' || line[0] == '\0') {
+			continue;
+		}
+
 		char *sep = strchr (line, ' ');
 		if (!sep || sep[1] != '/') {
 			continue;
 		}
 
 		*sep = '\0';
-		long size = strtol (line, NULL, 10);
-		char *filename = sep + 1;
+		size_t size = (size_t)strtoul (line, NULL, 10);
+		char *filename = sep + 2; // Skip space and forward slash
 
 		// Trim newline from filename
 		char *newline = strchr (filename, '\n');
@@ -132,28 +116,45 @@ bool unpack(const char *infile, const char *outdir) {
 			*newline = '\0';
 		}
 
-		char fullpath[MAX_PATH];
-		snprintf (fullpath, sizeof (fullpath), "%s/%s", outdir, filename);
-		if (!ensure_parent_dir (fullpath)) {
-			R_LOG_ERROR ("Cannot ensure parent dir");
-			break;
-		}
+		// Create full output path with platform-appropriate separators
+		char *platform_filename = r_str_replace (strdup (filename), "/", R_SYS_DIR, true);
+		char *fullpath = r_str_newf ("%s%s%s", outdir, R_SYS_DIR, platform_filename);
 
-		FILE *out = fopen (fullpath, "wb");
-		if (!out) {
+		char *dirname = r_file_dirname (fullpath);
+		if (!r_sys_mkdirp (dirname)) {
+			R_LOG_ERROR ("Cannot create directory for %s", fullpath);
+			free (dirname);
+			free (platform_filename);
+			free (fullpath);
+			// Skip the file content and newline
+			fseek (in, size + 1, SEEK_CUR);
 			continue;
 		}
+		free (dirname);
 
-		for (long i = 0; i < size; ++i) {
-			int c = fgetc (in);
-			if (c == EOF) {
-				break;
+		// Read and write file content
+		if (size > 0) {
+			ut8 *buffer = malloc (size);
+			if (buffer) {
+				size_t bytes_read = fread (buffer, 1, size, in);
+				if (bytes_read == size) {
+					if (!r_file_dump (fullpath, buffer, size, false)) {
+						R_LOG_ERROR ("Cannot write file %s", fullpath);
+					}
+				} else {
+					R_LOG_ERROR ("Could not read expected %zu bytes for %s, got %zu", size, fullpath, bytes_read);
+				}
+				free (buffer);
 			}
-			fputc (c, out);
 		}
-		fgetc (in); // skip newline
-		fclose (out);
+
+		// Skip the newline after file content
+		fgetc (in);
+
+		free (platform_filename);
+		free (fullpath);
 	}
+
 	fclose (in);
 	return true;
 }
