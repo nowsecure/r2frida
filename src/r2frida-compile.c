@@ -6,6 +6,7 @@
 #include <r_util.h>
 #include <r_util/r_print.h>
 #include "../config.h"
+#include "esmtool.inc.c"
 
 #ifdef _MSC_VER
 #undef R2__WINDOWS__
@@ -26,16 +27,18 @@ static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 }
 
 static int show_help(const char *argv0, int line) {
-	printf ("Usage: %s (-hSc) [-H foo.h] [-r root] [-o output.js] [path/to/file.{js,ts}] ...\n", argv0);
+	printf ("Usage: %s (-hSc) [[-p|-u] js dir] | [-H foo.h] [-r root] [-o output.js] [file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
-		" -S                  Do not include source maps\n"
 		" -c                  Enable compression\n"
 		" -h                  Show this help message\n"
 		" -H [file]           Output in C-friendly hexadecimal bytes\n"
 		" -o [file]           Specify output file\n"
-		" -r [project-root]   Specify the project root directory\n"
+		" -p [esmjs] [dir]    Pack directory contents into an esmjs file\n"
 		" -q                  Be quiet\n"
+		" -r [project-root]   Specify the project root directory\n"
+		" -S                  Do not include source maps\n"
+		" -u [esmjs] [dir]    Unpack esmjs into the given directory\n"
 		" -v                  Display version\n"
 		);
 	}
@@ -69,8 +72,10 @@ int main(int argc, const char **argv) {
 	const char *header = NULL;
 	bool source_maps = true;
 	bool compression = false;
+	bool pack = false;
+	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qv");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -82,6 +87,12 @@ int main(int argc, const char **argv) {
 			break;
 		case 'S':
 			source_maps = false;
+			break;
+		case 'p':
+			pack = true;
+			break;
+		case 'u':
+			unpack = true;
 			break;
 		case 'o':
 			outfile = opt.arg;
@@ -107,6 +118,18 @@ int main(int argc, const char **argv) {
 		default:
 			return show_help (arg0, false);
 		}
+	}
+	if (pack || unpack) {
+		if (opt.ind >= argc) {
+			R_LOG_ERROR ("Usage: r2frida-compile [-p|-u] [esmjs] [directory]");
+			return 1;
+		}
+		const char *arg0 = opt.arg;
+		const char *arg1 = argv[opt.ind];
+		if (!esmtool (pack, arg0, arg1)) {
+			return 1;
+		}
+		return 0;
 	}
 
 	frida_init ();
