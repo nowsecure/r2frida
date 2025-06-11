@@ -537,7 +537,6 @@ e anal.autoname=true
 e cmd.fcn.new=aan
 .:i*
 s r2f.modulebase
-.:ie*
 .:dmm*
 .:dm*
 .:il*
