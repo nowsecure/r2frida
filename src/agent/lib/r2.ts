@@ -8,9 +8,9 @@ let sendingCommand = false;
 let cmdSerial = 0;
 // r2->io->frida->r2pipe->r2
 let _r2: any | null = null;
-let _r_core_new: any | null = null; // eslint-disable-line camelcase
-let _r_core_cmd_str: any | null = null; // eslint-disable-line camelcase
-let _r_core_free: any | null = null; // eslint-disable-line camelcase,no-unused-vars
+let _r_core_new: any | null = null;
+let _r_core_cmd_str: any | null = null;
+let _r_core_free: any | null = null;
 let _free: any | null = null;
 
 export function getArch(arch: string): string {
@@ -25,7 +25,7 @@ export function getArch(arch: string): string {
 }
 
 export async function hostCmds(commands: string[]): Promise<string[]> {
-    let allPromises = [];
+    const allPromises = [];
     for (let i = 0; i < commands.length; i++) {
         allPromises.push(hostCmd(commands[i]));
     }

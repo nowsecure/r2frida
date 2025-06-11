@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars */
+ 
 
 export const ELF_HEADER = 0x464c457f;
 export const EM_AARCH64 = 0xb7;

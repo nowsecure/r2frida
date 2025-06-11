@@ -2,7 +2,7 @@
 
 import { r2frida } from "./plugin.js";
 
-/* eslint-disable camelcase */
+ 
 let _r_core_new: any | null = null;
 let _r_core_cmd_str: any | null = null;
 let _r_core_free: any | null = null;
@@ -19,7 +19,7 @@ function r2nakedSymbols() {
     _r_core_free = sym("r_core_free", "void", ["pointer"]);
 }
 
-// eslint-disable-next-line
+ 
 export class R2PipeFridaNative {
     r2: any;
     constructor() {
@@ -66,7 +66,7 @@ export class R2PipeFridaAgent {
     }
 }
 
-export let r2pipe: any = {
+export const r2pipe: any = {
     open: (type: string): any => {
         if (type === "r2frida") {
             return new R2PipeFridaAgent();

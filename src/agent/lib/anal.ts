@@ -15,7 +15,8 @@ export function analFunctionSignature(args: string[]): string {
         return "Usage: afs [class].[+/-][method] (p.e. :afs ViewController.-isJailbroken)";
     }
 
-    let [klassName, methodName] = args[0].split(".");
+    const [klassName, constMethodName] = args[0].split(".");
+    let methodName = constMethodName;
     if (methodName === undefined || methodName === "") {
         return listClasses(args);
     }

@@ -515,7 +515,11 @@ function _watchpointSwitch(wp: WatchpointData): void {
     if (!wp) {
         return;
     }
-    wp.enabled ? wp.disable() : wp.enable();
+    if (wp.enabled) {
+        wp.disable();
+    } else {
+        wp.enable();
+    }
 }
 
 /**
@@ -611,7 +615,11 @@ function _breakpointSwitch(bp: BreakpointData): void {
     if (!bp) {
         return;
     }
-    bp.enabled ? bp.disable() : bp.enable();
+    if (bp.enabled) {
+	  bp.disable();
+    } else {
+	   bp.enable();
+    }
 }
 
 /**
@@ -825,7 +833,11 @@ class WatchpointData extends BreakpointData {
 
     toggle(): void {
         setTimeout(() => {
-            this._applied ? this.unsetWatchpoint() : this.setWatchpoint();
+            if (this._applied) {
+		    this.unsetWatchpoint();
+	    } else {
+		    this.setWatchpoint();
+	    }
         }, 100);
     }
 }
@@ -872,7 +884,11 @@ class HardwareBreakpointData extends BreakpointData {
 
     toggle(): void {
         setTimeout(() => {
-            this._applied ? this.unsetBreakpoint() : this.setBreakpoint();
+            if (this._applied) {
+		    this.unsetBreakpoint();
+	    } else {
+		    this.setBreakpoint();
+	    }
         }, 100);
     }
 }

@@ -223,6 +223,7 @@ export function listHeaders(args: string[]): string {
 
 export function listHeadersR2(args: string[]): string {
     const headers = listHeadersJson(args);
+    // eslint-disable-next-line no-prototype-builtins
     if (headers.hasOwnProperty("entrypoint")) {
         return `f entry0=${headers.entrypoint}`;
     }
@@ -345,14 +346,14 @@ export function listEntrypointSymbols(args: string[]): string {
     if (ObjC.available) {
         const classes = ObjC.classes;
         Object.keys(classes).forEach(function (className: string) {
-            var cls = ObjC.classes[className];
+            const cls = ObjC.classes[className];
             if (cls.$moduleName !== null && cls.$moduleName !== "main") {
                 return;
             }
-            var methods = cls.$methods; // $ownMethods?
+            const methods = cls.$methods; // $ownMethods?
             methods.forEach(function (methodName) {
                 try {
-                    var address = cls[methodName].implementation; // Get the implementation address
+                    const address = cls[methodName].implementation; // Get the implementation address
                     if (validEntrypoints.includes(methodName)) {
                         symbols.push({
                             name: className + "." + methodName,

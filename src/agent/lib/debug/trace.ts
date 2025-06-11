@@ -21,7 +21,7 @@ export function trace(args: string[]) {
     return traceJson(args);
 }
 
-var Gobserver_modules: ModuleObserver | null = null;
+let Gobserver_modules: ModuleObserver | null = null;
 
 export function untraceModules(args: string[]) {
     if (Gobserver_modules !== null) {
@@ -44,7 +44,7 @@ export function traceModules(args: string[]) {
     });
 }
 
-var Gobserver_threads: ThreadObserver | null = null;
+let Gobserver_threads: ThreadObserver | null = null;
 export function untraceThreads(args: string[]) {
     if (Gobserver_threads !== null) {
         Gobserver_threads.detach();
@@ -339,7 +339,7 @@ export function traceRegs(args: string[]) {
                 }
                 try {
                     regValue = context[r as keyof CpuContext].toString();
-                    let tail = context[r as keyof CpuContext].readUtf8String();
+                    const tail = context[r as keyof CpuContext].readUtf8String();
                     if (tail) {
                         regValue += " (" + tail + ")";
                     }
@@ -391,7 +391,7 @@ export function traceRegs(args: string[]) {
                 }
                 try {
                     regValue = context[r as keyof CpuContext].toString();
-                    let tail = context[r as keyof CpuContext].readUtf8String();
+                    const tail = context[r as keyof CpuContext].readUtf8String();
                     if (tail) {
                         regValue += " (" + tail + ")";
                     }

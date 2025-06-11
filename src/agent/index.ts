@@ -48,7 +48,7 @@ import ObjC from "frida-objc-bridge";
 import { PutsFunction, r2frida } from "./plugin.js";
 
 // declare let global: any;
-var global: any = {};
+const global: any = {};
 
 global.r2pipe = {
     open: () => {
@@ -717,7 +717,7 @@ function evaluate(params: any): Promise<any> {
           `;
                 }
                 // const rawResult = (1, eval)(code); // eslint-disable-line
-                const rawResult = eval(code); // eslint-disable-line
+                const rawResult = eval(code);
                 // global._ = rawResult;
                 result = rawResult; // 'undefined';
             } catch (e: any) {

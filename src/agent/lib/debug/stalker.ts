@@ -3,7 +3,7 @@ import disasm from "../disasm.js";
 import * as debug from "./index.js";
 import * as breakpoints from "./breakpoints.js";
 import * as utils from "../utils.js";
-/* eslint-disable comma-dangle */
+ 
 
 const eventsByThread: any = {};
 const inModules: any = [];

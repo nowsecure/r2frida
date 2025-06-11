@@ -152,14 +152,14 @@ class StringFinder {
 export function searchStringsJson(args: string): SearchHit[] {
     console.log("search string");
     const prefix = "hit";
-    let searchHits: SearchHit[] = [];
+    const searchHits: SearchHit[] = [];
     const fromAddress = new NativePointer(config.getString("search.from"));
     const toAddress = new NativePointer(config.getString("search.to"));
     const ranges = _getRangesToSearch(fromAddress, toAddress);
     const kwidx = config.getNumber("search.kwidx");
     const align = config.getNumber("search.align");
     const blockSize = 4096;
-    let count = 0;
+    const count = 0;
     for (const range of ranges) {
         if (range.size === 0) {
             continue;
@@ -268,7 +268,7 @@ function _getReadableHitsToString(hits: SearchHit[]): string {
 
 function _searchPatternJson(pattern: string): SearchHit[] {
     const prefix = "hit";
-    let searchHits: SearchHit[] = [];
+    const searchHits: SearchHit[] = [];
     const align = config.getNumber("search.align");
     const fromAddress = new NativePointer(config.getString("search.from"));
     const toAddress = new NativePointer(config.getString("search.to"));

@@ -21,7 +21,7 @@ export function evalNum(args: string[]): Promise<NativePointer> {
 }
 
 export function evalCode(args: string[]): string {
-    const result = eval(args.join(" ")); // eslint-disable-line
+    const result = eval(args.join(" "));
     return (result !== undefined) ? result : "";
 }
 

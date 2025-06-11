@@ -236,7 +236,7 @@ export function listAllocs(): string {
         return "";
     }
     let res = "";
-    for (let [addr, allocPtr] of allocPool) {
+    for (const [addr, allocPtr] of allocPool) {
         const bytes = allocPtr.readByteArray(60);
         const printables = filterPrintable(bytes);
         res += `${addr}\t"${printables}"\n`;

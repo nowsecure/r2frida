@@ -109,7 +109,7 @@ export function callObjcMethod(args: string[]): string {
         instancePointer = instances[0];
     }
     const methodName = args[1];
-    const [v, t] = autoType(args.slice(2)); // eslint-disable-line no-unused-vars
+    const [v, t] = autoType(args.slice(2));
     try {
         ObjC.schedule(ObjC.mainQueue, function () {
             if (
