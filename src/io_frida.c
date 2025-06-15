@@ -379,9 +379,9 @@ static bool __close(RIODesc *fd) {
 }
 
 static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
+	R_RETURN_VAL_IF_FAIL (io && fd && fd->data && buf && count > 0, -1);
 	GBytes *bytes = NULL;
 	gsize n = 0;
-	r_return_val_if_fail (io && fd && fd->data && buf && count > 0, -1);
 
 	R_LOG_DEBUG ("read %d @ 0x%08"PFMT64x, count, io->off);
 	RIOFrida *rf = fd->data;
@@ -751,7 +751,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 }
 
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
-	r_return_if_fail (core && fd && path);
+	R_RETURN_IF_FAIL (core && fd && path);
 	RList *files = r_sys_dir (path);
 	RListIter *iter;
 	const char *file;
@@ -1098,7 +1098,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 }
 
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
-	r_return_val_if_fail (io && fd && command, NULL);
+	R_RETURN_VAL_IF_FAIL (io && fd && command, NULL);
 	return __system_continuation (io, fd, command);
 }
 
@@ -1455,7 +1455,7 @@ static void log_frida_error(FridaDevice *device, const GError *error) {
 }
 
 static bool resolve_process(FridaDevice *device, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
-	r_return_val_if_fail (device && lo, false);
+	R_RETURN_VAL_IF_FAIL (device && lo, false);
 
 	if (lo->pid_valid) {
 		return true;
