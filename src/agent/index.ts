@@ -74,6 +74,7 @@ const commandHandlers = {
     ".": [null, "Run Frida script in agent side", "[path]"], // this is implemented in C
     eval: [expr.evalCode, "evaluate Javascript code in agent side", "[code]"],
     "!": [system.runSystemCommand, "execute program with system"],
+    "!!": [system.runSystemCommandAsString, "execute system command"],
     "?": [expr.evalNum, "evaluate number"],
     "?e": [echo, "print message"],
     "?E": [uiAlert, "popup alert dialog on target app"],
@@ -636,9 +637,13 @@ function getHelpMessage(prefix: string): string {
 
 function perform(params: any) {
     let { command } = params;
-    if (command.startsWith("!")) {
+
+    if (command.startsWith("!!")) {
+        command = "!! " + command.substr(2);
+    } else if (command.startsWith("!")) {
         command = "! " + command.substr(1);
     }
+
     if (command.startsWith("{")) {
         return r2pipe2(command);
     }
