@@ -637,7 +637,7 @@ function getHelpMessage(prefix: string): string {
 
 function perform(params: any) {
     let { command } = params;
-    
+
     if (command.startsWith("!!")) {
         command = "!! " + command.substr(2);
     } else if (command.startsWith("!")) {
