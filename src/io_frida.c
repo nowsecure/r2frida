@@ -764,7 +764,7 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			char *s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
-#if R2_VERSION_NUMBER >= 50609
+#if R2_VERSION_NUMBER >= 50909
 				r_cons_printf (core->cons, "%s\n", s);
 #else
 				r_cons_printf ("%s\n", s);
@@ -2173,7 +2173,7 @@ R_API RLibStruct radare_plugin = {
 	.data = &r_io_plugin_frida,
 	.version = R2_VERSION,
 #if R2_VERSION_NUMBER >= 50909
-	.abi_version = R_LIB_CURRENT_ABI_VERSION,
+	.abiversion = R2_ABIVERSION,
 #endif
 #if R2_VERSION_NUMBER >= 40200
 	.pkgname = "r2frida"
