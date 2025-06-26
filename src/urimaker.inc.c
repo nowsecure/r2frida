@@ -124,14 +124,23 @@ repeat:;
 		return NULL;
 	}
 	if (!strcmp (action, "help")) {
+#if R2_VERSION_NUMBER >= 50909
+		r_cons_clear00 (rf->r2core->cons);
+		r_cons_printf (rf->r2core->cons, "%s\n", helpmsg);
+#else
 		r_cons_clear00 ();
 		r_cons_printf ("%s\n", helpmsg);
+#endif
 		any_key (rf, "");
 		goto repeat;
 	}
 	if (!strcmp (action, "devices")) {
 		// select device
+#if R2_VERSION_NUMBER >= 50909
+		r_cons_clear00 (rf->r2core->cons);
+#else
 		r_cons_clear00 ();
+#endif
 		dumpDevices (rf, NULL);
 		any_key (rf, "");
 		goto repeat;
@@ -161,7 +170,11 @@ repeat_device:;
 	char *fil = NULL;
 	char *target = choose_target (rf);
 	if (!target) {
+#if R2_VERSION_NUMBER >= 50909
+		r_cons_clear00 (rf->r2core->cons);
+#else
 		r_cons_clear00 ();
+#endif
 		any_key (rf, "Nope");
 		goto repeat;
 	}

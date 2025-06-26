@@ -764,7 +764,11 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			char *s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
+#if R2_VERSION_NUMBER >= 50609
+				r_cons_printf (core->cons, "%s\n", s);
+#else
 				r_cons_printf ("%s\n", s);
+#endif
 				// eprintf ("%s\n", s);
 				free (s);
 			}
@@ -1676,7 +1680,11 @@ static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 		const char *command = json_object_get_string_member (cmd_stanza, "cmd");
 		if (R_STR_ISNOTEMPTY (command)) {
 			r_core_cmd_queue (rf->r2core, command);
+#if R2_VERSION_NUMBER >= 50909
+			r_cons_flush (rf->r2core->cons);
+#else
 			r_cons_flush ();
+#endif
 		}
 	}
 	rf->suspended2 = true;
@@ -2120,7 +2128,11 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 	r_table_sort (table, 0, 0);
 	char *s = r_table_tostring (table);
 	if (s) {
+#if R2_VERSION_NUMBER >= 50909
+		r_cons_gprintf ("%s\n", s);
+#else
 		r_cons_printf ("%s\n", s);
+#endif
 		free (s);
 	}
 error:
