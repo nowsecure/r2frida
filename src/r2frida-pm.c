@@ -24,7 +24,7 @@ static void free_options(Options *opts);
 static gint cmd_search(FridaPackageManager *pm, Options *opts);
 static gint cmd_install(FridaPackageManager *pm, Options *opts);
 static void print_package_info(FridaPackage *package, gboolean use_color);
-static gchar *escape_html(const gchar *text);
+static void maybe_raise_fd_limit(void);
 
 int main(int argc, char **argv) {
 	Options opts = {0};
@@ -113,6 +113,7 @@ static gboolean parse_arguments(int argc, char **argv, Options *opts) {
 		"Commands:\n"
 		"  search [QUERY]          Search for packages\n"
 		"  install [SPEC...]       Install one or more packages");
+	g_option_context_set_ignore_unknown_options (context, TRUE);
 
 	if (!g_option_context_parse (context, &argc, &argv, &error)) {
 		goto invalid_argument;
@@ -324,6 +325,8 @@ static gint cmd_install(FridaPackageManager *pm, Options *opts) {
 	GError *error = NULL;
 	FridaPackageInstallResult *result;
 
+	maybe_raise_fd_limit ();
+
 	result = frida_package_manager_install_sync (pm, opts->install, NULL, &error);
 
 	if (error != NULL) {
@@ -340,8 +343,8 @@ static gint cmd_install(FridaPackageManager *pm, Options *opts) {
 		n = frida_package_list_size (packages);
 
 		if (n != 0) {
-			const gchar * project_root;
-			gchar * current_dir;
+			const gchar *project_root;
+			gchar *current_dir;
 
 			for (i = 0; i != n; i++) {
 				FridaPackage *pkg = frida_package_list_get (packages, i);
@@ -374,16 +377,11 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 	const gchar *description = frida_package_get_description (package);
 	const gchar *url = frida_package_get_url (package);
 
-	gchar *escaped_name = escape_html (name);
-	gchar *escaped_version = escape_html (version);
-	gchar *escaped_desc = description ? escape_html (description) : g_strdup ("");
-	gchar *escaped_url = url ? escape_html (url) : g_strdup ("");
-
 	if (use_color) {
 		g_print ("\033[38;2;156;156;156m%s\033[0m\033[38;2;158;158;158m@%s\033[0m",
-			escaped_name, escaped_version);
+			name, version);
 	} else {
-		g_print ("%s@%s", escaped_name, escaped_version);
+		g_print ("%s@%s", name, version);
 	}
 
 	gint name_len = strlen (name) + 1 + strlen (version);
@@ -393,34 +391,28 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 		g_print (" ");
 	}
 
-	if (description && strlen (description) > 0) {
-		g_print ("%s\n", escaped_desc);
-	} else {
-		g_print ("\n");
-	}
+	g_print ("%s\n", (description != NULL) ? description : "");
 
 	if (url && strlen (url) > 0) {
 		for (gint i = 0; i != 32; i++) {
 			g_print (" ");
 		}
 		if (use_color) {
-			g_print ("\033[38;2;156;156;156m%s\033[0m\n", escaped_url);
+			g_print ("\033[38;2;156;156;156m%s\033[0m\n", url);
 		} else {
-			g_print ("%s\n", escaped_url);
+			g_print ("%s\n", url);
 		}
 	}
 
 	g_print ("\n");
-
-	g_free (escaped_name);
-	g_free (escaped_version);
-	g_free (escaped_desc);
-	g_free (escaped_url);
 }
 
-static gchar *escape_html(const gchar *text) {
-	if (!text) {
-		return g_strdup ("");
-	}
-	return g_markup_escape_text (text, -1);
+static void maybe_raise_fd_limit(void) {
+#ifdef __APPLE__
+    struct rlimit rl;
+
+    getrlimit (RLIMIT_NOFILE, &rl);
+    rl.rlim_cur = rl.rlim_max;
+    setrlimit (RLIMIT_NOFILE, &rl);
+#endif
 }
