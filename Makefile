@@ -396,6 +396,10 @@ src/r2frida-compile: src/r2frida-compile.c node_modules
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
+src/r2frida-pm: src/r2frida-pm.c
+	$(CC) -g src/r2frida-pm.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
+		$(FRIDA_LIBS) -pthread -Iext/frida -o $@
+
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
 	$(MAKE) $(FRIDA_SDK)
