@@ -66,7 +66,7 @@ const regProfileAliasForX86 = `
 =SN eax
 `;
 
-export function dlopenWait(args: string[]) {
+export function dlopenWait(args: string[]): void {
     const name = (args && args.length > 0) ? args[0] : "";
     new Promise((resolve, reject) => {
         const mo = Process.attachModuleObserver({
@@ -81,7 +81,7 @@ export function dlopenWait(args: string[]) {
     });
 }
 
-export function threadWait(args: string[]) {
+export function threadWait(args: string[]): void {
     const name = (args && args.length > 0) ? args[0] : "";
     new Promise((resolve, reject) => {
         const to = Process.attachThreadObserver({
@@ -95,7 +95,7 @@ export function threadWait(args: string[]) {
         });
     });
 }
-export function sendSignal(args: string[]) {
+export function sendSignal(args: string[]): string {
     const argsLength = args.length;
     console.error(
         "WARNING: Frida hangs when signal is sent. But at least the process doesnt continue",
@@ -112,7 +112,7 @@ export function sendSignal(args: string[]) {
     return "";
 }
 
-export function dxCall(args: string[]) {
+export function dxCall(args: string[]): any {
     if (args.length === 0) {
         return `
     Usage: dxc [funcptr] [arg0 arg1..]
@@ -131,7 +131,7 @@ export function dxCall(args: string[]) {
     // return fun.apply(...nfArgsData); // makes eslint happy
 }
 
-export function dxSyscall(args: string[]) {
+export function dxSyscall(args: string[]): any {
     if (args.length === 0) {
         return "Usage dxs [syscallname] [args ...]";
     }
@@ -163,7 +163,7 @@ export function listThreads(): string {
     }).join("\n") + "\n";
 }
 
-export function listThreadsJson() {
+export function listThreadsJson(): number[] {
     return Process.enumerateThreads()
         .map((thread) => thread.id);
 }
@@ -191,7 +191,7 @@ function _formatContext(context: CpuContext): string[] {
     return values;
 }
 
-export function dumpRegistersJson(args: string[]) {
+export function dumpRegistersJson(args: string[]): string[] {
     return _getThreads(args[0])
         .map((thread) => {
             const { id, state, context } = thread;
@@ -201,7 +201,7 @@ export function dumpRegistersJson(args: string[]) {
         });
 }
 
-function _getThreads(threadid: string) {
+function _getThreads(threadid: string): ThreadDetails[] {
     const tid = threadid !== undefined ? parseInt(threadid, 10) : threadid;
     return Process.enumerateThreads()
         .filter((thread) => tid === undefined || thread.id === tid);
@@ -308,7 +308,7 @@ export function dumpRegisterProfile(args: string[]): string {
     return profile;
 }
 
-export function dumpRegisterArena(args: string[]) {
+export function dumpRegisterArena(args: string[]): string {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
         return "";
@@ -328,7 +328,7 @@ export function dumpRegisterArena(args: string[]) {
     const regSize = Process.pointerSize;
     if (regSize !== 4 && regSize !== 8) {
         console.error("Invalid register size");
-        return;
+        return "";
     }
     const buf = [];
     for (const reg of names) {
@@ -345,7 +345,7 @@ export function dumpRegisterArena(args: string[]) {
     return byteArrayToHex(buf);
 }
 
-export function nameFromAddress(address: NativePointer) {
+export function nameFromAddress(address: NativePointer): string | null {
     const at = DebugSymbol.fromAddress(address);
     if (at) {
         return at.name;
@@ -369,7 +369,7 @@ export function nameFromAddress(address: NativePointer) {
     return address.toString();
 }
 
-function _getThreadName(tid: number) {
+function _getThreadName(tid: number): string {
     let canGetThreadName = false;
     let pthreadGetnameNp: any | null = null;
     let pthreadFromMachThreadNp: any | null = null;
@@ -394,10 +394,10 @@ function _getThreadName(tid: number) {
     const buffer = Memory.alloc(4096);
     const p = pthreadFromMachThreadNp(tid);
     pthreadGetnameNp(p, buffer, 4096);
-    return buffer.readCString();
+    return buffer.readCString() || "";
 }
 
-function _compareRegisterNames(lhs: any, rhs: any) {
+function _compareRegisterNames(lhs: any, rhs: any): number {
     const lhsIndex = _parseRegisterIndex(lhs);
     const rhsIndex = _parseRegisterIndex(rhs);
     const lhsHasIndex = lhsIndex !== null;
@@ -422,7 +422,7 @@ function _compareRegisterNames(lhs: any, rhs: any) {
     return -1;
 }
 
-function _parseRegisterIndex(name: string) {
+function _parseRegisterIndex(name: string): number | null {
     const length = name.length;
     for (let index = 1; index < length; index++) {
         const value = parseInt(name.substring(index));
@@ -449,7 +449,7 @@ function _regProfileAliasFor(arch: string): string {
     return "";
 }
 
-function _regcursive(regname: string, pregvalue: NativePointer) {
+function _regcursive(regname: string, pregvalue: NativePointer): string {
     const regvalue = pregvalue.toString();
     const data = [regvalue];
     try {
@@ -488,7 +488,7 @@ function _regcursive(regname: string, pregvalue: NativePointer) {
     return data.join(" ");
 }
 
-function _indent(message: any, index: number) {
+function _indent(message: any, index: number): string {
     if (index === 0) {
         return message;
     }
@@ -498,7 +498,7 @@ function _indent(message: any, index: number) {
     return "\t" + message;
 }
 
-function _alignRight(text: string, width: number) {
+function _alignRight(text: string, width: number): string {
     let result = text;
     while (result.length < width) {
         result = " " + result;
