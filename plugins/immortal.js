@@ -1,6 +1,6 @@
 // > '..immortal.js
 
-var __printf = Module.findExportByName(null, 'printf');
+var __printf = Module.getGlobalExportByName('printf');
 Interceptor.attach(__printf, {
   onEnter: function(args) {
     this.newString = Memory.allocUtf8String('I wont die\n');

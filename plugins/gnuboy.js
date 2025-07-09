@@ -25,7 +25,7 @@ const eventRelease = 2;
 const eventRepeat = 3;
 
 function symptr(name) {
-  var p = Module.findExportByName(null, name);
+  var p = Module.getGlobalExportByName(name);
   if (p) {
     return p;
   }
