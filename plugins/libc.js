@@ -4,7 +4,7 @@
 
 function sym(name, ret, arg) {
   try {
-    return new NativeFunction(Module.findExportByName(null, name), ret, arg);
+    return new NativeFunction(Module.getGlobalExportByName(name), ret, arg);
   } catch (e) {
     console.error(name, ':', e);
   }

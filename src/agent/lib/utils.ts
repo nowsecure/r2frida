@@ -366,9 +366,6 @@ export function Hexdump(lenstr: number): string {
 }
 
 export function getGlobalExportByName(name: string): any {
-    // if (+Frida.version.split('.')[0] < 17) {
-    //   return Module.findExportByName(null, name);
-    // }
     return Module.findGlobalExportByName(name);
 }
 

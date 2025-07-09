@@ -6,8 +6,8 @@ import { r2frida } from "./plugin.js";
 let _r_core_new: any | null = null;
 let _r_core_cmd_str: any | null = null;
 let _r_core_free: any | null = null;
-// const _free = new NativeFunction(Module.findExportByName(null, 'free'), 'void', ['pointer']);
-// const _dlopen = new NativeFunction(Module.findExportByName(null, 'dlopen'), 'pointer', ['pointer', 'int']);
+// const _free = new NativeFunction(Module.getGlobalExportByName('free'), 'void', ['pointer']);
+// const _dlopen = new NativeFunction(Module.getGlobalExportByName('dlopen'), 'pointer', ['pointer', 'int']);
 
 function sym(name: string, ret: any, arg: any) {
     return new NativeFunction(Module.findGlobalExportByName(name)!, ret, arg);
