@@ -28,7 +28,7 @@
         "eslint": "^9.28.0",
         "frida-compile": "^19.0.0",
         "frida-java-bridge": "^7.0.3",
-        "frida-objc-bridge": "^8.0.4",
+        "frida-objc-bridge": "^8.0.5",
         "globals": "^16.2.0",
         "typescript": "^5.8.3"
     },
