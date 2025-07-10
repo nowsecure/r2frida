@@ -13,6 +13,7 @@
 #define COREBIND(x) (x)->corebind
 #endif
 
+
 typedef struct {
 	const char *cmd_string;
 	ut64 serial;
@@ -945,85 +946,6 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	}
 	request_safe_io (rf, true);
 
-	const char *autocompletions[] = {
-		"!!!:chcon",
-		"!!!:eval",
-		"!!!:e",
-		"!!!:e/",
-		"!!!:env",
-		"!!!:j",
-		"!!!:i",
-		"!!!:ii",
-		"!!!:il",
-		"!!!:is",
-		"!!!:isa $flag",
-		"!!!:iE",
-		"!!!:iEa $flag",
-		"!!!:ic",
-		"!!!:ip",
-		"!!!:init",
-		"!!!:fd $flag",
-		"!!!:dd",
-		"!!!:ddj",
-		"!!!:?",
-		"!!!:?V",
-		"!!!:/",
-		"!!!:/i",
-		"!!!:/ij",
-		"!!!:/w",
-		"!!!:/wj",
-		"!!!:/x",
-		"!!!:/xj",
-		"!!!:/v1 $flag",
-		"!!!:/v2 $flag",
-		"!!!:/v4 $flag",
-		"!!!:/v8 $flag",
-		"!!!:dt $flag",
-		"!!!:dt- $flag",
-		"!!!:dt-*",
-		"!!!:dth",
-		"!!!:dtq",
-		"!!!:dtr",
-		"!!!:dtS",
-		"!!!:dtSf $flag",
-		"!!!:dc",
-		"!!!:di",
-		"!!!:dii",
-		"!!!:dibt",
-		"!!!:dibf",
-		"!!!:di0",
-		"!!!:di1",
-		"!!!:di-1",
-		"!!!:dl",
-		"!!!:dl2",
-		"!!!:dx",
-		"!!!:dm",
-		"!!!:dma",
-		"!!!:dma-",
-		"!!!:dmas",
-		"!!!:dmaw",
-		"!!!:dmad",
-		"!!!:dmal",
-		"!!!:dmm",
-		"!!!:dmh",
-		"!!!:dmhm",
-		"!!!:dmp $flag",
-		"!!!:db",
-		"!!!:dp",
-		"!!!:dpj",
-		"!!!:dpt",
-		"!!!:dr",
-		"!!!:drj",
-		"!!!:dk",
-		"!!!:dkr",
-		"!!!:t",
-		"!!!:. $file",
-		NULL
-	};
-	int i;
-	for (i = 0; autocompletions[i]; i++) {
-		COREBIND (io).cmd (rf->r2core, autocompletions[i]);
-	}
 	RIODesc *fd = r_io_desc_new (io, &r_io_plugin_frida, pathname, R_PERM_RWX, mode, rf);
 	if (lo->run) {
 		resume (rf);
