@@ -268,28 +268,61 @@ static gint cmd_search(FridaPackageManager *pm, Options *opts) {
 	total = frida_package_search_result_get_total (result);
 
 	if (opts->json_output) {
-		g_print ("{\n");
-		g_print ("  \"packages\": [\n");
+		JsonBuilder *b;
+		JsonNode *root;
+		gchar *json;
+
+		b = json_builder_new_immutable ();
+
+		json_builder_begin_object (b);
+
+		json_builder_set_member_name (b, "packages");
+		json_builder_begin_array (b);
+
 		for (guint i = 0; i != n; i++) {
-			FridaPackage *pkg = frida_package_list_get (packages, i);
+			FridaPackage *pkg;
+			const gchar *description;
 
-			const gchar *name = frida_package_get_name (pkg);
-			const gchar *version = frida_package_get_version (pkg);
-			const gchar *description = frida_package_get_description (pkg);
-			const gchar *url = frida_package_get_url (pkg);
+			pkg = frida_package_list_get (packages, i);
 
-			g_print ("    {\n");
-			g_print ("      \"name\": \"%s\",\n", name);
-			g_print ("      \"version\": \"%s\",\n", version);
-			g_print ("      \"description\": \"%s\",\n", description ? description : "");
-			g_print ("      \"url\": \"%s\"\n", url ? url : "");
-			g_print ("    }%s\n", i < n - 1 ? "," : "");
+			json_builder_begin_object (b);
+
+			json_builder_set_member_name (b, "name");
+			json_builder_add_string_value (b, frida_package_get_name (pkg));
+
+			json_builder_set_member_name (b, "version");
+			json_builder_add_string_value (b, frida_package_get_version (pkg));
+
+			description = frida_package_get_description (pkg);
+                        if (description != NULL) {
+				json_builder_set_member_name (b, "description");
+				json_builder_add_string_value (b, description);
+			}
+
+			json_builder_set_member_name (b, "url");
+			json_builder_add_string_value (b, frida_package_get_url (pkg));
+
+			json_builder_end_object (b);
 
 			g_object_unref (pkg);
 		}
-		g_print ("  ],\n");
-		g_print ("  \"total\": %u\n", total);
-		g_print ("}\n");
+
+		json_builder_end_array (b);
+
+		json_builder_set_member_name (b, "total");
+		json_builder_add_int_value (b, total);
+
+		json_builder_end_object (b);
+
+		root = json_builder_get_root (b);
+
+		json = json_to_string (root, TRUE);
+		g_print ("%s\n", json);
+		g_free (json);
+
+		json_node_unref (root);
+
+		g_object_unref (b);
 	} else {
 		for (guint i = 0; i != n; i++) {
 			FridaPackage *pkg = frida_package_list_get (packages, i);
