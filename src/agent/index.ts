@@ -71,7 +71,7 @@ function r2pipe2(arg: string) {
 }
 
 const commandHandlers = {
-    ".": [null, "Run Frida script in agent side", "[path]"], // this is implemented in C
+    ".": [null, "Run Frida script in agent side", "[file]"], // this is implemented in C
     eval: [expr.evalCode, "evaluate Javascript code in agent side", "[code]"],
     "!": [system.runSystemCommand, "execute program with system"],
     "!!": [system.runSystemCommandAsString, "execute system command"],
