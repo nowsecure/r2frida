@@ -38,6 +38,7 @@ static int show_help(const char *argv0, int line) {
 		" -q                  Be quiet\n"
 		" -r [project-root]   Specify the project root directory\n"
 		" -S                  Do not include source maps\n"
+		" -T [full|none]      desired type-checking mode (default is full)\n"
 		" -u [esmjs] [dir]    Unpack esmjs into the given directory\n"
 		" -v                  Display version\n"
 		);
@@ -70,12 +71,13 @@ int main(int argc, const char **argv) {
 	}
 	bool quiet = false;
 	const char *header = NULL;
+	const char *tchk_mode = NULL;
 	bool source_maps = true;
 	bool compression = false;
 	bool pack = false;
 	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -84,6 +86,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'H':
 			header = opt.arg;
+			break;
+		case 'T':
+			tchk_mode = opt.arg;
 			break;
 		case 'S':
 			source_maps = false;
@@ -161,6 +166,21 @@ int main(int argc, const char **argv) {
 	if (compression) {
 		frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
 	}
+#if FRIDA_VERSION_MAJOR >= 17
+	if (tchk_mode) {
+		int mode;
+		if (!strcmp (tchk_mode, "full")) {
+			mode = FRIDA_TYPE_CHECK_MODE_FULL;
+		} else if (!strcmp (tchk_mode, "none")) {
+			mode = FRIDA_TYPE_CHECK_MODE_NONE;
+		} else {
+			R_LOG_ERROR ("Invalid option for -T, expected argument 'full' or 'none'");
+		}
+		frida_compiler_options_set_type_check (fco, mode);
+	}
+#else
+	R_LOG_WARN ("The -T option requires Frida17 at least");
+#endif
 
 	int i;
 	bool stdin_mode = false;
