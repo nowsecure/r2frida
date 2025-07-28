@@ -1,0 +1,23 @@
+NAME=r2frida-compiler
+FILE=frida://0
+CMDS=<<EOF
+rm /tmp/example.r2f.js
+!r2frida-compile -B iife -o /tmp/example.r2f.js bins/example.js
+cat /tmp/example.r2f.js
+EOF
+EXPECT=<<EOF
+"use strict";
+(() => {
+  // bins/example.js
+  r2frida.pluginRegister("test", function(name) {
+    if (name === "test") {
+      return function(args) {
+        console.log("Hello Args From r2frida plugin", args);
+        return "Things Happen";
+      };
+    }
+  });
+})();
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsiYmlucy9leGFtcGxlLmpzIl0sCiAgIm1hcHBpbmdzIjogIjs7O0FBR0EsVUFBUSxlQUFlLFFBQVEsU0FBUyxNQUFNO0FBQzVDLFFBQUksU0FBUyxRQUFRO0FBQ25CLGFBQU8sU0FBUyxNQUFNO0FBQ3BCLGdCQUFRLElBQUksa0NBQWtDLElBQUk7QUFDbEQsZUFBTztBQUFBLE1BQ1Q7QUFBQSxJQUNGO0FBQUEsRUFDRixDQUFDOyIsCiAgIm5hbWVzIjogW10KfQo=
+EOF
+RUN
