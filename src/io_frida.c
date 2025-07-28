@@ -656,23 +656,34 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				const char *filename = r_str_trim_head_ro (command + 2);
 				builder = build_request ("evaluate");
 				const bool is_c = r_str_endswith (filename, ".c");
-				const bool is_ts = r_str_endswith (filename, ".ts");
+				const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");;
 				json_builder_set_member_name (builder, is_c? "ccode": "code");
-				if (is_ts && r2f_compiler ()) {
-#if __WINDOWS__
-					R_LOG_ERROR ("Can't compile typescript on the fly with frida 15");
-#else
+				if (!is_c && !is_jsts) {
+					R_LOG_ERROR ("We can only load .ts, .js and .c files into the r2frida agent");
+					return NULL;
+				}
+				if (r2f_compiler ()) {
 					GError *error = NULL;
 					FridaCompiler *compiler = frida_compiler_new (rf->device_manager);
+
+					FridaCompilerOptions *fco = frida_compiler_options_new ();
+					frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
+					frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
+					// frida_compiler_options_set_type_check (fco, FRIDA_TYPE_CHECK_FULL);
+					frida_compiler_options_set_bundle_format (fco, FRIDA_BUNDLE_FORMAT_IIFE);
+
 					g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
-					slurpedData = frida_compiler_build_sync (compiler, filename, NULL, NULL, &error);
+					slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
+					if (error || !slurpedData) {
+						R_LOG_ERROR ("r2frida-compile: %s", error->message);
+						R_FREE (slurpedData)
+					}
 					g_object_unref (compiler);
-#endif
 				} else {
 					slurpedData = r_file_slurp (filename, NULL);
 				}
 				if (!slurpedData) {
-					R_LOG_ERROR ("Cannot slurp %s", filename);
+					R_LOG_ERROR ("Cannot read %s", filename);
 					return NULL;
 				}
 				json_builder_add_string_value (builder, slurpedData);
