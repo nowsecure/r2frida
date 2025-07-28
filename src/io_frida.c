@@ -132,6 +132,7 @@ static const char * const helpmsg = ""\
 	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
 	"  R2FRIDA_STRICT_VERSION=0|1       # Ensure client/host are the very exact same version before continue\n"
 	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
+	"  R2FRIDA_COMPILER_TYPECHECK=0|1   # Type check in the frida-compiler (Default is 'disabled')\n"
 	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n"
 	"  FRIDA_HOST, FRIDA_DEVICE         # overrides host/port/device in uri handler if set\n";
 
@@ -167,6 +168,10 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 
 static bool r2f_compiler(void) {
 	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE");
+}
+
+static bool r2f_typecheck(void) {
+	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_TYPECHECK");
 }
 
 static FridaScriptRuntime r2f_jsruntime(void) {
@@ -669,7 +674,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 					FridaCompilerOptions *fco = frida_compiler_options_new ();
 					frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
 					frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
-					// frida_compiler_options_set_type_check (fco, FRIDA_TYPE_CHECK_FULL);
+					frida_compiler_options_set_type_check (fco, r2f_typecheck ()
+							? FRIDA_TYPE_CHECK_MODE_FULL: FRIDA_TYPE_CHECK_MODE_NONE);
 					frida_compiler_options_set_bundle_format (fco, FRIDA_BUNDLE_FORMAT_IIFE);
 
 					g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
