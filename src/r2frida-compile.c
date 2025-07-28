@@ -30,6 +30,7 @@ static int show_help(const char *argv0, int line) {
 	printf ("Usage: %s (-hSc) [[-p|-u] js dir] | [-H foo.h] [-r root] [-o output.js] [file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
+		" -B [esm|iife]       desired bundle format (default is esm)\n"
 		" -c                  Enable compression\n"
 		" -h                  Show this help message\n"
 		" -H [file]           Output in C-friendly hexadecimal bytes\n"
@@ -71,13 +72,14 @@ int main(int argc, const char **argv) {
 	}
 	bool quiet = false;
 	const char *header = NULL;
-	const char *tchk_mode = NULL;
+	const char *type_check = NULL;
+	const char *bundle_format = NULL;
 	bool source_maps = true;
 	bool compression = false;
 	bool pack = false;
 	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -87,8 +89,11 @@ int main(int argc, const char **argv) {
 		case 'H':
 			header = opt.arg;
 			break;
+		case 'B':
+			bundle_format = opt.arg;
+			break;
 		case 'T':
-			tchk_mode = opt.arg;
+			type_check = opt.arg;
 			break;
 		case 'S':
 			source_maps = false;
@@ -167,19 +172,40 @@ int main(int argc, const char **argv) {
 		frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
 	}
 #if FRIDA_VERSION_MAJOR >= 17
-	if (tchk_mode) {
+	if (type_check) {
 		int mode;
-		if (!strcmp (tchk_mode, "full")) {
+		if (!strcmp (type_check, "full")) {
 			mode = FRIDA_TYPE_CHECK_MODE_FULL;
-		} else if (!strcmp (tchk_mode, "none")) {
+		} else if (!strcmp (type_check, "none")) {
 			mode = FRIDA_TYPE_CHECK_MODE_NONE;
 		} else {
 			R_LOG_ERROR ("Invalid option for -T, expected argument 'full' or 'none'");
+			return 1;
 		}
 		frida_compiler_options_set_type_check (fco, mode);
 	}
+	if (bundle_format) {
+		int mode;
+		if (!strcmp (bundle_format, "esm")) {
+			mode = FRIDA_BUNDLE_FORMAT_ESM;
+		} else if (!strcmp (bundle_format, "iife")) {
+			mode = FRIDA_BUNDLE_FORMAT_IIFE;
+		} else {
+			R_LOG_ERROR ("Invalid option for -B, expected argument 'full' or 'none'");
+			return 1;
+		}
+		frida_compiler_options_set_bundle_format (fco, mode);
+	}
 #else
-	R_LOG_WARN ("The -T option requires Frida17 at least");
+	if (type_check) {
+		R_LOG_WARN ("The -T option requires Frida17 at least");
+	}
+	if (bundle_format) {
+		R_LOG_WARN ("The -B option requires Frida17 at least");
+	}
+	if (type_check || bundle_format) {
+		return 1;
+	}
 #endif
 
 	int i;
