@@ -166,6 +166,65 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 	return true;
 }
 
+/// config begin
+
+static bool config_r2frida_safeio(void *_core, void *_cn) {
+	RConfigNode *cn = _cn;
+	r_sys_setenv_asbool ("R2FRIDA_SAFEIO", cn->i_value);
+	return true;
+}
+
+static bool config_r2frida_debug(void *_core, void *_cn) {
+	RConfigNode *cn = _cn;
+	r_sys_setenv_asbool ("R2FRIDA_DEBUG", cn->i_value);
+	return true;
+}
+
+static bool config_r2frida_compiler(void *_core, void *_cn) {
+	RConfigNode *cn = _cn;
+	r_sys_setenv_asbool ("R2FRIDA_COMPILER_DISABLE", cn->i_value == 0);
+	return true;
+}
+
+static bool config_r2frida_typecheck(void *_core, void *_cn) {
+	RConfigNode *cn = _cn;
+	r_sys_setenv_asbool ("R2FRIDA_COMPILER_TYPECHECK", cn->i_value != 0);
+	return true;
+}
+
+static void r2frida_config_init(RIOFrida *rf) {
+	bool v;
+	RConfigNode *cn;
+	RConfig *cfg = rf->r2core->config;
+	r_config_lock (cfg, false);
+	v = r_sys_getenv_asbool ("R2FRIDA_SAFEIO") == true;
+	cn = r_config_set_b_cb (cfg, "r2frida.safeio", v, config_r2frida_safeio);
+	r_config_node_desc (cn, "Use a slow but safe IO (%R2FRIDA_SAFEIO)");
+
+	v = r_sys_getenv_asbool ("R2FRIDA_DEBUG") == true;
+	cn = r_config_set_b_cb (cfg, "r2frida.debug", v, config_r2frida_debug);
+	r_config_node_desc (cn, "Display internal debugging logging (%R2FRIDA_DEBUG)");
+
+	v = r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE") == false;
+	cn = r_config_set_b_cb (cfg, "r2frida.compiler", v, config_r2frida_compiler);
+	r_config_node_desc (cn, "Trigger the r2frida-compiler when evaluating scripts (%R2FRIDA_COMPILER_DISABLE)");
+
+	v = r_sys_getenv_asbool ("R2FRIDA_COMPILER_TYPECHECK") == false;
+	cn = r_config_set_b_cb (cfg, "r2frida.typecheck", v, config_r2frida_typecheck);
+	r_config_node_desc (cn, "Enable all type checks in the r2frida compiler (%R2FRIDA_COMPILER_TYPECHECK)");
+	r_config_lock (cfg, true);
+}
+
+static void r2frida_config_fini(RIOFrida *rf) {
+	RConfig *cfg = rf->r2core->config;
+	r_config_lock (cfg, false);
+	r_config_rm (cfg, "r2frida.debug");
+	r_config_rm (cfg, "r2frida.compiler");
+	r_config_lock (cfg, true);
+}
+
+/// config end
+
 static bool r2f_compiler(void) {
 	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_DISABLE");
 }
@@ -374,6 +433,7 @@ static bool __close(RIODesc *fd) {
 	}
 	R_LOG_DEBUG ("close");
 	RIOFrida *rf = fd->data;
+	r2frida_config_fini (rf);
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
 	resume (rf);
@@ -850,43 +910,43 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		// rf->device = get_device_manager (rf->device_manager, "local", rf->cancellable, &error);
 		goto failure;
 	}
-		if (lo->spawn) {
-			char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
-			if (package_name) {
-				free (lo->process_specifier);
-				lo->process_specifier = package_name;
-			}
-			// try to resolve it as an app name too
-			char *a = strdup (lo->process_specifier);
-			char **argv = r_str_argv (a, NULL);
-			if (!argv) {
-				R_LOG_ERROR ("Invalid process specifier");
-				goto failure;
-			}
-			if (!*argv) {
-				R_LOG_ERROR ("Invalid arguments for spawning");
-				r_str_argv_free (argv);
-				goto failure;
-			}
-			const int argc = g_strv_length (argv);
-			FridaSpawnOptions *options = frida_spawn_options_new ();
-			if (argc > 1) {
-				frida_spawn_options_set_argv (options, argv, argc);
-			}
-			// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
-			rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
-			g_object_unref (options);
+	if (lo->spawn) {
+		char *package_name = resolve_package_name_by_process_name (rf->device, rf->cancellable, lo->process_specifier);
+		if (package_name) {
+			free (lo->process_specifier);
+			lo->process_specifier = package_name;
+		}
+		// try to resolve it as an app name too
+		char *a = strdup (lo->process_specifier);
+		char **argv = r_str_argv (a, NULL);
+		if (!argv) {
+			R_LOG_ERROR ("Invalid process specifier");
+			goto failure;
+		}
+		if (!*argv) {
+			R_LOG_ERROR ("Invalid arguments for spawning");
 			r_str_argv_free (argv);
-			free (a);
+			goto failure;
+		}
+		const int argc = g_strv_length (argv);
+		FridaSpawnOptions *options = frida_spawn_options_new ();
+		if (argc > 1) {
+			frida_spawn_options_set_argv (options, argv, argc);
+		}
+		// frida_spawn_options_set_stdio (options, FRIDA_STDIO_PIPE);
+		rf->pid = frida_device_spawn_sync (rf->device, argv[0], options, rf->cancellable, &error);
+		g_object_unref (options);
+		r_str_argv_free (argv);
+		free (a);
 
-			if (error) {
-				if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-					R_LOG_ERROR ("%s", error->message);
-					error = NULL;
-				}
-				goto failure;
+		if (error) {
+			if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+				R_LOG_ERROR ("%s", error->message);
+				error = NULL;
 			}
-			rf->suspended = !lo->run;
+			goto failure;
+		}
+		rf->suspended = !lo->run;
 	} else {
 		rf->pid = lo->pid;
 		rf->suspended = false;
@@ -993,6 +1053,8 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 	} else {
 		R_LOG_INFO ("Using safe io mode.");
 	}
+
+	r2frida_config_init (rf);
 
 	return fd;
 
