@@ -13,7 +13,6 @@
 #define COREBIND(x) (x)->corebind
 #endif
 
-
 typedef struct {
 	const char *cmd_string;
 	ut64 serial;
@@ -170,7 +169,7 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 ///
 #if R2_VERSION_NUMBER < 50909
 static inline void r_sys_setenv_asbool(const char *k, bool v) {
-	r_sys_setenv (key, v? "1": "0");
+	r_sys_setenv (k, v? "1": "0");
 }
 #endif
 
