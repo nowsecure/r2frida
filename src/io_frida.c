@@ -167,6 +167,12 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 }
 
 /// config begin
+///
+#if R2_VERSION_NUMBER < 50909
+static inline void r_sys_setenv_asbool(const char *k, bool v) {
+	r_sys_setenv (key, v? "1": "0");
+}
+#endif
 
 static bool config_r2frida_safeio(void *_core, void *_cn) {
 	RConfigNode *cn = _cn;
