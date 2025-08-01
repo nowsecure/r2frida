@@ -141,7 +141,7 @@ jobs:
         python -m wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2-${{env.R2V}}-w64.zip -o r2.zip
         unzip r2.zip
         mv radare2-${{env.R2V}}-w64 radare2 || mv radare2-w64-${{env.R2V}} radare2
-        cp -f radare2/include/r_util/r_event.h radare2/include/r_event.h
+        cp -f radare2/include/libr/r_util/r_event.h radare2/include/libr/r_event.h
         pwd
     - name: make
       shell: cmd
