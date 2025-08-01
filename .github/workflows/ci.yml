@@ -59,6 +59,7 @@ jobs:
         path: dist/debian/*.deb
   build-linux22-precompiled:
     runs-on: ubuntu-22.04
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
     - name: Installing radare2

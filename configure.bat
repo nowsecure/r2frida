@@ -1,6 +1,6 @@
 @echo OFF
 setlocal
-set "R2V=5.9.8"
+set "R2V=6.0.0"
 set "R2ZIP=https://github.com/radareorg/radare2/releases/download/%R2V%/radare2-%R2V%-w64.zip"
 set "R2DIR=radare2"
 
@@ -44,6 +44,7 @@ powershell -Command "Invoke-WebRequest -Uri '%R2ZIP%' -OutFile 'radare2-%R2V%.zi
 echo Extracting ZIP...
 powershell -Command "Expand-Archive -Path 'radare2-%R2V%.zip' -DestinationPath '%CD%' -Force"
 ren radare2-%R2V%-w64 %R2DIR%
+copy %R2DIR%\include\libr\r_util\r_event.h %R2DIR%\include\libr\r_event.h
 
 echo Deleting ZIP file...
 del radare2-%R2V%.zip
