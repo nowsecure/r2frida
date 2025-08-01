@@ -1,42 +1,42 @@
 {
-    "name": "r2frida-agent",
-    "version": "5.9.8",
-    "description": "Agent for frida:// io plugin",
-    "private": true,
-    "type": "module",
-    "main": "src/agent/index.js",
-    "scripts": {
-        "lint": "eslint src/agent",
-        "indent": "eslint --fix src/agent",
-        "prepare": "npm run build",
-        "build": "frida-compile -Sco src/_agent.js src/agent/index.ts",
-        "watch": "frida-compile -Sco src/_agent.js -w src/agent/index.ts",
-        "codecheck-ts": "eslint . --ext .ts --no-error-on-unmatched-pattern"
-    },
-    "license": "LGPL-3.0",
-    "engines": {
-        "node": ">=20.0"
-    },
-    "devDependencies": {
-        "@eslint/eslintrc": "^3.3.1",
-        "@eslint/js": "^9.28.0",
-        "@frida/events": "^4.0.4",
-        "@types/frida-gum": "^19.0.0",
-        "@types/node": "^22.15.21",
-        "@typescript-eslint/eslint-plugin": "^8.34.0",
-        "@typescript-eslint/parser": "^8.34.0",
-        "eslint": "^9.28.0",
-        "frida-compile": "^19.0.0",
-        "frida-java-bridge": "^7.0.3",
-        "frida-objc-bridge": "^8.0.5",
-        "globals": "^16.2.0",
-        "typescript": "^5.8.3"
-    },
-    "exports": {
-        "require": "./src/agent/index.js",
-        "import": "./index.mjs"
-    },
-    "dependencies": {
-        "semistandard": "^17.0.0"
-    }
+  "name": "r2frida-agent",
+  "version": "6.0.0",
+  "description": "Agent for frida:// io plugin",
+  "private": true,
+  "type": "module",
+  "main": "src/agent/index.js",
+  "scripts": {
+    "lint": "eslint src/agent",
+    "indent": "eslint --fix src/agent",
+    "prepare": "npm run build",
+    "build": "frida-compile -Sco src/_agent.js src/agent/index.ts",
+    "watch": "frida-compile -Sco src/_agent.js -w src/agent/index.ts",
+    "codecheck-ts": "eslint . --ext .ts --no-error-on-unmatched-pattern"
+  },
+  "license": "LGPL-3.0",
+  "engines": {
+    "node": ">=20.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.28.0",
+    "@frida/events": "^4.0.4",
+    "@types/frida-gum": "^19.0.0",
+    "@types/node": "^22.15.21",
+    "@typescript-eslint/eslint-plugin": "^8.34.0",
+    "@typescript-eslint/parser": "^8.34.0",
+    "eslint": "^9.28.0",
+    "frida-compile": "^19.0.0",
+    "frida-java-bridge": "^7.0.3",
+    "frida-objc-bridge": "^8.0.5",
+    "globals": "^16.2.0",
+    "typescript": "^5.8.3"
+  },
+  "exports": {
+    "require": "./src/agent/index.js",
+    "import": "./index.mjs"
+  },
+  "dependencies": {
+    "semistandard": "^17.0.0"
+  }
 }
