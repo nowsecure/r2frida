@@ -177,6 +177,7 @@ all: ext/frida
 	rm -f src/_agent*
 ifeq ($(frida_version_major),16)
 	$(MAKE) src/r2frida-compile
+	$(MAKE) src/r2frida-pm
 endif
 	$(MAKE) io_frida.$(SO_EXT)
 
@@ -249,7 +250,7 @@ src/_agent.js:
 	mv src/_agent.js.host src/_agent.js
 	test -s src/_agent.js || rm -f src/_agent.js
 else
-src/_agent.js: src/r2frida-compile
+src/_agent.js: src/r2frida-compile src/r2frida-pm
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
@@ -264,10 +265,11 @@ endif
 endif
 endif
 
-node_modules:
+node_modules: src/r2frida-pm
 	mkdir -p node_modules
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),0)
-	npm i
+	src/r2frida-pm install
+#	npm i
 endif
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
@@ -325,6 +327,7 @@ android-arm: radare2-android-arm-libs
 clean:
 	$(RM) src/*.o src/_agent.js src/_agent.h config.h
 	$(RM) -f src/r2frida-compile src/frida-compile
+	$(RM) -f src/r2frida-pm src/frida-pm
 	$(RM) -rf ext
 	$(RM) -f frida-sdk.tar.xz
 	$(RM) -f src/io_frida.dylib src/io_frida.so
@@ -345,12 +348,14 @@ user-install:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
+	cp -f src/r2frida-pm $(DESTDIR)/"$(R2PM_BINDIR)"
 	-mkdir -p "$(DESTDIR)/$(R2PM_MANDIR)/man1"
 	-cp -f r2frida.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
 
 user-uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
+	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-pm"
 	-sudo $(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
 
 user-symstall:
@@ -366,6 +371,7 @@ install:
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
 	mkdir -p "$(DESTDIR)/$(R2_BINDIR)"
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
+	cp -f src/r2frida-pm $(DESTDIR)/"$(R2_BINDIR)"
 	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
 	cp -f r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
 
@@ -378,6 +384,7 @@ symstall:
 uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
+	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-pm"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
 
 release:
@@ -398,7 +405,7 @@ src/r2frida-compile: src/r2frida-compile.c node_modules
 
 src/r2frida-pm: src/r2frida-pm.c
 	$(CC) -g src/r2frida-pm.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
-		$(FRIDA_LIBS) -pthread -Iext/frida -o $@
+		$(FRIDA_LIBS) $(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
