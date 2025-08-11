@@ -266,7 +266,9 @@ endif
 
 node_modules:
 	mkdir -p node_modules
+ifeq ($(R2FRIDA_PRECOMPILED_AGENT),0)
 	npm i
+endif
 
 R2A_ROOT=$(shell pwd)/radare2-android-libs
 
