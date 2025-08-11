@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Testing stat for frida-fs
       run: make -C dist/docker test
     - name: Installing radare2
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Testing stat for frida-fs
       run: make -C dist/docker test
     - name: Installing radare2
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Installing radare2
       run: |
         wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2_${{env.R2V}}_amd64.deb
@@ -75,7 +75,7 @@ jobs:
   build-linux24:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Building Radare2
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh --with-rpath /usr )
     - name: Testing stat for frida-fs
@@ -92,7 +92,7 @@ jobs:
   build-agent:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Building Radare2
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && sys/install.sh --with-rpath /usr )
     - name: Building r2frida
@@ -105,7 +105,7 @@ jobs:
   build-macos:
     runs-on: macos-14
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install dependencies
       run: brew install pkg-config
     - name: Building Radare2
@@ -123,7 +123,7 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: actions/setup-python@v5
       with:
         python-version: 3.12.x
@@ -171,7 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Check if is a release
@@ -184,7 +184,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Extract r2f version
