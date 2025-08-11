@@ -2,7 +2,7 @@ include config.mk
 
 PREFIX?=/usr/local
 R2V=$(VERSION)
-R2V?=5.9.8
+R2V?=6.0.0
 USE_FRIDA_TOOLS=0
 # frida_version=16.5.9
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
