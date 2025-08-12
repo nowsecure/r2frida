@@ -578,12 +578,16 @@ function _breakpointSet(args: string[]): boolean {
         return false;
     }
     const ptrAddr = getPtr(address);
+    if (ptrAddr.equals(ptr("0"))) {
+	    console.error ("Invalid pointer");
+	    return false;
+    }
     const bp = breakpoints.get(address.toString());
     if (
         (bp instanceof HardwareBreakpointData) ||
         (bp instanceof SoftwareBreakpointData)
     ) {
-        console.log(`Breakpoint at ${ptrAddr.toString()} already exists`);
+        console.error(`Breakpoint at ${ptrAddr.toString()} already exists`);
         return false;
     }
     const id = _breakpointsSize();

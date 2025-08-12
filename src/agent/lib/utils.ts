@@ -266,7 +266,6 @@ export function getPtr(p: any): NativePointer {
     } catch (e) {
         // console.error(e);
     }
-    // return DebugSymbol.fromAddress(ptr_p) || '' + ptr_p;
     const res = getGlobalExportByName(p);
     return (res === null) ? ptr(0) : res;
 }
