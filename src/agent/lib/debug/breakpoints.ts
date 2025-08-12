@@ -663,7 +663,11 @@ function _breakpointUnset(args: string[]): boolean {
 }
 
 function _currentThread(): ThreadDetails {
-    return Process.enumerateThreads()[0];
+    const threads = Process.enumerateThreads();
+    if (threads.length === 0) {
+        throw new Error("No threads available, you may want to resume the process. See :dc and :dpt");
+    }
+    return threads[0];
 }
 
 function isWatchpointEnabled(): boolean {
