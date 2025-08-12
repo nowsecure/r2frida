@@ -57,7 +57,8 @@ const statxSpecs = {
     },
 };
 const STATX_SIZE = 0x200;
-let has64BitInode: boolean | null = null;
+let has64BitInode: boolean = false;
+let has64BitInodeChecked: boolean = false;
 const direntSpec = (direntSpecs as any)[`${platform}-${pointerSize * 8}`];
 const statSpec = (statSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
 const statxSpec = (statxSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
@@ -578,13 +579,14 @@ function readStatxField(entry: NativePointer, name: string): number | undefined 
 }
 
 export function direntHas64BitInode(dirEntPtr: NativePointer): boolean {
-    if (has64BitInode !== null) {
+    if (has64BitInodeChecked) {
         return has64BitInode;
     }
     const recLen = dirEntPtr.add(4).readU16();
     const nameLen = dirEntPtr.add(7).readU8();
     const compLen = (8 + nameLen + 3) & ~3;
     has64BitInode = compLen !== recLen;
+    has64BitInodeChecked = true;
     return has64BitInode;
 }
 
