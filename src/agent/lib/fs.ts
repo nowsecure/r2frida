@@ -22,19 +22,9 @@ const direntSpecs = {
         d_name: [19, "Utf8String"],
         d_type: [18, "U8"],
     },
-    "darwin-32": {
+    "darwin-64": {
         d_name: [21, "Utf8String"],
         d_type: [20, "U8"],
-    },
-    "darwin-64": {
-        d_name: [
-            [8, "Utf8String"],
-            [21, "Utf8String"],
-        ],
-        d_type: [
-            [6, "U8"],
-            [20, "U8"],
-        ],
     },
 };
 const statSpecs = {
@@ -43,9 +33,6 @@ const statSpecs = {
     },
     "linux-64": {
         size: [48, "S64"],
-    },
-    "darwin-32": {
-        size: [60, "S64"],
     },
     "darwin-64": {
         size: [96, "S64"],
@@ -57,8 +44,6 @@ const statxSpecs = {
     },
 };
 const STATX_SIZE = 0x200;
-let has64BitInode: boolean = false;
-let has64BitInodeChecked: boolean = false;
 const direntSpec = (direntSpecs as any)[`${platform}-${pointerSize * 8}`];
 const statSpec = (statSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
 const statxSpec = (statxSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
@@ -285,7 +270,7 @@ export class FridaFS {
         return this._posixApi;
     }
 
-    _getEntryType(entry: string): any {
+    _getEntryType(entry: number): any {
         if (this._entryTypes === null) {
             this._entryTypes = {
                 0: "?",
@@ -517,29 +502,32 @@ export class PosixFSApi {
 }
 
 class DirEnt {
-    type: any;
-    name: any;
-    constructor(dirEntPtr: any) {
+    type: number;
+    name: string;
+    constructor(dirEntPtr: NativePointer) {
         this.type = readDirentField(dirEntPtr, "d_type");
         this.name = readDirentField(dirEntPtr, "d_name");
     }
 }
 
-function readDirentField(entry: any, name: string) {
-    console.log("readDirentField", name);
-    let spec = direntSpec[name];
-    if (platform === "darwin") {
-        if (direntHas64BitInode(entry)) {
-            spec = spec[1];
-        } else {
-            spec = spec[0];
-        }
+function readDirentField(entry: NativePointer, name: string) {
+    const [offset, type] = direntSpec[name];
+    let value: any = null;
+    switch (type) {
+        case "Utf8String":
+            value = entry.add(offset).readUtf8String();
+            break;
+        case "U8":
+            value = entry.add(offset).readU8();
+            break;
+        case "S32":
+            value = entry.add(offset).readS32();
+            break;
+        case "S64":
+            value = entry.add(offset).readS64();
+        default:
+            throw new Error("Unknown type: " + type);
     }
-    const [offset, type] = spec;
-    const read = (typeof type === "string")
-        ? (Memory as any)["read" + type]
-        : type;
-    const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
     }
@@ -576,18 +564,6 @@ function readStatxField(entry: NativePointer, name: string): number | undefined 
         return value.valueOf();
     }
     return value;
-}
-
-export function direntHas64BitInode(dirEntPtr: NativePointer): boolean {
-    if (has64BitInodeChecked) {
-        return has64BitInode;
-    }
-    const recLen = dirEntPtr.add(4).readU16();
-    const nameLen = dirEntPtr.add(7).readU8();
-    const compLen = (8 + nameLen + 3) & ~3;
-    has64BitInode = compLen !== recLen;
-    has64BitInodeChecked = true;
-    return has64BitInode;
 }
 
 export function resolveExports(names: string[]): Record<string, NativePointer> {
