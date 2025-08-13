@@ -364,7 +364,11 @@ export function Hexdump(lenstr: number): string {
     }
 }
 
-export function getGlobalExportByName(name: string): any {
+export function getGlobalExportByName(name: string): NativePointer {
+    return Module.getGlobalExportByName(name);
+}
+
+export function findGlobalExportByName(name: string): NativePointer | null {
     return Module.findGlobalExportByName(name);
 }
 
