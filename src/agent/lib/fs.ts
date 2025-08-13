@@ -48,23 +48,23 @@ const direntSpec = (direntSpecs as any)[`${platform}-${pointerSize * 8}`];
 const statSpec = (statSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
 const statxSpec = (statxSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
 
-export function fsList(args: string[]) {
+export function fsList(args: string[]): string {
     return _ls(args[0] || Gcwd);
 }
 
-export function fsGet(args: string[]) {
+export function fsGet(args: string[]): string {
     return _cat(args[0] || "", "*", +args[1] || 0, +args[2] || 0);
 }
 
-export function fsCat(args: string[]) {
+export function fsCat(args: string[]): string {
     return _cat(args[0] || "");
 }
 
-export function fsOpen(args: string[]) {
+export function fsOpen(args: string[]): string {
     return _open(args[0] || Gcwd);
 }
 
-export function chDir(args: string[]) {
+export function chDir(args: string[]): string {
     const _chdir = sym("chdir", "int", ["pointer"]);
     if (_chdir && args.length > 0) {
         const arg = Memory.allocUtf8String(args[0]);
@@ -94,7 +94,7 @@ export function getCwd(): string {
     return "";
 }
 
-export function _ls(srcPath: string) {
+export function _ls(srcPath: string): string {
     if (fs === null) {
         fs = new FridaFS();
     }
@@ -106,21 +106,21 @@ export function _cat(
     mode?: string,
     offset?: number,
     size?: number,
-) {
+): string {
     if (fs === null) {
         fs = new FridaFS();
     }
     return fs.cat(_debase(srcPath), mode, offset, size);
 }
 
-export function _open(srcPath: string): any {
+export function _open(srcPath: string): string {
     if (fs === null) {
         fs = new FridaFS();
     }
     return fs.open(_debase(srcPath));
 }
 
-export function transformVirtualPath(srcPath: string) {
+export function transformVirtualPath(srcPath: string): string {
     if (fs === null) {
         fs = new FridaFS();
     }
@@ -207,6 +207,10 @@ export class FridaFS {
             }
             const buf = Memory.alloc(size);
             const f = this.posixApi.fopen(actualPath, "rb");
+            if (f === null) {
+                console.log(`ERROR: cannot open ${actualPath}`);
+                return "";
+            }
             if (offset > 0) {
                 this.posixApi.fseek(f, offset, 0);
             }
@@ -270,7 +274,7 @@ export class FridaFS {
         return this._posixApi;
     }
 
-    _getEntryType(entry: number): any {
+    _getEntryType(entry: number): string {
         if (this._entryTypes === null) {
             this._entryTypes = {
                 0: "?",
@@ -444,14 +448,14 @@ export class PosixFSApi {
         return new DirEnt(result);
     }
 
-    closedir(dir: NativePointer) {
+    closedir(dir: NativePointer): number | null {
         if (this.api.closedir === null) {
             return null;
         }
         return this.api.closedir(dir);
     }
 
-    fopen(srcPath: string, mode: string) {
+    fopen(srcPath: string, mode: string): NativePointer | null {
         if (this.api.fopen === null) {
             return null;
         }
@@ -461,28 +465,28 @@ export class PosixFSApi {
         );
     }
 
-    fclose(f: NativePointer) {
+    fclose(f: NativePointer): number | null {
         if (this.api.fclose === null) {
             return null;
         }
         return this.api.fclose(f);
     }
 
-    fread(buf: NativePointer, size: number, nitems: number, f: NativePointer) {
+    fread(buf: NativePointer, size: number, nitems: number, f: NativePointer): number | null {
         if (this.api.fread === null) {
             return null;
         }
         return this.api.fread(buf, size, nitems, f);
     }
 
-    fseek(f: NativePointer, offset: number, whence: number) {
+    fseek(f: NativePointer, offset: number, whence: number): number | null {
         if (this.api.fseek === null) {  
             return null;
         }
         return this.api.fseek(f, offset, whence);
     }
 
-    getFileSize(srcPath: string) {
+    getFileSize(srcPath: string): number {
         const statPtr = Memory.alloc(Process.pageSize);
         const pathStr = Memory.allocUtf8String(srcPath);
         if (this.api.stat !== null) {
@@ -498,6 +502,7 @@ export class PosixFSApi {
             }
             return readStatxField(statPtr, "size");
         }
+        throw new Error("No stat function found");
     }
 }
 
@@ -505,12 +510,12 @@ class DirEnt {
     type: number;
     name: string;
     constructor(dirEntPtr: NativePointer) {
-        this.type = readDirentField(dirEntPtr, "d_type");
-        this.name = readDirentField(dirEntPtr, "d_name");
+        this.type = readDirentField(dirEntPtr, "d_type") as number;
+        this.name = readDirentField(dirEntPtr, "d_name") as string;
     }
 }
 
-function readDirentField(entry: NativePointer, name: string) {
+function readDirentField(entry: NativePointer, name: string): number | string {
     const [offset, type] = direntSpec[name];
     let value: any = null;
     switch (type) {
@@ -534,32 +539,35 @@ function readDirentField(entry: NativePointer, name: string) {
     return value;
 }
 
-function readStatField(entry: NativePointer, name: string) {
-    const field = statSpec[name];
-    if (field === undefined) {
-        return undefined;
+function readStatField(entry: NativePointer, name: string): number {
+    const [offset, type] = statSpec[name];
+    let value: any = null;
+    switch (type) {
+        case "S32":
+            value = entry.add(offset).readS32();
+            break;
+        case "S64":
+            value = entry.add(offset).readS64();
+            break;
+        default:
+            throw new Error("Unknown type: " + type);
     }
-    const [offset, type] = field;
-    const read = (typeof type === "string")
-        ? (Memory as any)["read" + type]
-        : type;
-    const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
     }
     return value;
 }
 
-function readStatxField(entry: NativePointer, name: string): number | undefined {
-    const field = statxSpec[name];
-    if (field === undefined) {
-        return undefined;
+function readStatxField(entry: NativePointer, name: string): number {
+    const [offset, type] = statxSpec[name];
+    let value: any = null;
+    switch (type) {
+        case "S64":
+            value = entry.add(offset).readS64();
+            break;
+        default:
+            throw new Error("Unknown type: " + type);
     }
-    const [offset, type] = field;
-    const read = (typeof type === "string")
-        ? (Memory as any)["read" + type]
-        : type;
-    const value = read(entry.add(offset));
     if (value instanceof Int64 || value instanceof UInt64) {
         return value.valueOf();
     }
