@@ -662,10 +662,95 @@ function _breakpointUnset(args: string[]): boolean {
     return true;
 }
 
+let _pendingThread: any = null;
+let _pendingThreadObserver: any = null;
+
+class PendingThread {
+    queue: any[];
+    id: number;
+    name: string;
+    entrypoint: any;
+    context: any;
+
+    constructor() {
+        this.queue = [];
+        this.id = 0;
+        this.name = "";
+        this.entrypoint = null;
+        this.context = {};
+    }
+
+    setHardwareBreakpoint(id: number, address: NativePointer) {
+        this.queue.push({op: "hw_set", args: [id, address]});
+    }
+
+    unsetHardwareBreakpoint(id: number) {
+        this.queue.push({op: "hw_unset", args: [id]});
+    }
+
+    setHardwareWatchpoint(id: number, address: NativePointer, size: number, cond: HardwareWatchpointCondition) {
+        this.queue.push({op: "wp_set", args: [id, address, size, cond]});
+    }
+
+    unsetHardwareWatchpoint(id: number) {
+        this.queue.push({op: "wp_unset", args: [id]});
+    }
+
+    flushTo(realThread: ThreadDetails) {
+        // Reassign breakpoints that were created pointing to this pending thread
+        for (const [_, bp] of breakpoints.entries()) {
+            bp.thread = realThread;
+        }
+        // Execute queued ops
+        for (const item of this.queue) {
+            switch (item.op) {
+                case "hw_set":
+                    realThread.setHardwareBreakpoint(item.args[0], item.args[1]);
+                    break;
+                case "hw_unset":
+                    realThread.unsetHardwareBreakpoint(item.args[0]);
+                    break;
+                case "wp_set":
+                    realThread.setHardwareWatchpoint(item.args[0], item.args[1], item.args[2], item.args[3]);
+                    break;
+                case "wp_unset":
+                    realThread.unsetHardwareWatchpoint(item.args[0]);
+                    break;
+                default:
+                    break;
+            }
+        }
+        this.queue = [];
+    }
+}
+
+function _attachPendingThreadObserverIfNeeded() {
+    if (_pendingThreadObserver !== null) {
+        return;
+    }
+    _pendingThreadObserver = Process.attachThreadObserver({
+        onAdded(thread: ThreadDetails) {
+            console.log('[thread-add] attaching enqueued breakpoints to', thread.id, thread.name);
+            if (_pendingThread) {
+                _pendingThread.flushTo(thread);
+                _pendingThread = null;
+            }
+        },
+    });
+}
+
 function _currentThread(): ThreadDetails {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
-        throw new Error("No threads available, you may want to resume the process. See :dc and :dpt");
+        // When no threads exist (spawned process not yet running on some platforms), create
+        // a pending thread placeholder that will enqueue hardware/watchpoint operations and
+        // be flushed to the first thread created via a ThreadObserver.
+        if (_pendingThread === null) {
+            console.log('No threads available: breakpoints/watchpoints will be enqueued and attached to the first thread created.');
+            _pendingThread = new PendingThread();
+            _attachPendingThreadObserverIfNeeded();
+        }
+        return _pendingThread as any as ThreadDetails;
     }
     return threads[0];
 }
