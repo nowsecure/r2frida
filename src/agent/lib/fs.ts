@@ -515,8 +515,7 @@ class DirEnt {
     }
 }
 
-function readDirentField(entry: NativePointer, name: string): number | string {
-    const [offset, type] = direntSpec[name];
+function readMemoryField(entry: NativePointer, offset: number, type: string): number | string {
     let value: any = null;
     switch (type) {
         case "Utf8String":
@@ -539,39 +538,20 @@ function readDirentField(entry: NativePointer, name: string): number | string {
     return value;
 }
 
+
+function readDirentField(entry: NativePointer, name: string): number | string {
+    const [offset, type] = direntSpec[name];
+    return readMemoryField(entry, offset, type);
+}
+
 function readStatField(entry: NativePointer, name: string): number {
     const [offset, type] = statSpec[name];
-    let value: any = null;
-    switch (type) {
-        case "S32":
-            value = entry.add(offset).readS32();
-            break;
-        case "S64":
-            value = entry.add(offset).readS64();
-            break;
-        default:
-            throw new Error("Unknown type: " + type);
-    }
-    if (value instanceof Int64 || value instanceof UInt64) {
-        return value.valueOf();
-    }
-    return value;
+    return readMemoryField(entry, offset, type) as number;
 }
 
 function readStatxField(entry: NativePointer, name: string): number {
     const [offset, type] = statxSpec[name];
-    let value: any = null;
-    switch (type) {
-        case "S64":
-            value = entry.add(offset).readS64();
-            break;
-        default:
-            throw new Error("Unknown type: " + type);
-    }
-    if (value instanceof Int64 || value instanceof UInt64) {
-        return value.valueOf();
-    }
-    return value;
+    return readMemoryField(entry, offset, type) as number;
 }
 
 export function resolveExports(names: string[]): Record<string, NativePointer> {
