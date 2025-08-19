@@ -13,16 +13,15 @@
 #define R2__WINDOWS__ 1
 #endif
 
+// Shared diagnostics for Frida compiler
+#include "diagnostics.h"
+
+static bool compile_show_json = false;
+
+// diagnostics helpers live in diagnostics.c
+
 static int on_compiler_diagnostics(void *user, GVariant *diagnostics) {
-	gchar *str = g_variant_print (diagnostics, TRUE);
-	str = r_str_replace (str, "int64", "", true);
-	str = r_str_replace (str, "<", "", true);
-	str = r_str_replace (str, ">", "", true);
-	str = r_str_replace (str, "'", "\"", true);
-	char *json = r_print_json_indent (str, true, "  ", NULL);
-	eprintf ("%s\n", json);
-	free (json);
-	g_free (str);
+	r2f_on_compiler_diagnostics (user, diagnostics);
 	return 0;
 }
 
@@ -41,6 +40,7 @@ static int show_help(const char *argv0, int line) {
 		" -S                  Do not include source maps\n"
 		" -T [full|none]      desired type-checking mode (default is full)\n"
 		" -u [esmjs] [dir]    Unpack esmjs into the given directory\n"
+		" -j                  Keep showing JSON diagnostics (do not prettify)\n"
 		" -v                  Display version\n"
 		);
 	}
@@ -79,7 +79,7 @@ int main(int argc, const char **argv) {
 	bool pack = false;
 	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:j");
 	const char *proot = NULL;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
@@ -112,6 +112,9 @@ int main(int argc, const char **argv) {
 			break;
 		case 'q':
 			quiet = true;
+			break;
+		case 'j':
+			compile_show_json = true;
 			break;
 		case 'h':
 			show_help (arg0, false);
@@ -267,7 +270,8 @@ int main(int argc, const char **argv) {
 			free (ofilename);
 		}
 #endif
-		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), NULL);
+			R2FDiagOptions diag_opts = { .json = compile_show_json };
+			g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), &diag_opts);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
 			R_LOG_ERROR ("%s", error->message);
