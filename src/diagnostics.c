@@ -69,21 +69,33 @@ void r2f_on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 			}
 			pj_o (j);
 			const char *category = variant_get_str (elem, "category");
-			if (category) pj_ks (j, "category", category);
+			if (category) {
+				pj_ks (j, "category", category);
+			}
 			st64 code;
 			if (variant_get_int (elem, "code", &code)) {
 				pj_kN (j, "code", code);
 			}
 			const char *text = variant_get_str (elem, "text");
-			if (text) pj_ks (j, "text", text);
+			if (text) {
+				pj_ks (j, "text", text);
+			}
 			GVariant *file = g_variant_lookup_value (elem, "file", NULL);
 			if (file) {
 				pj_ko (j, "file");
 				const char *path = variant_get_str (file, "path");
-				if (path) pj_ks (j, "path", path);
+				if (path) {
+					pj_ks (j, "path", path);
+				}
 				st64 line, character;
-				if (variant_get_int (file, "line", &line)) { if (line >= 0) line++; pj_kN (j, "line", line); }
-				if (variant_get_int (file, "character", &character)) pj_kN (j, "character", character);
+				if (variant_get_int (file, "line", &line)) {
+					if (line >= 0) {
+						line++; pj_kN (j, "line", line);
+					}
+				}
+				if (variant_get_int (file, "character", &character)) {
+					pj_kN (j, "character", character);
+				}
 				pj_end (j);
 				g_variant_unref (file);
 			}
@@ -123,11 +135,17 @@ void r2f_on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 		st64 line = -1, character = -1;
 		if (file) {
 			path = variant_get_str (file, "path");
-			if (variant_get_int (file, "line", &line)) { if (line >= 0) line++; }
+			if (variant_get_int (file, "line", &line)) {
+				if (line >= 0) {
+					line++;
+				}
+			}
 			variant_get_int (file, "character", &character);
 			g_variant_unref (file);
 		}
-		if (!category) category = "info";
+		if (!category) {
+			category = "info";
+		}
 		GString *msg = g_string_new (NULL);
 		if (path) {
 			g_string_append_printf (msg, "%s", path);
