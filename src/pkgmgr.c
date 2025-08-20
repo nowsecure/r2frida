@@ -10,7 +10,6 @@ static void maybe_raise_fd_limit(void);
 
 int pkgmgr_search(const char *registry, const char *query, gboolean json_output, int offset, int limit) {
 	GError *error = NULL;
-	FridaPackageManager *pm = NULL;
 	FridaPackageSearchOptions *search = NULL;
 	FridaPackageSearchResult *result = NULL;
 	FridaPackageList *packages = NULL;
@@ -19,7 +18,7 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 	gboolean use_color = isatty (STDOUT_FILENO) && !json_output;
 	int rc = 0;
 
-	pm = frida_package_manager_new ();
+	FridaPackageManager *pm = frida_package_manager_new ();
 	if (registry != NULL) {
 		frida_package_manager_set_registry (pm, registry);
 	}
