@@ -364,7 +364,6 @@ install:
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
 	mkdir -p "$(DESTDIR)/$(R2_BINDIR)"
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
-	cp -f src/r2frida-pm $(DESTDIR)/"$(R2_BINDIR)"
 	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
 	cp -f r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
 
@@ -377,7 +376,6 @@ symstall:
 uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
-	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-pm"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
 
 release:
