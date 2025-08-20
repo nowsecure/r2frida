@@ -1,7 +1,6 @@
 /* radare2 - MIT - Copyright 2025 - oleavr */
 
 #include "frida-core.h"
-#include <unistd.h>
 #include <sys/resource.h>
 #include <string.h>
 
