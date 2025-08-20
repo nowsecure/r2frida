@@ -1,6 +1,7 @@
 /* radare2 - MIT - Copyright 2025 - oleavr */
 
 #include "frida-core.h"
+#include <r_util.h>
 
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
@@ -45,15 +46,10 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 	total = frida_package_search_result_get_total (result);
 
 	if (json_output) {
-		JsonBuilder *b;
-		JsonNode *root;
-		gchar *json;
-
-		b = json_builder_new_immutable ();
-		json_builder_begin_object (b);
-
-		json_builder_set_member_name (b, "packages");
-		json_builder_begin_array (b);
+		PJ *j = pj_new ();
+		pj_o (j);
+		pj_ko (j, "packages");
+		pj_a (j);
 
 		for (guint i = 0; i != n; i++) {
 			FridaPackage *pkg;
@@ -61,41 +57,34 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 
 			pkg = frida_package_list_get (packages, i);
 
-			json_builder_begin_object (b);
+			pj_o (j);
 
-			json_builder_set_member_name (b, "name");
-			json_builder_add_string_value (b, frida_package_get_name (pkg));
-
-			json_builder_set_member_name (b, "version");
-			json_builder_add_string_value (b, frida_package_get_version (pkg));
+			pj_ks (j, "name", frida_package_get_name (pkg));
+			pj_ks (j, "version", frida_package_get_version (pkg));
 
 			description = frida_package_get_description (pkg);
 			if (description != NULL) {
-				json_builder_set_member_name (b, "description");
-				json_builder_add_string_value (b, description);
+				pj_ks (j, "description", description);
 			}
 
-			json_builder_set_member_name (b, "url");
-			json_builder_add_string_value (b, frida_package_get_url (pkg));
+			pj_ks (j, "url", frida_package_get_url (pkg));
 
-			json_builder_end_object (b);
+			pj_end (j);
 
 			g_object_unref (pkg);
 		}
 
-		json_builder_end_array (b);
+		pj_end (j);
 
-		json_builder_set_member_name (b, "total");
-		json_builder_add_int_value (b, total);
+		pj_kN (j, "total", total);
 
-		json_builder_end_object (b);
+		pj_end (j);
 
-		root = json_builder_get_root (b);
-		json = json_to_string (root, TRUE);
-		g_print ("%s\n", json);
-		g_free (json);
-		json_node_unref (root);
-		g_object_unref (b);
+		char *out = pj_drain (j);
+		if (out) {
+			g_print ("%s\n", out);
+			free (out);
+		}
 	} else {
 		for (guint i = 0; i != n; i++) {
 			FridaPackage *pkg = frida_package_list_get (packages, i);
