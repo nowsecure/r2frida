@@ -16,6 +16,9 @@
 // Shared diagnostics for Frida compiler
 #include "diagnostics.h"
 
+extern int pkgmgr_search(const char *registry, const char *query, gboolean json_output, int offset, int limit);
+extern int pkgmgr_install(const char *registry, char **specs, int nspecs, const char *project_root, gboolean save_dev, gboolean save_prod, gboolean save_optional, char **omits, gboolean quiet);
+
 static bool compile_show_json = false;
 
 // diagnostics helpers live in diagnostics.c
@@ -79,8 +82,11 @@ int main(int argc, const char **argv) {
 	bool pack = false;
 	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:j");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:ji:s");
 	const char *proot = NULL;
+	bool do_search = false;
+	const char *search_query = NULL;
+	bool do_install = false;
 	while ((c = r_getopt_next (&opt)) != -1) {
 		switch (c) {
 		case 'r':
@@ -116,6 +122,13 @@ int main(int argc, const char **argv) {
 		case 'j':
 			compile_show_json = true;
 			break;
+		case 'i':
+			do_install = true;
+			break;
+		case 's':
+			do_search = true;
+			search_query = opt.arg;
+			break;
 		case 'h':
 			show_help (arg0, false);
 			return 0;
@@ -146,6 +159,15 @@ int main(int argc, const char **argv) {
 	}
 
 	frida_init ();
+	if (do_search) {
+		return pkgmgr_search(NULL, search_query, compile_show_json, -1, -1);
+	}
+	if (do_install) {
+		int nspec = argc - opt.ind;
+		char **specs = NULL;
+		if (nspec > 0) specs = (char**)&argv[opt.ind];
+		return pkgmgr_install(NULL, specs, nspec, proot, false, false, false, NULL, quiet);
+	}
 	FridaDeviceManager *device_manager = NULL;
 #if FRIDA_VERSION_MAJOR < 17
 	GCancellable *cancellable = NULL;
