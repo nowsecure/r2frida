@@ -1,7 +1,10 @@
 /* radare2 - MIT - Copyright 2025 - oleavr */
 
 #include "frida-core.h"
-#include <string.h>
+
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
 
 static void print_package_info(FridaPackage *package, gboolean use_color);
 static void maybe_raise_fd_limit(void);
