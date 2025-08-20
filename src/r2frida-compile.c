@@ -39,11 +39,13 @@ static int show_help(const char *argv0, int line) {
 		" -o [file]           Specify output file\n"
 		" -p [esmjs] [dir]    Pack directory contents into an esmjs file\n"
 		" -q                  Be quiet\n"
-		" -r [project-root]   Specify the project root directory\n"
+		" -r [project-root]   Specify the project root directory (used by -i)\n"
 		" -S                  Do not include source maps\n"
 		" -T [full|none]      desired type-checking mode (default is full)\n"
 		" -u [esmjs] [dir]    Unpack esmjs into the given directory\n"
 		" -j                  Keep showing JSON diagnostics (do not prettify)\n"
+		" -s [query]          Search packages in the Frida registry\n"
+		" -i                  Install package(s) (pass package specs as positional args)\n"
 		" -v                  Display version\n"
 		);
 	}
