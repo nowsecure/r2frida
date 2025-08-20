@@ -84,7 +84,7 @@ int main(int argc, const char **argv) {
 	bool pack = false;
 	bool unpack = false;
 	RGetopt opt;
-	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:ji:s");
+	r_getopt_init (&opt, argc, argv, "r:SH:cho:qvp:u:T:B:jis:");
 	const char *proot = NULL;
 	bool do_search = false;
 	const char *search_query = NULL;
