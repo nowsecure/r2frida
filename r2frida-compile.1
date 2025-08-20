@@ -1,0 +1,103 @@
+.TH R2FRIDA-COMPILE 1 "20 August 2025" "r2frida-compile" "R2FRIDA COMPILE MANPAGE"
+
+.SH NAME
+r2frida-compile \- compile Frida agent sources and manage Frida packages
+
+.SH SYNOPSIS
+.B r2frida-compile
+.RI "[options]" "[file.{js,ts} | esmjs [dir] | package-specs...]"
+
+.SH DESCRIPTION
+r2frida-compile is a small utility used to build Frida agent JavaScript/TypeScript sources into distributable bundles, produce C-friendly headers, pack/unpack directories into esmjs bundles, and (since this release) perform basic package manager operations (search and install) against the Frida package registry.
+
+It is used by the r2frida build system to produce the agent bundle, and can be invoked directly by users for compilation tasks or for interacting with the Frida package registry.
+
+.SH OPTIONS
+.TP
+.B -B [esm|iife]
+Desired bundle format. "esm" (default) or "iife".
+.TP
+.B -c
+Enable compression (minification) of output JavaScript.
+.TP
+.B -h
+Show this help message and exit.
+.TP
+.B -H [file]
+Output compiled result as a C-friendly hexadecimal byte array into the given header file.
+.TP
+.B -o [file]
+Dump compiled JavaScript to the specified output file instead of stdout.
+.TP
+.B -p [esmjs] [dir]
+Pack the contents of the given directory into an esmjs bundle (output name is the first argument).
+.TP
+.B -u [esmjs] [dir]
+Unpack the provided esmjs bundle into the given directory.
+.TP
+.B -q
+Quiet mode. Reduce output verbosity.
+.TP
+.B -r [project-root]
+Specify the project root directory. When used with -i (install), this selects where packages should be installed or which project metadata to update.
+.TP
+.B -S
+Do not include source maps in the compiled output.
+.TP
+.B -T [full|none]
+Type-checking mode for the Frida compiler (requires Frida >= 17). "full" or "none".
+.TP
+.B -j
+Emit compiler diagnostics as raw JSON (useful in scripts).
+.TP
+.B -v
+Display version information.
+.TP
+.B -s [query]
+Search the Frida package registry for packages matching QUERY. This replaces the previous r2frida-pm search command and emits results to stdout (use -j to get raw JSON).
+.TP
+.B -i
+Install package(s). When present, positional arguments are interpreted as package specs to install (for example: r2frida-compile -i frida-somepkg@1.2.3). This replaces the separate r2frida-pm install command.
+
+.SH EXAMPLES
+.TP
+Compile a single TypeScript file to stdout:
+.B r2frida-compile src/agent/index.ts
+.TP
+Compile and output to a file:
+.B r2frida-compile -o dist/agent.js src/agent/index.ts
+.TP
+Produce a C header with the compiled bundle:
+.B r2frida-compile -H src/_agent.h -o src/_agent.js src/agent/index.ts
+.TP
+Pack a directory into an esmjs bundle:
+.B r2frida-compile -p bundle.esmjs path/to/dir
+.TP
+Unpack an esmjs bundle:
+.B r2frida-compile -u bundle.esmjs outdir
+.TP
+Search packages (human readable):
+.B r2frida-compile -s "frida" 
+.TP
+Search packages (JSON):
+.B r2frida-compile -j -s "network"
+.TP
+Install packages:
+.B r2frida-compile -i frida-foo frida-bar@^1.0.0
+
+.SH EXIT STATUS
+The command exits with 0 on success, or a non-zero value on error. When acting as package manager (using -s or -i), exit codes reflect success/failure of the underlying Frida package manager operations.
+
+.SH FILES
+.TP
+.B src/_agent.js
+Generated agent bundle used by r2frida plugin.
+.TP
+.B src/_agent.h
+Optional C header generated from the agent bundle (use -H to produce).
+
+.SH SEE ALSO
+r2frida(1), frida-compile(1), r2pm(1)
+
+.SH AUTHORS
+pancake <pancake@nowsecure.com>

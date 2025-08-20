@@ -8,6 +8,7 @@ USE_FRIDA_TOOLS=0
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
 #frida_version=16.5.9
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
+RM?=rm -f
 
 ifeq ($(frida_major),15)
 R2FRIDA_PRECOMPILED_AGENT=1
@@ -338,19 +339,23 @@ mrproper: clean
 	$(RM) ext/frida
 	$(RM) -r ext/node
 
-# user wide
-
 user-install:
 	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)"
 	mkdir -p $(DESTDIR)/"$(R2PM_BINDIR)"
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
-	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
-	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
 	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
-	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
+	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
+	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1/"
+	cp -f r2frida.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
+	cp -f r2frida-compile.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
+
+user-uninstall:
+	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
+	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
 	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
+	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
 
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
@@ -367,8 +372,6 @@ src/r2frida-compile: src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c node_m
 	$(CC) -g src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
-
-
 
 ext/frida-$(frida_os)-$(frida_version):
 	@echo FRIDA_SDK=$(FRIDA_SDK)
