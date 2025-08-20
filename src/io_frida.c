@@ -506,18 +506,8 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	return true;
 }
 
-static int on_compiler_diagnostics (void *user, GVariant *diagnostics) {
-	gchar *str = g_variant_print (diagnostics, TRUE);
-	str = r_str_replace (str, "int64", "", true);
-	str = r_str_replace (str, "<", "", true);
-	str = r_str_replace (str, ">", "", true);
-	str = r_str_replace (str, "'", "\"", true);
-	char *json = r_print_json_indent (str, true, "  ", NULL);
-	eprintf ("%s\n", json);
-	free (json);
-	g_free (str);
-	return 0;
-}
+// Reuse shared diagnostics handler
+#include "diagnostics.h"
 
 static ut64 __lseek(RIO* io, RIODesc *fd, ut64 offset, int whence) {
 	R_LOG_DEBUG ("lseek %d @ 0x%08"PFMT64x, whence, offset);
@@ -743,7 +733,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 							? FRIDA_TYPE_CHECK_MODE_FULL: FRIDA_TYPE_CHECK_MODE_NONE);
 					frida_compiler_options_set_bundle_format (fco, FRIDA_BUNDLE_FORMAT_IIFE);
 
-					g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), rf);
+					R2FDiagOptions diag_opts = { .json = false };
+					g_signal_connect (compiler, "diagnostics", G_CALLBACK (r2f_on_compiler_diagnostics), &diag_opts);
 					slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 					if (error || !slurpedData) {
 						R_LOG_ERROR ("r2frida-compile: %s", error->message);

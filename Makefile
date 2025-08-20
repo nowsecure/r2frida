@@ -232,11 +232,14 @@ ext/frida: $(FRIDA_SDK)
 config.mk config.h:
 	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o
+io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o
 	pkg-config --cflags r_core
 	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
+	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
+
+src/diagnostics.o: src/diagnostics.c src/diagnostics.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
 src/_agent.h: src/_agent.js
@@ -398,8 +401,8 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-src/r2frida-compile: src/r2frida-compile.c node_modules
-	$(CC) -g src/r2frida-compile.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
+src/r2frida-compile: src/r2frida-compile.c src/diagnostics.c node_modules
+	$(CC) -g src/r2frida-compile.c src/diagnostics.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
