@@ -12,10 +12,7 @@ static void maybe_raise_fd_limit(void);
 
 int pkgmgr_search(const char *registry, const char *query, gboolean json_output, int offset, int limit) {
 	GError *error = NULL;
-	FridaPackageSearchOptions *search = NULL;
-	FridaPackageSearchResult *result = NULL;
 	FridaPackageList *packages = NULL;
-	gint n;
 	guint total;
 	gboolean use_color = isatty (STDOUT_FILENO) && !json_output;
 	int rc = 0;
@@ -25,7 +22,7 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 		frida_package_manager_set_registry (pm, registry);
 	}
 
-	search = frida_package_search_options_new ();
+	FridaPackageSearchOptions *search = frida_package_search_options_new ();
 	if (offset != -1) {
 		frida_package_search_options_set_offset (search, offset);
 	}
@@ -33,7 +30,7 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 		frida_package_search_options_set_limit (search, limit);
 	}
 
-	result = frida_package_manager_search_sync (pm, query ? query : "", search, NULL, &error);
+	FridaPackageSearchResult *result = frida_package_manager_search_sync (pm, query ? query : "", search, NULL, &error);
 	if (error != NULL) {
 		g_printerr ("Search failed: %s\n", error->message);
 		g_error_free (error);
@@ -42,7 +39,7 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 	}
 
 	packages = frida_package_search_result_get_packages (result);
-	n = frida_package_list_size (packages);
+	gint n = frida_package_list_size (packages);
 	total = frida_package_search_result_get_total (result);
 
 	if (json_output) {
@@ -52,32 +49,21 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 		pj_a (j);
 
 		for (guint i = 0; i != n; i++) {
-			FridaPackage *pkg;
-			const gchar *description;
 
-			pkg = frida_package_list_get (packages, i);
-
+			FridaPackage *pkg = frida_package_list_get (packages, i);
 			pj_o (j);
-
 			pj_ks (j, "name", frida_package_get_name (pkg));
 			pj_ks (j, "version", frida_package_get_version (pkg));
-
-			description = frida_package_get_description (pkg);
+			const gchar *description = frida_package_get_description (pkg);
 			if (description != NULL) {
 				pj_ks (j, "description", description);
 			}
-
 			pj_ks (j, "url", frida_package_get_url (pkg));
-
 			pj_end (j);
-
 			g_object_unref (pkg);
 		}
-
 		pj_end (j);
-
 		pj_kN (j, "total", total);
-
 		pj_end (j);
 
 		char *out = pj_drain (j);
@@ -86,28 +72,11 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 			free (out);
 		}
 	} else {
-		for (guint i = 0; i != n; i++) {
+		guint i;
+		for (i = 0; i != n; i++) {
 			FridaPackage *pkg = frida_package_list_get (packages, i);
 			print_package_info (pkg, use_color);
 			g_object_unref (pkg);
-		}
-
-		int shown = n;
-		int earlier = offset;
-		int later = total - (offset + shown);
-
-		if ((earlier > 0) || (later > 0)) {
-			g_print ("… ");
-			if (earlier > 0) {
-				g_print ("%d earlier", earlier);
-				if (later > 0) {
-					g_print(" and ");
-				}
-			}
-			if (later > 0) {
-				g_print ("%d more", later);
-			}
-			g_print (". Use --limit and --offset to navigate through results.\n");
 		}
 	}
 
@@ -120,19 +89,17 @@ beach:
 
 int pkgmgr_install(const char *registry, char **specs, int nspecs, const char *project_root, gboolean save_dev, gboolean save_prod, gboolean save_optional, char **omits, gboolean quiet) {
 	GError *error = NULL;
-	FridaPackageManager *pm = NULL;
-	FridaPackageInstallOptions *install = NULL;
 	FridaPackageInstallResult *result = NULL;
-	int rc = 0;
+	int i, rc = 0;
 
 	maybe_raise_fd_limit ();
 
-	pm = frida_package_manager_new ();
+	FridaPackageManager *pm = frida_package_manager_new ();
 	if (registry != NULL) {
 		frida_package_manager_set_registry (pm, registry);
 	}
 
-	install = frida_package_install_options_new ();
+	FridaPackageInstallOptions *install = frida_package_install_options_new ();
 	if (project_root != NULL) {
 		frida_package_install_options_set_project_root (install, project_root);
 	}
@@ -140,11 +107,12 @@ int pkgmgr_install(const char *registry, char **specs, int nspecs, const char *p
 		frida_package_install_options_set_role (install,
 			save_dev ? FRIDA_PACKAGE_ROLE_DEVELOPMENT : FRIDA_PACKAGE_ROLE_OPTIONAL);
 	}
-	for (int i = 0; i < nspecs; i++) {
+	for (i = 0; i < nspecs; i++) {
 		frida_package_install_options_add_spec (install, specs[i]);
 	}
 	if (omits != NULL) {
-		for (gchar **cur = omits; *cur != NULL; cur++) {
+		gchar **cur;
+		for (cur = omits; *cur != NULL; cur++) {
 			FridaPackageRole role;
 			const gchar *s = *cur;
 			if (strcmp (s, "dev") == 0) {
@@ -228,11 +196,8 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 	}
 
 	g_print ("%s\n", (description != NULL) ? description : "");
-
 	if (url && strlen (url) > 0) {
-		for (gint i = 0; i != 32; i++) {
-			g_print (" ");
-		}
+		g_print ("%s", r_str_pad (' ', 32));
 		if (use_color) {
 			g_print ("\033[38;2;156;156;156m%s\033[0m\n", url);
 		} else {

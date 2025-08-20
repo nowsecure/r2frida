@@ -32,7 +32,7 @@ static int show_help(const char *argv0, int line) {
 	printf ("Usage: %s (-hSc) [[-p|-u] js dir] | [-H foo.h] [-r root] [-o output.js] [file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
-		" -B [esm|iife]       desired bundle format (default is esm)\n"
+		" -B [esm|iife]       desired bundle format (default is `esm`)\n"
 		" -c                  Enable compression\n"
 		" -h                  Show this help message\n"
 		" -H [file]           Output in C-friendly hexadecimal bytes\n"
@@ -42,10 +42,10 @@ static int show_help(const char *argv0, int line) {
 		" -r [project-root]   Specify the project root directory (used by -i)\n"
 		" -S                  Do not include source maps\n"
 		" -T [full|none]      desired type-checking mode (default is full)\n"
-		" -u [esmjs] [dir]    Unpack esmjs into the given directory\n"
-		" -j                  Keep showing JSON diagnostics (do not prettify)\n"
+		" -u [esmjs] [dir]    Unpack ESM into the given directory\n"
+		" -j                  Use JSON format for error logs\n"
 		" -s [query]          Search packages in the Frida registry\n"
-		" -i                  Install package(s) (pass package specs as positional args)\n"
+		" -i                  Install package(s) listed in package.json\n"
 		" -v                  Display version\n"
 		);
 	}
