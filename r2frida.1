@@ -16,6 +16,8 @@ $ r2pm -ci r2frida
 .PP
 For manual compilation, dependencies include radare2, pkg-config, curl or wget, make, gcc.
 .PP
+Note: The r2frida package manager functionality has been integrated into the r2frida-compile tool. Use r2frida-compile -s [QUERY] to search packages and r2frida-compile -i [SPEC...] to install packages (these options replace the separate r2frida-pm tool).
+.PP
 Note that r2frida is self-contained, it will use the Typescript compiler from the Frida SDK and use the frida compiled inside the plugin so you don't need to install Python, Node or Frida in your system to use it.
 .PP
 r2frida runs on all systems supported by Frida. This is Linux, macOS, Windows, QNX, Android and iOS.

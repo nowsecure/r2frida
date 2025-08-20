@@ -55,7 +55,7 @@ if not exist .\frida-core-sdk-%frida_version%-%frida_os_arch%.exe (
 cd ..
 
 echo Building r2frida-compile...
-cl %DEBUG% /MT /nologo /Gy /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c diagnostics.c /link /defaultlib:setupapi.lib
+cl %DEBUG% /MT /nologo /Gy /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" r2frida-compile.c diagnostics.c pkgmgr.c /link /defaultlib:setupapi.lib
 if %ERRORLEVEL%==0 (
 	echo "Compilation successful"
 ) else (
