@@ -359,6 +359,27 @@ user-uninstall:
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
 
+install:
+	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
+	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
+	mkdir -p "$(DESTDIR)/$(R2_BINDIR)"
+	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
+	cp -f src/r2frida-pm $(DESTDIR)/"$(R2_BINDIR)"
+	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
+	cp -f r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
+
+symstall:
+	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
+	ln -fs $(shell pwd)/io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGSYS)"
+	-mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
+	-ln -fs $(shell pwd)/r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
+
+uninstall:
+	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
+	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
+	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-pm"
+	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
+
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
 	$(MAKE) -C dist/debian
