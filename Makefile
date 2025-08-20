@@ -261,6 +261,8 @@ ifeq ($(USE_FRIDA_TOOLS),1)
 	frida-compile -o src/_agent.js -Sc src/agent/index.ts
 	rax2 -qC < src/_agent.js > src/_agent.h
 else
+	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -i || \
+		src/r2frida-compile -i
 	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts || \
 		src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
 endif
