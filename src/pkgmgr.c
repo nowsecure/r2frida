@@ -1,7 +1,6 @@
 /* radare2 - MIT - Copyright 2025 - oleavr */
 
 #include "frida-core.h"
-#include <sys/resource.h>
 #include <string.h>
 
 static void print_package_info(FridaPackage *package, gboolean use_color);
