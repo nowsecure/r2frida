@@ -1,6 +1,7 @@
 import {
     autoType,
     getGlobalExportByName,
+    findGlobalExportByName,
     padPointer,
     trunc4k,
 } from "../utils.js";
@@ -142,8 +143,8 @@ export function callObjcMethod(args: string[]): string {
     return "";
 }
 export function hasMainLoop(): boolean {
-    const getMainPtr = getGlobalExportByName("CFRunLoopGetMain");
-    const copyCurrentModePtr = getGlobalExportByName(
+    const getMainPtr = findGlobalExportByName("CFRunLoopGetMain");
+    const copyCurrentModePtr = findGlobalExportByName(
         "CFRunLoopCopyCurrentMode",
     );
     if (getMainPtr === null || copyCurrentModePtr === null) {
