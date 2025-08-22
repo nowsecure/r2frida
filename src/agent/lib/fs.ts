@@ -529,6 +529,7 @@ function readMemoryField(entry: NativePointer, offset: number, type: string): nu
             break;
         case "S64":
             value = entry.add(offset).readS64();
+            break;
         default:
             throw new Error("Unknown type: " + type);
     }
