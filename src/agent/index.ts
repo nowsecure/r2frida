@@ -507,11 +507,13 @@ const commandHandlers = {
     // unix compat
     pwd: [fs.getCwd, "print working directory inside the target process"],
     ls: [fs.fsList, "list files in current directory as seen by the target"],
+    lsj: [fs.fsListJson, "list files in json format"],
     // required for m-io
     md: [
         fs.fsList,
         "list files in current directory (alias for `ls` for FS/IO)",
     ],
+    mdj: [fs.fsListJson, "list files in json format"],
     mg: [fs.fsGet, "used by the FS/IO integration to get remote file"],
     m: [fs.fsOpen, "used by the FS/IO integration to open remote files"],
     pd: [disasm.disasmCode, "disassemble code using only frida apis"],

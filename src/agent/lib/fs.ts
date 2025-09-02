@@ -30,17 +30,21 @@ const direntSpecs = {
 const statSpecs = {
     "linux-32": {
         size: [44, "S32"],
+        mtime: [36, "S32"],
     },
     "linux-64": {
         size: [48, "S64"],
+        mtime: [88, "S64"],
     },
     "darwin-64": {
         size: [96, "S64"],
+        mtime: [48, "S64"],
     },
 };
 const statxSpecs = {
     "linux-64": {
         size: [40, "S64"],
+        mtime: [48, "S64"],
     },
 };
 const STATX_SIZE = 0x200;
@@ -50,6 +54,13 @@ const statxSpec = (statxSpecs as any)[`${platform}-${pointerSize * 8}`] || null;
 
 export function fsList(args: string[]): string {
     return _ls(args[0] || Gcwd);
+}
+
+export function fsListJson(args: string[]): any[] {
+    if (fs === null) {
+        fs = new FridaFS();
+    }
+    return fs.lsj(_debase(args[0] || Gcwd));
 }
 
 export function fsGet(args: string[]): string {
@@ -147,6 +158,45 @@ export class FridaFS {
 
     exist(srcPath: string): boolean {
         return this.posixApi.getFileSize(srcPath) >= 0;
+    }
+
+    lsj(srcPath: string): any[] {
+        const result = [];
+        const actualPath = this.transform.toActual(srcPath);
+        if (actualPath !== null) {
+            const entryBuf = Memory.alloc(Process.pageSize);
+            const resultPtr = Memory.alloc(Process.pointerSize);
+            const dir = this.posixApi.opendir(actualPath);
+            if (dir === null) {
+                return [];
+            }
+            let entry;
+            while (
+                (entry = this.posixApi.readdir(dir, entryBuf, resultPtr)) !== null
+            ) {
+                if (!this._excludeSet.has(entry.name)) {
+                    const fullPath = path.join(actualPath, entry.name);
+                    result.push({
+                        name: entry.name,
+                        type: this._getEntryTypeString(entry.type),
+                        size: this.posixApi.getFileSize(fullPath),
+                        timestamp: this.posixApi.getModificationTime(fullPath),
+                    });
+                }
+            }
+            this.posixApi.closedir(dir);
+        } else {
+            const virtualDir = this.transform.getVirtualDir(srcPath);
+            for (const entry of virtualDir) {
+                 result.push({
+                    name: entry.name,
+                    type: 'directory',
+                    size: 0,
+                    timestamp: 0,
+                });
+            }
+        }
+        return result;
     }
 
     ls(srcPath: string): string {
@@ -293,6 +343,20 @@ export class FridaFS {
             return "?";
         }
         return result;
+    }
+
+    _getEntryTypeString(entry: number): string {
+        const type = this._getEntryType(entry);
+        switch (type) {
+            case 'd': return 'directory';
+            case 'f': return 'file';
+            case 'l': return 'symlink';
+            case 'c': return 'char';
+            case 'b': return 'block';
+            case 's': return 'socket';
+            case 'p': return 'pipe';
+            default: return 'unknown';
+        }
     }
 }
 
@@ -486,6 +550,25 @@ export class PosixFSApi {
         return this.api.fseek(f, offset, whence);
     }
 
+    getModificationTime(srcPath: string): number {
+        const statPtr = Memory.alloc(Process.pageSize);
+        const pathStr = Memory.allocUtf8String(srcPath);
+        if (this.api.stat !== null) {
+            const res = this.api.stat(pathStr, statPtr);
+            if (res === -1) {
+                return -1;
+            }
+            return readStatField(statPtr, "mtime");
+        } else if (this.api.statx) {
+            const res = this.api.statx(0, pathStr, 0, STATX_SIZE, statPtr);
+            if (res === -1) {
+                return -1;
+            }
+            return readStatxField(statPtr, "mtime");
+        }
+        throw new Error("No stat function found");
+    }
+
     getFileSize(srcPath: string): number {
         const statPtr = Memory.alloc(Process.pageSize);
         const pathStr = Memory.allocUtf8String(srcPath);
@@ -569,7 +652,8 @@ export function findExports(names: string[]): Record<string, NativePointer | nul
     }, {});
 }
 
-export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""): void {
+export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""):
+ void {
     const myPath: string = normalize(path.join(rootPath, vEnt.name));
     if (vEnt.hasActualPath()) {
         result[myPath] = vEnt.actualPath;
