@@ -652,8 +652,7 @@ export function findExports(names: string[]): Record<string, NativePointer | nul
     }, {});
 }
 
-export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""):
- void {
+export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""): void {
     const myPath: string = normalize(path.join(rootPath, vEnt.name));
     if (vEnt.hasActualPath()) {
         result[myPath] = vEnt.actualPath;
