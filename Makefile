@@ -175,8 +175,7 @@ LDFLAGS+=-Wl,--end-group
 endif
 
 all: ext/frida
-	rm -f src/_agent*
-ifeq ($(frida_version_major),16)
+ifneq ($(R2FRIDA_HOST_COMPILER),1)
 	$(MAKE) src/r2frida-compile
 endif
 	$(MAKE) io_frida.$(SO_EXT)
@@ -253,15 +252,17 @@ src/_agent.js:
 	mv src/_agent.js.host src/_agent.js
 	test -s src/_agent.js || rm -f src/_agent.js
 else
-src/_agent.js: src/r2frida-compile
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
+src/_agent.js:
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
 else
 ifeq ($(USE_FRIDA_TOOLS),1)
+src/_agent.js:
 	frida-pm install
 	frida-compile -o src/_agent.js -Sc src/agent/index.ts
 	rax2 -qC < src/_agent.js > src/_agent.h
 else
+src/_agent.js: src/r2frida-compile
 	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -i || src/r2frida-compile -i
 	R2PM_OFFLINE=1 r2pm -r src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts || \
 		src/r2frida-compile -H src/_agent.h -o src/_agent.js -Sc src/agent/index.ts
