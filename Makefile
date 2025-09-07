@@ -349,16 +349,15 @@ user-install:
 	cp -f io_frida.$(SO_EXT)* $(DESTDIR)/"$(R2_PLUGDIR)"
 	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2PM_BINDIR)"
-	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1/"
-	cp -f r2frida.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
-	cp -f r2frida-compile.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
+	mkdir -p "$(DESTDIR)/$(R2PM_MANDIR)/man1/"
+	cp -f r2frida.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
+	cp -f r2frida-compile.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida-compile.1"
 
 user-uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
-	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
-	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
-	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
+	$(RM) "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
+	$(RM) "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida-compile.1"
 
 install:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
@@ -367,6 +366,7 @@ install:
 	cp -f src/r2frida-compile $(DESTDIR)/"$(R2_BINDIR)"
 	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
 	cp -f r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
+	cp -f r2frida-compile.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
 
 symstall:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
@@ -378,6 +378,7 @@ uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGSYS)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
+	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
 
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
