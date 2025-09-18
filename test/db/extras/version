@@ -4,7 +4,7 @@ CMDS=<<EOF
 :?V
 EOF
 EXPECT=<<EOF
-17.2.15
+17.3.1
 EOF
 RUN
 
@@ -14,7 +14,7 @@ CMDS=<<EOF
 : Frida.version
 EOF
 EXPECT=<<EOF
-17.2.15
+17.3.1
 EOF
 RUN
 
