@@ -149,7 +149,10 @@ static bool unpack(const char *infile, const char *outdir) {
 		}
 
 		// Skip the newline after file content
-		fgetc (in);
+		int ch = fgetc (in);
+		if (ch && ch != '\n' || ch == '\r') {
+			R_LOG_INFO ("Expected newline at the end")
+		}
 
 		free (platform_filename);
 		free (fullpath);
