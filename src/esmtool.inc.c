@@ -8,7 +8,7 @@
 #define HEADER "\xF0\x9F\x93\xA6\n"
 
 static bool write_file(FILE *out, const char *path, const char *root) {
-	int usz;
+	size_t usz;
 	char *content = r_file_slurp (path, &usz);
 	if (!content) {
 		return false;
