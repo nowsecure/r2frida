@@ -4,9 +4,7 @@ PREFIX?=/usr/local
 R2V=$(VERSION)
 R2V?=6.0.0
 USE_FRIDA_TOOLS=0
-# frida_version=16.5.9
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
-#frida_version=16.5.9
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
 RM?=rm -f
 
