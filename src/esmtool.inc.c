@@ -8,12 +8,13 @@
 #define HEADER "\xF0\x9F\x93\xA6\n"
 
 static bool write_file(FILE *out, const char *path, const char *root) {
-	char *content = r_file_slurp (path, NULL);
+	int usz;
+	char *content = r_file_slurp (path, &usz);
 	if (!content) {
 		return false;
 	}
 
-	size_t size = r_file_size (path);
+	size_t size = (size_t)usz;
 
 	// Get relative path
 	const char *relpath = path + strlen (root);
@@ -23,6 +24,10 @@ static bool write_file(FILE *out, const char *path, const char *root) {
 
 	// Normalize path separators to forward slashes for archive format
 	char *normalized_path = r_str_replace (strdup (relpath), R_SYS_DIR, "/", true);
+	if (!normalized_path) {
+		free (content);
+		return false;
+	}
 
 	fprintf (out, "%zu /%s\n", size, normalized_path);
 	fwrite (content, 1, size, out);
@@ -94,6 +99,11 @@ static bool unpack(const char *infile, const char *outdir) {
 		fclose (in);
 		return false;
 	}
+	if (strcmp (line, HEADER) != 0) {
+		R_LOG_ERROR ("Invalid ESM archive header");
+		fclose (in);
+		return false;
+	}
 
 	while (fgets (line, sizeof (line), in)) {
 		// Skip empty lines
@@ -118,7 +128,18 @@ static bool unpack(const char *infile, const char *outdir) {
 
 		// Create full output path with platform-appropriate separators
 		char *platform_filename = r_str_replace (strdup (filename), "/", R_SYS_DIR, true);
+		if (!platform_filename) {
+			// Skip the file content and newline
+			fseek (in, size + 1, SEEK_CUR);
+			continue;
+		}
 		char *fullpath = r_str_newf ("%s%s%s", outdir, R_SYS_DIR, platform_filename);
+		if (!fullpath) {
+			free (platform_filename);
+			// Skip the file content and newline
+			fseek (in, size + 1, SEEK_CUR);
+			continue;
+		}
 
 		char *dirname = r_file_dirname (fullpath);
 		if (!r_sys_mkdirp (dirname)) {
@@ -145,13 +166,15 @@ static bool unpack(const char *infile, const char *outdir) {
 					R_LOG_ERROR ("Could not read expected %zu bytes for %s, got %zu", size, fullpath, bytes_read);
 				}
 				free (buffer);
+			} else {
+				R_LOG_ERROR ("Cannot allocate buffer for %s", fullpath);
 			}
 		}
 
 		// Skip the newline after file content
-		int ch = fgetc (in);
-		if (ch && ch != '\n' || ch == '\r') {
-			R_LOG_INFO ("Expected newline at the end")
+		const int ch = fgetc (in);
+		if (ch && (ch != '\n' || ch == '\r')) {
+			R_LOG_INFO ("Expected newline at the end of the file for %s", fullpath);
 		}
 
 		free (platform_filename);
