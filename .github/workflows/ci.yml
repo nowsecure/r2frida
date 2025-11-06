@@ -146,10 +146,12 @@ jobs:
     - name: make
       shell: cmd
       run: make.bat
+    - name: dir/s
+      shell: cmd
+      run: dir/s src
     - name: zip
       shell: cmd
-      # run: zip -r r2frida-${{env.R2V}}-w64.zip src\io_frida.dll
-      run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe
+      run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe src\io_frida.dll
     - uses: actions/upload-artifact@v4
       with:
         if-no-files-found: error
