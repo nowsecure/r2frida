@@ -148,7 +148,7 @@ jobs:
       run: make.bat
     - name: make
       shell: cmd
-      run: dir/s
+      run: dir/s src
     - name: zip
       shell: cmd
       run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe src\io_frida.dll
