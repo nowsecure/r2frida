@@ -113,7 +113,7 @@ REM cd ..
 echo Compiling the Plugin...
 cd src
 REM cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DFRIDA_VERSION_STRING="""%frida_version%""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" || (echo Compilation Failed & exit /b 1)
-cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" io_frida.c %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" /link /defaultlib:setupapi.lib
+cl %DEBUG% /MT /nologo /LD /Gy /D_USRDLL /D_WINDLL /DR2FRIDA_VERSION_STRING="""%r2frida_version%""" /DFRIDA_VERSION_STRING="""%frida_version%""" io_frida.c diagnostics.c  %R2_INC% /I"%cd%" /I"%cd%\frida" "%cd%\frida\frida-core.lib" "%R2_BASE%\lib\*.lib" /link /defaultlib:setupapi.lib
 if not %ERRORLEVEL%==0 (
 	echo COMPILE ERROR
 	exit /b 1
