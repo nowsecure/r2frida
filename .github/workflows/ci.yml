@@ -146,7 +146,7 @@ jobs:
     - name: make
       shell: cmd
       run: make.bat
-    - name: make
+    - name: dir/s
       shell: cmd
       run: dir/s src
     - name: zip
