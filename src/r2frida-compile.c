@@ -263,6 +263,7 @@ int main(int argc, const char **argv) {
 			}
 			if (!r_str_endswith (filename, ".js") && !r_str_endswith (filename, ".ts")) {
 				R_LOG_ERROR ("The r2frida-compile only accepts .js and .ts files");
+				free (filename);
 				return 1;
 			}
 		}
@@ -298,7 +299,7 @@ int main(int argc, const char **argv) {
 			g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), &diag_opts);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
-			R_LOG_ERROR ("%s", error->message);
+			R_LOG_ERROR ("%s", error? error->message: "Cannot slurp from file");
 			rc = 1;
 		} else {
 			if (outfile) {

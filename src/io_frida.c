@@ -737,7 +737,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 					g_signal_connect (compiler, "diagnostics", G_CALLBACK (r2f_on_compiler_diagnostics), &diag_opts);
 					slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 					if (error || !slurpedData) {
-						R_LOG_ERROR ("r2frida-compile: %s", error->message);
+						R_LOG_ERROR ("r2frida-compile: %s", error? error->message: "Cannot slurp from file");
 						R_FREE (slurpedData)
 					}
 					g_object_unref (compiler);
@@ -917,11 +917,13 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		char **argv = r_str_argv (a, NULL);
 		if (!argv) {
 			R_LOG_ERROR ("Invalid process specifier");
+			free (a);
 			goto failure;
 		}
 		if (!*argv) {
 			R_LOG_ERROR ("Invalid arguments for spawning");
 			r_str_argv_free (argv);
+			free (a);
 			goto failure;
 		}
 		const int argc = g_strv_length (argv);
@@ -1074,6 +1076,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 			type = frida_target;
 		} else {
 			free (frida_target);
+			frida_target = NULL;
 		}
 	}
 	const bool debug = r2f_debug_uri ();
@@ -1275,7 +1278,7 @@ static bool resolve4(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	R2FridaLink link = parse_link (arg1);
 
 	GError *error = NULL;
-	const char *devid = R_STR_ISNOTEMPTY (arg2)? arg2: NULL;
+	const char *devid = NULL;
 	switch (link) {
 	case R2F_LINK_USB:
 		devid = R_STR_ISNOTEMPTY (arg2)? arg2: "usb";
@@ -1389,6 +1392,7 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 			a = newa;
 		} else {
 			eprintf ("%s\n", helpmsg);
+			free (a);
 			return false;
 		}
 	}
@@ -1783,6 +1787,7 @@ static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root,
 										}
 									}
 								}
+								free (host);
 							}
 							if (!sent) {
 								(void) r_file_dump (filename, (const ut8*)message, -1, true);
