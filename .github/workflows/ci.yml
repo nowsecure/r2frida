@@ -210,5 +210,5 @@ jobs:
         files: |
           dist/artifacts/build-linux24/r2frida_*_amd64.deb
           dist/artifacts/build-agent/_agent.js
-          dist/artifacts/build-macos/r2frida-*-x64.pkg
+          dist/artifacts/build-macos/r2frida-*.pkg
           dist/artifacts/build-windows/r2frida-*-w64.zip
