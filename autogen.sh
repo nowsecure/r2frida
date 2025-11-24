@@ -17,5 +17,5 @@ jq ".version=\"$V\"" package.json > p
 mv p package.json
 vim make.bat
 vim configure.bat
-mkdir -p node_modules
-npm i
+# mkdir -p node_modules
+# npm i
