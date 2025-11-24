@@ -196,8 +196,8 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 	}
 
 	g_print ("%s\n", (description != NULL) ? description : "");
-	if (url && strlen (url) > 0) {
-		g_print ("%s", r_str_pad (' ', 32));
+	if (R_STR_ISNOTEMPTY (url)) {
+		g_print ("  ");
 		if (use_color) {
 			g_print ("\033[38;2;156;156;156m%s\033[0m\n", url);
 		} else {

@@ -513,7 +513,10 @@ const commandHandlers = {
         fs.fsList,
         "list files in current directory (alias for `ls` for FS/IO)",
     ],
-    mdj: [fs.fsListJson, "list files in current directory in json format (alias for `lsj` for FS/IO)"],
+    mdj: [
+        fs.fsListJson,
+        "list files in current directory in json format (alias for `lsj` for FS/IO)",
+    ],
     mg: [fs.fsGet, "used by the FS/IO integration to get remote file"],
     m: [fs.fsOpen, "used by the FS/IO integration to open remote files"],
     pd: [disasm.disasmCode, "disassemble code using only frida apis"],
@@ -751,7 +754,16 @@ function fridaVersion(): string {
 }
 
 function fridaVersionJson(): any {
-    return { version: Frida.version };
+    const version = Frida.version.split(".");
+    if (version.length !== 3) {
+        return { version: Frida.version };
+    }
+    return {
+        version: Frida.version,
+        major: version[0],
+        minor: version[1],
+        patch: version[2],
+    };
 }
 
 function uiAlert(args: string[]): string | undefined {
