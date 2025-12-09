@@ -1,0 +1,24 @@
+All r2frida commands start with a colon ':'
+Use ':i' to get target process info like PID, arch, and bits
+Attach to a running process with 'r2 frida://pid' or by name 'r2 frida://processname'
+Spawn a new process: 'r2 frida://spawn/program' or launch with resume: 'r2 frida://launch/program'
+List memory maps with ':dm' and seek to base with 's 0x<addr>'
+Find exports with ':iE' and imports with ':ii' in the current binary
+Trace a function: ':dt fread' to monitor calls to fread
+Set breakpoints with ':db 0x<addr>' and continue with ':dc'
+Hook a function to return a custom value: ':di0 0x<addr>' for returning 0
+Search for strings in memory: ':/ "secret"' or hex: ':/x deadbeef'
+Execute JavaScript in the target: ':eval console.log("Hello from target!")'
+Load a library dynamically: ':dl /path/to/lib.so'
+Change memory protection: ':dmp 0x<addr> 0x<size> rwx'
+Allocate memory: ':dma 1024' and write to it with ':wx deadbeef @ 0x<addr>'
+Call a native function: ':dxc 0x<addr> arg1 arg2'
+Inject a syscall: ':dxs 0x<syscall_num> arg1 arg2'
+List threads: ':dpt' and registers: ':dr'
+Run Frida scripts unmodified: ':. myscript.js'
+For Java apps, list classes: ':ic' and methods: ':icm ClassName'
+On iOS, use ObjC hooks: ':dxo [Class method] arg'
+Trace registers on function calls: ':dtr 0x<addr> rax rbx'
+Dump memory as hexdump: ':px 64 @ 0x<addr>'
+Connect to remote frida-server: 'r2 frida://attach/remote/192.168.1.1:27042/pid'
+Enumerate USB devices: 'r2 frida://list/usb//'
