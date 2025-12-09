@@ -2,7 +2,7 @@ include config.mk
 
 PREFIX?=/usr/local
 R2V=$(VERSION)
-R2V?=6.0.0
+R2V?=6.0.6
 USE_FRIDA_TOOLS=0
 frida_version=$(shell grep 'set frida_version=' make.bat| cut -d = -f 2)
 frida_major=$(shell echo $(frida_version)|cut -d . -f 1)
@@ -15,6 +15,7 @@ else
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
+FORTUNEDIR?=$(shell R2_MAGICPATH)/../fortunes
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/$(VERSION)/_agent.js
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
@@ -351,12 +352,15 @@ user-install:
 	mkdir -p "$(DESTDIR)/$(R2PM_MANDIR)/man1/"
 	cp -f r2frida.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
 	cp -f r2frida-compile.1 "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida-compile.1"
+	mkdir -p $(DESTDIR)/"$(R2_PLUGDIR)/../fortunes"
+	cp -f doc/fortunes.txt $(DESTDIR)/"$(R2_PLUGDIR)/../fortunes/r2frida.txt"
 
 user-uninstall:
 	$(RM) "$(DESTDIR)/$(R2_PLUGDIR)/io_frida.$(SO_EXT)"
 	$(RM) "$(DESTDIR)/$(R2PM_BINDIR)/r2frida-compile"
 	$(RM) "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida.1"
 	$(RM) "$(DESTDIR)/$(R2PM_MANDIR)/man1/r2frida-compile.1"
+	$(RM) -f $(DESTDIR)/"$(R2_PLUGDIR)/../fortunes/r2frida.txt"
 
 install:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
@@ -366,6 +370,8 @@ install:
 	mkdir -p "$(DESTDIR)/$(PREFIX)/share/man/man1"
 	cp -f r2frida.1 $(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1
 	cp -f r2frida-compile.1 "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
+	mkdir -p "$(DESTDIR)/$(FORTUNEDIR)"
+	cp -f doc/fortunes.txt $(DESTDIR)/"$(FORTUNEDIR)/r2frida.txt"
 
 symstall:
 	mkdir -p "$(DESTDIR)/$(R2_PLUGSYS)"
@@ -378,6 +384,7 @@ uninstall:
 	$(RM) "$(DESTDIR)/$(R2_BINDIR)/r2frida-compile"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida.1"
 	$(RM) "$(DESTDIR)/$(PREFIX)/share/man/man1/r2frida-compile.1"
+	$(RM) -f $(DESTDIR)/"$(FORTUNEDIR)/r2frida.txt"
 
 release:
 	$(MAKE) android STRIP_SYMBOLS=yes
