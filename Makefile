@@ -15,7 +15,8 @@ else
 R2FRIDA_PRECOMPILED_AGENT?=0
 endif
 
-FORTUNEDIR?=$(shell R2_MAGICPATH)/../fortunes
+R2_MAGICPATH=$(shell r2 -H R2_MAGICPATH)
+FORTUNEDIR?=$(R2_MAGICPATH)/../fortunes
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/$(VERSION)/_agent.js
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
