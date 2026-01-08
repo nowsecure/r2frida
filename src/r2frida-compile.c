@@ -32,25 +32,24 @@ static int show_help(const char *argv0, int line) {
 	printf ("Usage: %s (-hSc) [[-p|-u] js dir] | [-H foo.h] [-r root] [-o output.js] [file.{js,ts}] ...\n", argv0);
 	if (!line) {
 		printf (
-		" -B [esm|iife]       desired bundle format (default is `esm`)\n"
-		" -c                  Enable compression\n"
-		" -h                  Show this help message\n"
-		" -H [file]           Output in C-friendly hexadecimal bytes\n"
-		" -o [file]           Specify output file\n"
-		" -p [esmjs] [dir]    Pack directory contents into an esmjs file\n"
-		" -q                  Be quiet\n"
-		" -r [project-root]   Specify the project root directory (used by -i)\n"
-		" -S                  Do not include source maps\n"
-		" -T [full|none]      desired type-checking mode (default is full)\n"
-		" -u [esmjs] [dir]    Unpack ESM into the given directory\n"
-		" -j                  Use JSON format for error logs\n"
-		" -s [query]          Search packages in the Frida registry\n"
-		" -i                  Install package(s) listed in package.json\n"
-		" -v                  Display version\n"
-		"\n"
-		"Environment variables:\n"
-		" R2FRIDA_PM_REGISTRY      Frida package registry host (default: registry.npmjs.org)\n"
-		);
+			" -B [esm|iife]       desired bundle format (default is `esm`)\n"
+			" -c                  Enable compression\n"
+			" -h                  Show this help message\n"
+			" -H [file]           Output in C-friendly hexadecimal bytes\n"
+			" -o [file]           Specify output file\n"
+			" -p [esmjs] [dir]    Pack directory contents into an esmjs file\n"
+			" -q                  Be quiet\n"
+			" -r [project-root]   Specify the project root directory (used by -i)\n"
+			" -S                  Do not include source maps\n"
+			" -T [full|none]      desired type-checking mode (default is full)\n"
+			" -u [esmjs] [dir]    Unpack ESM into the given directory\n"
+			" -j                  Use JSON format for error logs\n"
+			" -s [query]          Search packages in the Frida registry\n"
+			" -i                  Install package(s) listed in package.json\n"
+			" -v                  Display version\n"
+			"\n"
+			"Environment variables:\n"
+			" R2FRIDA_PM_REGISTRY      Frida package registry host (default: registry.npmjs.org)\n");
 	}
 	return 1;
 }
@@ -59,10 +58,10 @@ static char *to_header(const char *s) {
 	RStrBuf *sb = r_strbuf_new ("");
 	int count = 0;
 	while (*s) {
-		r_strbuf_appendf (sb, " 0x%02x,", 0xff & (*s));
+		r_strbuf_appendf (sb, " 0x%02x,", 0xff &(*s));
 		s++;
 		count++;
-		if (count > 0 && !(count % 8)) {
+		if (count > 0 && ! (count % 8)) {
 			r_strbuf_appendf (sb, "\n");
 		}
 	}
@@ -170,12 +169,14 @@ int main(int argc, const char **argv) {
 		int res = 0;
 		char *registry = r_sys_getenv ("R2FRIDA_PM_REGISTRY");
 		if (do_search) {
-			res = pkgmgr_search(registry, search_query, compile_show_json, -1, -1);
+			res = pkgmgr_search (registry, search_query, compile_show_json, -1, -1);
 		} else if (do_install) {
 			int nspec = argc - opt.ind;
 			char **specs = NULL;
-			if (nspec > 0) specs = (char**)&argv[opt.ind];
-			res = pkgmgr_install(registry, specs, nspec, proot, false, false, false, NULL, quiet);
+			if (nspec > 0) {
+				specs = (char **)&argv[opt.ind];
+			}
+			res = pkgmgr_install (registry, specs, nspec, proot, false, false, false, NULL, quiet);
 		}
 		free (registry);
 		return res;
@@ -305,8 +306,8 @@ int main(int argc, const char **argv) {
 			free (ofilename);
 		}
 #endif
-			R2FDiagOptions diag_opts = { .json = compile_show_json };
-			g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), &diag_opts);
+		R2FDiagOptions diag_opts = { .json = compile_show_json };
+		g_signal_connect (compiler, "diagnostics", G_CALLBACK (on_compiler_diagnostics), &diag_opts);
 		char *slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
 		if (error || !slurpedData) {
 			R_LOG_ERROR ("%s", error? error->message: "Cannot slurp from file");
@@ -316,8 +317,11 @@ int main(int argc, const char **argv) {
 #if R2__WINDOWS__
 				HANDLE fh = CreateFile (outfile,
 					GENERIC_WRITE,
-					0, NULL, CREATE_ALWAYS,
-					FILE_ATTRIBUTE_NORMAL, NULL);
+					0,
+					NULL,
+					CREATE_ALWAYS,
+					FILE_ATTRIBUTE_NORMAL,
+					NULL);
 				if (fh == INVALID_HANDLE_VALUE) {
 					R_LOG_ERROR ("Cannot dump to %s", outfile);
 					rc = 1;
@@ -333,7 +337,7 @@ int main(int argc, const char **argv) {
 					CloseHandle (fh);
 				}
 #else
-				if (!r_file_dump (outfile, (const ut8*)slurpedData, -1, false)) {
+				if (!r_file_dump (outfile, (const ut8 *)slurpedData, -1, false)) {
 					R_LOG_ERROR ("Cannot dump to %s", outfile);
 					rc = 1;
 				}
@@ -343,7 +347,7 @@ int main(int argc, const char **argv) {
 			}
 			if (header) {
 				char *ns = to_header (slurpedData);
-				if (!r_file_dump (header, (const ut8*)ns, -1, false)) {
+				if (!r_file_dump (header, (const ut8 *)ns, -1, false)) {
 					R_LOG_ERROR ("Cannot dump to %s", header);
 					rc = 1;
 				}

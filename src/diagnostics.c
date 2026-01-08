@@ -32,13 +32,13 @@ static bool variant_get_int(GVariant *dict, const char *key, st64 *out) {
 	}
 	bool ok = true;
 	if (g_variant_is_of_type (v, G_VARIANT_TYPE_INT64)) {
-		*out = (st64) g_variant_get_int64 (v);
+		*out = (st64)g_variant_get_int64 (v);
 	} else if (g_variant_is_of_type (v, G_VARIANT_TYPE_INT32)) {
-		*out = (st64) g_variant_get_int32 (v);
+		*out = (st64)g_variant_get_int32 (v);
 	} else if (g_variant_is_of_type (v, G_VARIANT_TYPE_UINT64)) {
-		*out = (st64) g_variant_get_uint64 (v);
+		*out = (st64)g_variant_get_uint64 (v);
 	} else if (g_variant_is_of_type (v, G_VARIANT_TYPE_UINT32)) {
-		*out = (st64) g_variant_get_uint32 (v);
+		*out = (st64)g_variant_get_uint32 (v);
 	} else {
 		ok = false;
 	}
@@ -63,7 +63,7 @@ void r2f_on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 		GVariant *elem;
 		while ((elem = g_variant_iter_next_value (&it))) {
 			if (!g_variant_is_of_type (elem, G_VARIANT_TYPE_VARDICT) &&
-					!g_variant_is_of_type (elem, G_VARIANT_TYPE_DICTIONARY)) {
+				!g_variant_is_of_type (elem, G_VARIANT_TYPE_DICTIONARY)) {
 				g_variant_unref (elem);
 				continue;
 			}
@@ -90,7 +90,8 @@ void r2f_on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 				st64 line, character;
 				if (variant_get_int (file, "line", &line)) {
 					if (line >= 0) {
-						line++; pj_kN (j, "line", line);
+						line++;
+						pj_kN (j, "line", line);
 					}
 				}
 				if (variant_get_int (file, "character", &character)) {
@@ -124,7 +125,7 @@ void r2f_on_compiler_diagnostics(void *user, GVariant *diagnostics) {
 	GVariant *elem;
 	while ((elem = g_variant_iter_next_value (&it))) {
 		if (!g_variant_is_of_type (elem, G_VARIANT_TYPE_VARDICT) &&
-				!g_variant_is_of_type (elem, G_VARIANT_TYPE_DICTIONARY)) {
+			!g_variant_is_of_type (elem, G_VARIANT_TYPE_DICTIONARY)) {
 			g_variant_unref (elem);
 			continue;
 		}

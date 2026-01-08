@@ -224,4 +224,3 @@ repeat_device:;
 	free (action);
 	return res;
 }
-

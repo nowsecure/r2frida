@@ -30,7 +30,7 @@ int pkgmgr_search(const char *registry, const char *query, gboolean json_output,
 		frida_package_search_options_set_limit (search, limit);
 	}
 
-	FridaPackageSearchResult *result = frida_package_manager_search_sync (pm, query ? query : "", search, NULL, &error);
+	FridaPackageSearchResult *result = frida_package_manager_search_sync (pm, query? query: "", search, NULL, &error);
 	if (error != NULL) {
 		g_printerr ("Search failed: %s\n", error->message);
 		g_error_free (error);
@@ -105,7 +105,7 @@ int pkgmgr_install(const char *registry, char **specs, int nspecs, const char *p
 	}
 	if (save_dev || save_optional) {
 		frida_package_install_options_set_role (install,
-			save_dev ? FRIDA_PACKAGE_ROLE_DEVELOPMENT : FRIDA_PACKAGE_ROLE_OPTIONAL);
+			save_dev? FRIDA_PACKAGE_ROLE_DEVELOPMENT: FRIDA_PACKAGE_ROLE_OPTIONAL);
 	}
 	for (i = 0; i < nspecs; i++) {
 		frida_package_install_options_add_spec (install, specs[i]);
@@ -160,8 +160,8 @@ int pkgmgr_install(const char *registry, char **specs, int nspecs, const char *p
 
 			g_print ("\n%u package%s installed into %s\n",
 				n,
-				n == 1 ? "" : "s",
-				(projroot != NULL) ? projroot : current_dir);
+				n == 1? "": "s",
+				(projroot != NULL)? projroot: current_dir);
 			g_free (current_dir);
 		} else {
 			g_print ("✔ up to date\n");
@@ -183,7 +183,8 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 
 	if (use_color) {
 		g_print ("\033[38;2;156;156;156m%s\033[0m\033[38;2;158;158;158m@%s\033[0m",
-			name, version);
+			name,
+			version);
 	} else {
 		g_print ("%s@%s", name, version);
 	}
@@ -195,7 +196,7 @@ static void print_package_info(FridaPackage *package, gboolean use_color) {
 		g_print (" ");
 	}
 
-	g_print ("%s\n", (description != NULL) ? description : "");
+	g_print ("%s\n", (description != NULL)? description: "");
 	if (R_STR_ISNOTEMPTY (url)) {
 		g_print ("  ");
 		if (use_color) {

@@ -392,6 +392,7 @@ release:
 
 indent fmt:
 	deno fmt --indent-width 4 src/agent *.json
+	clang-format-radare2 -i $(wildcard *.c) $(wildcard src/*.c) $(wildcard plugins/*.c)
 
 frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
