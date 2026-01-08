@@ -47,6 +47,9 @@ static int show_help(const char *argv0, int line) {
 		" -s [query]          Search packages in the Frida registry\n"
 		" -i                  Install package(s) listed in package.json\n"
 		" -v                  Display version\n"
+		"\n"
+		"Environment variables:\n"
+		" R2FRIDA_PM_REGISTRY      Frida package registry host (default: registry.npmjs.org)\n"
 		);
 	}
 	return 1;
@@ -160,15 +163,22 @@ int main(int argc, const char **argv) {
 		return 0;
 	}
 
+	// frida-pm uses --registry HOST       package registry to use (default: registry.npmjs.org)
 	frida_init ();
-	if (do_search) {
-		return pkgmgr_search(NULL, search_query, compile_show_json, -1, -1);
-	}
-	if (do_install) {
-		int nspec = argc - opt.ind;
-		char **specs = NULL;
-		if (nspec > 0) specs = (char**)&argv[opt.ind];
-		return pkgmgr_install(NULL, specs, nspec, proot, false, false, false, NULL, quiet);
+	bool dopm = do_search || do_install;
+	if (dopm) {
+		int res = 0;
+		char *registry = r_sys_getenv ("R2FRIDA_PM_REGISTRY");
+		if (do_search) {
+			res = pkgmgr_search(registry, search_query, compile_show_json, -1, -1);
+		} else if (do_install) {
+			int nspec = argc - opt.ind;
+			char **specs = NULL;
+			if (nspec > 0) specs = (char**)&argv[opt.ind];
+			res = pkgmgr_install(registry, specs, nspec, proot, false, false, false, NULL, quiet);
+		}
+		free (registry);
+		return res;
 	}
 	FridaDeviceManager *device_manager = NULL;
 #if FRIDA_VERSION_MAJOR < 17
