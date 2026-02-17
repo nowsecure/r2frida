@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2016-2025 - pancake, oleavr, mrmacete, murphy */
+/* radare2 - MIT - Copyright 2016-2026 - pancake, oleavr, mrmacete, murphy */
 
 #define R_LOG_ORIGIN "r2frida"
 
@@ -1262,8 +1262,7 @@ static bool resolve3(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	const char *arg2 = r_list_get_n (args, 2);
 	// frida://attach/usb//
 	R2FridaAction action = parse_action (arg0);
-	R2FridaLink link = parse_link (arg1);
-	R_LOG_DEBUG ("action %d link %d\n", action, link);
+	R_LOG_DEBUG ("action %d link %d\n", action, parse_link (arg1));
 	if (!*arg2) {
 		if (action == R2F_ACTION_QUERY) {
 			GError *error = NULL;
