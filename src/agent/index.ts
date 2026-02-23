@@ -555,6 +555,7 @@ const commandHandlers = {
 };
 
 async function initBasicInfoFromTarget(args: string[]): Promise<string> {
+	return "";
     if (java.JavaAvailable) {
         return `e dbg.backend = io
 e anal.autoname=true
