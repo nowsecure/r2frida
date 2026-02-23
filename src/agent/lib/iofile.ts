@@ -2,7 +2,7 @@
  * IO File Redirection Module
  * Allows redirecting r2frida IO to read/write from a file or remote process memory
  * Useful for reading /proc/pid/mem or any other remote file
- * 
+ *
  * Supports:
  * - File paths: /proc/pid/mem, /dev/mem, /path/to/file
  * - Remote process memory via mach VM (macOS): pid://1234
@@ -21,14 +21,43 @@ interface NativeSymbols {
 }
 
 interface ProcessVMSymbols {
-    process_vm_readv: (pid: number, lvec: NativePointer, liovcnt: number, rvec: NativePointer, riovcnt: number, flags: number) => Int64;
-    process_vm_writev: (pid: number, lvec: NativePointer, liovcnt: number, rvec: NativePointer, riovcnt: number, flags: number) => Int64;
+    process_vm_readv: (
+        pid: number,
+        lvec: NativePointer,
+        liovcnt: number,
+        rvec: NativePointer,
+        riovcnt: number,
+        flags: number,
+    ) => Int64;
+    process_vm_writev: (
+        pid: number,
+        lvec: NativePointer,
+        liovcnt: number,
+        rvec: NativePointer,
+        riovcnt: number,
+        flags: number,
+    ) => Int64;
 }
 
 interface MachVMSymbols {
-    task_for_pid: (hostPriv: NativePointer, pid: number, taskPtr: NativePointer) => number;
-    vm_read: (task: NativePointer, addr: NativePointer, size: NativePointer, dataPtr: NativePointer, dataCntPtr: NativePointer) => number;
-    vm_write: (task: NativePointer, addr: NativePointer, data: NativePointer, dataCnt: number) => number;
+    task_for_pid: (
+        hostPriv: NativePointer,
+        pid: number,
+        taskPtr: NativePointer,
+    ) => number;
+    vm_read: (
+        task: NativePointer,
+        addr: NativePointer,
+        size: NativePointer,
+        dataPtr: NativePointer,
+        dataCntPtr: NativePointer,
+    ) => number;
+    vm_write: (
+        task: NativePointer,
+        addr: NativePointer,
+        data: NativePointer,
+        dataCnt: number,
+    ) => number;
 }
 
 class IOFileManager {
@@ -39,7 +68,6 @@ class IOFileManager {
     private symbols: NativeSymbols;
     private processVMSymbols: Partial<ProcessVMSymbols> = {};
     private machVMSymbols: Partial<MachVMSymbols> = {};
-    private allocatedPointers: NativePointer[] = []; // Keep references to prevent GC
 
     constructor() {
         this.symbols = this.initializeSymbols();
@@ -47,65 +75,103 @@ class IOFileManager {
         this.initializeProcessVMSymbols();
     }
 
-    private initializeSymbols(): NativeSymbols {
-         const sym = (name: string, ret: NativeFunctionReturnType, arg: NativeFunctionArgumentType[]): any => {
-             try {
-                 return new NativeFunction(
-                     Module.getGlobalExportByName(name),
-                     ret,
-                     arg
-                 );
-             } catch (e) {
-                 return null;
-             }
-         };
-
-         return {
-             open: sym("open", "int" as NativeFunctionReturnType, ["pointer", "int"]),
-             close: sym("close", "int" as NativeFunctionReturnType, ["int"]),
-             read: sym("read", "int" as NativeFunctionReturnType, ["int", "pointer", "int"]),
-             write: sym("write", "int" as NativeFunctionReturnType, ["int", "pointer", "int"]),
-             lseek: sym("lseek", "int64" as NativeFunctionReturnType, ["int", "int64", "int"]),
-         };
-     }
-
-    private initializeMachVMSymbols(): void {
-        const sym = (name: string, ret: NativeFunctionReturnType, arg: NativeFunctionArgumentType[]): any => {
+    private initSymbols<T>(
+        config: Record<
+            string,
+            [NativeFunctionReturnType, NativeFunctionArgumentType[]]
+        >,
+    ): T {
+        const sym = (
+            name: string,
+            ret: NativeFunctionReturnType,
+            arg: NativeFunctionArgumentType[],
+        ) => {
             try {
                 return new NativeFunction(
                     Module.getGlobalExportByName(name),
                     ret,
-                    arg
+                    arg,
                 );
             } catch (e) {
                 return null;
             }
         };
 
-        this.machVMSymbols = {
-            task_for_pid: sym("task_for_pid", "int" as NativeFunctionReturnType, ["pointer", "int", "pointer"]),
-            vm_read: sym("vm_read", "int" as NativeFunctionReturnType, ["pointer", "pointer", "pointer", "pointer", "pointer"]),
-            vm_write: sym("vm_write", "int" as NativeFunctionReturnType, ["pointer", "pointer", "pointer", "int"]),
-        };
+        return Object.fromEntries(
+            Object.entries(config).map((
+                [key, [ret, args]],
+            ) => [key, sym(key, ret, args)]),
+        ) as T;
     }
 
-    private initializeProcessVMSymbols(): void {
-        const sym = (name: string, ret: NativeFunctionReturnType, arg: NativeFunctionArgumentType[]): any => {
-            try {
-                return new NativeFunction(
-                    Module.getGlobalExportByName(name),
-                    ret,
-                    arg
-                );
-            } catch (e) {
-                return null;
-            }
-        };
+    constructor() {
+        this.symbols = this.initSymbols({
+            open: ["int", ["pointer", "int"] as NativeFunctionArgumentType[]],
+            close: ["int", ["int"] as NativeFunctionArgumentType[]],
+            read: [
+                "int",
+                ["int", "pointer", "int"] as NativeFunctionArgumentType[],
+            ],
+            write: [
+                "int",
+                ["int", "pointer", "int"] as NativeFunctionArgumentType[],
+            ],
+            lseek: [
+                "int64",
+                ["int", "int64", "int"] as NativeFunctionArgumentType[],
+            ],
+        });
 
-        this.processVMSymbols = {
-            process_vm_readv: sym("process_vm_readv", "int64" as NativeFunctionReturnType, ["int", "pointer", "int", "pointer", "int", "int"]),
-            process_vm_writev: sym("process_vm_writev", "int64" as NativeFunctionReturnType, ["int", "pointer", "int", "pointer", "int", "int"]),
-        };
+        this.machVMSymbols = this.initSymbols({
+            task_for_pid: [
+                "int",
+                ["pointer", "int", "pointer"] as NativeFunctionArgumentType[],
+            ],
+            vm_read: [
+                "int",
+                [
+                    "pointer",
+                    "pointer",
+                    "pointer",
+                    "pointer",
+                    "pointer",
+                ] as NativeFunctionArgumentType[],
+            ],
+            vm_write: [
+                "int",
+                [
+                    "pointer",
+                    "pointer",
+                    "pointer",
+                    "int",
+                ] as NativeFunctionArgumentType[],
+            ],
+        });
+
+        this.processVMSymbols = this.initSymbols({
+            process_vm_readv: [
+                "int64",
+                [
+                    "int",
+                    "pointer",
+                    "int",
+                    "pointer",
+                    "int",
+                    "int",
+                ] as NativeFunctionArgumentType[],
+            ],
+            process_vm_writev: [
+                "int64",
+                [
+                    "int",
+                    "pointer",
+                    "int",
+                    "pointer",
+                    "int",
+                    "int",
+                ] as NativeFunctionArgumentType[],
+            ],
+        });
     }
 
     private showHelp(): string {
@@ -136,17 +202,14 @@ class IOFileManager {
     }
 
     private openRemoteProcess(pidStr: string): string {
-        // Extract PID from pid://PIDNUM format
         const pidNum = parseInt(pidStr, 10);
         if (isNaN(pidNum) || pidNum <= 0) {
             return `ERROR: invalid PID format: ${pidStr}`;
         }
 
-        if (Process.platform === "darwin") {
-            return this.openRemoteProcessMachVM(pidNum);
-        } else {
-            return this.openRemoteProcessLinux(pidNum);
-        }
+        return Process.platform === "darwin"
+            ? this.openRemoteProcessMachVM(pidNum)
+            : this.openRemoteProcessLinux(pidNum);
     }
 
     private openRemoteProcessMachVM(pid: number): string {
@@ -154,42 +217,36 @@ class IOFileManager {
             return "ERROR: mach VM symbols not available";
         }
 
-        // Get mach_task_self() for the current task as host privilege
-        let hostPriv: NativePointer;
-        try {
-            const mach_task_self_sym = new NativeFunction(
-                Module.getGlobalExportByName("mach_task_self"),
-                "pointer",
-                []
-            );
-            hostPriv = mach_task_self_sym();
-        } catch (e) {
-            // Fallback to task_self if mach_task_self not found
-            try {
-                const task_self_sym = new NativeFunction(
-                    Module.getGlobalExportByName("task_self"),
-                    "pointer",
-                    []
-                );
-                hostPriv = task_self_sym();
-            } catch (e2) {
-                return "ERROR: cannot get mach task port";
-            }
-        }
+        const getHostPriv = (): NativePointer | null => {
+            const trySymbol = (name: string) => {
+                try {
+                    return new NativeFunction(
+                        Module.getGlobalExportByName(name),
+                        "pointer",
+                        [],
+                    )();
+                } catch (e) {
+                    return null;
+                }
+            };
+            return trySymbol("mach_task_self") || trySymbol("task_self") ||
+                null;
+        };
+
+        const hostPriv = getHostPriv();
+        if (!hostPriv) return "ERROR: cannot get mach task port";
 
         const taskPtr = Memory.alloc(Process.pointerSize);
-
         const result = this.machVMSymbols.task_for_pid!(hostPriv, pid, taskPtr);
+
         if (result !== 0) {
-            // Try with different approaches for getting host privilege
-            try {
-                // Try using NULL host port (works sometimes)
-                const result2 = this.machVMSymbols.task_for_pid!(ptr(0), pid, taskPtr);
-                if (result2 !== 0) {
-                    return `ERROR: task_for_pid failed (error: ${result}/${result2}) for PID ${pid}. Check if target process exists and you have permissions.`;
-                }
-            } catch (e) {
-                return `ERROR: task_for_pid failed (error: ${result}) for PID ${pid}. Check if target process exists and you have permissions.`;
+            const result2 = this.machVMSymbols.task_for_pid!(
+                ptr(0),
+                pid,
+                taskPtr,
+            );
+            if (result2 !== 0) {
+                return `ERROR: task_for_pid failed (error: ${result}/${result2}) for PID ${pid}`;
             }
         }
 
@@ -198,15 +255,7 @@ class IOFileManager {
             return `ERROR: failed to get task port for PID ${pid}`;
         }
 
-        this.currentPid = pid;
-        this.currentTaskPort = taskPort;
-        this.currentPath = `pid://${pid}`;
-        this.currentFd = -1;
-
-        // Set up the r2frida hooks for remote process I/O
-        r2frida.hookedRead = (offset: any, count: number) => this.hookedRead(offset, count);
-        r2frida.hookedWrite = (offset: any, data: any) => this.hookedWrite(offset, data);
-
+        this.setupRemoteProcess(pid, taskPort);
         return `IO redirected to: remote process ${pid} (mach_vm)`;
     }
 
@@ -215,135 +264,114 @@ class IOFileManager {
             return "ERROR: process_vm symbols not available";
         }
 
-        // Just store the PID for later use
-        this.currentPid = pid;
-        this.currentPath = `pid://${pid}`;
-        this.currentFd = -1;
-        this.currentTaskPort = null;
-
-        // Set up the r2frida hooks for remote process I/O
-        r2frida.hookedRead = (offset: any, count: number) => this.hookedRead(offset, count);
-        r2frida.hookedWrite = (offset: any, data: any) => this.hookedWrite(offset, data);
-
+        this.setupRemoteProcess(pid, null);
         return `IO redirected to: remote process ${pid} (process_vm)`;
     }
 
+    private setupRemoteProcess(
+        pid: number,
+        taskPort: NativePointer | null,
+    ): void {
+        this.currentPid = pid;
+        this.currentPath = `pid://${pid}`;
+        this.currentFd = -1;
+        this.currentTaskPort = taskPort;
+        r2frida.hookedRead = (offset: any, count: number) =>
+            this.hookedRead(offset, count);
+        r2frida.hookedWrite = (offset: any, data: any) =>
+            this.hookedWrite(offset, data);
+    }
+
     private openFile(path: string): string {
-        if (this.currentFd >= 0) {
-            this.symbols.close(this.currentFd);
-            this.currentFd = -1;
-            this.currentPath = "";
-        }
-        
-        if (this.currentPid >= 0) {
-            this.currentPid = -1;
-            this.currentTaskPort = null;
-            this.currentPath = "";
-        }
+        this.resetCurrentIO();
 
-        const O_RDWR = 2;
-        const O_RDONLY = 0;
+        const O_RDWR = 2, O_RDONLY = 0;
         const pathPtr = Memory.allocUtf8String(path);
-        this.allocatedPointers.push(pathPtr); // Keep reference to prevent GC
 
-        let fd = this.symbols.open(pathPtr, O_RDWR);
-        if (fd < 0) {
-            fd = this.symbols.open(pathPtr, O_RDONLY);
-        }
+        const fd = this.symbols.open(pathPtr, O_RDWR) >= 0
+            ? this.symbols.open(pathPtr, O_RDWR)
+            : this.symbols.open(pathPtr, O_RDONLY);
 
-        if (fd < 0) {
-            return `ERROR: cannot open ${path}`;
-        }
+        if (fd < 0) return `ERROR: cannot open ${path}`;
 
         this.currentFd = fd;
         this.currentPath = path;
-
-        // Set up the r2frida hooks for file I/O
-        r2frida.hookedRead = (offset: any, count: number) => this.hookedRead(offset, count);
-        r2frida.hookedWrite = (offset: any, data: any) => this.hookedWrite(offset, data);
+        r2frida.hookedRead = (offset: any, count: number) =>
+            this.hookedRead(offset, count);
+        r2frida.hookedWrite = (offset: any, data: any) =>
+            this.hookedWrite(offset, data);
 
         return `IO redirected to: ${path} (fd=${fd})`;
     }
 
-    private closeFile(): string {
+    private resetCurrentIO(): void {
         if (this.currentFd >= 0) {
             this.symbols.close(this.currentFd);
             this.currentFd = -1;
-            this.currentPath = "";
         }
-        
         if (this.currentPid >= 0) {
             this.currentPid = -1;
             this.currentTaskPort = null;
-            this.currentPath = "";
         }
-        
-        // Clear the r2frida hooks
+        this.currentPath = "";
+    }
+
+    private closeFile(): string {
+        this.resetCurrentIO();
         r2frida.hookedRead = null;
         r2frida.hookedWrite = null;
-
-        // Clear allocated pointers to allow GC
-        this.allocatedPointers = [];
-        
         return "IO restored to normal";
     }
 
-    private readRemoteProcessMachVM(offset: number, count: number): Uint8Array | null {
-        if (!this.currentTaskPort || !this.machVMSymbols.vm_read) {
-            return null;
-        }
+    private readRemoteProcessMachVM(
+        offset: number,
+        count: number,
+    ): Uint8Array | null {
+        if (!this.currentTaskPort || !this.machVMSymbols.vm_read) return null;
 
         const dataPtr = Memory.alloc(Process.pointerSize);
-        const dataCntPtr = Memory.alloc(4);
-        this.allocatedPointers.push(dataPtr, dataCntPtr); // Keep references
-        dataCntPtr.writeU32(0);
-
-        const addr = ptr(offset);
-        const size = ptr(count);
+        const dataCntPtr = Memory.alloc(4).writeU32(0);
 
         const result = this.machVMSymbols.vm_read!(
             this.currentTaskPort,
-            addr,
-            size,
+            ptr(offset),
+            ptr(count),
             dataPtr,
-            dataCntPtr
+            dataCntPtr,
         );
 
-        if (result !== 0) {
-            return null;
-        }
+        if (result !== 0) return null;
 
         const dataCnt = dataCntPtr.readU32();
-        if (dataCnt <= 0) {
-            return null;
-        }
-
-        const dataPtr2 = dataPtr.readPointer();
-        const data = dataPtr2.readByteArray(dataCnt);
-        return data instanceof ArrayBuffer ? new Uint8Array(data) : null;
+        return dataCnt > 0
+            ? this.arrayBufferToUint8(
+                dataPtr.readPointer().readByteArray(dataCnt),
+            )
+            : null;
     }
 
-    private readRemoteProcessLinux(offset: number, count: number): Uint8Array | null {
+    private arrayBufferToUint8(data: ArrayBuffer | null): Uint8Array | null {
+        return data ? new Uint8Array(data) : null;
+    }
+
+    private readRemoteProcessLinux(
+        offset: number,
+        count: number,
+    ): Uint8Array | null {
         if (!this.processVMSymbols.process_vm_readv || this.currentPid < 0) {
             return null;
         }
 
-        // Allocate local and remote iovec structures
-        const localVec = Memory.alloc(16); // sizeof(struct iovec)
-        const remoteVec = Memory.alloc(16);
-        this.allocatedPointers.push(localVec, remoteVec); // Keep references
+        const [localVec, remoteVec, buf] = [
+            Memory.alloc(16),
+            Memory.alloc(16),
+            Memory.alloc(count),
+        ];
 
-        // Allocate buffer for data
-        const buf = Memory.alloc(count);
-        this.allocatedPointers.push(buf); // Keep reference
-
-        // Set up local iovec: iov_base = buf, iov_len = count
-        localVec.writePointer(buf);
-        localVec.add(Process.pointerSize).writeULong(count);
-
-        // Set up remote iovec: iov_base = offset, iov_len = count
-        remoteVec.writePointer(ptr(offset));
-        remoteVec.add(Process.pointerSize).writeULong(count);
+        localVec.writePointer(buf).add(Process.pointerSize).writeULong(count);
+        remoteVec.writePointer(ptr(offset)).add(Process.pointerSize).writeULong(
+            count,
+        );
 
         const bytesRead = this.processVMSymbols.process_vm_readv!(
             this.currentPid,
@@ -351,65 +379,60 @@ class IOFileManager {
             1,
             remoteVec,
             1,
-            0
+            0,
         );
 
-        if ((bytesRead as unknown as number) <= 0) {
-            return null;
-        }
-
-        const data = buf.readByteArray((bytesRead as unknown as number));
-        return data instanceof ArrayBuffer ? new Uint8Array(data) : null;
+        return (bytesRead as unknown as number) > 0
+            ? this.arrayBufferToUint8(
+                buf.readByteArray(bytesRead as unknown as number),
+            )
+            : null;
     }
 
-    private writeRemoteProcessMachVM(offset: number, data: Uint8Array | ArrayBuffer): boolean {
-        if (!this.currentTaskPort || !this.machVMSymbols.vm_write) {
-            return false;
-        }
+    private writeRemoteProcessMachVM(
+        offset: number,
+        data: Uint8Array | ArrayBuffer,
+    ): boolean {
+        if (!this.currentTaskPort || !this.machVMSymbols.vm_write) return false;
 
         const dataBuf = Memory.alloc(data.byteLength);
-        this.allocatedPointers.push(dataBuf); // Keep reference
-        if (data instanceof Uint8Array) {
-            dataBuf.writeByteArray(Array.from(data));
-        } else {
-            dataBuf.writeByteArray(Array.from(new Uint8Array(data)));
-        }
+        const dataArray = data instanceof Uint8Array
+            ? data
+            : new Uint8Array(data);
+        dataBuf.writeByteArray(Array.from(dataArray));
 
-        const addr = ptr(offset);
-        const result = this.machVMSymbols.vm_write!(
+        return this.machVMSymbols.vm_write!(
             this.currentTaskPort,
-            addr,
+            ptr(offset),
             dataBuf,
-            data.byteLength
-        );
-
-        return result === 0;
+            data.byteLength,
+        ) === 0;
     }
 
-    private writeRemoteProcessLinux(offset: number, data: Uint8Array | ArrayBuffer): boolean {
+    private writeRemoteProcessLinux(
+        offset: number,
+        data: Uint8Array | ArrayBuffer,
+    ): boolean {
         if (!this.processVMSymbols.process_vm_writev || this.currentPid < 0) {
             return false;
         }
 
-        const byteArray = data instanceof Uint8Array ? Array.from(data) : Array.from(new Uint8Array(data));
+        const dataArray = data instanceof Uint8Array
+            ? data
+            : new Uint8Array(data);
+        const [localVec, remoteVec, buf] = [
+            Memory.alloc(16),
+            Memory.alloc(16),
+            Memory.alloc(dataArray.length),
+        ];
 
-        // Allocate local and remote iovec structures
-        const localVec = Memory.alloc(16);
-        const remoteVec = Memory.alloc(16);
-        this.allocatedPointers.push(localVec, remoteVec); // Keep references
-
-        // Allocate buffer for data
-        const buf = Memory.alloc(byteArray.length);
-        this.allocatedPointers.push(buf); // Keep reference
-        buf.writeByteArray(byteArray);
-
-        // Set up local iovec: iov_base = buf, iov_len = datalen
-        localVec.writePointer(buf);
-        localVec.add(Process.pointerSize).writeULong(byteArray.length);
-
-        // Set up remote iovec: iov_base = offset, iov_len = datalen
-        remoteVec.writePointer(ptr(offset));
-        remoteVec.add(Process.pointerSize).writeULong(byteArray.length);
+        buf.writeByteArray(Array.from(dataArray));
+        localVec.writePointer(buf).add(Process.pointerSize).writeULong(
+            dataArray.length,
+        );
+        remoteVec.writePointer(ptr(offset)).add(Process.pointerSize).writeULong(
+            dataArray.length,
+        );
 
         const bytesWritten = this.processVMSymbols.process_vm_writev!(
             this.currentPid,
@@ -417,127 +440,88 @@ class IOFileManager {
             1,
             remoteVec,
             1,
-            0
+            0,
         );
 
-        return (bytesWritten as unknown as number) === byteArray.length;
+        return (bytesWritten as unknown as number) === dataArray.length;
     }
 
     public hookedRead(offset: any, count: number): [any, any] {
-        // Handle remote process read
+        const offsetNum = typeof offset === "string"
+            ? parseInt(offset, 16)
+            : offset;
+
         if (this.currentPid >= 0) {
-            const offsetNum =
-                typeof offset === "string" ? parseInt(offset, 16) : offset;
-
-            let data: Uint8Array | null = null;
-            if (Process.platform === "darwin") {
-                data = this.readRemoteProcessMachVM(offsetNum, count);
-            } else {
-                data = this.readRemoteProcessLinux(offsetNum, count);
-            }
-
-            if (data === null) {
-                return [{}, []];
-            }
-
-            return [{}, Array.from(data)];
+            const data = Process.platform === "darwin"
+                ? this.readRemoteProcessMachVM(offsetNum, count)
+                : this.readRemoteProcessLinux(offsetNum, count);
+            return data ? [{}, Array.from(data)] : [{}, []];
         }
 
-        // Handle file read
-        if (this.currentFd < 0) {
-            return [{}, []];
-        }
+        if (this.currentFd < 0) return [{}, []];
 
-        const offsetNum =
-            typeof offset === "string" ? parseInt(offset, 16) : offset;
-        
-        // For file I/O, we don't seek to the offset from the command
-        // The file is read sequentially from its current position
-        // If we want to treat the file as memory starting at offset 0, we need to seek
         const seeked = this.symbols.lseek(
             this.currentFd,
             new Int64(offsetNum),
-            0
-        ); // SEEK_SET = 0
-
-        if ((seeked as unknown as number) < 0) {
-            return [{}, []];
-        }
+            0,
+        );
+        if ((seeked as unknown as number) < 0) return [{}, []];
 
         const buf = Memory.alloc(count);
         const bytesRead = this.symbols.read(this.currentFd, buf, count);
 
-        if (bytesRead <= 0) {
-            return [{}, []];
-        }
-
-        const data = buf.readByteArray(bytesRead);
-        // Convert ArrayBuffer to Array<number> format expected by r2frida
-        if (data === null) {
-            return [{}, []];
-        }
-        const uint8Array = new Uint8Array(data);
-        return [{}, Array.from(uint8Array)];
+        return bytesRead > 0
+            ? [
+                {},
+                Array.from(
+                    new Uint8Array(
+                        buf.readByteArray(bytesRead) || new ArrayBuffer(0),
+                    ),
+                ),
+            ]
+            : [{}, []];
     }
 
     public hookedWrite(offset: any, data: any): [any, null] {
-        // Handle remote process write
-        if (this.currentPid >= 0) {
-            const offsetNum =
-                typeof offset === "object"
-                    ? offset.toInt32()
-                    : typeof offset === "string"
-                      ? parseInt(offset, 16)
-                      : offset;
+        const offsetNum = typeof offset === "object"
+            ? offset.toInt32()
+            : typeof offset === "string"
+            ? parseInt(offset, 16)
+            : offset;
 
-            let writeData: Uint8Array | ArrayBuffer;
-            if (data instanceof ArrayBuffer) {
-                writeData = data;
-            } else if (Array.isArray(data)) {
-                writeData = new Uint8Array(data);
-            } else if (typeof data.byteLength === "number") {
-                writeData = data;
-            } else {
-                return [{}, null];
-            }
+        if (this.currentPid >= 0) {
+            const writeData = this.normalizeData(data);
+            if (!writeData) return [{}, null];
 
             if (Process.platform === "darwin") {
                 this.writeRemoteProcessMachVM(offsetNum, writeData);
             } else {
                 this.writeRemoteProcessLinux(offsetNum, writeData);
             }
-
             return [{}, null];
         }
 
-        // Handle file write
-        if (this.currentFd < 0) {
-            return [{}, null];
-        }
-
-        const offsetNum =
-            typeof offset === "object"
-                ? offset.toInt32()
-                : typeof offset === "string"
-                  ? parseInt(offset, 16)
-                  : offset;
+        if (this.currentFd < 0) return [{}, null];
 
         const seeked = this.symbols.lseek(
             this.currentFd,
             new Int64(offsetNum),
-            0
-        ); // SEEK_SET = 0
-
-        if ((seeked as unknown as number) < 0) {
-            return [{}, null];
-        }
+            0,
+        );
+        if ((seeked as unknown as number) < 0) return [{}, null];
 
         const count = data.byteLength;
-        const buf = Memory.alloc(count);
-        buf.writeByteArray(data);
-        this.symbols.write(this.currentFd, buf, count);
+        Memory.alloc(count).writeByteArray(data);
+        this.symbols.write(this.currentFd, Memory.alloc(count), count);
 
         return [{}, null];
+    }
+
+    private normalizeData(data: any): Uint8Array | ArrayBuffer | null {
+        if (data instanceof ArrayBuffer) return data;
+        if (Array.isArray(data)) return new Uint8Array(data);
+        if (typeof data.byteLength === "number") return data;
+        return null;
     }
 
     public execute(args: string[]): string {
