@@ -13,6 +13,7 @@ import * as fs from "./lib/fs.js";
 import info from "./lib/info/index.js";
 import io from "./io.js";
 import interceptor from "./lib/debug/interceptor.js";
+import { handleIOFile, handleIOFileHelp, handleIOFileClose } from "./lib/iofile.js";
 import * as java from "./lib/java/index.js";
 import log from "./log.js";
 import lookup from "./lib/info/lookup.js";
@@ -170,6 +171,19 @@ const commandHandlers = {
     ],
     ddj: [fs.listFileDescriptorsJson, "same as `dd` but in json format"],
     "dd-": [fs.closeFileDescriptors, "close given file descriptor", "[fd]"],
+    o: [
+        handleIOFile,
+        "redirect IO to read/write from a file",
+        "[path]",
+    ],
+    "o?": [
+        handleIOFileHelp,
+        "show IO redirection help",
+    ],
+    "o-": [
+        handleIOFileClose,
+        "close the file and restore normal IO",
+    ],
     dm: [memory.listMemoryRanges, "list ranges of memory maps"],
     "dm*": [
         memory.listMemoryRangesR2,
