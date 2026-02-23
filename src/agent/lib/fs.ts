@@ -1,7 +1,7 @@
 import { toByteArray } from "./base64.js";
 import path from "path";
 import { _close, _dup2, _fstat, _readlink, sym } from "./sys.js";
-import { getGlobalExportByName, findGlobalExportByName } from "./utils.js";
+import { findGlobalExportByName, getGlobalExportByName } from "./utils.js";
 import { IOSPathTransform, isiOS } from "./darwin/index.js";
 import ObjC from "frida-objc-bridge";
 
@@ -172,7 +172,8 @@ export class FridaFS {
             }
             let entry;
             while (
-                (entry = this.posixApi.readdir(dir, entryBuf, resultPtr)) !== null
+                (entry = this.posixApi.readdir(dir, entryBuf, resultPtr)) !==
+                    null
             ) {
                 if (!this._excludeSet.has(entry.name)) {
                     const fullPath = path.join(actualPath, entry.name);
@@ -188,9 +189,9 @@ export class FridaFS {
         } else {
             const virtualDir = this.transform.getVirtualDir(srcPath);
             for (const entry of virtualDir) {
-                 result.push({
+                result.push({
                     name: entry.name,
-                    type: 'directory',
+                    type: "directory",
                     size: 0,
                     timestamp: 0,
                 });
@@ -211,7 +212,8 @@ export class FridaFS {
             }
             let entry;
             while (
-                (entry = this.posixApi.readdir(dir, entryBuf, resultPtr)) !== null
+                (entry = this.posixApi.readdir(dir, entryBuf, resultPtr)) !==
+                    null
             ) {
                 if (!this._excludeSet.has(entry.name)) {
                     // result.push(`${this._getEntryType(entry.type)} ${entry.name}`);
@@ -348,14 +350,22 @@ export class FridaFS {
     _getEntryTypeString(entry: number): string {
         const type = this._getEntryType(entry);
         switch (type) {
-            case 'd': return 'directory';
-            case 'f': return 'file';
-            case 'l': return 'symlink';
-            case 'c': return 'char';
-            case 'b': return 'block';
-            case 's': return 'socket';
-            case 'p': return 'pipe';
-            default: return 'unknown';
+            case "d":
+                return "directory";
+            case "f":
+                return "file";
+            case "l":
+                return "symlink";
+            case "c":
+                return "char";
+            case "b":
+                return "block";
+            case "s":
+                return "socket";
+            case "p":
+                return "pipe";
+            default:
+                return "unknown";
         }
     }
 }
@@ -420,7 +430,7 @@ export class PosixFSApi {
         this._api = null;
     }
 
-    get api(): Record<string, NativeFunction<any, any> |  null> {
+    get api(): Record<string, NativeFunction<any, any> | null> {
         if (this._api === null) {
             const exports = resolveExports([
                 "opendir",
@@ -500,14 +510,18 @@ export class PosixFSApi {
         return result;
     }
 
-    readdir(dir: NativePointer, entryBuf: NativePointer, resultPtr: NativePointer): DirEnt | null {
+    readdir(
+        dir: NativePointer,
+        entryBuf: NativePointer,
+        resultPtr: NativePointer,
+    ): DirEnt | null {
         if (this.api.readdir === null) {
             return null;
         }
         this.api.readdir(dir, entryBuf, resultPtr);
         const result = resultPtr.readPointer();
         if (result.isNull()) {
-             return null;
+            return null;
         }
         return new DirEnt(result);
     }
@@ -536,7 +550,12 @@ export class PosixFSApi {
         return this.api.fclose(f);
     }
 
-    fread(buf: NativePointer, size: number, nitems: number, f: NativePointer): number | null {
+    fread(
+        buf: NativePointer,
+        size: number,
+        nitems: number,
+        f: NativePointer,
+    ): number | null {
         if (this.api.fread === null) {
             return null;
         }
@@ -544,7 +563,7 @@ export class PosixFSApi {
     }
 
     fseek(f: NativePointer, offset: number, whence: number): number | null {
-        if (this.api.fseek === null) {  
+        if (this.api.fseek === null) {
             return null;
         }
         return this.api.fseek(f, offset, whence);
@@ -598,7 +617,11 @@ class DirEnt {
     }
 }
 
-function readMemoryField(entry: NativePointer, offset: number, type: string): number | string {
+function readMemoryField(
+    entry: NativePointer,
+    offset: number,
+    type: string,
+): number | string {
     let value: any = null;
     switch (type) {
         case "Utf8String":
@@ -622,7 +645,6 @@ function readMemoryField(entry: NativePointer, offset: number, type: string): nu
     return value;
 }
 
-
 function readDirentField(entry: NativePointer, name: string): number | string {
     const [offset, type] = direntSpec[name];
     return readMemoryField(entry, offset, type);
@@ -639,17 +661,25 @@ function readStatxField(entry: NativePointer, name: string): number {
 }
 
 export function resolveExports(names: string[]): Record<string, NativePointer> {
-    return names.reduce((exports: Record<string, NativePointer>, name: string) => {
-        exports[name] = getGlobalExportByName(name);
-        return exports;
-    }, {});
+    return names.reduce(
+        (exports: Record<string, NativePointer>, name: string) => {
+            exports[name] = getGlobalExportByName(name);
+            return exports;
+        },
+        {},
+    );
 }
 
-export function findExports(names: string[]): Record<string, NativePointer | null> {
-    return names.reduce((exports: Record<string, NativePointer | null>, name: string) => {
-        exports[name] = findGlobalExportByName(name);
-        return exports;
-    }, {});
+export function findExports(
+    names: string[],
+): Record<string, NativePointer | null> {
+    return names.reduce(
+        (exports: Record<string, NativePointer | null>, name: string) => {
+            exports[name] = findGlobalExportByName(name);
+            return exports;
+        },
+        {},
+    );
 }
 
 export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""): void {
@@ -663,7 +693,10 @@ export function flatify(result: any, vEnt: VirtualEnt, rootPath = ""): void {
     }
 }
 
-export function nsArrayMap(array: ObjC.Object, callback: (value: any) => string): string[] {
+export function nsArrayMap(
+    array: ObjC.Object,
+    callback: (value: any) => string,
+): string[] {
     const result = [];
     const count = array.count().valueOf();
     for (let index = 0; index !== count; index++) {
@@ -672,7 +705,11 @@ export function nsArrayMap(array: ObjC.Object, callback: (value: any) => string)
     return result;
 }
 
-export function encodeBuf(buf: NativePointer, size: number, encoding: string): string {
+export function encodeBuf(
+    buf: NativePointer,
+    size: number,
+    encoding: string,
+): string {
     if (encoding !== "hex") {
         return buf.readCString() || "";
     }

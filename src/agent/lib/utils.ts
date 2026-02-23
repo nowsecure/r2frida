@@ -14,7 +14,7 @@ export function sanitizeString(str: string): string {
         const nonspecial = str.split("").map((c) =>
             specialChars.indexOf(c) === -1 ? c : "_"
         ).join("");
-	// eslint-disable-next-line no-control-regex
+        // eslint-disable-next-line no-control-regex
         return nonspecial.replace(/[\x00-\x1F\x7F]/g, "");
     } else {
         globalSymCounter++;

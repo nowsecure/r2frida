@@ -2,7 +2,6 @@
 
 import { r2frida } from "./plugin.js";
 
- 
 let _r_core_new: any | null = null;
 let _r_core_cmd_str: any | null = null;
 let _r_core_free: any | null = null;
@@ -19,7 +18,6 @@ function r2nakedSymbols() {
     _r_core_free = sym("r_core_free", "void", ["pointer"]);
 }
 
- 
 export class R2PipeFridaNative {
     r2: any;
     constructor() {

@@ -339,7 +339,8 @@ export function traceRegs(args: string[]) {
                 }
                 try {
                     regValue = context[r as keyof CpuContext].toString();
-                    const tail = context[r as keyof CpuContext].readUtf8String();
+                    const tail = context[r as keyof CpuContext]
+                        .readUtf8String();
                     if (tail) {
                         regValue += " (" + tail + ")";
                     }
@@ -391,7 +392,8 @@ export function traceRegs(args: string[]) {
                 }
                 try {
                     regValue = context[r as keyof CpuContext].toString();
-                    const tail = context[r as keyof CpuContext].readUtf8String();
+                    const tail = context[r as keyof CpuContext]
+                        .readUtf8String();
                     if (tail) {
                         regValue += " (" + tail + ")";
                     }

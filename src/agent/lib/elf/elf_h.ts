@@ -1,5 +1,3 @@
- 
-
 export const ELF_HEADER = 0x464c457f;
 export const EM_AARCH64 = 0xb7;
 export const EM_X86_64 = 0x3e;

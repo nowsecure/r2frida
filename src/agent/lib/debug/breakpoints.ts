@@ -579,8 +579,8 @@ function _breakpointSet(args: string[]): boolean {
     }
     const ptrAddr = getPtr(address);
     if (ptrAddr.equals(ptr("0"))) {
-	    console.error ("Invalid pointer");
-	    return false;
+        console.error("Invalid pointer");
+        return false;
     }
     const bp = breakpoints.get(address.toString());
     if (
@@ -620,9 +620,9 @@ function _breakpointSwitch(bp: BreakpointData): void {
         return;
     }
     if (bp.enabled) {
-	  bp.disable();
+        bp.disable();
     } else {
-	   bp.enable();
+        bp.enable();
     }
 }
 
@@ -665,7 +665,9 @@ function _breakpointUnset(args: string[]): boolean {
 function _currentThread(): ThreadDetails {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
-        throw new Error("No threads available, you may want to resume the process. See :dc and :dpt");
+        throw new Error(
+            "No threads available, you may want to resume the process. See :dc and :dpt",
+        );
     }
     return threads[0];
 }
@@ -842,10 +844,10 @@ class WatchpointData extends BreakpointData {
     toggle(): void {
         setTimeout(() => {
             if (this._applied) {
-		    this.unsetWatchpoint();
-	    } else {
-		    this.setWatchpoint();
-	    }
+                this.unsetWatchpoint();
+            } else {
+                this.setWatchpoint();
+            }
         }, 100);
     }
 }
@@ -893,10 +895,10 @@ class HardwareBreakpointData extends BreakpointData {
     toggle(): void {
         setTimeout(() => {
             if (this._applied) {
-		    this.unsetBreakpoint();
-	    } else {
-		    this.setBreakpoint();
-	    }
+                this.unsetBreakpoint();
+            } else {
+                this.setBreakpoint();
+            }
         }, 100);
     }
 }

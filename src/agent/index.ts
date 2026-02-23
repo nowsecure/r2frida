@@ -13,7 +13,11 @@ import * as fs from "./lib/fs.js";
 import info from "./lib/info/index.js";
 import io from "./io.js";
 import interceptor from "./lib/debug/interceptor.js";
-import { handleIOFile, handleIOFileHelp, handleIOFileClose } from "./lib/iofile.js";
+import {
+    handleIOFile,
+    handleIOFileClose,
+    handleIOFileHelp,
+} from "./lib/iofile.js";
 import * as java from "./lib/java/index.js";
 import log from "./log.js";
 import lookup from "./lib/info/lookup.js";

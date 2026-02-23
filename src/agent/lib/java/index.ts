@@ -180,7 +180,7 @@ export function traceJava(klassName: string, method: string): void {
 
         for (let i = 0; i < klass[method].overloads.length; i++) {
             klass[method].overloads[i].implementation = function () {
-		    // eslint-disable-next-line prefer-spread, prefer-rest-params
+                // eslint-disable-next-line prefer-spread, prefer-rest-params
                 const res = this[method].apply(this, arguments);
                 const bt = config.getBoolean("hook.backtrace")
                     ? Throwable.$new().getStackTrace().map((_: any) =>
@@ -194,7 +194,7 @@ export function traceJava(klassName: string, method: string): void {
                     backtrace: bt,
                     timestamp: new Date(),
                     result: res,
-		    // eslint-disable-next-line prefer-rest-params
+                    // eslint-disable-next-line prefer-rest-params
                     values: arguments,
                 };
                 if (config.getString("hook.output") === "json") {
@@ -202,9 +202,10 @@ export function traceJava(klassName: string, method: string): void {
                 } else {
                     let msg =
                         `[JAVA TRACE][${traceMessage.timestamp}] ${klassName}:${method} - args: ${
-		    // eslint-disable-next-line prefer-rest-params
-                            JSON.stringify(arguments)
-                        }. Return value: ${res.toString()}`;
+                            // eslint-disable-next-line prefer-rest-params
+                            JSON.stringify(
+                                arguments,
+                            )}. Return value: ${res.toString()}`;
                     if (config.getBoolean("hook.backtrace")) {
                         msg += ` backtrace: \n${
                             traceMessage.backtrace.toString().split(",").join(

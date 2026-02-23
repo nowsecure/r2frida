@@ -1,7 +1,7 @@
 import {
     autoType,
-    getGlobalExportByName,
     findGlobalExportByName,
+    getGlobalExportByName,
     padPointer,
     trunc4k,
 } from "../utils.js";
