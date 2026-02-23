@@ -104,8 +104,8 @@ class IOFileManager {
         ) as T;
     }
 
-    constructor() {
-        this.symbols = this.initSymbols({
+    private initializeSymbols(): NativeSymbols {
+        return this.initSymbols<NativeSymbols>({
             open: ["int", ["pointer", "int"] as NativeFunctionArgumentType[]],
             close: ["int", ["int"] as NativeFunctionArgumentType[]],
             read: [
@@ -121,8 +121,10 @@ class IOFileManager {
                 ["int", "int64", "int"] as NativeFunctionArgumentType[],
             ],
         });
+    }
 
-        this.machVMSymbols = this.initSymbols({
+    private initializeMachVMSymbols(): void {
+        this.machVMSymbols = this.initSymbols<Partial<MachVMSymbols>>({
             task_for_pid: [
                 "int",
                 ["pointer", "int", "pointer"] as NativeFunctionArgumentType[],
@@ -147,8 +149,10 @@ class IOFileManager {
                 ] as NativeFunctionArgumentType[],
             ],
         });
+    }
 
-        this.processVMSymbols = this.initSymbols({
+    private initializeProcessVMSymbols(): void {
+        this.processVMSymbols = this.initSymbols<Partial<ProcessVMSymbols>>({
             process_vm_readv: [
                 "int64",
                 [
