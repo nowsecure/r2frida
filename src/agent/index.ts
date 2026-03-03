@@ -768,16 +768,17 @@ Script.setGlobalAccessHandler({
 });
 
 function fridaVersion(): string {
-    return Frida.version;
+    return r2frida.getFridaVersion();
 }
 
 function fridaVersionJson(): any {
-    const version = Frida.version.split(".");
+    const fridaVersion = r2frida.getFridaVersion();
+    const version = fridaVersion.split(".");
     if (version.length !== 3) {
-        return { version: Frida.version };
+        return { version: fridaVersion };
     }
     return {
-        version: Frida.version,
+        version: fridaVersion,
         major: version[0],
         minor: version[1],
         patch: version[2],

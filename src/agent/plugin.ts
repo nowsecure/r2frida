@@ -33,6 +33,19 @@ function commandHandler(name: string) {
 function pluginList() {
     return Object.keys(commandHandlers).join("\n");
 }
+
+const unknownFridaVersion = "unknown";
+
+function getFridaVersion(): string {
+    try {
+        if (typeof Frida !== "undefined" && typeof Frida.version === "string") {
+            return Frida.version;
+        }
+    } catch (_error) {
+        return unknownFridaVersion;
+    }
+    return unknownFridaVersion;
+}
 export type PutsFunction = (s: string) => void;
 
 // import packageJson from "./package.json" assert { type: "json" };
@@ -56,6 +69,7 @@ export interface R2FridaPlugin {
     emit: any;
     module: string;
     puts: PutsFunction | null;
+    getFridaVersion: () => string;
 }
 
 export const r2frida: R2FridaPlugin = {
@@ -78,6 +92,7 @@ export const r2frida: R2FridaPlugin = {
     emit: undefined,
     module: "",
     puts: null,
+    getFridaVersion: getFridaVersion,
     cmd: undefined,
 };
 

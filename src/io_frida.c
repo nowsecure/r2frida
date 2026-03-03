@@ -155,11 +155,13 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 		rf->sysret = false;
 		if (server_version && host_version) {
 			r_str_trim (server_version);
-			if (strcmp (server_version, host_version)) {
+			if (*server_version && strcmp (server_version, "unknown") && strcmp (server_version, host_version)) {
 				R_LOG_ERROR ("R2FRIDA_STRICT_VERSION requires host (%s) <=> server (%s) versions to be the same", host_version, server_version);
+				free (server_version);
 				return false;
 			}
 		}
+		free (server_version);
 		return true;
 	}
 	return true;
