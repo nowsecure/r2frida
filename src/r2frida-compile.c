@@ -1,4 +1,4 @@
-/* radare2 - MIT - Copyright 2022-2025 - pancake */
+/* radare2 - MIT - Copyright 2022-2026 - pancake */
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -313,6 +313,7 @@ int main(int argc, const char **argv) {
 			R_LOG_ERROR ("%s", error? error->message: "Cannot slurp from file");
 			rc = 1;
 		} else {
+			slurpedData = r_str_replace (slurpedData, "=Frida.version,", "=\"" FRIDA_VERSION_STRING "\",", false);
 			if (outfile) {
 #if R2__WINDOWS__
 				HANDLE fh = CreateFile (outfile,
