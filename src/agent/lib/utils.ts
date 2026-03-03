@@ -308,14 +308,19 @@ export function requireFridaVersion(
     patch: number,
 ) {
     const required = [major, minor, patch];
-    const actual = Frida.version.split(".").map((x: string) => Number(x));
-    for (let i = 0; i < actual.length; i++) {
+    const actualVersion = r2frida.getFridaVersion();
+    const parsedVersion = /^(\d+)\.(\d+)\.(\d+)/.exec(actualVersion);
+    if (parsedVersion === null) {
+        return;
+    }
+    const actual = parsedVersion.slice(1).map((x: string) => Number(x));
+    for (let i = 0; i < required.length; i++) {
         if (actual[i] > required[i]) {
             return;
         }
         if (actual[i] < required[i]) {
             throw new Error(
-                `Frida v${major}.${minor}.${patch} or higher required for this (you have v${Frida.version}).`,
+                `Frida v${major}.${minor}.${patch} or higher required for this (you have v${actualVersion}).`,
             );
         }
     }
