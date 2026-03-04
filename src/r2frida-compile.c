@@ -69,6 +69,17 @@ static char *to_header(const char *s) {
 	return r_strbuf_drain (sb);
 }
 
+static void replaceFridaVersionShim(char *s) {
+	char oldstr[] = "=Frida.version,";
+	char *p = strstr (s, oldstr);
+	if (p) {
+		size_t len = strlen (oldstr);
+		const char *newstr = "\"" FRIDA_VERSION_STRING "\",";
+		memset (p + 1, ' ', len - 1);
+		memcpy (p + 1, newstr, strlen (newstr));
+	}
+}
+
 int main(int argc, const char **argv) {
 	const char *outfile = NULL;
 	const char *arg0 = argv[0];
@@ -313,7 +324,7 @@ int main(int argc, const char **argv) {
 			R_LOG_ERROR ("%s", error? error->message: "Cannot slurp from file");
 			rc = 1;
 		} else {
-			slurpedData = r_str_replace (slurpedData, "=Frida.version,", "=\"" FRIDA_VERSION_STRING "\",", false);
+			replaceFridaVersionShim (slurpedData);
 			if (outfile) {
 #if R2__WINDOWS__
 				HANDLE fh = CreateFile (outfile,
