@@ -53,7 +53,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: build-linux22
         path: dist/debian/*.deb
@@ -85,7 +85,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: build-linux24
         path: dist/debian/*.deb
@@ -98,7 +98,7 @@ jobs:
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Pub
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: build-agent
         path: src/_agent.js
@@ -115,7 +115,7 @@ jobs:
     - name: Packaging
       run: make -C dist/macos
     - name: Pub
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         if-no-files-found: error
         name: build-macos
@@ -152,7 +152,7 @@ jobs:
     - name: zip
       shell: cmd
       run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe src\io_frida.dll
-    - uses: actions/upload-artifact@v6
+    - uses: actions/upload-artifact@v7
       with:
         if-no-files-found: error
         name: build-windows
@@ -194,7 +194,7 @@ jobs:
     - name: Prepare release notes
       run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
     - name: Download artifacts
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         path: dist/artifacts
     - name: Create GitHub release
