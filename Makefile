@@ -166,7 +166,7 @@ LDFLAGS+=-Wl,--start-group
 LDFLAGS+=-lm
 endif
 
-ifeq ($(STRIP_SYMBOLS),yes)
+ifneq ($(shell uname),Darwin)
 PLUGIN_LDFLAGS+=-Wl,--version-script,ld.script
 PLUGIN_LDFLAGS+=-Wl,--gc-sections
 endif
