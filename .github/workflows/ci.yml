@@ -11,6 +11,20 @@ on:
 
 
 jobs:
+  build-alpine:
+    runs-on: ubuntu-24.04
+    container:
+      image: alpine:3.21
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install Alpine dependencies
+      run: apk add --no-cache bash build-base ca-certificates curl file-dev git linux-headers openssl-dev pkgconf python3 xz zlib-dev
+    - name: Build Radare2 on Alpine/musl
+      run: git clone --depth=1 https://github.com/radareorg/radare2 && radare2/sys/install.sh
+    - name: Build r2frida on Alpine/musl
+      run: ./configure && make -j && make user-install
+#    - name: Testing in alpine
+#      run: r2r test/db/extras
   build-fridatools:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
     runs-on: ubuntu-22.04
@@ -164,6 +178,7 @@ jobs:
       is_release: ${{ steps.release.outputs.is }}
       tag_name: ${{ steps.release.outputs.tag }}
     needs:
+    - build-alpine
     - build-linux22
     - build-linux24
     - build-macos
