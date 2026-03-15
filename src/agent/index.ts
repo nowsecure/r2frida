@@ -25,6 +25,7 @@ import * as memory from "./lib/debug/memory.js";
 import r2 from "./lib/r2.js";
 import stalker from "./lib/debug/stalker.js";
 import sys from "./lib/sys.js";
+import { systraceLog } from "./systrace.js";
 import * as swift from "./lib/darwin/swift.js";
 import * as trace from "./lib/debug/trace.js";
 import * as utils from "./lib/utils.js";
@@ -801,13 +802,23 @@ function echo(args: string[]) {
 }
 
 function onStanza(stanza: any, data: any) {
+    if (stanza.type === "systrace-log") {
+        try {
+            systraceLog(stanza.payload);
+        } catch (e) {
+            console.error(e);
+        }
+        recv(onStanza);
+        return;
+    }
+
     const handler = (requestHandlers as any)[stanza.type];
     if (handler !== undefined) {
         try {
             const value = handler(stanza.payload, data);
             if (value === undefined) {
                 send(utils.wrapStanza("reply", {}), []);
-            } else if (value instanceof Promise) {
+            } else if (isPromise(value)) {
                 // handle async stuff in here
                 value
                     .then(([replyStanza, replyBytes]) => {
