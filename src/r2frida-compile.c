@@ -58,7 +58,7 @@ static char *to_header(const char *s) {
 	RStrBuf *sb = r_strbuf_new ("");
 	int count = 0;
 	while (*s) {
-		r_strbuf_appendf (sb, " 0x%02x,", 0xff &(*s));
+		r_strbuf_appendf (sb, " 0x%02x,", 0xff & (*s));
 		s++;
 		count++;
 		if (count > 0 && ! (count % 8)) {

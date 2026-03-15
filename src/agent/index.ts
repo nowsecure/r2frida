@@ -25,6 +25,7 @@ import * as memory from "./lib/debug/memory.js";
 import r2 from "./lib/r2.js";
 import stalker from "./lib/debug/stalker.js";
 import sys from "./lib/sys.js";
+import { systraceLog } from "./systrace.js";
 import * as swift from "./lib/darwin/swift.js";
 import * as trace from "./lib/debug/trace.js";
 import * as utils from "./lib/utils.js";
@@ -600,13 +601,15 @@ const requestHandlers = {
     evaluate: evaluate,
 };
 
+type RequestReply = [any, any];
+
 function state(params: any, data: any) {
     r2frida.offset = params.offset;
     breakpoints.setSuspended(params.suspended);
     return [{}, null];
 }
 
-function isPromise(value: any): boolean {
+function isPromise<T>(value: any): value is Promise<T> {
     return value !== null && typeof value === "object" &&
         typeof value.then === "function";
 }
@@ -801,13 +804,26 @@ function echo(args: string[]) {
 }
 
 function onStanza(stanza: any, data: any) {
+    if (stanza.type === "systrace-log") {
+        try {
+            systraceLog(stanza.payload);
+        } catch (e) {
+            console.error(e);
+        }
+        recv(onStanza);
+        return;
+    }
+
     const handler = (requestHandlers as any)[stanza.type];
     if (handler !== undefined) {
         try {
-            const value = handler(stanza.payload, data);
+            const value = handler(stanza.payload, data) as
+                | RequestReply
+                | Promise<RequestReply>
+                | undefined;
             if (value === undefined) {
                 send(utils.wrapStanza("reply", {}), []);
-            } else if (value instanceof Promise) {
+            } else if (isPromise<RequestReply>(value)) {
                 // handle async stuff in here
                 value
                     .then(([replyStanza, replyBytes]) => {

@@ -232,11 +232,14 @@ ext/frida: $(FRIDA_SDK)
 config.mk config.h:
 	./configure
 
-io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o
+io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o src/systrace.o
 	pkg-config --cflags r_core
 	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
-src/io_frida.o: src/io_frida.c $(FRIDA_SDK) src/_agent.h
+src/io_frida.o: src/io_frida.c src/io_frida.h src/systrace.h $(FRIDA_SDK) src/_agent.h
+	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
+
+src/systrace.o: src/systrace.c src/systrace.h src/io_frida.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
 src/diagnostics.o: src/diagnostics.c src/diagnostics.h
