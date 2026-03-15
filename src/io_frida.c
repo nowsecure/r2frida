@@ -2,9 +2,7 @@
 
 #define R_LOG_ORIGIN "r2frida"
 
-#include <r_core.h>
-#include <r_io.h>
-#include "frida-core.h"
+#include "io_frida.h"
 #include "../config.h"
 
 #if R2_VERSION_NUMBER >= 50609
@@ -14,12 +12,6 @@
 #endif
 
 typedef struct {
-	const char *cmd_string;
-	ut64 serial;
-	JsonObject *_cmd_json;
-} RFPendingCmd;
-
-typedef struct {
 	char *device_id;
 	char *process_specifier;
 	guint pid;
@@ -27,36 +19,6 @@ typedef struct {
 	bool spawn;
 	bool run;
 } R2FridaLaunchOptions;
-
-typedef struct {
-	FridaDevice *device;
-	FridaSession *session;
-	FridaScript *script;
-	GCancellable *cancellable;
-
-	guint pid;
-	GMutex lock;
-	GCond cond;
-	bool suspended;
-	bool suspended2;
-	volatile bool detached;
-	volatile FridaSessionDetachReason detach_reason;
-	FridaCrash *crash;
-	volatile bool received_reply;
-	JsonObject *reply_stanza;
-	GBytes *reply_bytes;
-	RCore *r2core;
-	RFPendingCmd *pending_cmd;
-	char *crash_report;
-	RIO *io;
-	RSocket *s;
-	gulong onmsg_handler;
-	gulong ondtc_handler;
-	FridaDeviceManager *device_manager;
-	RStrBuf *sb;
-	bool inputmode;
-	bool sysret;
-} RIOFrida;
 
 typedef enum {
 	PROCESSES,
@@ -100,40 +62,40 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items);
 extern RIOPlugin r_io_plugin_frida;
 
 static const char *const helpmsg = ""
-				"r2 frida://[action]/[link]/[device]/[target]\n"
-				"* action = list | apps | attach | spawn | launch\n"
-				"* link   = local | usb | remote host:port\n"
-				"* device = '' | host:port | device-id\n"
-				"* target = pid | appname | process-name | program-in-path | abspath\n"
-				"Local:\n"
-				"* frida://                         # visual mode to select action+device+program\n"
-				"* frida://?                        # show this help\n"
-				"* frida://0                        # attach to frida-helper (no spawn needed)\n"
-				"* frida:///usr/local/bin/rax2      # abspath to spawn\n"
-				"* frida://rax2                     # same as above, considering local/bin is in PATH\n"
-				"* frida://spawn/$(program)         # spawn a new process in the current system\n"
-				"* frida://attach/(target)          # attach to target PID in current host\n"
-				"USB:\n"
-				"* frida://list/usb//               # list processes in the first usb device\n"
-				"* frida://apps/usb//               # list apps in the first usb device\n"
-				"* frida://attach/usb//12345        # attach to given pid in the first usb device\n"
-				"* frida://spawn/usb//appname       # spawn an app in the first resolved usb device\n"
-				"* frida://launch/usb//appname      # spawn+resume an app in the first usb device\n"
-				"Remote:\n"
-				"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
-				"Environment: (Use the `%` command to change the environment at runtime)\n"
-				"  R2FRIDA_R2SCRIPT=~/.r2fridarc\n"
-				"  R2FRIDA_SCRIPTS_DIR=" R2_DATDIR "/r2frida/scripts\n"
-				"  R2FRIDA_SCRIPTS_DIR=~/.local/share/radare2/r2frida/scripts\n"
-				"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
-				"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
-				"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
-				"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
-				"  R2FRIDA_STRICT_VERSION=0|1       # Ensure client/host are the very exact same version before continue\n"
-				"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
-				"  R2FRIDA_COMPILER_TYPECHECK=0|1   # Type check in the frida-compiler (Default is 'disabled')\n"
-				"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n"
-				"  FRIDA_HOST, FRIDA_DEVICE         # overrides host/port/device in uri handler if set\n";
+	"r2 frida://[action]/[link]/[device]/[target]\n"
+	"* action = list | apps | attach | spawn | launch\n"
+	"* link   = local | usb | remote host:port\n"
+	"* device = '' | host:port | device-id\n"
+	"* target = pid | appname | process-name | program-in-path | abspath\n"
+	"Local:\n"
+	"* frida://                         # visual mode to select action+device+program\n"
+	"* frida://?                        # show this help\n"
+	"* frida://0                        # attach to frida-helper (no spawn needed)\n"
+	"* frida:///usr/local/bin/rax2      # abspath to spawn\n"
+	"* frida://rax2                     # same as above, considering local/bin is in PATH\n"
+	"* frida://spawn/$(program)         # spawn a new process in the current system\n"
+	"* frida://attach/(target)          # attach to target PID in current host\n"
+	"USB:\n"
+	"* frida://list/usb//               # list processes in the first usb device\n"
+	"* frida://apps/usb//               # list apps in the first usb device\n"
+	"* frida://attach/usb//12345        # attach to given pid in the first usb device\n"
+	"* frida://spawn/usb//appname       # spawn an app in the first resolved usb device\n"
+	"* frida://launch/usb//appname      # spawn+resume an app in the first usb device\n"
+	"Remote:\n"
+	"* frida://attach/remote/10.0.0.3:9999/558 # attach to pid 558 on tcp remote frida-server\n"
+	"Environment: (Use the `%` command to change the environment at runtime)\n"
+	"  R2FRIDA_R2SCRIPT=~/.r2fridarc\n"
+	"  R2FRIDA_SCRIPTS_DIR=" R2_DATDIR "/r2frida/scripts\n"
+	"  R2FRIDA_SCRIPTS_DIR=~/.local/share/radare2/r2frida/scripts\n"
+	"  R2FRIDA_SAFE_IO=0|1              # Workaround a Frida bug on Android/thumb\n"
+	"  R2FRIDA_DEBUG=0|1                # Used to trace internal r2frida C and JS calls\n"
+	"  R2FRIDA_RUNTIME=qjs|v8           # Select the javascript engine to use in the agent side (v8 is default)\n"
+	"  R2FRIDA_DEBUG_URI=0|1            # Trace uri parsing code and exit before doing any action\n"
+	"  R2FRIDA_STRICT_VERSION=0|1       # Ensure client/host are the very exact same version before continue\n"
+	"  R2FRIDA_COMPILER_DISABLE=0|1     # Disable the new frida typescript compiler (`:. foo.ts`)\n"
+	"  R2FRIDA_COMPILER_TYPECHECK=0|1   # Type check in the frida-compiler (Default is 'disabled')\n"
+	"  R2FRIDA_AGENT_SCRIPT=[file]      # path to file of the r2frida agent\n"
+	"  FRIDA_HOST, FRIDA_DEVICE         # overrides host/port/device in uri handler if set\n";
 
 #define src__agent__js r_io_frida_agent_code
 
@@ -219,12 +181,14 @@ static void r2frida_config_init(RIOFrida *rf) {
 	v = r_sys_getenv_asbool ("R2FRIDA_COMPILER_TYPECHECK") == false;
 	cn = r_config_set_b_cb (cfg, "r2frida.typecheck", v, config_r2frida_typecheck);
 	r_config_node_desc (cn, "Enable all type checks in the r2frida compiler (%R2FRIDA_COMPILER_TYPECHECK)");
+	r2f_systrace_config_init (rf);
 	r_config_lock (cfg, true);
 }
 
 static void r2frida_config_fini(RIOFrida *rf) {
 	RConfig *cfg = rf->r2core->config;
 	r_config_lock (cfg, false);
+	r2f_systrace_config_fini (rf);
 	r_config_rm (cfg, "r2frida.debug");
 	r_config_rm (cfg, "r2frida.compiler");
 	r_config_lock (cfg, true);
@@ -281,24 +245,17 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	if (!io) {
 		return NULL;
 	}
+	RCore *core = COREBIND (io).core;
+	if (!core) {
+		return NULL;
+	}
 	RIOFrida *rf = R_NEW0 (RIOFrida);
 	rf->cancellable = g_cancellable_new (); // TODO: call cancel () when shutting down
 	rf->s = r_socket_new (false);
 	rf->sb = r_strbuf_new ("");
-	rf->detached = false;
-	rf->detach_reason = 0;
+	r2f_systrace_init (rf);
 	rf->io = io;
-	rf->crash = NULL;
-	rf->crash_report = NULL;
-	rf->received_reply = false;
-	rf->r2core = COREBIND (io).core;
-	if (!rf->r2core) {
-		R_LOG_ERROR ("r2frida cannot find the RCore instance from IO->user");
-		free (rf);
-		return NULL;
-	}
-	rf->suspended = false;
-
+	rf->r2core = core;
 	return rf;
 }
 
@@ -334,6 +291,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 	if (rf->session && rf->ondtc_handler) {
 		g_signal_handler_disconnect (rf->session, rf->ondtc_handler);
 	}
+	r2f_systrace_fini (rf);
 	r_socket_free (rf->s);
 	free (rf->crash_report);
 	r_strbuf_free (rf->sb);
@@ -670,7 +628,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 					rf->pid,
 					path,
 					entry,
-					"",
+						"",
 					rf->cancellable,
 					&error);
 				free (path);
@@ -726,10 +684,10 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				const char *filename = r_str_trim_head_ro (command + 2);
 				builder = build_request ("evaluate");
 				const bool is_c = r_str_endswith (filename, ".c");
-			const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");
+				const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");
 				;
 				json_builder_set_member_name (builder, is_c? "ccode": "code");
-			if (!is_c && !is_jsts) {
+				if (!is_c && !is_jsts) {
 					R_LOG_ERROR ("We can only load .ts, .js and .c files into the r2frida agent");
 					return NULL;
 				}
@@ -746,7 +704,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 					R2FDiagOptions diag_opts = { .json = false };
 					g_signal_connect (compiler, "diagnostics", G_CALLBACK (r2f_on_compiler_diagnostics), &diag_opts);
 					slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
-				if (error || !slurpedData) {
+					if (error || !slurpedData) {
 						R_LOG_ERROR ("r2frida-compile: %s", error? error->message: "Cannot slurp from file");
 						R_FREE (slurpedData)
 					}
@@ -1088,8 +1046,7 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 		if (R_STR_ISNOTEMPTY (frida_target)) {
 			type = frida_target;
 		} else {
-			free (frida_target);
-			frida_target = NULL;
+			R_FREE (frida_target);
 		}
 	}
 	const bool debug = r2f_debug_uri ();

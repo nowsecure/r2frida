@@ -600,13 +600,15 @@ const requestHandlers = {
     evaluate: evaluate,
 };
 
+type RequestReply = [any, any];
+
 function state(params: any, data: any) {
     r2frida.offset = params.offset;
     breakpoints.setSuspended(params.suspended);
     return [{}, null];
 }
 
-function isPromise(value: any): boolean {
+function isPromise<T>(value: any): value is Promise<T> {
     return value !== null && typeof value === "object" &&
         typeof value.then === "function";
 }
@@ -804,10 +806,13 @@ function onStanza(stanza: any, data: any) {
     const handler = (requestHandlers as any)[stanza.type];
     if (handler !== undefined) {
         try {
-            const value = handler(stanza.payload, data);
+            const value = handler(stanza.payload, data) as
+                | RequestReply
+                | Promise<RequestReply>
+                | undefined;
             if (value === undefined) {
                 send(utils.wrapStanza("reply", {}), []);
-            } else if (value instanceof Promise) {
+            } else if (isPromise<RequestReply>(value)) {
                 // handle async stuff in here
                 value
                     .then(([replyStanza, replyBytes]) => {
