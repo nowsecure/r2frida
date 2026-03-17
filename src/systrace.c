@@ -239,9 +239,6 @@ static void configure(RIOFrida *rf) {
 
 static RIOFrida *get_riofrida(void *user) {
 	RCore *core = user;
-	if (!core || !core->io) {
-		return NULL;
-	}
 	RIOFrida *fallback = NULL;
 	RIODesc *desc = r_io_desc_get_lowest (core->io);
 	while (desc) {
@@ -331,6 +328,7 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 	g_variant_builder_add (&b, "{sv}", "type", g_variant_new_string (type));
 	return request_service (service, rf->cancellable, g_variant_builder_end (&b));
 }
+
 static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
 	GVariantIter it;
 	GVariant *item;
@@ -374,24 +372,25 @@ static const SCSig *lookup_scsig(const R2FSystraceState *st, SysAbi abi, int nr)
 	return (key >= 0 && key < st->scsig_len && st->scsig[key].name)? &st->scsig[key]: NULL;
 }
 
-static void event_init(const RIOFrida *rf, GVariant *row, SysEvent *ev) {
+static SysEvent event_init(const RIOFrida *rf, GVariant *row) {
+	SysEvent ev = {0};
 	const R2FSystraceState *st = &rf->systrace;
 	const char *phase;
-	memset (ev, 0, sizeof (*ev));
 	g_variant_get_child (row, 0, "&s", &phase);
-	g_variant_get_child (row, 1, "t", &ev->id.time_ns);
-	g_variant_get_child (row, 2, "t", &ev->id.tid);
-	g_variant_get_child (row, 3, "u", &ev->id.pid);
-	g_variant_get_child (row, 4, "i", &ev->id.nr);
-	ev->payload = g_variant_get_child_value (row, 7);
-	ev->enter = !strcmp (phase, "enter");
-	ev->abi = ev->id.pid == rf->pid && st->target_compat32? SYS_ABI_COMPAT32: SYS_ABI_NATIVE;
-	const SCSig *scsig = lookup_scsig (st, ev->abi, ev->id.nr);
-	ev->name = scsig? g_strdup (scsig->name): g_strdup_printf ("#%d", ev->id.nr);
+	g_variant_get_child (row, 1, "t", &ev.id.time_ns);
+	g_variant_get_child (row, 2, "t", &ev.id.tid);
+	g_variant_get_child (row, 3, "u", &ev.id.pid);
+	g_variant_get_child (row, 4, "i", &ev.id.nr);
+	ev.payload = g_variant_get_child_value (row, 7);
+	ev.enter = !strcmp (phase, "enter");
+	ev.abi = ev.id.pid == rf->pid && st->target_compat32? SYS_ABI_COMPAT32: SYS_ABI_NATIVE;
+	const SCSig *scsig = lookup_scsig (st, ev.abi, ev.id.nr);
+	ev.name = scsig? g_strdup (scsig->name): g_strdup_printf ("#%d", ev.id.nr);
 	if (scsig) {
-		ev->param_names = scsig->param_names;
-		ev->n_params = scsig->n_params;
+		ev.param_names = scsig->param_names;
+		ev.n_params = scsig->n_params;
 	}
+	return ev;
 }
 
 static void event_fini(SysEvent *ev) {
@@ -518,6 +517,9 @@ static void emit_json_log(const SysEvent *ev, const char *retval, bool failed) {
 	pj_ks (j, "abi", ev->abi == SYS_ABI_COMPAT32? "compat32": "native");
 	pj_ks (j, "timeNs", timebuf);
 	if (ev->enter) {
+		if (enter_args) {
+			pj_ks (j, "args", enter_args);
+		}
 		pj_ka (j, "values");
 		const guint argc = g_variant_n_children (ev->payload);
 		for (guint i = 0; i < argc; i++) {
@@ -586,26 +588,22 @@ static void process_events(RIOFrida *rf, FridaService *service, GVariant *events
 	g_variant_iter_init (&it, events);
 	while ((item = g_variant_iter_next_value (&it))) {
 		GVariant *row = g_variant_get_variant (item);
-		SysEvent ev;
-		event_init (rf, row, &ev);
+		SysEvent ev = event_init (rf, row);
 		if (st->service == service && event_matches (st, &ev)) {
 			bool failed = false;
-			char *args = NULL;
 			char *retval = NULL;
 			char *filter_text = NULL;
 			if (ev.enter) {
-				args = format_enter_args (rf, &ev);
-				filter_text = strdup (args);
+				filter_text = format_enter_args (rf, &ev);
 			} else {
 				retval = format_exit_retval (&ev, &failed);
 				filter_text = strdup (retval);
 			}
 			if (should_log_event (st, &ev, filter_text)) {
-				emit_json_log (&ev, retval, failed);
+				emit_json_log (&ev, ev.enter? filter_text: NULL, retval, failed);
 			}
 			g_free (filter_text);
 			g_free (retval);
-			g_free (args);
 		}
 		event_fini (&ev);
 		g_variant_unref (row);
