@@ -34,23 +34,6 @@ static gboolean string_equal(gconstpointer a, gconstpointer b) {
 	return !strcmp ((const char *)a, (const char *)b);
 }
 
-static const char *const systrace_buffer_arg_names[] = {
-	"buf",
-	"ubuf",
-	"buffer",
-	NULL,
-};
-
-static const char *const systrace_buffer_length_arg_names[] = {
-	"count",
-	"len",
-	"size",
-	"nbytes",
-	"buflen",
-	"length",
-	NULL,
-};
-
 static void clear_pending_matches(R2FSystraceState *st) {
 	if (st->pending) {
 		g_hash_table_remove_all (st->pending);
@@ -402,76 +385,18 @@ static char *event_key(const SysEvent *ev) {
 	return g_strdup_printf ("%u:%" PFMT64u, ev->id.pid, (ut64)ev->id.tid);
 }
 
-static bool is_write_like(const char *name) {
-	return r_str_startswith (name, "write") || r_str_startswith (name, "send");
-}
-
-static int find_named_arg_index(const SysEvent *ev, const char *const *candidates) {
-	if (!ev->param_names || ev->n_params <= 0) {
-		return -1;
-	}
-	for (const char *const *candidate = candidates; *candidate; candidate++) {
-		for (int i = 0; i < ev->n_params; i++) {
-			if (!strcmp (ev->param_names[i], *candidate)) {
-				return i;
-			}
-		}
-	}
-	return -1;
-}
-
-static char *render_buffer_value(const RIOFrida *rf, guint64 pointer_value, guint64 size) {
-	ut8 buf[32];
-	if (!rf || !rf->io || pointer_value == 0 || size == 0) {
-		return NULL;
-	}
-	const int preview_size = (int)R_MIN (sizeof (buf), (ut64)size);
-	const int nr = r_io_pread_at (rf->io, (ut64)pointer_value, buf, preview_size);
-	if (nr <= 0) {
-		return NULL;
-	}
-	char *escaped = r_str_escape_raw (buf, nr);
-	if (!escaped) {
-		return NULL;
-	}
-	char *rendered = (size > (guint64)nr)
-		? r_str_newf ("0x%" PFMT64x " \"%s\"...(%" PFMT64u " bytes)", (ut64)pointer_value, escaped, (ut64)size)
-		: r_str_newf ("0x%" PFMT64x " \"%s\"", (ut64)pointer_value, escaped);
-	free (escaped);
-	return rendered;
-}
-
-static char *format_enter_args(const RIOFrida *rf, const SysEvent *ev) {
+static char *format_enter_args(const SysEvent *ev) {
 	RStrBuf *args = r_strbuf_new ("[");
 	const guint argc = g_variant_n_children (ev->payload);
-	char *rendered_buffer = NULL;
-	int buffer_index = -1;
-	if (is_write_like (ev->name)) {
-		const int buf_idx = find_named_arg_index (ev, systrace_buffer_arg_names);
-		const int len_idx = find_named_arg_index (ev, systrace_buffer_length_arg_names);
-		if (buf_idx >= 0 && len_idx >= 0 && (guint)buf_idx < argc && (guint)len_idx < argc) {
-			guint64 pointer_value;
-			guint64 size;
-			g_variant_get_child (ev->payload, buf_idx, "t", &pointer_value);
-			g_variant_get_child (ev->payload, len_idx, "t", &size);
-			rendered_buffer = render_buffer_value (rf, pointer_value, size);
-			buffer_index = buf_idx;
-		}
-	}
 	for (guint i = 0; i < argc; i++) {
 		guint64 raw;
 		if (i > 0) {
 			r_strbuf_append (args, ", ");
 		}
-		if ((int)i == buffer_index && rendered_buffer) {
-			r_strbuf_append (args, rendered_buffer);
-			continue;
-		}
 		g_variant_get_child (ev->payload, i, "t", &raw);
 		r_strbuf_appendf (args, "0x%" PFMT64x, (ut64)raw);
 	}
 	r_strbuf_append (args, "]");
-	free (rendered_buffer);
 	return r_strbuf_drain (args);
 }
 
@@ -503,7 +428,7 @@ static bool should_log_event(R2FSystraceState *st, const SysEvent *ev, const cha
 	return should_log;
 }
 
-static void emit_json_log(const SysEvent *ev, const char *retval, bool failed) {
+static void emit_json_log(const SysEvent *ev, const char *enter_args, const char *retval, bool failed) {
 	r_strf_var (tid, 32, "%" PFMT64u, (ut64)ev->id.tid);
 	r_strf_var (timebuf, 32, "%" PFMT64u, (ut64)ev->id.time_ns);
 	PJ *j = pj_new ();
@@ -594,7 +519,7 @@ static void process_events(RIOFrida *rf, FridaService *service, GVariant *events
 			char *retval = NULL;
 			char *filter_text = NULL;
 			if (ev.enter) {
-				filter_text = format_enter_args (rf, &ev);
+				filter_text = format_enter_args (&ev);
 			} else {
 				retval = format_exit_retval (&ev, &failed);
 				filter_text = strdup (retval);
