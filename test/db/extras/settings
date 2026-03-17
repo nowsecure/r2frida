@@ -2,6 +2,13 @@ NAME=libraries
 FILE=frida://0
 CMDS=<<EOF
 :e~!0x~!unred
+e r2frida.systrace.enable
+e r2frida.systrace.match=open
+e r2frida.systrace.match
+e r2frida.systrace.filter=passwd
+e r2frida.systrace.filter
+e r2frida.systrace.tid=0
+e r2frida.systrace.tid
 EOF
 EXPECT=<<EOF
 :e java.wait=false
@@ -26,6 +33,9 @@ EXPECT=<<EOF
 :e file.log=
 :e symbols.module=
 :e dbg.hwbp=true
+false
+open
+passwd
+0
 EOF
 RUN
-
