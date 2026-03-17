@@ -65,6 +65,7 @@ R_IPI void r2f_systrace_init(RIOFrida *rf);
 R_IPI void r2f_systrace_config_init(RIOFrida *rf);
 R_IPI void r2f_systrace_config_fini(RIOFrida *rf);
 R_IPI void r2f_systrace_fini(RIOFrida *rf);
+R_IPI char *r2f_systrace_list(RIOFrida *rf);
 R_IPI void on_systrace_message(FridaService *service, GVariant *message, gpointer user_data);
 
 #endif
