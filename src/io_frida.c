@@ -643,6 +643,13 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
 		}
 		return NULL;
+	} else if (!strcmp (command, "asl")) {
+		char *list = r2f_systrace_list (rf);
+		if (list) {
+			io->cb_printf ("%s", list);
+			free (list);
+		}
+		return NULL;
 	} else if (!strcmp (command, "dc") && (rf->suspended || rf->suspended2)) {
 		resume (rf);
 		return NULL;

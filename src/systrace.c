@@ -301,6 +301,107 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 	return request_service (service, rf->cancellable, g_variant_builder_end (&b));
 }
 
+static FridaService *open_service(RIOFrida *rf) {
+	GError *error = NULL;
+	FridaService *service = frida_device_open_service_sync (rf->device, "syscall-trace", rf->cancellable, &error);
+	if (error) {
+		R_LOG_ERROR ("Cannot open syscall-trace service: %s", error->message);
+		g_clear_error (&error);
+		g_clear_object (&service);
+		return NULL;
+	}
+	frida_service_activate_sync (service, rf->cancellable, &error);
+	if (error) {
+		R_LOG_ERROR ("Cannot activate syscall-trace service: %s", error->message);
+		g_clear_error (&error);
+		g_clear_object (&service);
+		return NULL;
+	}
+	return service;
+}
+
+static void close_service(RIOFrida *rf, FridaService *service) {
+	if (!service) {
+		return;
+	}
+	GError *error = NULL;
+	frida_service_cancel_sync (service, rf->cancellable, &error);
+	if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+		R_LOG_ERROR ("Cannot close syscall-trace service: %s", error->message);
+	}
+	g_clear_error (&error);
+	g_object_unref (service);
+}
+
+static void append_signature_args(RStrBuf *sb, GVariant *args) {
+	const guint argc = g_variant_n_children (args);
+	for (guint i = 0; i < argc; i++) {
+		const char *arg_type = NULL;
+		const char *arg_name = NULL;
+		GVariant *arg = g_variant_get_child_value (args, i);
+		g_variant_get (arg, "(&s&s)", &arg_type, &arg_name);
+		if (i > 0) {
+			r_strbuf_append (sb, ", ");
+		}
+		r_strbuf_append (sb, arg_type);
+		if (R_STR_ISNOTEMPTY (arg_name)) {
+			r_strbuf_appendf (sb, " %s", arg_name);
+		}
+		g_variant_unref (arg);
+	}
+}
+
+static void append_signature_table(RStrBuf *sb, GVariant *table, const char *abi_name) {
+	r_strbuf_appendf (sb, "// abi=%s (%u syscalls)\n", abi_name, (unsigned int)g_variant_n_children (table));
+	GVariantIter it;
+	GVariant *item;
+	g_variant_iter_init (&it, table);
+	while ((item = g_variant_iter_next_value (&it))) {
+		int nr;
+		const char *name = NULL;
+		GVariant *args = g_variant_get_child_value (item, 2);
+		g_variant_get_child (item, 0, "i", &nr);
+		g_variant_get_child (item, 1, "&s", &name);
+		r_strbuf_appendf (sb, "long %s(", name);
+		append_signature_args (sb, args);
+		r_strbuf_appendf (sb, "); // syscall=%d\n", nr);
+		g_variant_unref (args);
+		g_variant_unref (item);
+	}
+}
+
+R_IPI char *r2f_systrace_list(RIOFrida *rf) {
+	RStrBuf *sb = r_strbuf_new ("");
+	FridaService *service = open_service (rf);
+	if (!service) {
+		r_strbuf_append (sb, "syscall-trace service is not available\n");
+		return r_strbuf_drain (sb);
+	}
+	GVariant *result = request_type (rf, service, "get-signatures");
+	if (!result) {
+		close_service (rf, service);
+		r_strbuf_append (sb, "Cannot query syscall signatures\n");
+		return r_strbuf_drain (sb);
+	}
+	GVariant *native = g_variant_lookup_value (result, "native", G_VARIANT_TYPE ("a(isa(ss))"));
+	GVariant *compat32 = g_variant_lookup_value (result, "compat32", G_VARIANT_TYPE ("a(isa(ss))"));
+	if (native) {
+		append_signature_table (sb, native, "native");
+		g_variant_unref (native);
+	} else {
+		r_strbuf_append (sb, "// abi=native (0 syscalls)\n");
+	}
+	if (compat32) {
+		append_signature_table (sb, compat32, "compat32");
+		g_variant_unref (compat32);
+	} else {
+		r_strbuf_append (sb, "// abi=compat32 (0 syscalls)\n");
+	}
+	g_variant_unref (result);
+	close_service (rf, service);
+	return r_strbuf_drain (sb);
+}
+
 static void load_scname_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
 	GVariantIter it;
 	GVariant *item;
