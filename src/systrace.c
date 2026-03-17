@@ -67,8 +67,24 @@ static void configure(RIOFrida *rf);
 static bool config_systrace_enable(void *user, void *data);
 static bool config_systrace_match(void *user, void *data);
 static bool config_systrace_filter(void *user, void *data);
-static bool config_systrace_pid(void *user, void *data);
 static bool config_systrace_tid(void *user, void *data);
+
+static void scsig_clear(SCSig *s) {
+	if (!s || !s->name) {
+		return;
+	}
+	g_free (s->name);
+	g_strfreev (s->param_names);
+	memset (s, 0, sizeof (*s));
+}
+
+static void scsig_reset(R2FSystraceState *st) {
+	for (int i = 0; i < st->scsig_len; i++) {
+		scsig_clear (&st->scsig[i]);
+	}
+	g_clear_pointer (&st->scsig, g_free);
+	st->scsig_len = 0;
+}
 
 static void state_fini(R2FSystraceState *st) {
 	g_clear_object (&st->service);
@@ -95,9 +111,6 @@ R_IPI void r2f_systrace_config_init(RIOFrida *rf) {
 	r_config_node_desc (cn, "Filter rendered syscall text using plain text or /regex/");
 
 	r_strf_var (pid, 32, "%u", rf->pid);
-	cn = r_config_set (cfg, "r2frida.systrace.pid", pid);
-	r_config_set_setter (cfg, "r2frida.systrace.pid", config_systrace_pid);
-	r_config_node_desc (cn, "Filter systrace events to a pid, use 0 to disable it");
 	cn = r_config_set (cfg, "r2frida.systrace.tid", pid);
 	r_config_set_setter (cfg, "r2frida.systrace.tid", config_systrace_tid);
 	r_config_node_desc (cn, "Filter systrace events to a tid, use 0 to disable it");
@@ -109,7 +122,6 @@ void r2f_systrace_config_fini(RIOFrida *rf) {
 	r_config_rm (cfg, "r2frida.systrace.enable");
 	r_config_rm (cfg, "r2frida.systrace.match");
 	r_config_rm (cfg, "r2frida.systrace.filter");
-	r_config_rm (cfg, "r2frida.systrace.pid");
 	r_config_rm (cfg, "r2frida.systrace.tid");
 }
 
@@ -199,44 +211,26 @@ static bool validate_regex(const char *name, const char *value) {
 	return true;
 }
 
-static void set_scope_filters(R2FSystraceState *st, RNum *num, guint default_pid, const char *pid, const char *tid) {
-	if (pid == NULL) {
-		st->has_pid_filter = default_pid != 0;
-		st->pid_filter = default_pid;
-	} else if (R_STR_ISNOTEMPTY (pid)) {
-		ut64 v = r_num_get (num, pid);
-		st->has_pid_filter = v != 0 && v <= G_MAXUINT32;
-		st->pid_filter = st->has_pid_filter? (guint)v: 0;
-	} else {
-		st->has_pid_filter = false;
-		st->pid_filter = 0;
-	}
-	if (tid == NULL) {
-		st->has_tid_filter = default_pid != 0;
-		st->tid_filter = default_pid;
-	} else if (R_STR_ISNOTEMPTY (tid)) {
-		ut64 v = r_num_get (num, tid);
+static void configure(RIOFrida *rf) {
+	R2FSystraceState *st = &rf->systrace;
+	RConfig *cfg = rf->r2core->config;
+	const bool enabled = r_config_get_b (cfg, "r2frida.systrace.enable");
+	const char *match = r_config_get (cfg, "r2frida.systrace.match");
+	const char *filter = r_config_get (cfg, "r2frida.systrace.filter");
+	const char *tid = r_config_get (cfg, "r2frida.systrace.tid");
+	stop (rf);
+	set_match (st, match);
+	set_filter (st, filter);
+	st->has_pid_filter = rf->pid != 0;
+	st->pid_filter = rf->pid;
+	if (R_STR_ISNOTEMPTY (tid)) {
+		ut64 v = r_num_get (rf->r2core->num, tid);
 		st->has_tid_filter = v != 0;
 		st->tid_filter = v;
 	} else {
 		st->has_tid_filter = false;
 		st->tid_filter = 0;
 	}
-}
-
-static void configure(RIOFrida *rf) {
-eprintf ("je\n");
-	R2FSystraceState *st = &rf->systrace;
-	RConfig *cfg = rf->r2core->config;
-	const bool enabled = r_config_get_b (cfg, "r2frida.systrace.enable");
-	const char *match = r_config_get (cfg, "r2frida.systrace.match");
-	const char *filter = r_config_get (cfg, "r2frida.systrace.filter");
-	const char *pid = r_config_get (cfg, "r2frida.systrace.pid");
-	const char *tid = r_config_get (cfg, "r2frida.systrace.tid");
-	stop (rf);
-	set_match (st, match);
-	set_filter (st, filter);
-	set_scope_filters (st, rf->r2core->num, rf->pid, pid, tid);
 	clear_pending_matches (st);
 	if (enabled) {
 		(void)start (rf);
@@ -297,19 +291,6 @@ static bool config_systrace_filter(void *user, void *data) {
 	return true;
 }
 
-static bool config_systrace_pid(void *user, void *data) {
-	RConfigNode *cn = data;
-	RIOFrida *rf = get_riofrida (user);
-	if (rf) {
-		if (R_STR_ISNOTEMPTY (cn->value) && r_num_get (((RCore *)user)->num, cn->value) > G_MAXUINT32) {
-			R_LOG_ERROR ("Invalid r2frida.systrace.pid value: %s", cn->value);
-			return false;
-		}
-		configure (rf);
-	}
-	return true;
-}
-
 static bool config_systrace_tid(void *user, void *data) {
 	(void)data;
 	RIOFrida *rf = get_riofrida (user);
@@ -350,24 +331,6 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 	g_variant_builder_add (&b, "{sv}", "type", g_variant_new_string (type));
 	return request_service (service, rf->cancellable, g_variant_builder_end (&b));
 }
-
-static void scsig_clear(SCSig *s) {
-	if (!s || !s->name) {
-		return;
-	}
-	g_free (s->name);
-	g_strfreev (s->param_names);
-	memset (s, 0, sizeof (*s));
-}
-
-static void scsig_reset(R2FSystraceState *st) {
-	for (int i = 0; i < st->scsig_len; i++) {
-		scsig_clear (&st->scsig[i]);
-	}
-	g_clear_pointer (&st->scsig, g_free);
-	st->scsig_len = 0;
-}
-
 static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
 	GVariantIter it;
 	GVariant *item;
@@ -806,10 +769,9 @@ void on_systrace_message(FridaService *service, GVariant *message, gpointer user
 	RIOFrida *rf = user_data;
 	R2FSystraceState *st = &rf->systrace;
 	const char *type = NULL;
-	if (!g_variant_lookup (message, "type", "&s", &type) || strcmp (type, "events-available")) {
-		return;
-	}
-	if (st->service != service) {
+	if (st->service != service || \
+		!g_variant_lookup (message, "type", "&s", &type) || \
+		strcmp (type, "events-available")) {
 		return;
 	}
 	if (st->reading) {
