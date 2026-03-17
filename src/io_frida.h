@@ -14,16 +14,10 @@ typedef struct {
 } RFPendingCmd;
 
 typedef struct {
-	char *name;
-	char **param_names;
-	int n_params;
-} SCSig;
-
-typedef struct {
 	FridaService *service;
 	gulong handler;
-	SCSig *scsig;
-	int scsig_len;
+	char **scnames;
+	int scnames_len;
 	bool target_compat32;
 	GRegex *match_regex;
 	GRegex *filter_regex;

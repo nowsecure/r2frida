@@ -24,8 +24,6 @@ typedef struct {
 	SysId id;
 	SysAbi abi;
 	char *name;
-	char **param_names;
-	int n_params;
 	GVariant *payload;
 	bool enter;
 } SysEvent;
@@ -52,21 +50,12 @@ static bool config_systrace_match(void *user, void *data);
 static bool config_systrace_filter(void *user, void *data);
 static bool config_systrace_tid(void *user, void *data);
 
-static void scsig_clear(SCSig *s) {
-	if (!s || !s->name) {
-		return;
+static void scname_reset(R2FSystraceState *st) {
+	if (st->scnames) {
+		g_strfreev (st->scnames);
+		st->scnames = NULL;
 	}
-	g_free (s->name);
-	g_strfreev (s->param_names);
-	memset (s, 0, sizeof (*s));
-}
-
-static void scsig_reset(R2FSystraceState *st) {
-	for (int i = 0; i < st->scsig_len; i++) {
-		scsig_clear (&st->scsig[i]);
-	}
-	g_clear_pointer (&st->scsig, g_free);
-	st->scsig_len = 0;
+	st->scnames_len = 0;
 }
 
 static void state_fini(R2FSystraceState *st) {
@@ -74,7 +63,7 @@ static void state_fini(R2FSystraceState *st) {
 	g_clear_pointer (&st->pending, g_hash_table_unref);
 	g_clear_pointer (&st->match_regex, g_regex_unref);
 	g_clear_pointer (&st->filter_regex, g_regex_unref);
-	scsig_reset (st);
+	scname_reset (st);
 }
 
 R_IPI void r2f_systrace_config_init(RIOFrida *rf) {
@@ -312,7 +301,7 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 	return request_service (service, rf->cancellable, g_variant_builder_end (&b));
 }
 
-static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
+static void load_scname_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
 	GVariantIter it;
 	GVariant *item;
 	g_variant_iter_init (&it, table);
@@ -325,34 +314,22 @@ static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) 
 			continue;
 		}
 		int key = (nr << 1) | abi;
-		if (key >= st->scsig_len) {
+		if (key >= st->scnames_len) {
 			int new_len = key + 64;
-			st->scsig = g_realloc (st->scsig, new_len * sizeof (SCSig));
-			memset (st->scsig + st->scsig_len, 0, (new_len - st->scsig_len) * sizeof (SCSig));
-			st->scsig_len = new_len;
+			st->scnames = g_realloc_n (st->scnames, new_len + 1, sizeof (char *));
+			memset (st->scnames + st->scnames_len, 0, (new_len + 1 - st->scnames_len) * sizeof (char *));
+			st->scnames_len = new_len;
 		}
-		SCSig *s = &st->scsig[key];
-		scsig_clear (s);
 		g_variant_get_child (item, 1, "&s", &name);
-		s->name = g_strdup (name);
-		GVariant *params = g_variant_get_child_value (item, 2);
-		s->n_params = (int)g_variant_n_children (params);
-		s->param_names = g_new0 (char *, s->n_params + 1);
-		for (int i = 0; i < s->n_params; i++) {
-			GVariant *p = g_variant_get_child_value (params, i);
-			const char *pname;
-			g_variant_get_child (p, 0, "&s", &pname);
-			s->param_names[i] = g_strdup (pname);
-			g_variant_unref (p);
-		}
-		g_variant_unref (params);
+		g_free (st->scnames[key]);
+		st->scnames[key] = g_strdup (name);
 		g_variant_unref (item);
 	}
 }
 
-static const SCSig *lookup_scsig(const R2FSystraceState *st, SysAbi abi, int nr) {
+static const char *lookup_scname(const R2FSystraceState *st, SysAbi abi, int nr) {
 	int key = nr < 0? -1: (nr << 1) | abi;
-	return (key >= 0 && key < st->scsig_len && st->scsig[key].name)? &st->scsig[key]: NULL;
+	return (key >= 0 && key < st->scnames_len)? st->scnames[key]: NULL;
 }
 
 static SysEvent event_init(const RIOFrida *rf, GVariant *row) {
@@ -367,12 +344,8 @@ static SysEvent event_init(const RIOFrida *rf, GVariant *row) {
 	ev.payload = g_variant_get_child_value (row, 7);
 	ev.enter = !strcmp (phase, "enter");
 	ev.abi = ev.id.pid == rf->pid && st->target_compat32? SYS_ABI_COMPAT32: SYS_ABI_NATIVE;
-	const SCSig *scsig = lookup_scsig (st, ev.abi, ev.id.nr);
-	ev.name = scsig? g_strdup (scsig->name): g_strdup_printf ("#%d", ev.id.nr);
-	if (scsig) {
-		ev.param_names = scsig->param_names;
-		ev.n_params = scsig->n_params;
-	}
+	const char *scname = lookup_scname (st, ev.abi, ev.id.nr);
+	ev.name = scname? g_strdup (scname): g_strdup_printf ("#%d", ev.id.nr);
 	return ev;
 }
 
@@ -491,15 +464,15 @@ static bool load_signatures(RIOFrida *rf, FridaService *service) {
 	}
 	GVariant *native = g_variant_lookup_value (result, "native", G_VARIANT_TYPE ("a(isa(ss))"));
 	GVariant *compat32 = g_variant_lookup_value (result, "compat32", G_VARIANT_TYPE ("a(isa(ss))"));
-	scsig_reset (st);
+	scname_reset (st);
 	bool ok = false;
 	if (native) {
-		load_scsig_table (st, native, SYS_ABI_NATIVE);
+		load_scname_table (st, native, SYS_ABI_NATIVE);
 		g_variant_unref (native);
 		ok = true;
 	}
 	if (compat32) {
-		load_scsig_table (st, compat32, SYS_ABI_COMPAT32);
+		load_scname_table (st, compat32, SYS_ABI_COMPAT32);
 		g_variant_unref (compat32);
 	}
 	g_variant_unref (result);

@@ -7,8 +7,6 @@ e r2frida.systrace.match=open
 e r2frida.systrace.match
 e r2frida.systrace.filter=passwd
 e r2frida.systrace.filter
-e r2frida.systrace.pid=0
-e r2frida.systrace.pid
 e r2frida.systrace.tid=0
 e r2frida.systrace.tid
 EOF
@@ -38,7 +36,6 @@ EXPECT=<<EOF
 false
 open
 passwd
-0
 0
 EOF
 RUN
