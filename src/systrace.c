@@ -75,14 +75,7 @@ static void state_fini(R2FSystraceState *st) {
 	g_clear_pointer (&st->pending, g_hash_table_unref);
 	g_clear_pointer (&st->match_regex, g_regex_unref);
 	g_clear_pointer (&st->filter_regex, g_regex_unref);
-	if (st->scsig) {
-		for (int i = 0; i < st->scsig_len; i++) {
-			scsig_clear (&st->scsig[i]);
-		}
-		g_free (st->scsig);
-		st->scsig = NULL;
-		st->scsig_len = 0;
-	}
+	scsig_reset (st);
 }
 
 R_IPI void r2f_systrace_config_init(RIOFrida *rf) {
@@ -359,14 +352,20 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 }
 
 static void scsig_clear(SCSig *s) {
-	if (s && s->name) {
-		g_free (s->name);
-		for (int i = 0; i < s->n_params; i++) {
-			g_free (s->param_names[i]);
-		}
-		g_free (s->param_names);
-		memset (s, 0, sizeof (*s));
+	if (!s || !s->name) {
+		return;
 	}
+	g_free (s->name);
+	g_strfreev (s->param_names);
+	memset (s, 0, sizeof (*s));
+}
+
+static void scsig_reset(R2FSystraceState *st) {
+	for (int i = 0; i < st->scsig_len; i++) {
+		scsig_clear (&st->scsig[i]);
+	}
+	g_clear_pointer (&st->scsig, g_free);
+	st->scsig_len = 0;
 }
 
 static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
@@ -394,7 +393,7 @@ static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) 
 		s->name = g_strdup (name);
 		GVariant *params = g_variant_get_child_value (item, 2);
 		s->n_params = (int)g_variant_n_children (params);
-		s->param_names = g_new0 (char *, s->n_params);
+		s->param_names = g_new0 (char *, s->n_params + 1);
 		for (int i = 0; i < s->n_params; i++) {
 			GVariant *p = g_variant_get_child_value (params, i);
 			const char *pname;
@@ -408,15 +407,8 @@ static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) 
 }
 
 static const SCSig *lookup_scsig(const R2FSystraceState *st, SysAbi abi, int nr) {
-	if (nr < 0) {
-		return NULL;
-	}
-	int key = (nr << 1) | abi;
-	if (key >= st->scsig_len) {
-		return NULL;
-	}
-	const SCSig *s = &st->scsig[key];
-	return s->name? s: NULL;
+	int key = nr < 0? -1: (nr << 1) | abi;
+	return (key >= 0 && key < st->scsig_len && st->scsig[key].name)? &st->scsig[key]: NULL;
 }
 
 static void event_init(const RIOFrida *rf, GVariant *row, SysEvent *ev) {
@@ -609,14 +601,7 @@ static bool load_signatures(RIOFrida *rf, FridaService *service) {
 	}
 	GVariant *native = g_variant_lookup_value (result, "native", G_VARIANT_TYPE ("a(isa(ss))"));
 	GVariant *compat32 = g_variant_lookup_value (result, "compat32", G_VARIANT_TYPE ("a(isa(ss))"));
-	if (st->scsig) {
-		for (int i = 0; i < st->scsig_len; i++) {
-			scsig_clear (&st->scsig[i]);
-		}
-		g_free (st->scsig);
-		st->scsig = NULL;
-		st->scsig_len = 0;
-	}
+	scsig_reset (st);
 	bool ok = false;
 	if (native) {
 		load_scsig_table (st, native, SYS_ABI_NATIVE);
