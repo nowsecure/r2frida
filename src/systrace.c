@@ -51,28 +51,6 @@ static const char *const systrace_buffer_length_arg_names[] = {
 	NULL,
 };
 
-// AITODO : instead of defining this, just inline the string itself where this is used. save 5LOC
-#define R2F_SYSTRACE_ENABLE "r2frida.systrace.enable"
-#define R2F_SYSTRACE_MATCH "r2frida.systrace.match"
-#define R2F_SYSTRACE_FILTER "r2frida.systrace.filter"
-#define R2F_SYSTRACE_PID "r2frida.systrace.pid"
-#define R2F_SYSTRACE_TID "r2frida.systrace.tid"
-
-// AITODO: i think we can clear match, clear filter and clear sigs all together for the sake of simplicity and avoid having separate sparse functions. im not asking you to do this change. but instead, inspect, evaluate and take the right decision with focus on reducing LOCs but keeping balance with clean code
-static void clear_match(R2FSystraceState *st) {
-	g_clear_pointer (&st->match_regex, g_regex_unref);
-}
-
-static void clear_filter(R2FSystraceState *st) {
-	g_clear_pointer (&st->filter_regex, g_regex_unref);
-	R_FREE (st->filter_string);
-}
-
-static void clear_sigs(R2FSystraceState *st) {
-	g_clear_pointer (&st->sigs[SYS_ABI_NATIVE], g_hash_table_unref);
-	g_clear_pointer (&st->sigs[SYS_ABI_COMPAT32], g_hash_table_unref);
-}
-
 static void clear_pending_matches(R2FSystraceState *st) {
 	if (st->pending) {
 		g_hash_table_remove_all (st->pending);
@@ -95,49 +73,56 @@ static bool config_systrace_tid(void *user, void *data);
 static void state_fini(R2FSystraceState *st) {
 	g_clear_object (&st->service);
 	g_clear_pointer (&st->pending, g_hash_table_unref);
-	clear_match (st);
-	clear_filter (st);
-	clear_sigs (st);
+	g_clear_pointer (&st->match_regex, g_regex_unref);
+	g_clear_pointer (&st->filter_regex, g_regex_unref);
+	if (st->scsig) {
+		for (int i = 0; i < st->scsig_len; i++) {
+			scsig_clear (&st->scsig[i]);
+		}
+		g_free (st->scsig);
+		st->scsig = NULL;
+		st->scsig_len = 0;
+	}
 }
 
 R_IPI void r2f_systrace_config_init(RIOFrida *rf) {
 	RConfig *cfg = rf->r2core->config;
-	RConfigNode *cn = r_config_set_b (cfg, R2F_SYSTRACE_ENABLE, false);
+	RConfigNode *cn = r_config_set_b (cfg, "r2frida.systrace.enable", false);
 	if (!cn) {
 		R_LOG_ERROR ("Cannot create keys");
 		return;
 	}
-	r_config_set_setter (cfg, R2F_SYSTRACE_ENABLE, config_systrace_enable);
+	r_config_set_setter (cfg, "r2frida.systrace.enable", config_systrace_enable);
 	r_config_node_desc (cn, "Enable syscall tracing");
-	cn = r_config_set (cfg, R2F_SYSTRACE_MATCH, "");
-	r_config_set_setter (cfg, R2F_SYSTRACE_MATCH, config_systrace_match);
+	cn = r_config_set (cfg, "r2frida.systrace.match", "");
+	r_config_set_setter (cfg, "r2frida.systrace.match", config_systrace_match);
 	r_config_node_desc (cn, "Filter syscall names using plain text, commas, or /regex/");
-	cn = r_config_set (cfg, R2F_SYSTRACE_FILTER, "");
-	r_config_set_setter (cfg, R2F_SYSTRACE_FILTER, config_systrace_filter);
+	cn = r_config_set (cfg, "r2frida.systrace.filter", "");
+	r_config_set_setter (cfg, "r2frida.systrace.filter", config_systrace_filter);
 	r_config_node_desc (cn, "Filter rendered syscall text using plain text or /regex/");
 
 	r_strf_var (pid, 32, "%u", rf->pid);
-	cn = r_config_set (cfg, R2F_SYSTRACE_PID, pid);
-	r_config_set_setter (cfg, R2F_SYSTRACE_PID, config_systrace_pid);
+	cn = r_config_set (cfg, "r2frida.systrace.pid", pid);
+	r_config_set_setter (cfg, "r2frida.systrace.pid", config_systrace_pid);
 	r_config_node_desc (cn, "Filter systrace events to a pid, use 0 to disable it");
-	cn = r_config_set (cfg, R2F_SYSTRACE_TID, pid);
-	r_config_set_setter (cfg, R2F_SYSTRACE_TID, config_systrace_tid);
+	cn = r_config_set (cfg, "r2frida.systrace.tid", pid);
+	r_config_set_setter (cfg, "r2frida.systrace.tid", config_systrace_tid);
 	r_config_node_desc (cn, "Filter systrace events to a tid, use 0 to disable it");
 	configure (rf);
 }
 
 void r2f_systrace_config_fini(RIOFrida *rf) {
 	RConfig *cfg = rf->r2core->config;
-	r_config_rm (cfg, R2F_SYSTRACE_ENABLE);
-	r_config_rm (cfg, R2F_SYSTRACE_MATCH);
-	r_config_rm (cfg, R2F_SYSTRACE_FILTER);
-	r_config_rm (cfg, R2F_SYSTRACE_PID);
-	r_config_rm (cfg, R2F_SYSTRACE_TID);
+	r_config_rm (cfg, "r2frida.systrace.enable");
+	r_config_rm (cfg, "r2frida.systrace.match");
+	r_config_rm (cfg, "r2frida.systrace.filter");
+	r_config_rm (cfg, "r2frida.systrace.pid");
+	r_config_rm (cfg, "r2frida.systrace.tid");
 }
 
 static void set_match(R2FSystraceState *st, const char *match) {
 	GRegexCompileFlags flags = G_REGEX_OPTIMIZE;
-	clear_match (st);
+	g_clear_pointer (&st->match_regex, g_regex_unref);
 	if (R_STR_ISEMPTY (match)) {
 		return;
 	}
@@ -163,26 +148,28 @@ static void set_match(R2FSystraceState *st, const char *match) {
 }
 
 static void set_filter(R2FSystraceState *st, const char *filter) {
-	clear_filter (st);
+	g_clear_pointer (&st->filter_regex, g_regex_unref);
 	if (R_STR_ISEMPTY (filter)) {
 		return;
 	}
+	char *pattern;
+	GRegexCompileFlags flags = G_REGEX_OPTIMIZE;
 	if (*filter == '/') {
 		size_t len = strlen (filter);
-		char *pattern = (len > 2 && filter[len - 1] == '/')
+		pattern = (len > 2 && filter[len - 1] == '/')
 			? r_str_ndup (filter + 1, len - 2)
 			: strdup (filter + 1);
-		GError *error = NULL;
-// AITODO: can we just have a single filter_ variable? this seems like we are overengineering the need for string and regex filtering, when we can just use always a regex, removing the clear_regex helper function and removing the duplicate logic for two different codepaths to filter both things. extend this refactor to other match/filter helpers in this file.
-		st->filter_regex = g_regex_new (pattern, G_REGEX_OPTIMIZE, 0, &error);
-		if (error) {
-			R_LOG_ERROR ("Invalid systrace.filter regex: %s", error->message);
-			g_clear_error (&error);
-		}
-		free (pattern);
 	} else {
-		st->filter_string = strdup (filter);
+		pattern = g_regex_escape_string (filter, -1);
+		flags |= G_REGEX_CASELESS;
 	}
+	GError *error = NULL;
+	st->filter_regex = g_regex_new (pattern, flags, 0, &error);
+	if (error) {
+		R_LOG_ERROR ("Invalid systrace.filter regex: %s", error->message);
+		g_clear_error (&error);
+	}
+	free (pattern);
 }
 
 static bool name_matches(const R2FSystraceState *st, const char *name) {
@@ -193,40 +180,10 @@ static bool name_matches(const R2FSystraceState *st, const char *name) {
 }
 
 static bool text_matches(const R2FSystraceState *st, const char *text) {
-	if (st->filter_regex) {
-		return R_STR_ISNOTEMPTY (text) && g_regex_match (st->filter_regex, text, 0, NULL);
-	}
-	if (R_STR_ISNOTEMPTY (st->filter_string)) {
-		return R_STR_ISNOTEMPTY (text) && strstr (text, st->filter_string) != NULL;
-	}
-	return true;
-}
-
-// AITODO: use r_num* apis instead of this helper function which must be removed
-static bool parse_filter_u64(const char *value, guint64 *parsed_value) {
-	char *end = NULL;
-	if (R_STR_ISEMPTY (value)) {
-		return false;
-	}
-	guint64 parsed = g_ascii_strtoull (value, &end, 0);
-	if (end == value || *end != '\0' || parsed == 0) {
-		return false;
-	}
-	*parsed_value = parsed;
-	return true;
-}
-
-// AITODO: just use r_num_get_err (core->num, and check for error instead of having this helper function. use the r2 api in the callers, main objective is to reduce unnecessary LOCs
-static bool validate_filter_u64(const char *value, guint64 max_value) {
-	char *end = NULL;
-	if (R_STR_ISEMPTY (value)) {
+	if (!st->filter_regex) {
 		return true;
 	}
-	guint64 parsed = g_ascii_strtoull (value, &end, 0);
-	if (end == value || *end != '\0') {
-		return false;
-	}
-	return parsed <= max_value;
+	return R_STR_ISNOTEMPTY (text) && g_regex_match (st->filter_regex, text, 0, NULL);
 }
 
 static bool validate_regex(const char *name, const char *value) {
@@ -249,14 +206,14 @@ static bool validate_regex(const char *name, const char *value) {
 	return true;
 }
 
-static void set_scope_filters(R2FSystraceState *st, guint default_pid, const char *pid, const char *tid) {
-	guint64 value = 0;
+static void set_scope_filters(R2FSystraceState *st, RNum *num, guint default_pid, const char *pid, const char *tid) {
 	if (pid == NULL) {
 		st->has_pid_filter = default_pid != 0;
 		st->pid_filter = default_pid;
-	} else if (parse_filter_u64 (pid, &value) && value <= G_MAXUINT32) {
-		st->has_pid_filter = true;
-		st->pid_filter = (guint)value;
+	} else if (R_STR_ISNOTEMPTY (pid)) {
+		ut64 v = r_num_get (num, pid);
+		st->has_pid_filter = v != 0 && v <= G_MAXUINT32;
+		st->pid_filter = st->has_pid_filter? (guint)v: 0;
 	} else {
 		st->has_pid_filter = false;
 		st->pid_filter = 0;
@@ -264,9 +221,10 @@ static void set_scope_filters(R2FSystraceState *st, guint default_pid, const cha
 	if (tid == NULL) {
 		st->has_tid_filter = default_pid != 0;
 		st->tid_filter = default_pid;
-	} else if (parse_filter_u64 (tid, &value)) {
-		st->has_tid_filter = true;
-		st->tid_filter = value;
+	} else if (R_STR_ISNOTEMPTY (tid)) {
+		ut64 v = r_num_get (num, tid);
+		st->has_tid_filter = v != 0;
+		st->tid_filter = v;
 	} else {
 		st->has_tid_filter = false;
 		st->tid_filter = 0;
@@ -277,15 +235,15 @@ static void configure(RIOFrida *rf) {
 eprintf ("je\n");
 	R2FSystraceState *st = &rf->systrace;
 	RConfig *cfg = rf->r2core->config;
-	const bool enabled = r_config_get_b (cfg, R2F_SYSTRACE_ENABLE);
-	const char *match = r_config_get (cfg, R2F_SYSTRACE_MATCH);
-	const char *filter = r_config_get (cfg, R2F_SYSTRACE_FILTER);
-	const char *pid = r_config_get (cfg, R2F_SYSTRACE_PID);
-	const char *tid = r_config_get (cfg, R2F_SYSTRACE_TID);
+	const bool enabled = r_config_get_b (cfg, "r2frida.systrace.enable");
+	const char *match = r_config_get (cfg, "r2frida.systrace.match");
+	const char *filter = r_config_get (cfg, "r2frida.systrace.filter");
+	const char *pid = r_config_get (cfg, "r2frida.systrace.pid");
+	const char *tid = r_config_get (cfg, "r2frida.systrace.tid");
 	stop (rf);
 	set_match (st, match);
 	set_filter (st, filter);
-	set_scope_filters (st, rf->pid, pid, tid);
+	set_scope_filters (st, rf->r2core->num, rf->pid, pid, tid);
 	clear_pending_matches (st);
 	if (enabled) {
 		(void)start (rf);
@@ -326,7 +284,7 @@ static bool config_systrace_match(void *user, void *data) {
 	RConfigNode *cn = data;
 	RIOFrida *rf = get_riofrida (user);
 	if (rf) {
-		if (!validate_regex (R2F_SYSTRACE_MATCH, cn->value)) {
+		if (!validate_regex ("r2frida.systrace.match", cn->value)) {
 			return false;
 		}
 		configure (rf);
@@ -338,7 +296,7 @@ static bool config_systrace_filter(void *user, void *data) {
 	RConfigNode *cn = data;
 	RIOFrida *rf = get_riofrida (user);
 	if (rf) {
-		if (!validate_regex (R2F_SYSTRACE_FILTER, cn->value)) {
+		if (!validate_regex ("r2frida.systrace.filter", cn->value)) {
 			return false;
 		}
 		configure (rf);
@@ -350,8 +308,8 @@ static bool config_systrace_pid(void *user, void *data) {
 	RConfigNode *cn = data;
 	RIOFrida *rf = get_riofrida (user);
 	if (rf) {
-		if (!validate_filter_u64 (cn->value, G_MAXUINT32)) {
-			R_LOG_ERROR ("Invalid %s value: %s", R2F_SYSTRACE_PID, cn->value);
+		if (R_STR_ISNOTEMPTY (cn->value) && r_num_get (((RCore *)user)->num, cn->value) > G_MAXUINT32) {
+			R_LOG_ERROR ("Invalid r2frida.systrace.pid value: %s", cn->value);
 			return false;
 		}
 		configure (rf);
@@ -360,13 +318,9 @@ static bool config_systrace_pid(void *user, void *data) {
 }
 
 static bool config_systrace_tid(void *user, void *data) {
-	RConfigNode *cn = data;
+	(void)data;
 	RIOFrida *rf = get_riofrida (user);
 	if (rf) {
-		if (!validate_filter_u64 (cn->value, G_MAXUINT64)) {
-			R_LOG_ERROR ("Invalid %s value: %s", R2F_SYSTRACE_TID, cn->value);
-			return false;
-		}
 		configure (rf);
 	}
 	return true;
@@ -404,26 +358,18 @@ static GVariant *request_type(RIOFrida *rf, FridaService *service, const char *t
 	return request_service (service, rf->cancellable, g_variant_builder_end (&b));
 }
 
-typedef struct {
-	char *name;
-	char **param_names;
-	int n_params;
-} SysSig;
-
-static void sys_sig_free(gpointer data) {
-	SysSig *sig = data;
-	if (sig) {
-		g_free (sig->name);
-		for (int i = 0; i < sig->n_params; i++) {
-			g_free (sig->param_names[i]);
+static void scsig_clear(SCSig *s) {
+	if (s && s->name) {
+		g_free (s->name);
+		for (int i = 0; i < s->n_params; i++) {
+			g_free (s->param_names[i]);
 		}
-		g_free (sig->param_names);
-		g_free (sig);
+		g_free (s->param_names);
+		memset (s, 0, sizeof (*s));
 	}
 }
 
-static GHashTable *build_name_table(GVariant *table) {
-	GHashTable *ht = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, sys_sig_free);
+static void load_scsig_table(R2FSystraceState *st, GVariant *table, SysAbi abi) {
 	GVariantIter it;
 	GVariant *item;
 	g_variant_iter_init (&it, table);
@@ -431,29 +377,46 @@ static GHashTable *build_name_table(GVariant *table) {
 		int nr;
 		const char *name;
 		g_variant_get_child (item, 0, "i", &nr);
+		if (nr < 0) {
+			g_variant_unref (item);
+			continue;
+		}
+		int key = (nr << 1) | abi;
+		if (key >= st->scsig_len) {
+			int new_len = key + 64;
+			st->scsig = g_realloc (st->scsig, new_len * sizeof (SCSig));
+			memset (st->scsig + st->scsig_len, 0, (new_len - st->scsig_len) * sizeof (SCSig));
+			st->scsig_len = new_len;
+		}
+		SCSig *s = &st->scsig[key];
+		scsig_clear (s);
 		g_variant_get_child (item, 1, "&s", &name);
-		SysSig *sig = g_new0 (SysSig, 1);
-		sig->name = g_strdup (name);
+		s->name = g_strdup (name);
 		GVariant *params = g_variant_get_child_value (item, 2);
-		sig->n_params = (int)g_variant_n_children (params);
-		sig->param_names = g_new0 (char *, sig->n_params);
-		for (int i = 0; i < sig->n_params; i++) {
+		s->n_params = (int)g_variant_n_children (params);
+		s->param_names = g_new0 (char *, s->n_params);
+		for (int i = 0; i < s->n_params; i++) {
 			GVariant *p = g_variant_get_child_value (params, i);
 			const char *pname;
 			g_variant_get_child (p, 0, "&s", &pname);
-			sig->param_names[i] = g_strdup (pname);
+			s->param_names[i] = g_strdup (pname);
 			g_variant_unref (p);
 		}
 		g_variant_unref (params);
-		g_hash_table_replace (ht, GINT_TO_POINTER (nr), sig);
 		g_variant_unref (item);
 	}
-	return ht;
 }
 
-static const SysSig *lookup_sig(const R2FSystraceState *st, SysAbi abi, int nr) {
-	GHashTable *ht = st->sigs[abi];
-	return ht? g_hash_table_lookup (ht, GINT_TO_POINTER (nr)): NULL;
+static const SCSig *lookup_scsig(const R2FSystraceState *st, SysAbi abi, int nr) {
+	if (nr < 0) {
+		return NULL;
+	}
+	int key = (nr << 1) | abi;
+	if (key >= st->scsig_len) {
+		return NULL;
+	}
+	const SCSig *s = &st->scsig[key];
+	return s->name? s: NULL;
 }
 
 static void event_init(const RIOFrida *rf, GVariant *row, SysEvent *ev) {
@@ -468,11 +431,11 @@ static void event_init(const RIOFrida *rf, GVariant *row, SysEvent *ev) {
 	ev->payload = g_variant_get_child_value (row, 7);
 	ev->enter = !strcmp (phase, "enter");
 	ev->abi = ev->id.pid == rf->pid && st->target_compat32? SYS_ABI_COMPAT32: SYS_ABI_NATIVE;
-	const SysSig *sig = lookup_sig (st, ev->abi, ev->id.nr);
-	ev->name = sig? g_strdup (sig->name): g_strdup_printf ("#%d", ev->id.nr);
-	if (sig) {
-		ev->param_names = sig->param_names;
-		ev->n_params = sig->n_params;
+	const SCSig *scsig = lookup_scsig (st, ev->abi, ev->id.nr);
+	ev->name = scsig? g_strdup (scsig->name): g_strdup_printf ("#%d", ev->id.nr);
+	if (scsig) {
+		ev->param_names = scsig->param_names;
+		ev->n_params = scsig->n_params;
 	}
 }
 
@@ -646,17 +609,26 @@ static bool load_signatures(RIOFrida *rf, FridaService *service) {
 	}
 	GVariant *native = g_variant_lookup_value (result, "native", G_VARIANT_TYPE ("a(isa(ss))"));
 	GVariant *compat32 = g_variant_lookup_value (result, "compat32", G_VARIANT_TYPE ("a(isa(ss))"));
-	clear_sigs (st);
+	if (st->scsig) {
+		for (int i = 0; i < st->scsig_len; i++) {
+			scsig_clear (&st->scsig[i]);
+		}
+		g_free (st->scsig);
+		st->scsig = NULL;
+		st->scsig_len = 0;
+	}
+	bool ok = false;
 	if (native) {
-		st->sigs[SYS_ABI_NATIVE] = build_name_table (native);
+		load_scsig_table (st, native, SYS_ABI_NATIVE);
 		g_variant_unref (native);
+		ok = true;
 	}
 	if (compat32) {
-		st->sigs[SYS_ABI_COMPAT32] = build_name_table (compat32);
+		load_scsig_table (st, compat32, SYS_ABI_COMPAT32);
 		g_variant_unref (compat32);
 	}
 	g_variant_unref (result);
-	return st->sigs[SYS_ABI_NATIVE] != NULL;
+	return ok;
 }
 
 static void process_events(RIOFrida *rf, FridaService *service, GVariant *events) {
@@ -842,8 +814,6 @@ static bool start(RIOFrida *rf) {
 
 void r2f_systrace_fini(RIOFrida *rf) {
 	stop (rf);
-	clear_match (&rf->systrace);
-	clear_sigs (&rf->systrace);
 	state_fini (&rf->systrace);
 }
 
