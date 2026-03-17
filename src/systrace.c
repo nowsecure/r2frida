@@ -5,6 +5,8 @@
 #include "io_frida.h"
 
 extern RIOPlugin r_io_plugin_frida;
+static void stop(RIOFrida *rf);
+static bool start(RIOFrida *rf);
 
 typedef enum {
 	SYS_ABI_NATIVE,
@@ -49,16 +51,14 @@ static const char *const systrace_buffer_length_arg_names[] = {
 	NULL,
 };
 
-enum {
-	SYSTRACE_BUFFER_PREVIEW_MAX = 32,
-};
-
+// AITODO : instead of defining this, just inline the string itself where this is used. save 5LOC
 #define R2F_SYSTRACE_ENABLE "r2frida.systrace.enable"
 #define R2F_SYSTRACE_MATCH "r2frida.systrace.match"
 #define R2F_SYSTRACE_FILTER "r2frida.systrace.filter"
 #define R2F_SYSTRACE_PID "r2frida.systrace.pid"
 #define R2F_SYSTRACE_TID "r2frida.systrace.tid"
 
+// AITODO: i think we can clear match, clear filter and clear sigs all together for the sake of simplicity and avoid having separate sparse functions. im not asking you to do this change. but instead, inspect, evaluate and take the right decision with focus on reducing LOCs but keeping balance with clean code
 static void clear_match(R2FSystraceState *st) {
 	g_clear_pointer (&st->match_regex, g_regex_unref);
 }
@@ -100,7 +100,7 @@ static void state_fini(R2FSystraceState *st) {
 	clear_sigs (st);
 }
 
-void r2f_systrace_config_init(RIOFrida *rf) {
+R_IPI void r2f_systrace_config_init(RIOFrida *rf) {
 	RConfig *cfg = rf->r2core->config;
 	RConfigNode *cn = r_config_set_b (cfg, R2F_SYSTRACE_ENABLE, false);
 	if (!cn) {
@@ -136,12 +136,12 @@ void r2f_systrace_config_fini(RIOFrida *rf) {
 }
 
 static void set_match(R2FSystraceState *st, const char *match) {
-	char *pattern;
 	GRegexCompileFlags flags = G_REGEX_OPTIMIZE;
 	clear_match (st);
 	if (R_STR_ISEMPTY (match)) {
 		return;
 	}
+	char *pattern;
 	if (*match == '/') {
 		size_t len = strlen (match);
 		pattern = (len > 2 && match[len - 1] == '/')
@@ -173,15 +173,16 @@ static void set_filter(R2FSystraceState *st, const char *filter) {
 			? r_str_ndup (filter + 1, len - 2)
 			: strdup (filter + 1);
 		GError *error = NULL;
+// AITODO: can we just have a single filter_ variable? this seems like we are overengineering the need for string and regex filtering, when we can just use always a regex, removing the clear_regex helper function and removing the duplicate logic for two different codepaths to filter both things. extend this refactor to other match/filter helpers in this file.
 		st->filter_regex = g_regex_new (pattern, G_REGEX_OPTIMIZE, 0, &error);
 		if (error) {
 			R_LOG_ERROR ("Invalid systrace.filter regex: %s", error->message);
 			g_clear_error (&error);
 		}
 		free (pattern);
-		return;
+	} else {
+		st->filter_string = strdup (filter);
 	}
-	st->filter_string = strdup (filter);
 }
 
 static bool name_matches(const R2FSystraceState *st, const char *name) {
@@ -201,6 +202,7 @@ static bool text_matches(const R2FSystraceState *st, const char *text) {
 	return true;
 }
 
+// AITODO: use r_num* apis instead of this helper function which must be removed
 static bool parse_filter_u64(const char *value, guint64 *parsed_value) {
 	char *end = NULL;
 	if (R_STR_ISEMPTY (value)) {
@@ -214,6 +216,7 @@ static bool parse_filter_u64(const char *value, guint64 *parsed_value) {
 	return true;
 }
 
+// AITODO: just use r_num_get_err (core->num, and check for error instead of having this helper function. use the r2 api in the callers, main objective is to reduce unnecessary LOCs
 static bool validate_filter_u64(const char *value, guint64 max_value) {
 	char *end = NULL;
 	if (R_STR_ISEMPTY (value)) {
@@ -246,9 +249,6 @@ static bool validate_regex(const char *name, const char *value) {
 	return true;
 }
 
-static void stop(RIOFrida *rf);
-static bool start(RIOFrida *rf);
-
 static void set_scope_filters(R2FSystraceState *st, guint default_pid, const char *pid, const char *tid) {
 	guint64 value = 0;
 	if (pid == NULL) {
@@ -274,6 +274,7 @@ static void set_scope_filters(R2FSystraceState *st, guint default_pid, const cha
 }
 
 static void configure(RIOFrida *rf) {
+eprintf ("je\n");
 	R2FSystraceState *st = &rf->systrace;
 	RConfig *cfg = rf->r2core->config;
 	const bool enabled = r_config_get_b (cfg, R2F_SYSTRACE_ENABLE);
@@ -503,11 +504,11 @@ static int find_named_arg_index(const SysEvent *ev, const char *const *candidate
 }
 
 static char *render_buffer_value(const RIOFrida *rf, guint64 pointer_value, guint64 size) {
-	ut8 buf[SYSTRACE_BUFFER_PREVIEW_MAX];
+	ut8 buf[32];
 	if (!rf || !rf->io || pointer_value == 0 || size == 0) {
 		return NULL;
 	}
-	const int preview_size = (int)R_MIN ((ut64)SYSTRACE_BUFFER_PREVIEW_MAX, (ut64)size);
+	const int preview_size = (int)R_MIN (sizeof (buf), (ut64)size);
 	const int nr = r_io_pread_at (rf->io, (ut64)pointer_value, buf, preview_size);
 	if (nr <= 0) {
 		return NULL;
