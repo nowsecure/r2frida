@@ -54,7 +54,7 @@ echo
 echo "## Related versions"
 echo
 sed -nr 's,^\s+R2V:\s+([0-9\.]+)$,* radare2 \1,p' ../.github/workflows/ci.yml
-sed -nr 's,^frida_version.?=([0-9\.]+)$,* Frida \1,p' ../Makefile
+sed -nr 's,^set\s+frida_version=([0-9\.]+)$,* Frida \1,p' ../make.bat
 echo
 
 echo "## Highlights"
