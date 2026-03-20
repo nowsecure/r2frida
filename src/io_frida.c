@@ -802,6 +802,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 	R_RETURN_IF_FAIL (core && fd && path);
 	RList *files = r_sys_dir (path);
+	if (!files) {
+		return;
+	}
 	RListIter *iter;
 	const char *file;
 	r_list_foreach (files, iter, file) {
@@ -823,6 +826,40 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			}
 		}
 	}
+}
+
+static char *arch_os_scripts_path(FridaDevice *device, const char *root) {
+	R_RETURN_VAL_IF_FAIL (device && root, NULL);
+	GError *error = NULL;
+	GHashTable *params = frida_device_query_system_parameters_sync (device, NULL, &error);
+	if (error) {
+		log_frida_error (device, error);
+		g_clear_error (&error);
+		return NULL;
+	}
+	GVariant *osv = g_hash_table_lookup (params, "os");
+	GVariant *archv = g_hash_table_lookup (params, "arch");
+	const char *os = NULL;
+	const char *arch = NULL;
+	if (osv && g_variant_is_of_type (osv, G_VARIANT_TYPE_VARDICT)) {
+		(void)g_variant_lookup (osv, "id", "&s", &os);
+	}
+	if (archv && g_variant_is_of_type (archv, G_VARIANT_TYPE_STRING)) {
+		arch = g_variant_get_string (archv, NULL);
+	}
+	char *path = (R_STR_ISNOTEMPTY (arch) && R_STR_ISNOTEMPTY (os))
+		? r_str_newf ("%s" R_SYS_DIR "%s-%s", root, arch, os)
+		: NULL;
+	g_hash_table_unref (params);
+	return path;
+}
+
+static void load_scripts_from(RIOFrida *rf, RIODesc *fd, const char *root) {
+	R_RETURN_IF_FAIL (rf && fd && rf->r2core && rf->device && root);
+	char *arch_os = arch_os_scripts_path (rf->device, root);
+	load_scripts (rf->r2core, fd, root);
+	load_scripts (rf->r2core, fd, arch_os);
+	free (arch_os);
 }
 
 static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
@@ -1011,15 +1048,14 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		free (r2fridarc);
 	}
 
-	RCore *core = rf->r2core;
-	load_scripts (core, fd, R2_DATDIR "/r2frida/scripts");
+	load_scripts_from (rf, fd, R2_DATDIR "/r2frida/scripts");
 
 #if R2_VERSION_NUMBER < 50709
 	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
 #else
 	char *homepath = r_xdg_datadir ("r2frida/scripts");
 #endif
-	load_scripts (core, fd, homepath);
+	load_scripts_from (rf, fd, homepath);
 	free (homepath);
 	if (!user_wants_safe_io (rf->device)) {
 		request_safe_io (rf, false);
