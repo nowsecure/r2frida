@@ -854,13 +854,12 @@ static char *arch_os_scripts_path(FridaDevice *device, const char *root) {
 	return path;
 }
 
+// AITODO: i think this function can take R2Frida object and reduce the amount of arguments
 static void load_scripts_from(RCore *core, RIODesc *fd, FridaDevice *device, const char *root) {
 	R_RETURN_IF_FAIL (core && fd && device && root);
-	char *common = r_str_newf ("%s" R_SYS_DIR "common", root);
 	char *arch_os = arch_os_scripts_path (device, root);
-	load_scripts (core, fd, common);
+	load_scripts (core, fd, root);
 	load_scripts (core, fd, arch_os);
-	free (common);
 	free (arch_os);
 }
 
