@@ -854,12 +854,11 @@ static char *arch_os_scripts_path(FridaDevice *device, const char *root) {
 	return path;
 }
 
-// AITODO: i think this function can take R2Frida object and reduce the amount of arguments
-static void load_scripts_from(RCore *core, RIODesc *fd, FridaDevice *device, const char *root) {
-	R_RETURN_IF_FAIL (core && fd && device && root);
-	char *arch_os = arch_os_scripts_path (device, root);
-	load_scripts (core, fd, root);
-	load_scripts (core, fd, arch_os);
+static void load_scripts_from(RIOFrida *rf, RIODesc *fd, const char *root) {
+	R_RETURN_IF_FAIL (rf && fd && rf->r2core && rf->device && root);
+	char *arch_os = arch_os_scripts_path (rf->device, root);
+	load_scripts (rf->r2core, fd, root);
+	load_scripts (rf->r2core, fd, arch_os);
 	free (arch_os);
 }
 
@@ -1049,15 +1048,14 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 		free (r2fridarc);
 	}
 
-	RCore *core = rf->r2core;
-	load_scripts_from (core, fd, rf->device, R2_DATDIR "/r2frida/scripts");
+	load_scripts_from (rf, fd, R2_DATDIR "/r2frida/scripts");
 
 #if R2_VERSION_NUMBER < 50709
 	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
 #else
 	char *homepath = r_xdg_datadir ("r2frida/scripts");
 #endif
-	load_scripts_from (core, fd, rf->device, homepath);
+	load_scripts_from (rf, fd, homepath);
 	free (homepath);
 	if (!user_wants_safe_io (rf->device)) {
 		request_safe_io (rf, false);
