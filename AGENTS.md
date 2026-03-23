@@ -6,8 +6,11 @@ r2frida bridges Frida's dynamic instrumentation into radare2, enabling runtime a
 
 Two components communicate via JSON messages over the Frida runtime:
 
-* **C plugin** (`src/io_frida.c`) — Radare2 I/O layer: device discovery, session lifecycle, memory I/O, message dispatch
-* **TypeScript agent** (`src/agent/`) — Runs inside the target, 100+ commands for introspection, hooking, tracing
+* **C plugin** (`src/io_frida.c`)
+  - Radare2 I/O layer: device discovery, session lifecycle, memory I/O, message dispatch
+  - Commands starting with `:` are routed to the io system callback
+* **TypeScript agent** (`src/agent/`)
+  - Runs inside the target process, 100+ commands for introspection, hooking, tracing
 
 ```
 radare2 ←→ io_frida.c ←→ Frida runtime ←→ agent (TypeScript, in-target)
@@ -17,7 +20,8 @@ C side sends JSON requests; agent processes them and returns results.
 
 ## Build Commands
 
-*Always use make commands. We use deno for indentation and r2frida-compile to build the TypeScript agent.*
+*Always use make commands for any action, do not run custom gcc, node/deno oneliners*
+*We use deno for indentation and r2frida-compile to build the TypeScript agent*
 
 - First time: `./configure && make -j && make user-install`
 - Rebuild agent only: `make -C src/agent`
