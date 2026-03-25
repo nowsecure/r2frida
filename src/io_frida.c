@@ -3,7 +3,11 @@
 #define R_LOG_ORIGIN "r2frida"
 
 #include "io_frida.h"
+#include "diagnostics.h"
 #include "../config.h"
+
+#define ESMTOOL_ENABLE_PACK 0
+#include "esmtool.inc.c"
 
 #if R2_VERSION_NUMBER >= 50609
 #define COREBIND(x) (x)->coreb
@@ -202,6 +206,60 @@ static bool r2f_compiler(void) {
 
 static bool r2f_typecheck(void) {
 	return !r_sys_getenv_asbool ("R2FRIDA_COMPILER_TYPECHECK");
+}
+
+static char *r2f_compile_agent_script(RIOFrida *rf, const char *filename) {
+	GError *error = NULL;
+	char *slurped_data = NULL;
+	char *archive_root = NULL;
+	char *archive_entry = NULL;
+	char *entrypoint = NULL;
+
+	FridaCompiler *compiler = frida_compiler_new (rf->device_manager);
+	FridaCompilerOptions *fco = frida_compiler_options_new ();
+	frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
+	frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
+	frida_compiler_options_set_type_check (fco, r2f_typecheck ()? FRIDA_TYPE_CHECK_MODE_FULL: FRIDA_TYPE_CHECK_MODE_NONE);
+	frida_compiler_options_set_bundle_format (fco, FRIDA_BUNDLE_FORMAT_IIFE);
+
+	archive_entry = esmarchive_first_entry (filename);
+	if (archive_entry) {
+		archive_root = g_dir_make_tmp ("r2frida-plugin-XXXXXX", &error);
+		if (error || !archive_root) {
+			R_LOG_ERROR ("%s", error? error->message: "Cannot create temporary directory");
+			goto beach;
+		}
+		if (!esmarchive_unpack (filename, archive_root)) {
+			R_LOG_ERROR ("Cannot unpack %s", filename);
+			goto beach;
+		}
+		entrypoint = r_str_newf ("%s%s%s", archive_root, R_SYS_DIR, archive_entry);
+		frida_compiler_options_set_project_root (fco, archive_root);
+	} else {
+		entrypoint = strdup (filename);
+	}
+
+	R2FDiagOptions diag_opts = { .json = false };
+	g_signal_connect (compiler, "diagnostics", G_CALLBACK (r2f_on_compiler_diagnostics), &diag_opts);
+	slurped_data = frida_compiler_build_sync (compiler, entrypoint, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
+	if (error || !slurped_data) {
+		R_LOG_ERROR ("r2frida-compile: %s", error? error->message: "Cannot slurp from file");
+		R_FREE (slurped_data);
+	}
+
+beach:
+	if (error) {
+		g_clear_error (&error);
+	}
+	free (entrypoint);
+	free (archive_entry);
+	if (archive_root) {
+		r_file_rm_rf (archive_root);
+		g_free (archive_root);
+	}
+	g_object_unref (fco);
+	g_object_unref (compiler);
+	return slurped_data;
 }
 
 static FridaScriptRuntime r2f_jsruntime(void) {
@@ -469,9 +527,6 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 	return true;
 }
 
-// Reuse shared diagnostics handler
-#include "diagnostics.h"
-
 static ut64 __lseek(RIO *io, RIODesc *fd, ut64 offset, int whence) {
 	R_LOG_DEBUG ("lseek %d @ 0x%08" PFMT64x, whence, offset);
 	switch (whence) {
@@ -699,23 +754,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 					return NULL;
 				}
 				if (r2f_compiler ()) {
-					GError *error = NULL;
-					FridaCompiler *compiler = frida_compiler_new (rf->device_manager);
-
-					FridaCompilerOptions *fco = frida_compiler_options_new ();
-					frida_compiler_options_set_source_maps (fco, FRIDA_SOURCE_MAPS_OMITTED);
-					frida_compiler_options_set_compression (fco, FRIDA_JS_COMPRESSION_TERSER);
-					frida_compiler_options_set_type_check (fco, r2f_typecheck ()? FRIDA_TYPE_CHECK_MODE_FULL: FRIDA_TYPE_CHECK_MODE_NONE);
-					frida_compiler_options_set_bundle_format (fco, FRIDA_BUNDLE_FORMAT_IIFE);
-
-					R2FDiagOptions diag_opts = { .json = false };
-					g_signal_connect (compiler, "diagnostics", G_CALLBACK (r2f_on_compiler_diagnostics), &diag_opts);
-					slurpedData = frida_compiler_build_sync (compiler, filename, FRIDA_BUILD_OPTIONS (fco), NULL, &error);
-					if (error || !slurpedData) {
-						R_LOG_ERROR ("r2frida-compile: %s", error? error->message: "Cannot slurp from file");
-						R_FREE (slurpedData)
-					}
-					g_object_unref (compiler);
+					slurpedData = r2f_compile_agent_script (rf, filename);
 				} else {
 					slurpedData = r_file_slurp (filename, NULL);
 				}
