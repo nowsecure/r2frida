@@ -1,41 +1,35 @@
-# Agentic development guidelines for r2frida
+# r2frida Agent Guide
 
-r2frida bridges Frida's dynamic instrumentation into radare2, enabling runtime analysis across Linux, macOS, Windows, iOS, and Android.
+r2frida connects radare2 to Frida for live process analysis.
 
-## Architecture
+## Main Parts
 
-Two components communicate via JSON messages over the Frida runtime:
+- C plugin: `src/io_frida.c`
+  Handles devices, sessions, memory I/O, and JSON message dispatch.
+  Commands that start with `:` go through the I/O callback.
+- Agent: `src/agent/`
+  Runs inside the target process. It implements commands for inspection, hooks, and tracing.
+- Message flow:
+  `radare2 <-> io_frida.c <-> Frida runtime <-> agent`
 
-* **C plugin** (`src/io_frida.c`)
-  - Radare2 I/O layer: device discovery, session lifecycle, memory I/O, message dispatch
-  - Commands starting with `:` are routed to the io system callback
-* **TypeScript agent** (`src/agent/`)
-  - Runs inside the target process, 100+ commands for introspection, hooking, tracing
+## Common Actions
 
-```
-radare2 ←→ io_frida.c ←→ Frida runtime ←→ agent (TypeScript, in-target)
-```
-
-C side sends JSON requests; agent processes them and returns results.
-
-## Build Commands
-
-*Always use make commands for any action, do not run custom gcc, node/deno oneliners*
-*We use deno for indentation and r2frida-compile to build the TypeScript agent*
-
-- First time: `./configure && make -j && make user-install`
-- Rebuild agent only: `make -C src/agent`
-- Clean: `make clean` or `make mrproper`
+- Build first time: `./configure && make -j && make user-install`
+- Rebuild agent: `make -C src/agent`
 - Format: `make fmt`
 - Test: `make -C test`
+- Clean: `make clean` or `make mrproper`
+- Use `make` targets only. Do not run ad-hoc `gcc`, `node`, or `deno` commands.
 
-**Build pipeline**: TypeScript → `frida-compile` → `_agent.js` → `r2frida-compile` hex-encodes into `_agent.h` → linked into C plugin.
+Agent build path: TypeScript -> `_agent.js` -> `_agent.h` -> C plugin.
 
-## Testing
+## Tests
 
-Tests use **r2r** framework. Test files in `test/db/extras/`:
+- Location: `test/db/extras/`
+- Runner: `make -C test` or `r2r -u db/extras`
+- Format:
 
-```
+```sh
 NAME=test description
 FILE=frida://0
 CMDS=<<EOF
@@ -47,37 +41,21 @@ EOF
 RUN
 ```
 
-Run: `make -C test` or `r2r -u db/extras`.
+## Style
 
-## Code Style
+- TypeScript: strict mode, ES2020, 8-space indent, use `.js` in imports
+- C: 4-space indent, format with `clang-format-radare2`
+- ESLint rules are relaxed where Frida APIs need it
 
-- TypeScript: strict mode, ES2020, 8-space indentation, explicit `.js` extensions in imports
-- C: 4-space indentation, `clang-format-radare2`
-- ESLint with many strict checks relaxed for Frida API compatibility
+## Where To Edit
 
-## Key Source Files
-
-### C side (`src/`)
-
-- `io_frida.c` — Main plugin
-- `io_frida.h` — Data structures
-- `r2frida-compile.c` — TS→hex-encoded C header compiler
-- `systrace.c` — Syscall tracing
-
-### TypeScript agent (`src/agent/`)
-
-- `index.ts` — Entry point and command dispatcher
-- `plugin.ts` — Plugin registration API
-- `config.ts` — Runtime configuration (`:e key=value`)
-- `io.ts` — Memory I/O
-- `r2pipe-frida.ts` — R2 command bridge (native, host, agent modes)
-
-### Agent libraries (`src/agent/lib/`)
-
-- `debug/` — Breakpoints, tracing, stalker, interceptor, syscall tracing
-- `info/` — Process maps, symbols, classes, ELF/Mach-O parsing
-- `java/` — Android/Java bridge
-- `darwin/` — macOS/iOS + Swift support
-- `search.ts` — Memory search
-- `trace.ts` — Function/instruction tracing
-- `fs.ts`, `sys.ts`, `utils.ts`, `anal.ts`, `disasm.ts`
+- C plugin: `src/io_frida.c`, `src/io_frida.h`
+- Agent build tools: `src/r2frida-compile.c`
+- Tracing in C: `src/systrace.c`
+- Agent entry: `src/agent/index.ts`
+- Agent config: `src/agent/config.ts`
+- Agent I/O: `src/agent/io.ts`
+- Plugin API: `src/agent/plugin.ts`
+- R2 bridge: `src/agent/r2pipe-frida.ts`
+- Agent libraries: `src/agent/lib/debug/`, `src/agent/lib/info/`, `src/agent/lib/java/`, `src/agent/lib/darwin/`
+- Other agent helpers: `src/agent/lib/search.ts`, `src/agent/lib/trace.ts`, `src/agent/lib/fs.ts`, `src/agent/lib/sys.ts`, `src/agent/lib/utils.ts`, `src/agent/lib/anal.ts`, `src/agent/lib/disasm.ts`
