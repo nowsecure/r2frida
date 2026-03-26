@@ -501,15 +501,15 @@ static int __read(RIO *io, RIODesc *fd, ut8 *buf, int count) {
 	return n;
 }
 
-static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
+static bool __loadEsmScript(RIOFrida *rf, const char *fileName, bool eternalize) {
 	char *agent_code = r_file_slurp (fileName, NULL);
 	if (!agent_code) {
 		R_LOG_ERROR ("Cannot load '%s'", fileName);
 		return false;
 	}
-	GError *error;
+	GError *error = NULL;
 	FridaScriptOptions *options = frida_script_options_new ();
-	frida_script_options_set_name (options, "eternalized-script");
+	frida_script_options_set_name (options, eternalize? "eternalized-script": "user-script");
 	FridaScriptRuntime runtime = r2f_jsruntime ();
 	frida_script_options_set_runtime (options, runtime);
 	FridaScript *script = frida_session_create_script_sync (rf->session,
@@ -517,14 +517,22 @@ static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
 		options,
 		rf->cancellable,
 		&error);
+	free (agent_code);
 	if (!script) {
 		log_frida_error (rf->device, error);
 		return false;
 	}
+	g_signal_connect (script, "message", G_CALLBACK (on_message), rf);
 	frida_script_load_sync (script, NULL, NULL);
-	frida_script_eternalize_sync (script, NULL, NULL);
-	g_clear_object (&script);
+	if (eternalize) {
+		frida_script_eternalize_sync (script, NULL, NULL);
+		g_clear_object (&script);
+	}
 	return true;
+}
+
+static bool __eternalizeScript(RIOFrida *rf, const char *fileName) {
+	return __loadEsmScript (rf, fileName, true);
 }
 
 static ut64 __lseek(RIO *io, RIODesc *fd, ut64 offset, int whence) {
@@ -744,14 +752,42 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		case ' ':
 			{
 				const char *filename = r_str_trim_head_ro (command + 2);
-				builder = build_request ("evaluate");
 				const bool is_c = r_str_endswith (filename, ".c");
 				const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");
-				;
-				json_builder_set_member_name (builder, is_c? "ccode": "code");
 				if (!is_c && !is_jsts) {
 					R_LOG_ERROR ("We can only load .ts, .js and .c files into the r2frida agent");
 					return NULL;
+				}
+				builder = build_request ("evaluate");
+				json_builder_set_member_name (builder, is_c? "ccode": "code");
+				// ESM archives: extract the JS content and eval it
+				// directly in the agent scope (no IIFE recompilation,
+				// no separate script sandbox)
+				if (!is_c) {
+					char *esm_entry = esmarchive_first_entry (filename);
+					if (esm_entry) {
+						GError *gerr = NULL;
+						char *archive_root = g_dir_make_tmp ("r2frida-plugin-XXXXXX", &gerr);
+						if (archive_root && esmarchive_unpack (filename, archive_root)) {
+							char *entrypoint = r_str_newf ("%s%s%s", archive_root, R_SYS_DIR, esm_entry);
+							slurpedData = r_file_slurp (entrypoint, NULL);
+							free (entrypoint);
+						}
+						if (archive_root) {
+							r_file_rm_rf (archive_root);
+							g_free (archive_root);
+						}
+						free (esm_entry);
+						if (gerr) {
+							g_clear_error (&gerr);
+						}
+						if (!slurpedData) {
+							R_LOG_ERROR ("Cannot extract ESM archive %s", filename);
+							return NULL;
+						}
+						json_builder_add_string_value (builder, slurpedData);
+						break;
+					}
 				}
 				if (r2f_compiler ()) {
 					slurpedData = r2f_compile_agent_script (rf, filename);
@@ -1902,6 +1938,14 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 			}
 		} else {
 			R_LOG_ERROR ("Missing message: %s", message);
+		}
+	} else if (!strcmp (type, "error")) {
+		const char *stack = json_object_get_string_member (root, "stack");
+		const char *description = json_object_get_string_member (root, "description");
+		if (stack) {
+			eprintf ("%s\n", stack);
+		} else if (description) {
+			eprintf ("%s\n", description);
 		}
 	} else {
 		R_LOG_ERROR ("Unhandled message type '%s': %s", type, raw_message);
