@@ -6,7 +6,133 @@
 #include <string.h>
 
 #define HEADER "\xF0\x9F\x93\xA6\n"
+#define BODY_SEPARATOR "\xE2\x9C\x84\n"
 
+#ifndef ESMTOOL_ENABLE_PACK
+#define ESMTOOL_ENABLE_PACK 1
+#endif
+
+static R_UNUSED char *esmarchive_first_entry(const char *filename) {
+	FILE *in = fopen (filename, "rb");
+	if (!in) {
+		return NULL;
+	}
+	char line[4096];
+	if (!fgets (line, sizeof (line), in) || strcmp (line, HEADER)) {
+		fclose (in);
+		return NULL;
+	}
+	char *result = NULL;
+	while (fgets (line, sizeof (line), in)) {
+		char *sep = strchr (line, ' ');
+		if (sep && sep[1] == '/') {
+			char *path = sep + 2;
+			r_str_trim_tail (path);
+			result = r_str_replace (strdup (path), "/", R_SYS_DIR, true);
+			break;
+		}
+	}
+	fclose (in);
+	return result;
+}
+
+static bool esmarchive_extract(FILE *in, const char *outdir, const char *name, size_t size) {
+	char *pfn = r_str_replace (strdup (name), "/", R_SYS_DIR, true);
+	if (!pfn) {
+		return false;
+	}
+	char *fullpath = r_str_newf ("%s%s%s", outdir, R_SYS_DIR, pfn);
+	free (pfn);
+	if (!fullpath) {
+		return false;
+	}
+	char *dir = r_file_dirname (fullpath);
+	if (dir) {
+		r_sys_mkdirp (dir);
+		free (dir);
+	}
+	bool ok = true;
+	if (size > 0) {
+		ut8 *buf = malloc (size);
+		if (buf) {
+			ok = (fread (buf, 1, size, in) == size)
+				&& r_file_dump (fullpath, buf, size, false);
+			free (buf);
+		} else {
+			ok = false;
+		}
+	}
+	free (fullpath);
+	return ok;
+}
+
+static bool esmarchive_unpack(const char *infile, const char *outdir) {
+	FILE *in = fopen (infile, "rb");
+	if (!in) {
+		R_LOG_ERROR ("Cannot open input file %s", infile);
+		return false;
+	}
+	char line[4096];
+	if (!fgets (line, sizeof (line), in) || strcmp (line, HEADER) != 0) {
+		R_LOG_ERROR ("Invalid ESM archive header");
+		fclose (in);
+		return false;
+	}
+	// read entry headers until separator or end
+	size_t sizes[256];
+	char *names[256];
+	int count = 0;
+	bool has_toc = false;
+	const long after_header = ftell (in);
+	while (count < 256 && fgets (line, sizeof (line), in)) {
+		if (!strcmp (line, BODY_SEPARATOR)) {
+			has_toc = true;
+			break;
+		}
+		if (line[0] == '\n' || line[0] == '\0') {
+			continue;
+		}
+		char *sep = strchr (line, ' ');
+		if (!sep || sep[1] != '/') {
+			break;
+		}
+		*sep = '\0';
+		sizes[count] = (size_t)strtoul (line, NULL, 10);
+		char *name = sep + 2;
+		r_str_trim_tail (name);
+		names[count] = strdup (name);
+		count++;
+	}
+	bool ok = true;
+	int i;
+	if (has_toc) {
+		for (i = 0; i < count; i++) {
+			ok &= esmarchive_extract (in, outdir, names[i], sizes[i]);
+			if (i < count - 1) {
+				while (fgets (line, sizeof (line), in)) {
+					if (!strcmp (line, BODY_SEPARATOR)) {
+						break;
+					}
+				}
+			}
+		}
+	} else {
+		// legacy: content follows each header inline
+		fseek (in, after_header, SEEK_SET);
+		for (i = 0; i < count; i++) {
+			fgets (line, sizeof (line), in); // skip header line
+			ok &= esmarchive_extract (in, outdir, names[i], sizes[i]);
+			fgetc (in); // skip trailing newline
+		}
+	}
+	for (i = 0; i < count; i++) {
+		free (names[i]);
+	}
+	fclose (in);
+	return ok;
+}
+
+#if ESMTOOL_ENABLE_PACK
 static bool write_file(FILE *out, const char *path, const char *root) {
 	size_t usz;
 	char *content = r_file_slurp (path, &usz);
@@ -87,107 +213,10 @@ static bool pack(const char *outfile, const char *indir) {
 	return res;
 }
 
-static bool unpack(const char *infile, const char *outdir) {
-	FILE *in = fopen (infile, "rb");
-	if (!in) {
-		R_LOG_ERROR ("Cannot open input file %s", infile);
-		return false;
-	}
-
-	char line[4096];
-	if (!fgets (line, sizeof (line), in)) {
-		fclose (in);
-		return false;
-	}
-	if (strcmp (line, HEADER) != 0) {
-		R_LOG_ERROR ("Invalid ESM archive header");
-		fclose (in);
-		return false;
-	}
-
-	while (fgets (line, sizeof (line), in)) {
-		// Skip empty lines
-		if (line[0] == '\n' || line[0] == '\0') {
-			continue;
-		}
-
-		char *sep = strchr (line, ' ');
-		if (!sep || sep[1] != '/') {
-			continue;
-		}
-
-		*sep = '\0';
-		size_t size = (size_t)strtoul (line, NULL, 10);
-		char *filename = sep + 2; // Skip space and forward slash
-
-		// Trim newline from filename
-		char *newline = strchr (filename, '\n');
-		if (newline) {
-			*newline = '\0';
-		}
-
-		// Create full output path with platform-appropriate separators
-		char *platform_filename = r_str_replace (strdup (filename), "/", R_SYS_DIR, true);
-		if (!platform_filename) {
-			// Skip the file content and newline
-			fseek (in, size + 1, SEEK_CUR);
-			continue;
-		}
-		char *fullpath = r_str_newf ("%s%s%s", outdir, R_SYS_DIR, platform_filename);
-		if (!fullpath) {
-			free (platform_filename);
-			// Skip the file content and newline
-			fseek (in, size + 1, SEEK_CUR);
-			continue;
-		}
-
-		char *dirname = r_file_dirname (fullpath);
-		if (!r_sys_mkdirp (dirname)) {
-			R_LOG_ERROR ("Cannot create directory for %s", fullpath);
-			free (dirname);
-			free (platform_filename);
-			free (fullpath);
-			// Skip the file content and newline
-			fseek (in, size + 1, SEEK_CUR);
-			continue;
-		}
-		free (dirname);
-
-		// Read and write file content
-		if (size > 0) {
-			ut8 *buffer = malloc (size);
-			if (buffer) {
-				size_t bytes_read = fread (buffer, 1, size, in);
-				if (bytes_read == size) {
-					if (!r_file_dump (fullpath, buffer, size, false)) {
-						R_LOG_ERROR ("Cannot write file %s", fullpath);
-					}
-				} else {
-					R_LOG_ERROR ("Could not read expected %zu bytes for %s, got %zu", size, fullpath, bytes_read);
-				}
-				free (buffer);
-			} else {
-				R_LOG_ERROR ("Cannot allocate buffer for %s", fullpath);
-			}
-		}
-
-		// Skip the newline after file content
-		const int ch = fgetc (in);
-		if (ch && (ch != '\n' || ch == '\r')) {
-			R_LOG_INFO ("Expected newline at the end of the file for %s", fullpath);
-		}
-
-		free (platform_filename);
-		free (fullpath);
-	}
-
-	fclose (in);
-	return true;
-}
-
 static bool esmtool(bool dopack, const char *fil, const char *dirnam) {
 	if (dopack) {
 		return pack (fil, dirnam);
 	}
-	return unpack (fil, dirnam);
+	return esmarchive_unpack (fil, dirnam);
 }
+#endif
