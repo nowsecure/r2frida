@@ -22,7 +22,7 @@ jobs:
 #      run: r2r test/db/extras
   build-fridatools:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v6
@@ -43,7 +43,7 @@ jobs:
       run: make -C dist/debian USE_FRIDA_TOOLS=1
   build-linux22:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
         name: build-linux22
         path: dist/debian/*.deb
   build-linux22-precompiled:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v6
@@ -99,7 +99,7 @@ jobs:
         name: build-linux24
         path: dist/debian/*.deb
   build-agent:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v6
     - name: Building Radare2
