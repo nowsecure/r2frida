@@ -120,9 +120,15 @@ static bool esmarchive_unpack(const char *infile, const char *outdir) {
 		// legacy: content follows each header inline
 		fseek (in, after_header, SEEK_SET);
 		for (i = 0; i < count; i++) {
-			fgets (line, sizeof (line), in); // skip header line
+			if (!fgets (line, sizeof (line), in)) {
+				ok = false;
+				break;
+			}
 			ok &= esmarchive_extract (in, outdir, names[i], sizes[i]);
-			fgetc (in); // skip trailing newline
+			if (fgetc (in) == EOF) {
+				ok = false;
+				break;
+			}
 		}
 	}
 	for (i = 0; i < count; i++) {
