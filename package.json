@@ -18,25 +18,25 @@
     "node": ">=20.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^10.0.0",
-    "@frida/events": "^4.0.4",
-    "@types/frida-gum": "^19.0.0",
-    "@types/node": "^24.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.34.0",
-    "@typescript-eslint/parser": "^8.34.0",
-    "eslint": "^10.0.0",
-    "frida-compile": "^19.0.0",
-    "frida-java-bridge": "^7.0.13",
-    "frida-objc-bridge": "^8.0.5",
-    "globals": "^17.0.0",
-    "typescript": "^6.0.0"
+    "@eslint/eslintrc": "3.3.5",
+    "@eslint/js": "10.0.1",
+    "@frida/events": "4.0.4",
+    "@types/frida-gum": "19.0.2",
+    "@types/node": "25.6.0",
+    "@typescript-eslint/eslint-plugin": "8.59.1",
+    "@typescript-eslint/parser": "8.59.1",
+    "eslint": "10.2.1",
+    "frida-compile": "19.0.5",
+    "frida-java-bridge": "7.0.13",
+    "frida-objc-bridge": "8.0.5",
+    "globals": "17.5.0",
+    "typescript": "6.0.3"
   },
   "exports": {
     "require": "./src/agent/index.js",
     "import": "./index.mjs"
   },
   "dependencies": {
-    "semistandard": "^17.0.0"
+    "semistandard": "17.0.0"
   }
 }
