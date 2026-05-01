@@ -415,14 +415,12 @@ function parseSegmentHeaders(
             align: cursor.add(0x30).readPointer(),
         };
         cursor = cursor.add(entrySize);
-        if (segment.name !== null) {
-            segments.push(segment);
-        }
+        segments.push(segment);
     }
     return segments;
 }
 
-function parseHeaderType(value: number): string | null {
+function parseHeaderType(value: number): string {
     switch (value) {
         case 0:
             return "PT_NULL";
@@ -457,7 +455,7 @@ function parseHeaderType(value: number): string | null {
         case 0x7FFFFFFF:
             return "PT_HIPROC";
     }
-    return null;
+    return `PT_0x${value.toString(16)}`;
 }
 
 function parseElfHeader(offset: NativePointer): any {
