@@ -47,6 +47,12 @@ export const dynamicTags: any = {
     DT_FLAGS: 30,
     DT_PREINIT_ARRAY: 32,
     DT_PREINIT_ARRAYSZ: 33,
+    DT_GNU_HASH: 0x6ffffef5,
+    DT_VERSYM: 0x6ffffff0,
+    DT_VERDEF: 0x6ffffffc,
+    DT_VERDEFNUM: 0x6ffffffd,
+    DT_VERNEED: 0x6ffffffe,
+    DT_VERNEEDNUM: 0x6fffffff,
 };
 
 /* ELF Dynamic Array Tags */
@@ -84,6 +90,12 @@ export const dynamicEntries: any = {
     30: new Elf64Dyn("DT_FLAGS", "val"),
     32: new Elf64Dyn("DT_PREINIT_ARRAY", "ptr"),
     33: new Elf64Dyn("DT_PREINIT_ARRAYSZ", "val"),
+    0x6ffffef5: new Elf64Dyn("DT_GNU_HASH", "ptr"),
+    0x6ffffff0: new Elf64Dyn("DT_VERSYM", "ptr"),
+    0x6ffffffc: new Elf64Dyn("DT_VERDEF", "ptr"),
+    0x6ffffffd: new Elf64Dyn("DT_VERDEFNUM", "val"),
+    0x6ffffffe: new Elf64Dyn("DT_VERNEED", "ptr"),
+    0x6fffffff: new Elf64Dyn("DT_VERNEEDNUM", "val"),
 };
 
 export default {
