@@ -130,6 +130,33 @@ function verneedSize(
     return offset;
 }
 
+function verdefSize(
+    tablePtr: NativePointer,
+    count: number,
+): number {
+    // Walk Elf_Verdef chain to compute total size in bytes.
+    // Each Elf_Verdef (20 bytes):
+    //   u16 vd_version, u16 vd_flags, u16 vd_ndx, u16 vd_cnt,
+    //   u32 vd_hash, u32 vd_aux, u32 vd_next
+    // Each Elf_Verdaux (8 bytes):
+    //   u32 vda_name, u32 vda_next
+    let offset = 0;
+    for (let i = 0; i < count; i++) {
+        const cur = tablePtr.add(offset);
+        const vdCnt = cur.add(6).readU16();
+        const vdAux = cur.add(12).readU32();
+        const vdNext = cur.add(16).readU32();
+        if (vdNext === 0 || i === count - 1) {
+            return offset + Math.max(vdAux + (vdCnt * 8), 20);
+        }
+        offset += vdNext;
+        if (offset > 0x10000000) {
+            break; // safety cap
+        }
+    }
+    return offset;
+}
+
 function resetDynamicEntries() {
     for (const k of Object.keys(dynamicEntries)) {
         dynamicEntries[k].value = null;
@@ -353,8 +380,6 @@ function parseSectionHeaders(
         dynamicEntries[dynamicTags.DT_VERDEF].value !== null &&
         dynamicEntries[dynamicTags.DT_VERDEFNUM].value !== null
     ) {
-        // Elf_Verdef has the same vd_next/vd_aux/vd_cnt layout shape as
-        // Verneed (16 bytes header, 16 bytes per Verdaux). Reuse the walker.
         const vdPtr = dynamicEntries[dynamicTags.DT_VERDEF].value;
         const vdCount = Number(
             dynamicEntries[dynamicTags.DT_VERDEFNUM].value,
@@ -363,7 +388,7 @@ function parseSectionHeaders(
             new Section(
                 dynamicEntries[dynamicTags.DT_VERDEF].name,
                 vdPtr,
-                verneedSize(vdPtr, vdCount),
+                verdefSize(vdPtr, vdCount),
                 permOf(segments, vdPtr),
             ),
         );
