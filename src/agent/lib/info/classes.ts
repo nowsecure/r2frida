@@ -351,7 +351,7 @@ export function listClassesJson(args?: string[], mode?: string): string[] {
     const methods: any[] = (mode === "methods")
         ? klass.$ownMethods
         : (mode === "super")
-        ? klass.$super.$ownMethods
+        ? (klass.$super ? klass.$super.$ownMethods : [])
         : (mode === "all")
         ? klass.$methods
         : klass.$ownMethods;
