@@ -70,21 +70,103 @@ function _isElfHeaderAtOffset(offset: NativePointer): boolean {
     return false;
 }
 
+function permOf(segments: any, addr: NativePointer): string {
+    const owners = utils.belongsTo(segments, addr);
+    if (owners.length > 0 && owners[0].perm) {
+        return owners[0].perm;
+    }
+    return "---";
+}
+
+function gnuHashSymbolCount(hashTablePtr: NativePointer): number {
+    const nbuckets = hashTablePtr.readU32();
+    const symoffset = hashTablePtr.add(4).readU32();
+    const bloomSize = hashTablePtr.add(8).readU32();
+    const bucketsPtr = hashTablePtr.add(16 + (bloomSize * 8));
+    const chainPtr = bucketsPtr.add(nbuckets * 4);
+    let maxBucket = 0;
+    for (let i = 0; i < nbuckets; i++) {
+        const v = bucketsPtr.add(i * 4).readU32();
+        if (v > maxBucket) {
+            maxBucket = v;
+        }
+    }
+    if (maxBucket < symoffset) {
+        return symoffset;
+    }
+    let idx = maxBucket - symoffset;
+    // walk chain until terminator (LSB set)
+    while ((chainPtr.add(idx * 4).readU32() & 1) === 0) {
+        idx++;
+        if (idx > 0x100000) {
+            break; // safety cap
+        }
+    }
+    return symoffset + idx + 1;
+}
+
+function verneedSize(
+    tablePtr: NativePointer,
+    count: number,
+): number {
+    // Walk Elf_Verneed chain to compute total size in bytes.
+    // Each Elf_Verneed: u16 vn_version, u16 vn_cnt, u32 vn_file,
+    //                   u32 vn_aux, u32 vn_next  (16 bytes)
+    // Each Elf_Vernaux: 16 bytes; vn_cnt of them per Verneed entry.
+    let offset = 0;
+    for (let i = 0; i < count; i++) {
+        const cur = tablePtr.add(offset);
+        const vnCnt = cur.add(2).readU16();
+        const vnAux = cur.add(8).readU32();
+        const vnNext = cur.add(12).readU32();
+        if (vnNext === 0 || i === count - 1) {
+            return offset + Math.max(vnAux + (vnCnt * 16), 16);
+        }
+        offset += vnNext;
+        if (offset > 0x10000000) {
+            break; // safety cap
+        }
+    }
+    return offset;
+}
+
+function resetDynamicEntries() {
+    for (const k of Object.keys(dynamicEntries)) {
+        dynamicEntries[k].value = null;
+    }
+}
+
 function parseSectionHeaders(
     baseAddr: NativePointer,
     PTDynamicAddr: NativePointer,
     PTDynamicSize: any,
     segments: any,
 ) {
+    resetDynamicEntries();
     let cursor = PTDynamicAddr;
     const sections = [];
+    const end = PTDynamicAddr.add(PTDynamicSize);
+    // .dynamic itself
+    sections.push(
+        new Section(
+            "DYNAMIC",
+            PTDynamicAddr,
+            typeof PTDynamicSize === "number"
+                ? PTDynamicSize
+                : Number(PTDynamicSize),
+            permOf(segments, PTDynamicAddr),
+        ),
+    );
 
-    while (cursor < PTDynamicAddr.add(PTDynamicSize)) {
+    while (cursor.compare(end) < 0) {
         const dTag = cursor.readU64().toNumber();
+        if (dTag === 0) {
+            break; // DT_NULL terminator
+        }
         if (dynamicEntries[dTag] !== undefined) {
             if (dynamicEntries[dTag].type === "val") {
                 dynamicEntries[dTag].value = cursor.add(8).readU64();
-            } else {
+            } else if (dynamicEntries[dTag].type === "ptr") {
                 dynamicEntries[dTag].value = baseAddr.add(
                     cursor.add(8).readPointer(),
                 );
@@ -103,43 +185,60 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_HASH].name,
                 hashTablePtr,
                 (nbucket * 4) + (nchain * 4) + 8,
-                JSON.stringify(
-                    utils.belongsTo(segments, hashTablePtr).map((x: any) =>
-                        x.perm
-                    ),
-                ),
+                permOf(segments, hashTablePtr),
+            ),
+        );
+    }
+    // GNU_HASH Section (modern ELFs use this instead of DT_HASH)
+    const gnuHashPtr = dynamicEntries[dynamicTags.DT_GNU_HASH].value;
+    if (gnuHashPtr) {
+        const symCount = gnuHashSymbolCount(gnuHashPtr);
+        if (nchain === 0) {
+            nchain = symCount;
+        }
+        const nbuckets = gnuHashPtr.readU32();
+        const bloomSize = gnuHashPtr.add(8).readU32();
+        // header(16) + bloom(bloomSize*8) + buckets(nbuckets*4) + chain(symCount-symoffset)*4
+        const symoffset = gnuHashPtr.add(4).readU32();
+        const chainEntries = symCount > symoffset ? symCount - symoffset : 0;
+        const gnuHashSize = 16 + (bloomSize * 8) + (nbuckets * 4) +
+            (chainEntries * 4);
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_GNU_HASH].name,
+                gnuHashPtr,
+                gnuHashSize,
+                permOf(segments, gnuHashPtr),
             ),
         );
     }
     // STRTAB Section
-    sections.push(
-        new Section(
-            dynamicEntries[dynamicTags.DT_STRTAB].name,
-            dynamicEntries[dynamicTags.DT_STRTAB].value,
-            dynamicEntries[dynamicTags.DT_STRSZ].value,
-            JSON.stringify(
-                utils.belongsTo(
-                    segments,
-                    dynamicEntries[dynamicTags.DT_STRTAB].value,
-                ).map((x: any) => x.perm),
+    if (dynamicEntries[dynamicTags.DT_STRTAB].value !== null) {
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_STRTAB].name,
+                dynamicEntries[dynamicTags.DT_STRTAB].value,
+                dynamicEntries[dynamicTags.DT_STRSZ].value,
+                permOf(segments, dynamicEntries[dynamicTags.DT_STRTAB].value),
             ),
-        ),
-    );
+        );
+    }
     // DYNSYM Section
-    const symTabSize = nchain * dynamicEntries[dynamicTags.DT_SYMENT].value;
-    sections.push(
-        new Section(
-            dynamicEntries[dynamicTags.DT_SYMTAB].name,
-            dynamicEntries[dynamicTags.DT_SYMTAB].value,
-            symTabSize,
-            JSON.stringify(
-                utils.belongsTo(
-                    segments,
-                    dynamicEntries[dynamicTags.DT_SYMTAB].value,
-                ).map((x: any) => x.perm),
+    if (
+        dynamicEntries[dynamicTags.DT_SYMTAB].value !== null &&
+        dynamicEntries[dynamicTags.DT_SYMENT].value !== null && nchain > 0
+    ) {
+        const symTabSize = nchain *
+            dynamicEntries[dynamicTags.DT_SYMENT].value;
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_SYMTAB].name,
+                dynamicEntries[dynamicTags.DT_SYMTAB].value,
+                symTabSize,
+                permOf(segments, dynamicEntries[dynamicTags.DT_SYMTAB].value),
             ),
-        ),
-    );
+        );
+    }
     // DT_PREINIT_ARRAY Section (Optional)
     if (dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value !== null) {
         sections.push(
@@ -147,11 +246,9 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].name,
                 dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
                 dynamicEntries[dynamicTags.DT_PREINIT_ARRAYSZ].value,
-                JSON.stringify(
-                    utils.belongsTo(
-                        segments,
-                        dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
-                    ).map((x: any) => x.perm),
+                permOf(
+                    segments,
+                    dynamicEntries[dynamicTags.DT_PREINIT_ARRAY].value,
                 ),
             ),
         );
@@ -163,11 +260,9 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_INIT_ARRAY].name,
                 dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
                 dynamicEntries[dynamicTags.DT_INIT_ARRAYSZ].value,
-                JSON.stringify(
-                    utils.belongsTo(
-                        segments,
-                        dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
-                    ).map((x: any) => x.perm),
+                permOf(
+                    segments,
+                    dynamicEntries[dynamicTags.DT_INIT_ARRAY].value,
                 ),
             ),
         );
@@ -179,11 +274,9 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_FINI_ARRAY].name,
                 dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
                 dynamicEntries[dynamicTags.DT_FINI_ARRAYSZ].value,
-                JSON.stringify(
-                    utils.belongsTo(
-                        segments,
-                        dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
-                    ).map((x: any) => x.perm),
+                permOf(
+                    segments,
+                    dynamicEntries[dynamicTags.DT_FINI_ARRAY].value,
                 ),
             ),
         );
@@ -195,12 +288,7 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_REL].name,
                 dynamicEntries[dynamicTags.DT_REL].value,
                 dynamicEntries[dynamicTags.DT_RELSZ].value,
-                JSON.stringify(
-                    utils.belongsTo(
-                        segments,
-                        dynamicEntries[dynamicTags.DT_REL].value,
-                    ).map((x: any) => x.perm),
-                ),
+                permOf(segments, dynamicEntries[dynamicTags.DT_REL].value),
             ),
         );
     }
@@ -211,12 +299,72 @@ function parseSectionHeaders(
                 dynamicEntries[dynamicTags.DT_RELA].name,
                 dynamicEntries[dynamicTags.DT_RELA].value,
                 dynamicEntries[dynamicTags.DT_RELASZ].value,
-                JSON.stringify(
-                    utils.belongsTo(
-                        segments,
-                        dynamicEntries[dynamicTags.DT_RELA].value,
-                    ).map((x: any) => x.perm),
-                ),
+                permOf(segments, dynamicEntries[dynamicTags.DT_RELA].value),
+            ),
+        );
+    }
+    // DT_JMPREL Section (.rela.plt / .rel.plt) (Optional)
+    if (
+        dynamicEntries[dynamicTags.DT_JMPREL].value !== null &&
+        dynamicEntries[dynamicTags.DT_PLTRELSZ].value !== null
+    ) {
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_JMPREL].name,
+                dynamicEntries[dynamicTags.DT_JMPREL].value,
+                dynamicEntries[dynamicTags.DT_PLTRELSZ].value,
+                permOf(segments, dynamicEntries[dynamicTags.DT_JMPREL].value),
+            ),
+        );
+    }
+    // DT_VERSYM Section (Optional)
+    if (
+        dynamicEntries[dynamicTags.DT_VERSYM].value !== null && nchain > 0
+    ) {
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_VERSYM].name,
+                dynamicEntries[dynamicTags.DT_VERSYM].value,
+                nchain * 2,
+                permOf(segments, dynamicEntries[dynamicTags.DT_VERSYM].value),
+            ),
+        );
+    }
+    // DT_VERNEED Section (.gnu.version_r) (Optional)
+    if (
+        dynamicEntries[dynamicTags.DT_VERNEED].value !== null &&
+        dynamicEntries[dynamicTags.DT_VERNEEDNUM].value !== null
+    ) {
+        const vnPtr = dynamicEntries[dynamicTags.DT_VERNEED].value;
+        const vnCount = Number(
+            dynamicEntries[dynamicTags.DT_VERNEEDNUM].value,
+        );
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_VERNEED].name,
+                vnPtr,
+                verneedSize(vnPtr, vnCount),
+                permOf(segments, vnPtr),
+            ),
+        );
+    }
+    // DT_VERDEF Section (.gnu.version_d) (Optional)
+    if (
+        dynamicEntries[dynamicTags.DT_VERDEF].value !== null &&
+        dynamicEntries[dynamicTags.DT_VERDEFNUM].value !== null
+    ) {
+        // Elf_Verdef has the same vd_next/vd_aux/vd_cnt layout shape as
+        // Verneed (16 bytes header, 16 bytes per Verdaux). Reuse the walker.
+        const vdPtr = dynamicEntries[dynamicTags.DT_VERDEF].value;
+        const vdCount = Number(
+            dynamicEntries[dynamicTags.DT_VERDEFNUM].value,
+        );
+        sections.push(
+            new Section(
+                dynamicEntries[dynamicTags.DT_VERDEF].name,
+                vdPtr,
+                verneedSize(vdPtr, vdCount),
+                permOf(segments, vdPtr),
             ),
         );
     }
@@ -242,7 +390,7 @@ function parseSegmentHeaders(
             align: cursor.add(0x30).readPointer(),
         };
         cursor = cursor.add(entrySize);
-        if (segment.name !== undefined) {
+        if (segment.name !== null) {
             segments.push(segment);
         }
     }
@@ -267,6 +415,14 @@ function parseHeaderType(value: number): string | null {
             return "PT_PHDR";
         case 7:
             return "PT_TLS";
+        case 0x6474e550:
+            return "PT_GNU_EH_FRAME";
+        case 0x6474e551:
+            return "PT_GNU_STACK";
+        case 0x6474e552:
+            return "PT_GNU_RELRO";
+        case 0x6474e553:
+            return "PT_GNU_PROPERTY";
         case 0x60000000:
             return "PT_LOOS";
         case 0x6FFFFFFF:
