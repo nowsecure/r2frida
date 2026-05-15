@@ -2177,7 +2177,11 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 	guint i;
 	GEnumClass *type_enum;
 
+#if R2_ABIVERSION >= 100
+	RTable *table = r_table_new ("print_list", NULL);
+#else
 	RTable *table = r_table_new ("print_list");
+#endif
 
 	switch (type) {
 	case APPLICATIONS:
