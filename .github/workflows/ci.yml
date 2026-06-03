@@ -41,9 +41,9 @@ jobs:
       run: make -C test
     - name: Packaging
       run: make -C dist/debian USE_FRIDA_TOOLS=1
-  build-linux22:
+  build-linux26:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v6
@@ -64,9 +64,9 @@ jobs:
     - name: Pub
       uses: actions/upload-artifact@v7
       with:
-        name: build-linux22
+        name: build-linux26
         path: dist/debian/*.deb
-  build-linux22-precompiled:
+  build-linux26-precompiled:
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
@@ -174,7 +174,7 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag }}
     needs:
     - build-alpine
-    - build-linux22
+    - build-linux26
     - build-linux24
     - build-macos
     - build-windows
