@@ -9,7 +9,7 @@ jobs:
   build-alpine:
     runs-on: ubuntu-24.04
     container:
-      image: alpine:3.23
+      image: alpine:3.24
     steps:
     - uses: actions/checkout@v6
     - name: Install Alpine dependencies
