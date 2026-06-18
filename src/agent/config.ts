@@ -40,10 +40,13 @@ const config: any[string] = {
     "hook.logs": true,
     "hook.output": "simple",
     "hook.usecmd": "",
+    "cmd.bps": "",
+    "cmd.hitinfo": true,
     "file.log": "",
     "symbols.module": "",
     "symbols.unredact": Process.platform === "darwin",
     "dbg.hwbp": "true",
+    "dbg.wpsize": "1",
 };
 
 const configHelp: any[string] = {
@@ -65,9 +68,12 @@ const configHelp: any[string] = {
     "hook.usecmd": _configHelpHookUseCmd,
     "hook.logs": _configHelpHookLogs,
     "hook.output": _configHelpHookOutput,
+    "cmd.bps": _configHelpCmdBps,
+    "cmd.hitinfo": _configHelpCmdHitInfo,
     "file.log": _configHelpFileLog,
     "symbols.module": _configHelpSymbolsModule,
     "symbols.unredact": _configHelpSymbolsUnredact,
+    "dbg.wpsize": _configHelpDbgWpSize,
 };
 
 const configValidator: any[string] = {
@@ -88,9 +94,12 @@ const configValidator: any[string] = {
     "hook.time": _configValidateBoolean,
     "hook.logs": _configValidateBoolean,
     "hook.output": _configValidateString,
+    "cmd.bps": _configValidateString,
+    "cmd.hitinfo": _configValidateBoolean,
     "file.log": _configValidateString,
     "symbols.module": _configValidateString,
     "symbols.unredact": _configValidateBoolean,
+    "dbg.wpsize": _configValidateWatchpointSize,
 };
 
 function _configHelpWantSwift() {
@@ -183,6 +192,18 @@ function _configHelpHookOutput() {
   `;
 }
 
+function _configHelpCmdBps() {
+    return "Run this r2 command whenever a breakpoint or watchpoint is hit";
+}
+
+function _configHelpCmdHitInfo() {
+    return "Print hit details when a breakpoint or watchpoint stops execution";
+}
+
+function _configHelpDbgWpSize() {
+    return "Default hardware watchpoint size for dbw addr r|w|rw";
+}
+
 function _configHelpHookBacktrace() {
     return `Append the backtrace on each trace hook registered with :dt commands
 true | false    to enable or disable the option`;
@@ -227,6 +248,10 @@ function _configValidateNumber(val: any): boolean {
 
 function _configValidateBoolean(val: any): boolean {
     return _isTrue(val) || _isFalse(val);
+}
+
+function _configValidateWatchpointSize(val: any): boolean {
+    return [1, 2, 4, 8].indexOf(Number(val)) !== -1;
 }
 
 function _isTrue(x: any): boolean {

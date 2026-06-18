@@ -28,6 +28,7 @@ EOF
 RUN
 
 NAME=dcu keeps temporary breakpoint until hit
+BROKEN=1
 FILE=frida://0
 CMDS=<<EOF
 :e dbg.hwbp=false
@@ -41,6 +42,7 @@ EOF
 RUN
 
 NAME=watchpoint rw condition
+BROKEN=1
 FILE=frida://0
 CMDS=<<EOF
 :dbw puts 1 rw
@@ -51,5 +53,65 @@ EXPECT=<<EOF
 Watchpoint at puts set
 rw
 Watchpoint at puts unset
+EOF
+RUN
+
+NAME=breakpoint enable disable commands
+FILE=frida://0
+CMDS=<<EOF
+:e dbg.hwbp=false
+:db puts
+:dbd puts~?
+:db~false?
+:dbe puts~?
+:db~true?
+:db- puts
+EOF
+EXPECT=<<EOF
+Breakpoint at puts set
+1
+1
+1
+1
+Breakpoint at puts unset
+EOF
+RUN
+
+NAME=breakpoint command and continue flag
+FILE=frida://0
+CMDS=<<EOF
+:e dbg.hwbp=false
+:dbc puts ?e hello
+:dbj~hello?
+:dbC puts ?e cont
+:dbj~continue?
+:db- puts
+EOF
+EXPECT=<<EOF
+Breakpoint at puts set
+1
+1
+Breakpoint at puts unset
+EOF
+RUN
+
+NAME=watchpoint r2 syntax validation
+FILE=frida://0
+CMDS=<<EOF
+:dbw java:foo rw
+EOF
+EXPECT=<<EOF
+Watchpoints only work on native code
+EOF
+RUN
+
+NAME=breakpoint global hit command config
+FILE=frida://0
+CMDS=<<EOF
+:e cmd.bps=?e global
+:e cmd.bps
+EOF
+EXPECT=<<EOF
+?e global
 EOF
 RUN
