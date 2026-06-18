@@ -6,6 +6,10 @@ const breakpoints = new Map<string, BreakpointData>();
 let suspended = false;
 export let currentThreadContext: CpuContext | null = null;
 
+type BreakpointSetOptions = {
+    temporary?: boolean;
+};
+
 initExceptionHandler();
 
 /**
@@ -83,6 +87,20 @@ export function initExceptionHandler(): void {
                 });
                 op.wait();
             } while (state === "stopped");
+            if (bp.temporary) {
+                bp.removeAfterStep = true;
+            }
+        }
+        if (bp.removeAfterStep && !hasBreakpointHit) {
+            _breakpointRemove(bp);
+            return true;
+        }
+        if (
+            bp.removeAfterStep &&
+            !(bp instanceof SoftwareBreakpointData)
+        ) {
+            _breakpointRemove(bp);
+            return true;
         }
         let afterBp = null;
         if (bp instanceof WatchpointData && addressHit) {
@@ -177,13 +195,8 @@ export function unsetBreakpoint(args: string[]): void {
  * @param args - This parameter is currently not used.
  */
 export function breakpointUnsetAll(_: string[]): void {
-    for (const [address, bp] of breakpoints.entries()) {
-        if (
-            bp instanceof HardwareBreakpointData ||
-            bp instanceof SoftwareBreakpointData
-        ) {
-            unsetBreakpoint([address]);
-        }
+    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
+        _breakpointRemove(bp);
     }
 }
 
@@ -213,9 +226,8 @@ export function setBreakpointContinueUntil(args: string[]): void {
         const addr = args[0].substring(1);
         unsetBreakpoint([addr]);
     } else {
-        if (_breakpointSet(args)) {
+        if (_breakpointSet(args, { temporary: true })) {
             breakpointContinue([]);
-            unsetBreakpoint(args);
         }
     }
 }
@@ -227,29 +239,25 @@ export function setBreakpointContinueUntil(args: string[]): void {
  */
 export function breakpointJson(): string {
     const result: any = {};
-    for (const [address, bp] of breakpoints.entries()) {
+    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
         if (bp instanceof SoftwareBreakpointData) {
-            if (bp.patches[0].address.equals(ptr(address))) {
-                const key = bp.patches[0].address.toString();
-                result[key] = {};
-                result[key].type = "sw";
-                result[key].id = bp.id;
-                result[key].enabled = true;
-                if (bp.cmd) {
-                    result[key].cmd = bp.cmd;
-                }
+            const key = bp.address.toString();
+            result[key] = {};
+            result[key].type = "sw";
+            result[key].id = bp.id;
+            result[key].enabled = bp.enabled;
+            if (bp.cmd) {
+                result[key].cmd = bp.cmd;
             }
         } else if (bp instanceof HardwareBreakpointData) {
             const key = bp.address.toString();
             result[key] = {};
             result[key].type = "hw";
             result[key].id = bp.id;
-            result[key].enabled = true;
+            result[key].enabled = bp.enabled;
             if (bp.cmd) {
                 result[key].cmd = bp.cmd;
             }
-        } else {
-            continue;
         }
     }
     return JSON.stringify(result);
@@ -266,7 +274,7 @@ export function breakpointJson(): string {
 export function toggleBreakpoint(args: string[]): void {
     const address = args[0];
     const ptrAddr = getPtr(address);
-    const bp = breakpoints.get(address.toString());
+    const bp = breakpoints.get(ptrAddr.toString());
     if (
         !(bp instanceof HardwareBreakpointData) &&
         !(bp instanceof SoftwareBreakpointData)
@@ -324,18 +332,16 @@ export function unsetWatchpoint(args: string[]): void {
  */
 export function watchpointJson(): string {
     const result: any = {};
-    for (const [_, wp] of breakpoints.entries()) {
-        if (wp instanceof WatchpointData) {
-            const key = wp.address.toString();
-            result[key] = {};
-            result[key].type = "wp";
-            result[key].id = wp.id;
-            result[key].size = wp.size;
-            result[key].condition = wp.condition;
-            result[key].enabled = true;
-            if (wp.cmd) {
-                result[key].cmd = wp.cmd;
-            }
+    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
+        const key = wp.address.toString();
+        result[key] = {};
+        result[key].type = "wp";
+        result[key].id = wp.id;
+        result[key].size = wp.size;
+        result[key].condition = wp.condition;
+        result[key].enabled = wp.enabled;
+        if (wp.cmd) {
+            result[key].cmd = wp.cmd;
         }
     }
     return JSON.stringify(result);
@@ -347,10 +353,8 @@ export function watchpointJson(): string {
  * @param args - This parameter is currently not used.
  */
 export function watchpointUnsetAll(_: string[]): void {
-    for (const [address, wp] of breakpoints.entries()) {
-        if (wp instanceof WatchpointData) {
-            unsetWatchpoint([address]);
-        }
+    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
+        _breakpointRemove(wp);
     }
 }
 
@@ -391,7 +395,7 @@ export function setWatchpointCommand(args: string[]): void {
 export function toggleWatchpoint(args: string[]): void {
     const address = args[0];
     const ptrAddr = getPtr(address);
-    const wp = breakpoints.get(address.toString());
+    const wp = breakpoints.get(ptrAddr.toString());
     if (!(wp instanceof WatchpointData)) {
         console.log(`Watchpoint at ${ptrAddr.toString()} does not exists`);
         return;
@@ -400,26 +404,11 @@ export function toggleWatchpoint(args: string[]): void {
 }
 
 function _watchpointsSize(): number {
-    let result = 0;
-    for (const [_, wp] of breakpoints.entries()) {
-        if (wp instanceof WatchpointData) {
-            result++;
-        }
-    }
-    return result;
+    return _uniqueBreakpoints(_isWatchpoint).length;
 }
 
 function _breakpointsSize(): number {
-    let result = 0;
-    for (const [_, wp] of breakpoints.entries()) {
-        if (
-            wp instanceof HardwareBreakpointData ||
-            wp instanceof SoftwareBreakpointData
-        ) {
-            result++;
-        }
-    }
-    return result;
+    return _uniqueBreakpoints(_isNativeBreakpoint).length;
 }
 
 /**
@@ -442,17 +431,13 @@ function _watchpointSet(args: string[]): boolean {
         console.log("Invalid size");
         return false;
     }
-    const condition = args[2] as HardwareWatchpointCondition;
-    switch (condition) {
-        case "r":
-        case "w":
-            break;
-        default:
-            console.log("Invalid condition");
-            return false;
+    const condition = _normalizeWatchpointCondition(args[2]);
+    if (condition === null) {
+        console.log("Invalid condition");
+        return false;
     }
     const ptrAddr = getPtr(address);
-    if (breakpoints.get(address.toString()) instanceof WatchpointData) {
+    if (breakpoints.get(ptrAddr.toString()) instanceof WatchpointData) {
         console.log(`Watchpoint at ${ptrAddr.toString()} already exists`);
         return false;
     }
@@ -480,8 +465,7 @@ function _watchpointUnset(args: string[]): boolean {
         console.log(`Watchpoint at ${addr} does not exist`);
         return false;
     }
-    wp.unsetWatchpoint();
-    breakpoints.delete(wp.address.toString());
+    _breakpointRemove(wp);
     return true;
 }
 
@@ -495,12 +479,15 @@ function _watchpointList(_: string[]): string {
     if (_watchpointsSize() === 0) {
         return "No watchpoints set";
     }
-    for (const [address, wp] of breakpoints.entries()) {
-        if (wp instanceof WatchpointData) {
-            wps.push(
-                ["(wp)", address, wp.enabled.toString(), wp.cmd].join(" "),
-            );
-        }
+    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
+        wps.push(
+            [
+                "(wp)",
+                wp.address.toString(),
+                wp.enabled.toString(),
+                wp.cmd,
+            ].join(" "),
+        );
     }
     return wps.join("\n");
 }
@@ -539,19 +526,17 @@ function _breakpointList(_: string[]): string {
     if (_breakpointsSize() === 0) {
         return "No breakpoints set";
     }
-    for (const [address, bp] of breakpoints.entries()) {
+    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
         if (bp instanceof SoftwareBreakpointData) {
-            if (bp.patches[0].address.equals(ptr(address))) {
-                bps.push(
-                    ["(sw)", address, bp.enabled.toString(), bp.cmd].join(" "),
-                );
-            }
+            bps.push(
+                ["(sw)", bp.address.toString(), bp.enabled.toString(), bp.cmd]
+                    .join(" "),
+            );
         } else if (bp instanceof HardwareBreakpointData) {
             bps.push(
-                ["(hw)", address, bp.enabled.toString(), bp.cmd].join(" "),
+                ["(hw)", bp.address.toString(), bp.enabled.toString(), bp.cmd]
+                    .join(" "),
             );
-        } else {
-            continue;
         }
     }
     return bps.join("\n");
@@ -571,7 +556,10 @@ function _breakpointList(_: string[]): string {
  * Hardware breakpoints are set if the configuration option "dbg.hwbp" is enabled.
  * Software breakpoints are set by creating code patches at the specified address.
  */
-function _breakpointSet(args: string[]): boolean {
+function _breakpointSet(
+    args: string[],
+    options: BreakpointSetOptions = {},
+): boolean {
     const address = args[0];
     if (address.startsWith("java:")) {
         console.log("Breakpoints only work on native code");
@@ -582,7 +570,7 @@ function _breakpointSet(args: string[]): boolean {
         console.error("Invalid pointer");
         return false;
     }
-    const bp = breakpoints.get(address.toString());
+    const bp = breakpoints.get(ptrAddr.toString());
     if (
         (bp instanceof HardwareBreakpointData) ||
         (bp instanceof SoftwareBreakpointData)
@@ -593,7 +581,14 @@ function _breakpointSet(args: string[]): boolean {
     const id = _breakpointsSize();
     const thread = _currentThread();
     if (config.getBoolean("dbg.hwbp")) {
-        const bp = new HardwareBreakpointData(id, thread, ptrAddr, "");
+        const bp = new HardwareBreakpointData(
+            id,
+            thread,
+            ptrAddr,
+            "",
+            true,
+            options.temporary === true,
+        );
         bp.setBreakpoint();
         breakpoints.set(bp.address.toString(), bp);
     } else {
@@ -602,7 +597,7 @@ function _breakpointSet(args: string[]): boolean {
         const bp = new SoftwareBreakpointData(id, thread, ptrAddr, "", [
             p1,
             p2,
-        ]);
+        ], true, options.temporary === true);
         breakpoints.set(p1.address.toString(), bp);
         breakpoints.set(p2.address.toString(), bp);
         p1.toggle();
@@ -648,17 +643,7 @@ function _breakpointUnset(args: string[]): boolean {
         console.log(`Breakpoint at ${addr} does not exist`);
         return false;
     }
-    if (bp instanceof SoftwareBreakpointData) {
-        for (const p of bp.patches) {
-            p.disable();
-            breakpoints.delete(p.address.toString());
-        }
-    } else if (bp instanceof HardwareBreakpointData) {
-        bp.unsetBreakpoint();
-        breakpoints.delete(bp.address.toString());
-    } else {
-        return false;
-    }
+    _breakpointRemove(bp);
     return true;
 }
 
@@ -673,12 +658,72 @@ function _currentThread(): ThreadDetails {
 }
 
 function isWatchpointEnabled(): boolean {
-    for (const [_, wp] of breakpoints.entries()) {
-        if (wp instanceof WatchpointData && wp.enabled) {
+    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
+        if (wp.enabled) {
             return true;
         }
     }
     return false;
+}
+
+function _normalizeWatchpointCondition(
+    condition: string | undefined,
+): HardwareWatchpointCondition | null {
+    switch (condition) {
+        case "r":
+        case "w":
+        case "rw":
+            return condition;
+        case "wr":
+            return "rw";
+        default:
+            return null;
+    }
+}
+
+function _isNativeBreakpoint(
+    bp: BreakpointData,
+): bp is HardwareBreakpointData | SoftwareBreakpointData {
+    return bp instanceof HardwareBreakpointData ||
+        bp instanceof SoftwareBreakpointData;
+}
+
+function _isWatchpoint(bp: BreakpointData): bp is WatchpointData {
+    return bp instanceof WatchpointData;
+}
+
+function _uniqueBreakpoints<T extends BreakpointData>(
+    predicate: (bp: BreakpointData) => bp is T,
+): T[] {
+    const seen = new Set<BreakpointData>();
+    const result: T[] = [];
+    for (const bp of breakpoints.values()) {
+        if (seen.has(bp) || !predicate(bp)) {
+            continue;
+        }
+        seen.add(bp);
+        result.push(bp);
+    }
+    return result;
+}
+
+function _breakpointRemove(bp: BreakpointData): void {
+    if (bp instanceof SoftwareBreakpointData) {
+        for (const p of bp.patches) {
+            p.disable();
+            breakpoints.delete(p.address.toString());
+        }
+    } else if (bp instanceof HardwareBreakpointData) {
+        if (bp._applied) {
+            bp.unsetBreakpoint();
+        }
+        breakpoints.delete(bp.address.toString());
+    } else if (bp instanceof WatchpointData) {
+        if (bp._applied) {
+            bp.unsetWatchpoint();
+        }
+        breakpoints.delete(bp.address.toString());
+    }
 }
 
 /**
@@ -758,6 +803,8 @@ class BreakpointData {
     cmd: string;
     enabled: boolean;
     thread: ThreadDetails;
+    temporary: boolean;
+    removeAfterStep: boolean;
 
     constructor(
         id: number,
@@ -765,12 +812,15 @@ class BreakpointData {
         address: NativePointer,
         cmd = "",
         enabled = true,
+        temporary = false,
     ) {
         this.id = id;
         this.address = address;
         this.cmd = cmd;
         this.enabled = enabled;
         this.thread = thread;
+        this.temporary = temporary;
+        this.removeAfterStep = false;
     }
 
     enable(): void {
@@ -807,8 +857,9 @@ class WatchpointData extends BreakpointData {
         condition: HardwareWatchpointCondition,
         cmd = "",
         enabled = true,
+        temporary = false,
     ) {
-        super(id, thread, address, cmd, enabled);
+        super(id, thread, address, cmd, enabled, temporary);
         this.size = size;
         this.condition = condition;
         this._applied = false;
@@ -863,8 +914,9 @@ class HardwareBreakpointData extends BreakpointData {
         address: NativePointer,
         cmd = "",
         enabled = true,
+        temporary = false,
     ) {
-        super(id, thread, address, cmd, enabled);
+        super(id, thread, address, cmd, enabled, temporary);
         this._applied = false;
     }
 
@@ -913,8 +965,9 @@ class SoftwareBreakpointData extends BreakpointData {
         cmd = "",
         patches: CodePatch[],
         enabled = true,
+        temporary = false,
     ) {
-        super(id, thread, address, cmd, enabled);
+        super(id, thread, address, cmd, enabled, temporary);
         this.patches = patches;
     }
 
