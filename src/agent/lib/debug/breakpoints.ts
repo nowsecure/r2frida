@@ -1,6 +1,19 @@
 import config from "../../config.js";
 import { getPtr } from "../utils.js";
 import r2 from "../r2.js";
+import {
+    type BreakpointKind,
+    type BreakpointRecord,
+    type WatchpointRecord,
+    breakpointJsonObject,
+    buildBreakpointHitStanza,
+    memoryOperandAddress,
+    operandAccess,
+    parseWatchpointSpec,
+    renderBreakpointR2,
+    renderWatchpointR2,
+    watchpointJsonObject,
+} from "./breakpoint-model.js";
 
 const breakpoints = new Map<string, BreakpointData>();
 let suspended = false;
@@ -15,7 +28,7 @@ type BreakpointCommandOptions = {
     continueAfterHit?: boolean;
 };
 
-type WatchpointSpec = {
+type NativeWatchpointSpec = {
     address: string;
     size: number;
     condition: HardwareWatchpointCondition;
@@ -276,50 +289,11 @@ export function setBreakpointContinueUntil(args: string[]): void {
  * @returns {string} A JSON string representation of the current breakpoints.
  */
 export function breakpointJson(): string {
-    const result: any = {};
-    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
-        if (bp instanceof SoftwareBreakpointData) {
-            const key = bp.address.toString();
-            result[key] = {};
-            result[key].type = "sw";
-            result[key].id = bp.id;
-            result[key].enabled = bp.enabled;
-            result[key].continue = bp.continueAfterHit;
-            result[key].temporary = bp.temporary;
-            if (bp.cmd) {
-                result[key].cmd = bp.cmd;
-            }
-        } else if (bp instanceof HardwareBreakpointData) {
-            const key = bp.address.toString();
-            result[key] = {};
-            result[key].type = "hw";
-            result[key].id = bp.id;
-            result[key].enabled = bp.enabled;
-            result[key].continue = bp.continueAfterHit;
-            result[key].temporary = bp.temporary;
-            if (bp.cmd) {
-                result[key].cmd = bp.cmd;
-            }
-        }
-    }
-    return JSON.stringify(result);
+    return JSON.stringify(breakpointJsonObject(_breakpointRecords()));
 }
 
 export function breakpointR2(_: string[]): string {
-    const lines = [];
-    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
-        lines.push(`:db ${bp.address.toString()}`);
-        if (!bp.enabled) {
-            lines.push(`:dbd ${bp.address.toString()}`);
-        }
-        if (bp.cmd) {
-            lines.push(
-                `:${bp.continueAfterHit ? "dbC" : "dbc"} ` +
-                    `${bp.address.toString()} ${bp.cmd}`,
-            );
-        }
-    }
-    return lines.join("\n");
+    return renderBreakpointR2(_breakpointRecords());
 }
 
 /**
@@ -390,41 +364,11 @@ export function unsetWatchpoint(args: string[]): void {
  * @returns {string} A JSON string representation of the current watchpoints.
  */
 export function watchpointJson(): string {
-    const result: any = {};
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
-        const key = wp.address.toString();
-        result[key] = {};
-        result[key].type = "wp";
-        result[key].id = wp.id;
-        result[key].size = wp.size;
-        result[key].condition = wp.condition;
-        result[key].enabled = wp.enabled;
-        result[key].continue = wp.continueAfterHit;
-        result[key].temporary = wp.temporary;
-        if (wp.cmd) {
-            result[key].cmd = wp.cmd;
-        }
-    }
-    return JSON.stringify(result);
+    return JSON.stringify(watchpointJsonObject(_watchpointRecords()));
 }
 
 export function watchpointR2(_: string[]): string {
-    const lines = [];
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
-        lines.push(
-            `:dbw ${wp.address.toString()} ${wp.size} ${wp.condition}`,
-        );
-        if (!wp.enabled) {
-            lines.push(`:dbwd ${wp.address.toString()}`);
-        }
-        if (wp.cmd) {
-            lines.push(
-                `:${wp.continueAfterHit ? "dbwC" : "dbwc"} ` +
-                    `${wp.address.toString()} ${wp.cmd}`,
-            );
-        }
-    }
-    return lines.join("\n");
+    return renderWatchpointR2(_watchpointRecords());
 }
 
 /**
@@ -509,6 +453,32 @@ function _watchpointsSize(): number {
 
 function _breakpointsSize(): number {
     return _uniqueBreakpoints(_isNativeBreakpoint).length;
+}
+
+function _breakpointRecords(): BreakpointRecord[] {
+    return _uniqueBreakpoints(_isNativeBreakpoint).map((bp) => ({
+        type: bp instanceof HardwareBreakpointData ? "hw" : "sw",
+        id: bp.id,
+        address: bp.address.toString(),
+        enabled: bp.enabled,
+        cmd: bp.cmd,
+        continueAfterHit: bp.continueAfterHit,
+        temporary: bp.temporary,
+    }));
+}
+
+function _watchpointRecords(): WatchpointRecord[] {
+    return _uniqueBreakpoints(_isWatchpoint).map((wp) => ({
+        type: "wp",
+        id: wp.id,
+        address: wp.address.toString(),
+        size: wp.size,
+        condition: wp.condition as any,
+        enabled: wp.enabled,
+        cmd: wp.cmd,
+        continueAfterHit: wp.continueAfterHit,
+        temporary: wp.temporary,
+    }));
 }
 
 /**
@@ -808,47 +778,20 @@ function _setBreakpointDataEnabled(
     }
 }
 
-function _parseWatchpointSpec(args: string[]): WatchpointSpec | null {
-    if (args.length < 2) {
-        console.log("Usage: dbw [addr] ([size]) [r|w|rw]");
+function _parseWatchpointSpec(args: string[]): NativeWatchpointSpec | null {
+    const parsed = parseWatchpointSpec(
+        args,
+        Number(config.getNumber("dbg.wpsize")),
+    );
+    if (!parsed.ok) {
+        console.log(parsed.message);
         return null;
     }
-    const address = args[0];
-    let size = Number(config.getNumber("dbg.wpsize"));
-    let conditionArg = args[1];
-    if (args.length > 2) {
-        size = Number(args[1]);
-        conditionArg = args[2];
-    }
-    if (!Number.isInteger(size) || !_isWatchpointSize(size)) {
-        console.log("Invalid size");
-        return null;
-    }
-    const condition = _normalizeWatchpointCondition(conditionArg);
-    if (condition === null) {
-        console.log("Invalid condition");
-        return null;
-    }
-    return { address, size, condition };
-}
-
-function _isWatchpointSize(size: number): boolean {
-    return [1, 2, 4, 8].indexOf(size) !== -1;
-}
-
-function _normalizeWatchpointCondition(
-    condition: string | undefined,
-): HardwareWatchpointCondition | null {
-    switch (condition) {
-        case "r":
-        case "w":
-        case "rw":
-            return condition;
-        case "wr":
-            return "rw";
-        default:
-            return null;
-    }
+    return {
+        address: parsed.spec.address,
+        size: parsed.spec.size,
+        condition: parsed.spec.condition as HardwareWatchpointCondition,
+    };
 }
 
 function _isNativeBreakpoint(
@@ -880,28 +823,20 @@ function _memoryOperandAddress(
     operand: any,
     context: CpuContext,
 ): NativePointer | null {
-    const value = operand.value;
-    if (value === undefined) {
-        return null;
-    }
     const registers = context as any;
-    let result = ptr("0");
-    let haveRegister = false;
-    if (value.base !== undefined && registers[value.base] !== undefined) {
-        result = result.add(registers[value.base]);
-        haveRegister = true;
+    const value = operand.value;
+    const registerValues: Record<string, string> = {};
+    if (value?.base !== undefined && registers[value.base] !== undefined) {
+        registerValues[value.base] = registers[value.base].toString();
     }
-    if (value.index !== undefined && registers[value.index] !== undefined) {
-        const indexValue = registers[value.index] as NativePointer;
-        const scale = typeof value.scale === "number" ? value.scale : 1;
-        result = result.add(indexValue.toInt32() * scale);
-        haveRegister = true;
+    if (value?.index !== undefined && registers[value.index] !== undefined) {
+        registerValues[value.index] = registers[value.index].toString();
     }
-    if (!haveRegister) {
+    const result = memoryOperandAddress(operand, registerValues);
+    if (result === null) {
         return null;
     }
-    const disp = typeof value.disp === "number" ? value.disp : 0;
-    return result.add(disp);
+    return ptr(result);
 }
 
 function _breakpointHitStanza(
@@ -911,46 +846,28 @@ function _breakpointHitStanza(
     operand: any,
     exceptionType: string,
 ): any {
-    const stanza: any = {
-        cmd: _breakpointHitCommand(bp),
-        continue: bp.continueAfterHit,
+    return buildBreakpointHitStanza({
+        cmd: bp.cmd,
+        globalCommand: config.getString("cmd.bps"),
+        continueAfterHit: bp.continueAfterHit,
         kind: _breakpointKind(bp),
         id: bp.id,
         address: bp.address.toString(),
         instruction: instruction.toString(),
         threadId: Process.getCurrentThreadId(),
         exception: exceptionType,
-    };
-    if (bp instanceof WatchpointData) {
-        stanza.hit = hitAddress !== null
-            ? hitAddress.toString()
-            : bp.address.toString();
-        stanza.size = bp.size;
-        stanza.condition = bp.condition;
-        const access = _operandAccess(operand);
-        if (access !== null) {
-            stanza.access = access;
-        }
-    }
-    if (config.getBoolean("cmd.hitinfo") || config.getBoolean("hook.verbose")) {
-        stanza.message = _breakpointHitMessage(stanza);
-    }
-    return stanza;
+        includeMessage: config.getBoolean("cmd.hitinfo") ||
+            config.getBoolean("hook.verbose"),
+        hit: hitAddress !== null ? hitAddress.toString() : undefined,
+        size: bp instanceof WatchpointData ? bp.size : undefined,
+        condition: bp instanceof WatchpointData
+            ? bp.condition as any
+            : undefined,
+        access: operandAccess(operand),
+    });
 }
 
-function _breakpointHitCommand(bp: BreakpointData): string {
-    const commands = [];
-    if (bp.cmd) {
-        commands.push(bp.cmd);
-    }
-    const globalCommand = config.getString("cmd.bps");
-    if (globalCommand) {
-        commands.push(globalCommand);
-    }
-    return commands.join(";");
-}
-
-function _breakpointKind(bp: BreakpointData): string {
+function _breakpointKind(bp: BreakpointData): BreakpointKind {
     if (bp instanceof WatchpointData) {
         return "wp";
     }
@@ -958,33 +875,6 @@ function _breakpointKind(bp: BreakpointData): string {
         return "hw";
     }
     return "sw";
-}
-
-function _breakpointHitMessage(stanza: any): string {
-    if (stanza.kind === "wp") {
-        const access = stanza.access ? ` ${stanza.access}` : "";
-        return `Watchpoint ${stanza.address}${access} hit at ${stanza.hit} ` +
-            `by ${stanza.instruction} thread ${stanza.threadId}`;
-    }
-    return `Breakpoint ${stanza.address} hit at ${stanza.instruction} ` +
-        `thread ${stanza.threadId}`;
-}
-
-function _operandAccess(operand: any): HardwareWatchpointCondition | null {
-    const access = operand && (operand.access || operand.value?.access);
-    switch (access) {
-        case "read":
-        case "r":
-            return "r";
-        case "write":
-        case "w":
-            return "w";
-        case "read-write":
-        case "rw":
-            return "rw";
-        default:
-            return null;
-    }
 }
 
 function _uniqueBreakpoints<T extends BreakpointData>(

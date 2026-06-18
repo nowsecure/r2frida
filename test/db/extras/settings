@@ -30,9 +30,12 @@ EXPECT=<<EOF
 :e hook.logs=true
 :e hook.output=simple
 :e hook.usecmd=
+:e cmd.bps=
+:e cmd.hitinfo=true
 :e file.log=
 :e symbols.module=
 :e dbg.hwbp=true
+:e dbg.wpsize=1
 false
 open
 passwd
