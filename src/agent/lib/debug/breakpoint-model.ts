@@ -67,17 +67,6 @@ export type BreakpointHitStanza = {
     message?: string;
 };
 
-export type MemoryOperand = {
-    value?: {
-        base?: string;
-        index?: string;
-        scale?: number;
-        disp?: number;
-    };
-};
-
-export type RegisterValues = Record<string, string | number | bigint>;
-
 export function parseWatchpointSpec(
     args: string[],
     defaultSize: number,
@@ -95,7 +84,7 @@ export function parseWatchpointSpec(
         size = Number(args[1]);
         conditionArg = args[2];
     }
-    if (!Number.isInteger(size) || !isWatchpointSize(size)) {
+    if (!Number.isInteger(size) || [1, 2, 4, 8].indexOf(size) === -1) {
         return { ok: false, message: "Invalid size" };
     }
     const condition = normalizeWatchpointCondition(conditionArg);
@@ -103,10 +92,6 @@ export function parseWatchpointSpec(
         return { ok: false, message: "Invalid condition" };
     }
     return { ok: true, spec: { address, size, condition } };
-}
-
-export function isWatchpointSize(size: number): boolean {
-    return [1, 2, 4, 8].indexOf(size) !== -1;
 }
 
 export function normalizeWatchpointCondition(
@@ -127,7 +112,8 @@ export function normalizeWatchpointCondition(
 export function renderBreakpointR2(records: BreakpointRecord[]): string {
     const lines = [];
     for (const bp of records) {
-        lines.push(`:db ${bp.address}`);
+        // set dbg.hwbp so replay recreates the same sw/hw breakpoint type
+        lines.push(`:e dbg.hwbp=${bp.type === "hw"}`, `:db ${bp.address}`);
         if (!bp.enabled) {
             lines.push(`:dbd ${bp.address}`);
         }
@@ -260,70 +246,4 @@ export function operandAccess(operand: any): WatchpointAccess | null {
         default:
             return null;
     }
-}
-
-export function memoryOperandAddress(
-    operand: MemoryOperand,
-    registers: RegisterValues,
-): string | null {
-    const value = operand.value;
-    if (value === undefined) {
-        return null;
-    }
-    let result = 0n;
-    let haveRegister = false;
-    if (value.base !== undefined && registers[value.base] !== undefined) {
-        result += registerToBigInt(registers[value.base]);
-        haveRegister = true;
-    }
-    if (value.index !== undefined && registers[value.index] !== undefined) {
-        const index = registerToBigInt(registers[value.index]);
-        const scale = typeof value.scale === "number" ? BigInt(value.scale) : 1n;
-        result += index * scale;
-        haveRegister = true;
-    }
-    if (!haveRegister) {
-        return null;
-    }
-    const disp = typeof value.disp === "number" ? BigInt(value.disp) : 0n;
-    return toHex(result + disp);
-}
-
-export function watchpointContains(
-    watchpointAddress: string,
-    size: number,
-    address: string,
-): boolean {
-    const start = pointerToBigInt(watchpointAddress);
-    const hit = pointerToBigInt(address);
-    if (start === null || hit === null) {
-        return false;
-    }
-    const end = start + BigInt(size);
-    return hit >= start && hit < end;
-}
-
-export function pointerToBigInt(value: string): bigint | null {
-    try {
-        return BigInt(value);
-    } catch (_) {
-        return null;
-    }
-}
-
-function registerToBigInt(value: string | number | bigint): bigint {
-    if (typeof value === "bigint") {
-        return value;
-    }
-    if (typeof value === "number") {
-        return BigInt(value);
-    }
-    return BigInt(value);
-}
-
-function toHex(value: bigint): string {
-    if (value < 0) {
-        return `-0x${(-value).toString(16)}`;
-    }
-    return `0x${value.toString(16)}`;
 }

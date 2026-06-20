@@ -197,7 +197,7 @@ function _configHelpCmdBps() {
 }
 
 function _configHelpCmdHitInfo() {
-    return "Print hit details when a breakpoint or watchpoint stops execution";
+    return "Print a hit-details line on every breakpoint/watchpoint hit (enabled by default, set to false to keep hits silent)";
 }
 
 function _configHelpDbgWpSize() {

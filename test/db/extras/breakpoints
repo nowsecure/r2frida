@@ -28,7 +28,6 @@ EOF
 RUN
 
 NAME=dcu keeps temporary breakpoint until hit
-BROKEN=1
 FILE=frida://0
 CMDS=<<EOF
 :e dbg.hwbp=false
@@ -41,17 +40,20 @@ Continue thread(s).
 EOF
 RUN
 
+# BROKEN: frida://0 has no debug registers, so dbw cannot install a real
+# hardware watchpoint on this target (the assertions below are correct on a
+# device that supports them)
 NAME=watchpoint rw condition
 BROKEN=1
 FILE=frida://0
 CMDS=<<EOF
 :dbw puts 1 rw
-:dbwj~{condition}
+:dbw~rw?
 :dbw- puts
 EOF
 EXPECT=<<EOF
 Watchpoint at puts set
-rw
+1
 Watchpoint at puts unset
 EOF
 RUN
@@ -82,14 +84,16 @@ FILE=frida://0
 CMDS=<<EOF
 :e dbg.hwbp=false
 :dbc puts ?e hello
-:dbj~hello?
+:db~hello?
+:dbj~continue":true?
 :dbC puts ?e cont
-:dbj~continue?
+:dbj~continue":true?
 :db- puts
 EOF
 EXPECT=<<EOF
 Breakpoint at puts set
 1
+0
 1
 Breakpoint at puts unset
 EOF
