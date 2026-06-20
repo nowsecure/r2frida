@@ -33,10 +33,12 @@ CMDS=<<EOF
 :e dbg.hwbp=false
 :dcu puts
 :db~(sw)?
+:db- puts
 EOF
 EXPECT=<<EOF
 Continue thread(s).
 1
+Breakpoint at puts unset
 EOF
 RUN
 
