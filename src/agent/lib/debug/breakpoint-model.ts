@@ -118,8 +118,10 @@ export function renderBreakpointR2(records: BreakpointRecord[]): string {
             lines.push(`:dbd ${bp.address}`);
         }
         if (bp.cmd) {
-            lines.push(`:${bp.continueAfterHit ? "dbC" : "dbc"} ` +
-                `${bp.address} ${bp.cmd}`);
+            lines.push(
+                `:${bp.continueAfterHit ? "dbC" : "dbc"} ` +
+                    `${bp.address} ${bp.cmd}`,
+            );
         }
     }
     return lines.join("\n");
@@ -133,8 +135,10 @@ export function renderWatchpointR2(records: WatchpointRecord[]): string {
             lines.push(`:dbwd ${wp.address}`);
         }
         if (wp.cmd) {
-            lines.push(`:${wp.continueAfterHit ? "dbwC" : "dbwc"} ` +
-                `${wp.address} ${wp.cmd}`);
+            lines.push(
+                `:${wp.continueAfterHit ? "dbwC" : "dbwc"} ` +
+                    `${wp.address} ${wp.cmd}`,
+            );
         }
     }
     return lines.join("\n");

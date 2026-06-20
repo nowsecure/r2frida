@@ -55,8 +55,7 @@ static bool esmarchive_extract(FILE *in, const char *outdir, const char *name, s
 	if (size > 0) {
 		ut8 *buf = malloc (size);
 		if (buf) {
-			ok = (fread (buf, 1, size, in) == size)
-				&& r_file_dump (fullpath, buf, size, false);
+			ok = (fread (buf, 1, size, in) == size) && r_file_dump (fullpath, buf, size, false);
 			free (buf);
 		} else {
 			ok = false;

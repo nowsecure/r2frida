@@ -2,18 +2,18 @@ import config from "../../config.js";
 import { getPtr } from "../utils.js";
 import r2 from "../r2.js";
 import {
+    breakpointJsonObject,
     type BreakpointKind,
     type BreakpointRecord,
-    type WatchpointCondition,
-    type WatchpointRecord,
-    type WatchpointSpec,
-    breakpointJsonObject,
     buildBreakpointHitStanza,
     operandAccess,
     parseWatchpointSpec,
     renderBreakpointR2,
     renderWatchpointR2,
+    type WatchpointCondition,
     watchpointJsonObject,
+    type WatchpointRecord,
+    type WatchpointSpec,
 } from "./breakpoint-model.js";
 
 const breakpoints = new Map<string, BreakpointData>();
@@ -146,15 +146,19 @@ export function initExceptionHandler(): void {
  *
  * @param {string[]} args - The first argument is the address as string.
  */
-export function setBreakpoint(args: string[]): void {
+export function setBreakpoint(args: string[]): string | void {
     if (args.length === 0) {
-        console.log(_breakpointList([]));
+        return _breakpointList([]);
     } else if (args[0].startsWith("-")) {
         const addr = args[0].substring(1);
-        unsetBreakpoint([addr]);
+        return unsetBreakpoint([addr]);
     } else {
-        if (_breakpointSet(args)) {
-            console.log(`Breakpoint at ${args[0]} set`);
+        const result = _breakpointSet(args);
+        if (result === true) {
+            return `Breakpoint at ${args[0]} set`;
+        }
+        if (typeof result === "string") {
+            return result;
         }
     }
 }
@@ -166,29 +170,33 @@ export function setBreakpoint(args: string[]): void {
  *
  * @param {string[]} args - The arguments array containing the address of the breakpoint and the command to run.
  */
-export function setBreakpointCommand(args: string[]): void {
-    _setBreakpointCommand(args);
+export function setBreakpointCommand(args: string[]): string | void {
+    return _setBreakpointCommand(args);
 }
 
-export function setBreakpointCommandContinue(args: string[]): void {
-    _setBreakpointCommand(args, true);
+export function setBreakpointCommandContinue(args: string[]): string | void {
+    return _setBreakpointCommand(args, true);
 }
 
-function _setBreakpointCommand(args: string[], continueAfterHit = false): void {
+function _setBreakpointCommand(
+    args: string[],
+    continueAfterHit = false,
+): string | void {
     if (args.length < 2) {
-        console.error(
-            "Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]",
-        );
-        return;
+        return "Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]";
     }
     const address = getPtr(args[0]);
     let bp = breakpoints.get(address.toString());
+    let message: string | undefined;
     if (
         !(bp instanceof HardwareBreakpointData) &&
         !(bp instanceof SoftwareBreakpointData)
     ) {
-        if (_breakpointSet(args)) {
-            console.log(`Breakpoint at ${args[0]} set`);
+        const result = _breakpointSet(args);
+        if (result === true) {
+            message = `Breakpoint at ${args[0]} set`;
+        } else if (typeof result === "string") {
+            return result;
         }
     }
     const command = args.slice(1).join(" ");
@@ -197,6 +205,7 @@ function _setBreakpointCommand(args: string[], continueAfterHit = false): void {
         bp.cmd = command;
         bp.continueAfterHit = continueAfterHit;
     }
+    return message;
 }
 
 /**
@@ -207,15 +216,19 @@ function _setBreakpointCommand(args: string[], continueAfterHit = false): void {
  *
  * @param {string[]} args - The arguments for unsetting the breakpoint.
  */
-export function unsetBreakpoint(args: string[]): void {
+export function unsetBreakpoint(args: string[]): string | void {
     if (args.length === 0) {
-        console.log(_breakpointList([]));
+        return _breakpointList([]);
     } else if (args[0].startsWith("-")) {
         const addr = args[0].substring(1);
-        unsetBreakpoint([addr]);
+        return unsetBreakpoint([addr]);
     } else {
-        if (_breakpointUnset(args)) {
-            console.log(`Breakpoint at ${args[0]} unset`);
+        const result = _breakpointUnset(args);
+        if (result === true) {
+            return `Breakpoint at ${args[0]} unset`;
+        }
+        if (typeof result === "string") {
+            return result;
         }
     }
 }
@@ -231,12 +244,12 @@ export function breakpointUnsetAll(_: string[]): void {
     }
 }
 
-export function breakpointEnable(args: string[]): void {
-    _setBreakpointEnabled(args, true);
+export function breakpointEnable(args: string[]): string | void {
+    return _setBreakpointEnabled(args, true);
 }
 
-export function breakpointDisable(args: string[]): void {
-    _setBreakpointEnabled(args, false);
+export function breakpointDisable(args: string[]): string | void {
+    return _setBreakpointEnabled(args, false);
 }
 
 /**
@@ -260,13 +273,19 @@ export function breakpointContinue(args: string[]): Promise<string> {
  */
 export function setBreakpointContinueUntil(
     args: string[],
-): Promise<string> | void {
+): Promise<string> | string | void {
     if (args.length === 0) {
-        console.log(_breakpointList([]));
+        return _breakpointList([]);
     } else if (args[0].startsWith("-")) {
-        unsetBreakpoint([args[0].substring(1)]);
-    } else if (_breakpointSet(args, true)) {
-        return breakpointContinue([]);
+        return unsetBreakpoint([args[0].substring(1)]);
+    } else {
+        const result = _breakpointSet(args, true, !suspended);
+        if (result === true) {
+            return breakpointContinue([]);
+        }
+        if (typeof result === "string") {
+            return result;
+        }
     }
 }
 
@@ -291,7 +310,7 @@ export function breakpointR2(_: string[]): string {
  * If a breakpoint does not exist at the specified address, it logs a message to the console.
  * Otherwise, it switches the state of the breakpoint.
  */
-export function toggleBreakpoint(args: string[]): void {
+export function toggleBreakpoint(args: string[]): string | void {
     const address = args[0];
     const ptrAddr = getPtr(address);
     const bp = breakpoints.get(ptrAddr.toString());
@@ -299,10 +318,11 @@ export function toggleBreakpoint(args: string[]): void {
         !(bp instanceof HardwareBreakpointData) &&
         !(bp instanceof SoftwareBreakpointData)
     ) {
-        console.log(`Breakpoint at ${ptrAddr.toString()} does not exists`);
-        return;
+        return `Breakpoint at ${ptrAddr.toString()} does not exists`;
     }
-    _breakpointSwitch(breakpoints.get(ptrAddr.toString()) as BreakpointData);
+    return _breakpointSwitch(
+        breakpoints.get(ptrAddr.toString()) as BreakpointData,
+    );
 }
 
 /**
@@ -312,15 +332,19 @@ export function toggleBreakpoint(args: string[]): void {
  *   - If empty, lists all current watchpoints.
  *   - Otherwise, sets a watchpoint at the specified address.
  */
-export function setWatchpoint(args: string[]): void {
+export function setWatchpoint(args: string[]): string | void {
     if (args.length === 0) {
-        console.log(_watchpointList([]));
+        return _watchpointList([]);
     } else if (args[0].startsWith("-")) {
         const addr = args[0].substring(1);
-        unsetWatchpoint([addr]);
+        return unsetWatchpoint([addr]);
     } else {
-        if (_watchpointSet(args)) {
-            console.log(`Watchpoint at ${args[0]} set`);
+        const result = _watchpointSet(args);
+        if (result === true) {
+            return `Watchpoint at ${args[0]} set`;
+        }
+        if (typeof result === "string") {
+            return result;
         }
     }
 }
@@ -332,15 +356,19 @@ export function setWatchpoint(args: string[]): void {
  *   - If empty, lists all current watchpoints.
  *   - Otherwise, unsets a watchpoint at the specified address.
  */
-export function unsetWatchpoint(args: string[]): void {
+export function unsetWatchpoint(args: string[]): string | void {
     if (args.length === 0) {
-        console.log(_watchpointList([]));
+        return _watchpointList([]);
     } else if (args[0].startsWith("-")) {
         const addr = args[0].substring(1);
-        unsetWatchpoint([addr]);
+        return unsetWatchpoint([addr]);
     } else {
-        if (_watchpointUnset(args)) {
-            console.log(`Watchpoint at ${args[0]} unset`);
+        const result = _watchpointUnset(args);
+        if (result === true) {
+            return `Watchpoint at ${args[0]} unset`;
+        }
+        if (typeof result === "string") {
+            return result;
         }
     }
 }
@@ -376,26 +404,25 @@ export function watchpointUnsetAll(_: string[]): void {
  *
  * @param {string[]} args - The arguments array containing the address of the breakpoint and the command to run.
  */
-export function setWatchpointCommand(args: string[]): void {
-    _setWatchpointCommand(args);
+export function setWatchpointCommand(args: string[]): string | void {
+    return _setWatchpointCommand(args);
 }
 
-export function setWatchpointCommandContinue(args: string[]): void {
-    _setWatchpointCommand(args, true);
+export function setWatchpointCommandContinue(args: string[]): string | void {
+    return _setWatchpointCommand(args, true);
 }
 
-function _setWatchpointCommand(args: string[], continueAfterHit = false): void {
+function _setWatchpointCommand(
+    args: string[],
+    continueAfterHit = false,
+): string | void {
     if (args.length < 2) {
-        console.error(
-            "Usage: dbwc [address-of-watchpoint] [r2-command-to-run-when-hit]",
-        );
-        return;
+        return "Usage: dbwc [address-of-watchpoint] [r2-command-to-run-when-hit]";
     }
     const address = getPtr(args[0]);
     const wp = breakpoints.get(address.toString());
     if (!(wp instanceof WatchpointData)) {
-        console.log(`Watchpoint at ${args[0]} does not exist`);
-        return;
+        return `Watchpoint at ${args[0]} does not exist`;
     }
     const command = args.slice(1).join(" ");
     if (wp.address.equals(address)) {
@@ -412,23 +439,24 @@ function _setWatchpointCommand(args: string[], continueAfterHit = false): void {
  * If a watchpoint does not exist at the specified address, it logs a message to the console.
  * Otherwise, it switches the state of the watchpoint.
  */
-export function toggleWatchpoint(args: string[]): void {
+export function toggleWatchpoint(args: string[]): string | void {
     const address = args[0];
     const ptrAddr = getPtr(address);
     const wp = breakpoints.get(ptrAddr.toString());
     if (!(wp instanceof WatchpointData)) {
-        console.log(`Watchpoint at ${ptrAddr.toString()} does not exists`);
-        return;
+        return `Watchpoint at ${ptrAddr.toString()} does not exists`;
     }
-    _watchpointSwitch(breakpoints.get(ptrAddr.toString()) as WatchpointData);
+    return _watchpointSwitch(
+        breakpoints.get(ptrAddr.toString()) as WatchpointData,
+    );
 }
 
-export function watchpointEnable(args: string[]): void {
-    _setWatchpointEnabled(args, true);
+export function watchpointEnable(args: string[]): string | void {
+    return _setWatchpointEnabled(args, true);
 }
 
-export function watchpointDisable(args: string[]): void {
-    _setWatchpointEnabled(args, false);
+export function watchpointDisable(args: string[]): string | void {
+    return _setWatchpointEnabled(args, false);
 }
 
 function _watchpointsSize(): number {
@@ -474,20 +502,18 @@ function _watchpointRecords(): WatchpointRecord[] {
  *   - args[2]: The condition for the watchpoint. Must be one of 'r' (read), 'w' (write), or 'rw' (read/write).
  * @returns {boolean} - Returns true if the watchpoint was successfully set, otherwise false.
  */
-function _watchpointSet(args: string[]): boolean {
+function _watchpointSet(args: string[]): true | string {
     const spec = _parseWatchpointSpec(args);
-    if (spec === null) {
-        return false;
+    if (typeof spec === "string") {
+        return spec;
     }
     const { address, size, condition } = spec;
     if (address.startsWith("java:")) {
-        console.log("Watchpoints only work on native code");
-        return false;
+        return "Watchpoints only work on native code";
     }
     const ptrAddr = getPtr(address);
     if (breakpoints.get(ptrAddr.toString()) instanceof WatchpointData) {
-        console.log(`Watchpoint at ${ptrAddr.toString()} already exists`);
-        return false;
+        return `Watchpoint at ${ptrAddr.toString()} already exists`;
     }
     const id = _allocHwId();
     const thread = _currentThread();
@@ -506,12 +532,11 @@ function _watchpointSet(args: string[]): boolean {
  * This function retrieves the address from the provided arguments, checks if a watchpoint exists at that address,
  * and if it does, unsets the watchpoint and removes it from the watchpoints map.
  */
-function _watchpointUnset(args: string[]): boolean {
+function _watchpointUnset(args: string[]): true | string {
     const addr = getPtr(args[0]).toString();
     const wp = breakpoints.get(addr);
     if (!(wp instanceof WatchpointData)) {
-        console.log(`Watchpoint at ${addr} does not exist`);
-        return false;
+        return `Watchpoint at ${addr} does not exist`;
     }
     _breakpointRemove(wp);
     return true;
@@ -548,14 +573,14 @@ function _watchpointList(_: string[]): string {
  * @param wp - The watchpoint data object to be toggled.
  *             If the watchpoint is currently enabled, it will be disabled, and vice versa.
  */
-function _watchpointSwitch(wp: WatchpointData): void {
+function _watchpointSwitch(wp: WatchpointData): string | void {
     if (!wp) {
         return;
     }
     if (wp.enabled) {
-        wp.disable();
+        return wp.disable();
     } else {
-        wp.enable();
+        return wp.enable();
     }
 }
 
@@ -606,24 +631,25 @@ function _breakpointList(_: string[]): string {
  * Hardware breakpoints are set if the configuration option "dbg.hwbp" is enabled.
  * Software breakpoints are set by creating code patches at the specified address.
  */
-function _breakpointSet(args: string[], temporary = false): boolean {
+function _breakpointSet(
+    args: string[],
+    temporary = false,
+    continueAfterHit = false,
+): true | string {
     const address = args[0];
     if (address.startsWith("java:")) {
-        console.log("Breakpoints only work on native code");
-        return false;
+        return "Breakpoints only work on native code";
     }
     const ptrAddr = getPtr(address);
     if (ptrAddr.equals(ptr("0"))) {
-        console.error("Invalid pointer");
-        return false;
+        return "Invalid pointer";
     }
     const bp = breakpoints.get(ptrAddr.toString());
     if (
         (bp instanceof HardwareBreakpointData) ||
         (bp instanceof SoftwareBreakpointData)
     ) {
-        console.error(`Breakpoint at ${ptrAddr.toString()} already exists`);
-        return false;
+        return `Breakpoint at ${ptrAddr.toString()} already exists`;
     }
     const thread = _currentThread();
     if (config.getBoolean("dbg.hwbp")) {
@@ -634,16 +660,26 @@ function _breakpointSet(args: string[], temporary = false): boolean {
             "",
             true,
             temporary,
+            continueAfterHit,
         );
         bp.setBreakpoint();
         breakpoints.set(bp.address.toString(), bp);
     } else {
         const p1 = new CodePatch(ptrAddr) as any;
         const p2 = new CodePatch(p1.insn.next);
-        const bp = new SoftwareBreakpointData(-1, thread, ptrAddr, "", [
-            p1,
-            p2,
-        ], true, temporary);
+        const bp = new SoftwareBreakpointData(
+            -1,
+            thread,
+            ptrAddr,
+            "",
+            [
+                p1,
+                p2,
+            ],
+            true,
+            temporary,
+            continueAfterHit,
+        );
         breakpoints.set(p1.address.toString(), bp);
         breakpoints.set(p2.address.toString(), bp);
         p1.toggle();
@@ -656,14 +692,14 @@ function _breakpointSet(args: string[], temporary = false): boolean {
  *
  * @param bp - The breakpoint data object to be toggled. If the breakpoint is currently enabled, it will be disabled, and vice versa.
  */
-function _breakpointSwitch(bp: BreakpointData): void {
+function _breakpointSwitch(bp: BreakpointData): string | void {
     if (!bp) {
         return;
     }
     if (bp.enabled) {
-        bp.disable();
+        return bp.disable();
     } else {
-        bp.enable();
+        return bp.enable();
     }
 }
 
@@ -679,15 +715,14 @@ function _breakpointSwitch(bp: BreakpointData): void {
  * If the breakpoint is a hardware breakpoint, it unsets the breakpoint and deletes it from
  * the `breakpoints` map.
  */
-function _breakpointUnset(args: string[]): boolean {
+function _breakpointUnset(args: string[]): true | string {
     const addr = getPtr(args[0]).toString();
     const bp = breakpoints.get(addr);
     if (
         !(bp instanceof HardwareBreakpointData) &&
         !(bp instanceof SoftwareBreakpointData)
     ) {
-        console.log(`Breakpoint at ${addr} does not exist`);
-        return false;
+        return `Breakpoint at ${addr} does not exist`;
     }
     _breakpointRemove(bp);
     return true;
@@ -712,10 +747,12 @@ function isWatchpointEnabled(): boolean {
     return false;
 }
 
-function _setBreakpointEnabled(args: string[], enabled: boolean): void {
+function _setBreakpointEnabled(
+    args: string[],
+    enabled: boolean,
+): string | void {
     if (args.length === 0) {
-        console.error(`Usage: db${enabled ? "e" : "d"} [addr]`);
-        return;
+        return `Usage: db${enabled ? "e" : "d"} [addr]`;
     }
     const addr = getPtr(args[0]).toString();
     const bp = breakpoints.get(addr);
@@ -723,48 +760,47 @@ function _setBreakpointEnabled(args: string[], enabled: boolean): void {
         !(bp instanceof HardwareBreakpointData) &&
         !(bp instanceof SoftwareBreakpointData)
     ) {
-        console.log(`Breakpoint at ${addr} does not exist`);
-        return;
+        return `Breakpoint at ${addr} does not exist`;
     }
-    _setBreakpointDataEnabled(bp, enabled);
+    return _setBreakpointDataEnabled(bp, enabled);
 }
 
-function _setWatchpointEnabled(args: string[], enabled: boolean): void {
+function _setWatchpointEnabled(
+    args: string[],
+    enabled: boolean,
+): string | void {
     if (args.length === 0) {
-        console.error(`Usage: dbw${enabled ? "e" : "d"} [addr]`);
-        return;
+        return `Usage: dbw${enabled ? "e" : "d"} [addr]`;
     }
     const addr = getPtr(args[0]).toString();
     const wp = breakpoints.get(addr);
     if (!(wp instanceof WatchpointData)) {
-        console.log(`Watchpoint at ${addr} does not exist`);
-        return;
+        return `Watchpoint at ${addr} does not exist`;
     }
-    _setBreakpointDataEnabled(wp, enabled);
+    return _setBreakpointDataEnabled(wp, enabled);
 }
 
 function _setBreakpointDataEnabled(
     bp: BreakpointData,
     enabled: boolean,
-): void {
+): string | void {
     if (bp.enabled === enabled) {
         return;
     }
     if (enabled) {
-        bp.enable();
+        return bp.enable();
     } else {
-        bp.disable();
+        return bp.disable();
     }
 }
 
-function _parseWatchpointSpec(args: string[]): WatchpointSpec | null {
+function _parseWatchpointSpec(args: string[]): WatchpointSpec | string {
     const parsed = parseWatchpointSpec(
         args,
         Number(config.getNumber("dbg.wpsize")),
     );
     if (!parsed.ok) {
-        console.log(parsed.message);
-        return null;
+        return parsed.message;
     }
     return parsed.spec;
 }
@@ -985,12 +1021,12 @@ class BreakpointData {
         this.continueAfterHit = continueAfterHit;
     }
 
-    enable(): void {
-        console.log("Not implemented");
+    enable(): string {
+        return "Not implemented";
     }
 
-    disable(): void {
-        console.log("Not implemented");
+    disable(): string {
+        return "Not implemented";
     }
 
     toggle(): void {
@@ -1028,16 +1064,16 @@ class WatchpointData extends BreakpointData {
         this._applied = false;
     }
 
-    enable(): void {
-        console.log(`Enable Watchpoint at ${this.address.toString()}`);
+    enable(): string {
         this.enabled = true;
         this.setWatchpoint();
+        return `Enable Watchpoint at ${this.address.toString()}`;
     }
 
-    disable(): void {
-        console.log(`Disable Watchpoint at ${this.address.toString()}`);
+    disable(): string {
         this.enabled = false;
         this.unsetWatchpoint();
+        return `Disable Watchpoint at ${this.address.toString()}`;
     }
 
     setWatchpoint(): void {
@@ -1082,18 +1118,16 @@ class HardwareBreakpointData extends BreakpointData {
         this._applied = false;
     }
 
-    enable(): void {
-        console.log(`Enable Hardware Breakpoint at ${this.address.toString()}`);
+    enable(): string {
         this.enabled = true;
         this.setBreakpoint();
+        return `Enable Hardware Breakpoint at ${this.address.toString()}`;
     }
 
-    disable(): void {
-        console.log(
-            `Disable Hardware Breakpoint at ${this.address.toString()}`,
-        );
+    disable(): string {
         this.enabled = false;
         this.unsetBreakpoint();
+        return `Disable Hardware Breakpoint at ${this.address.toString()}`;
     }
 
     setBreakpoint(): void {
@@ -1134,18 +1168,16 @@ class SoftwareBreakpointData extends BreakpointData {
         this.patches = patches;
     }
 
-    enable(): void {
-        console.log(`Enable Software Breakpoint at ${this.address.toString()}`);
+    enable(): string {
         this.enabled = true;
         this.setBreakpoint();
+        return `Enable Software Breakpoint at ${this.address.toString()}`;
     }
 
-    disable(): void {
-        console.log(
-            `Disable Software Breakpoint at ${this.address.toString()}`,
-        );
+    disable(): string {
         this.enabled = false;
         this.unsetBreakpoint();
+        return `Disable Software Breakpoint at ${this.address.toString()}`;
     }
 
     setBreakpoint(): void {

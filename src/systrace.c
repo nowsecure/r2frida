@@ -434,7 +434,7 @@ static const char *lookup_scname(const R2FSystraceState *st, SysAbi abi, int nr)
 }
 
 static SysEvent event_init(const RIOFrida *rf, GVariant *row) {
-	SysEvent ev = {0};
+	SysEvent ev = { 0 };
 	const R2FSystraceState *st = &rf->systrace;
 	const char *phase;
 	g_variant_get_child (row, 0, "&s", &phase);
@@ -766,8 +766,8 @@ void on_systrace_message(FridaService *service, GVariant *message, gpointer user
 	RIOFrida *rf = user_data;
 	R2FSystraceState *st = &rf->systrace;
 	const char *type = NULL;
-	if (st->service != service || \
-		!g_variant_lookup (message, "type", "&s", &type) || \
+	if (st->service != service ||
+		!g_variant_lookup (message, "type", "&s", &type) ||
 		strcmp (type, "events-available")) {
 		return;
 	}
