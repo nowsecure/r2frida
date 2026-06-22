@@ -42,6 +42,7 @@ typedef struct r_io_frida_t {
 	bool suspended;
 	volatile bool suspended2;
 	RList *stopped_tids;
+	int in_callback;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
 	FridaCrash *crash;
