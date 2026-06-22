@@ -37,6 +37,8 @@ jobs:
         sudo pip install frida-tools
     - name: Building r2frida
       run: ./configure && make -j USE_FRIDA_TOOLS=1 && sudo make install
+    - name: Relax ptrace scope so hardware watchpoints can arm
+      run: sudo sysctl -w kernel.yama.ptrace_scope=0
     - name: Testing r2frida
       run: make -C test
     - name: Packaging
@@ -54,6 +56,8 @@ jobs:
         version: ${{ env.R2V }}
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
+    - name: Relax ptrace scope so hardware watchpoints can arm
+      run: sudo sysctl -w kernel.yama.ptrace_scope=0
     - name: Testing r2frida
       run: make -C test
     - name: Packaging
