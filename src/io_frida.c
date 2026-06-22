@@ -364,10 +364,18 @@ static void r_io_frida_free(RIOFrida *rf) {
 	}
 	if (rf->script && rf->onmsg_handler) {
 		g_signal_handler_disconnect (rf->script, rf->onmsg_handler);
+		rf->onmsg_handler = 0;
 	}
 	if (rf->session && rf->ondtc_handler) {
 		g_signal_handler_disconnect (rf->session, rf->ondtc_handler);
+		rf->ondtc_handler = 0;
 	}
+	// wait for any in-flight on_message to finish before freeing rf
+	g_mutex_lock (&rf->lock);
+	while (rf->in_callback > 0) {
+		g_cond_wait (&rf->cond, &rf->lock);
+	}
+	g_mutex_unlock (&rf->lock);
 	r2f_systrace_fini (rf);
 	r_socket_free (rf->s);
 	free (rf->crash_report);
@@ -1950,12 +1958,16 @@ static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root,
 
 static void on_message(FridaScript *script, const char *raw_message, GBytes *data, gpointer user_data) {
 	RIOFrida *rf = user_data;
+	g_mutex_lock (&rf->lock);
+	rf->in_callback++;
+	g_mutex_unlock (&rf->lock);
 	JsonNode *message = json_from_string (raw_message, NULL);
 	g_assert (message != NULL);
 	JsonObject *root = json_node_get_object (message);
 	const char *type = json_object_get_string_member (root, "type");
 	if (!type) {
-		return;
+		json_node_unref (message);
+		goto beach;
 	}
 
 	if (!strcmp (type, "send")) {
@@ -1995,6 +2007,11 @@ static void on_message(FridaScript *script, const char *raw_message, GBytes *dat
 	}
 
 	json_node_unref (message);
+beach:
+	g_mutex_lock (&rf->lock);
+	rf->in_callback--;
+	g_cond_signal (&rf->cond);
+	g_mutex_unlock (&rf->lock);
 }
 
 static void dumpDevices(RIOFrida *rf, GCancellable *cancellable) {
