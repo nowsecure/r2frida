@@ -1789,15 +1789,18 @@ static void on_detached(FridaSession *session, FridaSessionDetachReason reason, 
 
 static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 	g_mutex_lock (&rf->lock);
+	if (json_object_has_member (cmd_stanza, "message")) {
+		const char *message = json_object_get_string_member (cmd_stanza, "message");
+		if (R_STR_ISNOTEMPTY (message)) {
+			// R_LOG is thread-safe; cons must not be touched from this thread
+			R_LOG_INFO ("%s", message);
+		}
+	}
 	if (json_object_has_member (cmd_stanza, "cmd")) {
 		const char *command = json_object_get_string_member (cmd_stanza, "cmd");
 		if (R_STR_ISNOTEMPTY (command)) {
+			// runs and flushes on the main thread when the queue drains
 			r_core_cmd_queue (rf->r2core, command);
-#if R2_VERSION_NUMBER >= 50909
-			r_cons_flush (rf->r2core->cons);
-#else
-			r_cons_flush ();
-#endif
 		}
 	}
 	int tid = json_object_has_member (cmd_stanza, "threadId")
