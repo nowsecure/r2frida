@@ -46,6 +46,7 @@ static RFPendingCmd *pending_cmd_create(JsonObject *cmd_json);
 static void pending_cmd_free(RFPendingCmd *pending_cmd);
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes);
 static void exec_pending_cmd_if_needed(RIOFrida *rf);
+static void drain_cmdqueue_if_needed(RIOFrida *rf);
 static char *__system(RIO *io, RIODesc *fd, const char *command);
 static char *resolve_package_name_by_process_name(FridaDevice *device, GCancellable *cancellable, const char *appname);
 static char *resolve_process_name_by_package_name(FridaDevice *device, GCancellable *cancellable, const char *bundleid);
@@ -1666,10 +1667,12 @@ static JsonObject *perform_request(RIOFrida *rf, JsonBuilder *builder, GBytes *d
 	g_mutex_lock (&rf->lock);
 
 	exec_pending_cmd_if_needed (rf);
+	drain_cmdqueue_if_needed (rf);
 
 	while (!rf->detached && !rf->received_reply) {
 		g_cond_wait (&rf->cond, &rf->lock);
 		exec_pending_cmd_if_needed (rf);
+		drain_cmdqueue_if_needed (rf);
 	}
 
 	if (rf->received_reply) {
@@ -1752,6 +1755,18 @@ static void exec_pending_cmd_if_needed(RIOFrida *rf) {
 	g_mutex_lock (&rf->lock);
 }
 
+// called and returns with rf->lock held; runs queued breakpoint commands on
+// this (main) thread so they fire even in non-interactive (-Qc) sessions
+static void drain_cmdqueue_if_needed(RIOFrida *rf) {
+	if (!rf->cmdqueue_pending) {
+		return;
+	}
+	rf->cmdqueue_pending = false;
+	g_mutex_unlock (&rf->lock);
+	r_core_prompt_exec (rf->r2core);
+	g_mutex_lock (&rf->lock);
+}
+
 static void perform_request_unlocked(RIOFrida *rf, JsonBuilder *builder, GBytes *data, GBytes **bytes) {
 	json_builder_end_object (builder);
 	json_builder_end_object (builder);
@@ -1815,6 +1830,7 @@ static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 		if (R_STR_ISNOTEMPTY (command)) {
 			// runs and flushes on the main thread when the queue drains
 			r_core_cmd_queue (rf->r2core, command);
+			rf->cmdqueue_pending = true;
 		}
 	}
 	int tid = json_object_has_member (cmd_stanza, "threadId")
