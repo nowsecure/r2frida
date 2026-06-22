@@ -16,7 +16,10 @@ import {
     type WatchpointSpec,
 } from "./breakpoint-model.js";
 
-const breakpoints = new Map<string, BreakpointData>();
+// One map holds every breakpoint kind (sw/hw/wp). Software breakpoints are
+// registered under both of their patch addresses, hardware ones and watchpoints
+// under their single address.
+const breakpoints = new Map<string, Breakpoint>();
 let suspended = false;
 const stoppedContexts = new Map<number, CpuContext>();
 export let currentThreadContext: CpuContext | null = null;
@@ -44,33 +47,24 @@ function _isX86(): boolean {
     return Process.arch === "ia32" || Process.arch === "x64";
 }
 
-type BreakpointHit = {
-    address: NativePointer;
-    bp: BreakpointData;
-};
+type BpHit = { address: NativePointer; bp: Breakpoint };
 
-// x86 reports INT3 traps one byte past the applied 0xcc patch.
+// x86 reports INT3 traps one byte past the applied 0xcc patch; rewind onto it.
 function _x86SoftwareBreakpointHit(
     address: NativePointer,
     context: CpuContext,
     type: string,
-    bp: BreakpointData | undefined,
-): BreakpointHit | null {
-    if (
-        !_isX86() || type !== "breakpoint" ||
-        bp instanceof HardwareBreakpointData ||
-        bp instanceof WatchpointData
-    ) {
+    bp: Breakpoint | undefined,
+): BpHit | null {
+    if (!_isX86() || type !== "breakpoint" || (bp && bp.kind !== "sw")) {
         return null;
     }
     const hitAddress = address.sub(1);
     const candidate = breakpoints.get(hitAddress.toString());
-    if (!(candidate instanceof SoftwareBreakpointData)) {
+    if (!candidate || candidate.kind !== "sw") {
         return null;
     }
-    const patch = candidate.patches.find((p: CodePatch) =>
-        p.address.equals(hitAddress)
-    );
+    const patch = candidate.patches.find((p) => p.address.equals(hitAddress));
     if (!patch?._applied) {
         return null;
     }
@@ -113,17 +107,12 @@ export function initExceptionHandler(): void {
             return false;
         }
         let hasBreakpointHit = false;
-        if (bp instanceof SoftwareBreakpointData) {
-            hasBreakpointHit = bp.patches.findIndex((p: any) =>
-                p.address.equals(hitAddress)
-            ) === 0;
-        } else if (
-            bp instanceof HardwareBreakpointData || bp instanceof WatchpointData
-        ) {
-            hasBreakpointHit = Process.getCurrentThreadId() === bp.thread.id &&
-                ["breakpoint", "single-step"].includes(type);
+        if (bp.kind === "sw") {
+            hasBreakpointHit =
+                bp.patches.findIndex((p) => p.address.equals(hitAddress)) === 0;
         } else {
-            console.log("TODO: exceptionHandler: " + bp);
+            hasBreakpointHit = bp.appliesToThread(Process.getCurrentThreadId()) &&
+                ["breakpoint", "single-step"].includes(type);
         }
         if (hasBreakpointHit) {
             send({
@@ -150,11 +139,8 @@ export function initExceptionHandler(): void {
                             state = "running";
                             stoppedContexts.delete(stoppedTid);
                             _refreshCurrentThreadContext();
-                            if (bp instanceof HardwareBreakpointData) {
+                            if (bp.kind !== "sw") {
                                 bp.unsetBreakpoint();
-                            }
-                            if (bp instanceof WatchpointData) {
-                                bp.unsetWatchpoint();
                             }
                             if (config.getBoolean("hook.verbose")) {
                                 console.log("Continue thread(s).");
@@ -172,14 +158,11 @@ export function initExceptionHandler(): void {
             }
         }
         // sw breakpoints need the post-hit single-step to restore the patch
-        if (
-            bp.removeAfterStep &&
-            (!hasBreakpointHit || !(bp instanceof SoftwareBreakpointData))
-        ) {
+        if (bp.removeAfterStep && (!hasBreakpointHit || bp.kind !== "sw")) {
             _breakpointRemove(bp);
             return true;
         }
-        const afterBp = bp instanceof WatchpointData
+        const afterBp = bp.kind === "wp"
             ? bp
             : breakpoints.get(hitAddress.toString());
         if (afterBp) {
@@ -189,128 +172,97 @@ export function initExceptionHandler(): void {
     });
 }
 
-/**
- * Sets a breakpoint based on the provided arguments.
- *
- * If no arguments are provided, it logs the current list of breakpoints.
- * If the first argument starts with a '-', it unsets the breakpoint at the specified address.
- * Otherwise, it sets a breakpoint at the specified address and logs a confirmation message.
- *
- * @param {string[]} args - The first argument is the address as string.
- */
+// === command surface ========================================================
+// db / dbw and friends are thin wrappers over the shared helpers below.
+
 export function setBreakpoint(args: string[]): string | void {
-    if (args.length === 0) {
-        return _breakpointList([]);
-    } else if (args[0].startsWith("-")) {
-        const addr = args[0].substring(1);
-        return unsetBreakpoint([addr]);
-    } else {
-        const result = _breakpointSet(args);
-        if (result === true) {
-            return `Breakpoint at ${args[0]} set`;
-        }
-        if (typeof result === "string") {
-            return result;
-        }
-    }
+    return _listSetOrUnset(args, "bp");
 }
 
-/**
- * Sets a breakpoint command for a given address.
- *
- * This function expects two arguments: the address of the breakpoint and the command to run when the breakpoint is hit.
- *
- * @param {string[]} args - The arguments array containing the address of the breakpoint and the command to run.
- */
+export function setWatchpoint(args: string[]): string | void {
+    return _listSetOrUnset(args, "wp");
+}
+
+export function unsetBreakpoint(args: string[]): string | void {
+    return _listSetOrUnset(["-" + (args[0] ?? "")], "bp");
+}
+
+export function unsetWatchpoint(args: string[]): string | void {
+    return _listSetOrUnset(["-" + (args[0] ?? "")], "wp");
+}
+
 export function setBreakpointCommand(args: string[]): string | void {
-    return _setBreakpointCommand(args);
+    return _setCommand(args, "bp", false);
 }
 
 export function setBreakpointCommandContinue(args: string[]): string | void {
-    return _setBreakpointCommand(args, true);
+    return _setCommand(args, "bp", true);
 }
 
-function _setBreakpointCommand(
-    args: string[],
-    continueAfterHit = false,
-): string | void {
-    if (args.length < 2) {
-        return "Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]";
-    }
-    const address = getPtr(args[0]);
-    let bp = breakpoints.get(address.toString());
-    let message: string | undefined;
-    if (
-        !(bp instanceof HardwareBreakpointData) &&
-        !(bp instanceof SoftwareBreakpointData)
-    ) {
-        const result = _breakpointSet(args);
-        if (result === true) {
-            message = `Breakpoint at ${args[0]} set`;
-        } else if (typeof result === "string") {
-            return result;
-        }
-    }
-    const command = args.slice(1).join(" ");
-    bp = breakpoints.get(address.toString());
-    if (bp && bp.address.equals(address)) {
-        bp.cmd = command;
-        bp.continueAfterHit = continueAfterHit;
-    }
-    return message;
+export function setWatchpointCommand(args: string[]): string | void {
+    return _setCommand(args, "wp", false);
 }
 
-/**
- * Unsets a breakpoint based on the provided arguments.
- *
- * If no arguments are provided, it logs the current list of breakpoints.
- * Otherwise, it attempts to unset the breakpoint at the provided address and logs the result.
- *
- * @param {string[]} args - The arguments for unsetting the breakpoint.
- */
-export function unsetBreakpoint(args: string[]): string | void {
-    if (args.length === 0) {
-        return _breakpointList([]);
-    } else if (args[0].startsWith("-")) {
-        const addr = args[0].substring(1);
-        return unsetBreakpoint([addr]);
-    } else {
-        const result = _breakpointUnset(args);
-        if (result === true) {
-            return `Breakpoint at ${args[0]} unset`;
-        }
-        if (typeof result === "string") {
-            return result;
-        }
-    }
+export function setWatchpointCommandContinue(args: string[]): string | void {
+    return _setCommand(args, "wp", true);
 }
 
-/**
- * Unsets all breakpoints.
- *
- * @param args - This parameter is currently not used.
- */
+export function breakpointEnable(args: string[]): string | void {
+    return _setEnabled(args, "bp", true);
+}
+
+export function breakpointDisable(args: string[]): string | void {
+    return _setEnabled(args, "bp", false);
+}
+
+export function watchpointEnable(args: string[]): string | void {
+    return _setEnabled(args, "wp", true);
+}
+
+export function watchpointDisable(args: string[]): string | void {
+    return _setEnabled(args, "wp", false);
+}
+
+export function toggleBreakpoint(args: string[]): string | void {
+    return _toggleEnabled(args, "bp");
+}
+
+export function toggleWatchpoint(args: string[]): string | void {
+    return _toggleEnabled(args, "wp");
+}
+
 export function breakpointUnsetAll(_: string[]): void {
-    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
+    for (const bp of _unique(_isNativeBreakpoint)) {
         _breakpointRemove(bp);
     }
 }
 
-export function breakpointEnable(args: string[]): string | void {
-    return _setBreakpointEnabled(args, true);
+export function watchpointUnsetAll(_: string[]): void {
+    for (const wp of _unique(_isWatchpoint)) {
+        _breakpointRemove(wp);
+    }
 }
 
-export function breakpointDisable(args: string[]): string | void {
-    return _setBreakpointEnabled(args, false);
+export function breakpointJson(): string {
+    return JSON.stringify(breakpointJsonObject(_breakpointRecords()));
+}
+
+export function watchpointJson(): string {
+    return JSON.stringify(watchpointJsonObject(_watchpointRecords()));
+}
+
+export function breakpointR2(_: string[]): string {
+    return renderBreakpointR2(_breakpointRecords());
+}
+
+export function watchpointR2(_: string[]): string {
+    return renderWatchpointR2(_watchpointRecords());
 }
 
 /**
  * Continues execution of the program if it is currently suspended.
- *
- * @param args - An array of strings representing the arguments passed to the function.
- * @returns If the program was suspended, it sends the ':dc' command to continue execution.
  */
-export function breakpointContinue(args: string[]): Promise<string> {
+export function breakpointContinue(_args: string[]): Promise<string> {
     if (suspended) {
         suspended = false;
         return r2.hostCmd(":dc");
@@ -319,209 +271,121 @@ export function breakpointContinue(args: string[]): Promise<string> {
 }
 
 /**
- * Sets a breakpoint and continues execution until the breakpoint is hit.
- *
- * @param args - An array of strings representing the address for the breakpoint.
+ * Sets a temporary breakpoint and continues execution until it is hit.
  */
 export function setBreakpointContinueUntil(
     args: string[],
 ): Promise<string> | string | void {
     if (args.length === 0) {
-        return _breakpointList([]);
+        return _breakpointList();
     } else if (args[0].startsWith("-")) {
         return unsetBreakpoint([args[0].substring(1)]);
-    } else {
-        const result = _breakpointSet(args, true, !suspended);
-        if (result === true) {
-            return breakpointContinue([]);
-        }
-        if (typeof result === "string") {
-            return result;
-        }
+    }
+    const result = _breakpointSet(args, true, !suspended);
+    if (result === true) {
+        return breakpointContinue([]);
+    }
+    if (typeof result === "string") {
+        return result;
     }
 }
 
-/**
- * Converts the current breakpoints into a JSON string representation.
- *
- * @returns {string} A JSON string representation of the current breakpoints.
- */
-export function breakpointJson(): string {
-    return JSON.stringify(breakpointJsonObject(_breakpointRecords()));
+export function isSuspended(): boolean {
+    return suspended;
 }
 
-export function breakpointR2(_: string[]): string {
-    return renderBreakpointR2(_breakpointRecords());
+export function setSuspended(v: boolean): void {
+    suspended = v;
 }
 
-/**
- * Toggles a breakpoint at the specified address.
- *
- * @param args - The pointer address from the provided address string.
- *
- * If a breakpoint does not exist at the specified address, it logs a message to the console.
- * Otherwise, it switches the state of the breakpoint.
- */
-export function toggleBreakpoint(args: string[]): string | void {
-    const address = args[0];
-    const ptrAddr = getPtr(address);
-    const bp = breakpoints.get(ptrAddr.toString());
-    if (
-        !(bp instanceof HardwareBreakpointData) &&
-        !(bp instanceof SoftwareBreakpointData)
-    ) {
-        return `Breakpoint at ${ptrAddr.toString()} does not exists`;
-    }
-    return _breakpointSwitch(
-        breakpoints.get(ptrAddr.toString()) as BreakpointData,
-    );
-}
+// === shared command helpers =================================================
 
-/**
- * Sets  a watchpoint based on the provided arguments.
- *
- * @param {string[]} args - The address for setting a watchpoint.
- *   - If empty, lists all current watchpoints.
- *   - Otherwise, sets a watchpoint at the specified address.
- */
-export function setWatchpoint(args: string[]): string | void {
+type BpClass = "bp" | "wp";
+
+function _listSetOrUnset(args: string[], cls: BpClass): string | void {
+    const isWp = cls === "wp";
+    const noun = isWp ? "Watchpoint" : "Breakpoint";
     if (args.length === 0) {
-        return _watchpointList([]);
-    } else if (args[0].startsWith("-")) {
-        const addr = args[0].substring(1);
-        return unsetWatchpoint([addr]);
-    } else {
-        const result = _watchpointSet(args);
-        if (result === true) {
-            return `Watchpoint at ${args[0]} set`;
-        }
-        if (typeof result === "string") {
-            return result;
-        }
+        return isWp ? _watchpointList() : _breakpointList();
     }
-}
-
-/**
- * Unsets a watchpoint based on the provided arguments.
- *
- * @param {string[]} args - The address for setting a watchpoint.
- *   - If empty, lists all current watchpoints.
- *   - Otherwise, unsets a watchpoint at the specified address.
- */
-export function unsetWatchpoint(args: string[]): string | void {
-    if (args.length === 0) {
-        return _watchpointList([]);
-    } else if (args[0].startsWith("-")) {
-        const addr = args[0].substring(1);
-        return unsetWatchpoint([addr]);
-    } else {
-        const result = _watchpointUnset(args);
-        if (result === true) {
-            return `Watchpoint at ${args[0]} unset`;
-        }
-        if (typeof result === "string") {
-            return result;
-        }
+    if (args[0].startsWith("-")) {
+        const result = _breakpointUnset(args[0].substring(1), cls);
+        return result === true ? `${noun} at ${args[0].substring(1)} unset` : result;
     }
+    const result = isWp ? _watchpointSet(args) : _breakpointSet(args);
+    return result === true ? `${noun} at ${args[0]} set` : (result || undefined);
 }
 
-/**
- * Converts the current watchtpoints into a JSON string representation.
- *
- * @returns {string} A JSON string representation of the current watchpoints.
- */
-export function watchpointJson(): string {
-    return JSON.stringify(watchpointJsonObject(_watchpointRecords()));
-}
-
-export function watchpointR2(_: string[]): string {
-    return renderWatchpointR2(_watchpointRecords());
-}
-
-/**
- * Unsets all watchpoints.
- *
- * @param args - This parameter is currently not used.
- */
-export function watchpointUnsetAll(_: string[]): void {
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
-        _breakpointRemove(wp);
-    }
-}
-
-/**
- * Sets a watchpoint command for a given address.
- *
- * This function expects two arguments: the address of the breakpoint and the command to run when the breakpoint is hit.
- *
- * @param {string[]} args - The arguments array containing the address of the breakpoint and the command to run.
- */
-export function setWatchpointCommand(args: string[]): string | void {
-    return _setWatchpointCommand(args);
-}
-
-export function setWatchpointCommandContinue(args: string[]): string | void {
-    return _setWatchpointCommand(args, true);
-}
-
-function _setWatchpointCommand(
+function _setCommand(
     args: string[],
-    continueAfterHit = false,
+    cls: BpClass,
+    continueAfterHit: boolean,
 ): string | void {
+    const isWp = cls === "wp";
     if (args.length < 2) {
-        return "Usage: dbwc [address-of-watchpoint] [r2-command-to-run-when-hit]";
+        return isWp
+            ? "Usage: dbwc [address-of-watchpoint] [r2-command-to-run-when-hit]"
+            : "Usage: dbc [address-of-breakpoint] [r2-command-to-run-when-hit]";
     }
     const address = getPtr(args[0]);
-    const wp = breakpoints.get(address.toString());
-    if (!(wp instanceof WatchpointData)) {
-        return `Watchpoint at ${args[0]} does not exist`;
+    let bp = breakpoints.get(address.toString());
+    let message: string | undefined;
+    if (isWp) {
+        if (!bp || bp.kind !== "wp") {
+            return `Watchpoint at ${args[0]} does not exist`;
+        }
+    } else if (!bp || bp.kind === "wp") {
+        const result = _breakpointSet(args);
+        if (result === true) {
+            message = `Breakpoint at ${args[0]} set`;
+        } else if (typeof result === "string") {
+            return result;
+        }
+        bp = breakpoints.get(address.toString());
     }
-    const command = args.slice(1).join(" ");
-    if (wp.address.equals(address)) {
-        wp.cmd = command;
-        wp.continueAfterHit = continueAfterHit;
+    if (bp && bp.address.equals(address)) {
+        bp.cmd = args.slice(1).join(" ");
+        bp.continueAfterHit = continueAfterHit;
     }
+    return message;
 }
 
-/**
- * Toggles a watchpoint at the specified address.
- *
- * @param args - The pointer address from the provided address string.
- *
- * If a watchpoint does not exist at the specified address, it logs a message to the console.
- * Otherwise, it switches the state of the watchpoint.
- */
-export function toggleWatchpoint(args: string[]): string | void {
-    const address = args[0];
-    const ptrAddr = getPtr(address);
-    const wp = breakpoints.get(ptrAddr.toString());
-    if (!(wp instanceof WatchpointData)) {
-        return `Watchpoint at ${ptrAddr.toString()} does not exists`;
+function _setEnabled(
+    args: string[],
+    cls: BpClass,
+    enabled: boolean,
+): string | void {
+    const isWp = cls === "wp";
+    if (args.length === 0) {
+        const verb = enabled ? "e" : "d";
+        return isWp ? `Usage: dbw${verb} [addr]` : `Usage: db${verb} [addr]`;
     }
-    return _watchpointSwitch(
-        breakpoints.get(ptrAddr.toString()) as WatchpointData,
-    );
+    const addr = getPtr(args[0]).toString();
+    const bp = breakpoints.get(addr);
+    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
+        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
+    }
+    if (bp.enabled === enabled) {
+        return;
+    }
+    return enabled ? bp.enable() : bp.disable();
 }
 
-export function watchpointEnable(args: string[]): string | void {
-    return _setWatchpointEnabled(args, true);
+function _toggleEnabled(args: string[], cls: BpClass): string | void {
+    const isWp = cls === "wp";
+    const ptrAddr = getPtr(args[0]);
+    const bp = breakpoints.get(ptrAddr.toString());
+    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
+        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${ptrAddr} does not exists`;
+    }
+    return bp.enabled ? bp.disable() : bp.enable();
 }
 
-export function watchpointDisable(args: string[]): string | void {
-    return _setWatchpointEnabled(args, false);
-}
-
-function _watchpointsSize(): number {
-    return _uniqueBreakpoints(_isWatchpoint).length;
-}
-
-function _breakpointsSize(): number {
-    return _uniqueBreakpoints(_isNativeBreakpoint).length;
-}
+// === internal breakpoint/watchpoint logic ===================================
 
 function _breakpointRecords(): BreakpointRecord[] {
-    return _uniqueBreakpoints(_isNativeBreakpoint).map((bp) => ({
-        type: bp instanceof HardwareBreakpointData ? "hw" : "sw",
+    return _unique(_isNativeBreakpoint).map((bp) => ({
+        type: bp.kind === "hw" ? "hw" : "sw",
         id: bp.id,
         address: bp.address.toString(),
         enabled: bp.enabled,
@@ -532,7 +396,7 @@ function _breakpointRecords(): BreakpointRecord[] {
 }
 
 function _watchpointRecords(): WatchpointRecord[] {
-    return _uniqueBreakpoints(_isWatchpoint).map((wp) => ({
+    return _unique(_isWatchpoint).map((wp) => ({
         type: "wp",
         id: wp.id,
         address: wp.address.toString(),
@@ -545,144 +409,28 @@ function _watchpointRecords(): WatchpointRecord[] {
     }));
 }
 
-/**
- * Sets a watchpoint on a specified memory address.
- *
- * @param {string[]} args - An array of arguments where:
- *   - args[0]: The memory address to set the watchpoint on. If the address starts with "java:", the function will return false as watchpoints only work on native code.
- *   - args[1]: The size of the watchpoint. Must be a valid integer.
- *   - args[2]: The condition for the watchpoint. Must be one of 'r' (read), 'w' (write), or 'rw' (read/write).
- * @returns {boolean} - Returns true if the watchpoint was successfully set, otherwise false.
- */
-function _watchpointSet(args: string[]): true | string {
-    const spec = _parseWatchpointSpec(args);
-    if (typeof spec === "string") {
-        return spec;
-    }
-    const { address, size, condition } = spec;
-    if (address.startsWith("java:")) {
-        return "Watchpoints only work on native code";
-    }
-    const ptrAddr = getPtr(address);
-    if (breakpoints.get(ptrAddr.toString()) instanceof WatchpointData) {
-        return `Watchpoint at ${ptrAddr.toString()} already exists`;
-    }
-    const id = _allocHwId();
-    const thread = _currentThread();
-    const wp = new WatchpointData(id, thread, ptrAddr, size, condition);
-    wp.setWatchpoint();
-    breakpoints.set(wp.address.toString(), wp);
-    return true;
+function _breakpointList(): string {
+    const bps = _unique(_isNativeBreakpoint).map((bp) =>
+        [`(${bp.kind})`, bp.address.toString(), bp.enabled.toString(), bp.cmd]
+            .join(" ")
+    );
+    return bps.length ? bps.join("\n") : "No breakpoints set";
 }
 
-/**
- * Unsets a watchpoint at the specified address.
- *
- * @param {string[]} args - An array containing the address of the watchpoint to unset.
- * @returns {boolean} - Returns `true` if the watchpoint was successfully unset, `false` otherwise.
- *
- * This function retrieves the address from the provided arguments, checks if a watchpoint exists at that address,
- * and if it does, unsets the watchpoint and removes it from the watchpoints map.
- */
-function _watchpointUnset(args: string[]): true | string {
-    const addr = getPtr(args[0]).toString();
-    const wp = breakpoints.get(addr);
-    if (!(wp instanceof WatchpointData)) {
-        return `Watchpoint at ${addr} does not exist`;
-    }
-    _breakpointRemove(wp);
-    return true;
+function _watchpointList(): string {
+    const wps = _unique(_isWatchpoint).map((wp) =>
+        [
+            "(wp)",
+            wp.address.toString(),
+            wp.size.toString(),
+            wp.condition,
+            wp.enabled.toString(),
+            wp.cmd,
+        ].join(" ")
+    );
+    return wps.length ? wps.join("\n") : "No watchpoints set";
 }
 
-/**
- * Generates a list of watchpoints in a formatted string.
- *
- * @returns A string representing the list of watchpoints.
- */
-function _watchpointList(_: string[]): string {
-    const wps = [] as string[];
-    if (_watchpointsSize() === 0) {
-        return "No watchpoints set";
-    }
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
-        wps.push(
-            [
-                "(wp)",
-                wp.address.toString(),
-                wp.size.toString(),
-                wp.condition,
-                wp.enabled.toString(),
-                wp.cmd,
-            ].join(" "),
-        );
-    }
-    return wps.join("\n");
-}
-
-/**
- * Toggles the enabled state of a given watchpoint.
- *
- * @param wp - The watchpoint data object to be toggled.
- *             If the watchpoint is currently enabled, it will be disabled, and vice versa.
- */
-function _watchpointSwitch(wp: WatchpointData): string | void {
-    if (!wp) {
-        return;
-    }
-    if (wp.enabled) {
-        return wp.disable();
-    } else {
-        return wp.enable();
-    }
-}
-
-/**
- * Generates a formatted list of breakpoints.
- *
- * @param {string[]} args - Currently unused.
- * @returns {string} A formatted string representing the list of breakpoints.
- *
- * The output format includes:
- * - Type of breakpoint (software or hardware)
- * - Address of the breakpoint
- * - Whether the breakpoint is enabled
- * - Command associated with the breakpoint
- */
-function _breakpointList(_: string[]): string {
-    const bps = [] as string[];
-    if (_breakpointsSize() === 0) {
-        return "No breakpoints set";
-    }
-    for (const bp of _uniqueBreakpoints(_isNativeBreakpoint)) {
-        if (bp instanceof SoftwareBreakpointData) {
-            bps.push(
-                ["(sw)", bp.address.toString(), bp.enabled.toString(), bp.cmd]
-                    .join(" "),
-            );
-        } else if (bp instanceof HardwareBreakpointData) {
-            bps.push(
-                ["(hw)", bp.address.toString(), bp.enabled.toString(), bp.cmd]
-                    .join(" "),
-            );
-        }
-    }
-    return bps.join("\n");
-}
-
-/**
- * Sets a breakpoint at the specified address.
- *
- * @param {string[]} args - An array containing the address where the breakpoint should be set.
- * @returns {boolean} - Returns true if the breakpoint was successfully set, false otherwise.
- *
- * The function supports setting both hardware and software breakpoints based on the configuration.
- * If the address starts with "java:", it logs a message indicating that breakpoints only work on native code and returns false.
- * If a breakpoint already exists at the specified address, it switches the existing breakpoint and returns false.
- * Otherwise, it sets a new breakpoint at the specified address.
- *
- * Hardware breakpoints are set if the configuration option "dbg.hwbp" is enabled.
- * Software breakpoints are set by creating code patches at the specified address.
- */
 function _breakpointSet(
     args: string[],
     temporary = false,
@@ -696,154 +444,93 @@ function _breakpointSet(
     if (ptrAddr.equals(ptr("0"))) {
         return "Invalid pointer";
     }
-    const bp = breakpoints.get(ptrAddr.toString());
-    if (
-        (bp instanceof HardwareBreakpointData) ||
-        (bp instanceof SoftwareBreakpointData)
-    ) {
+    const existing = breakpoints.get(ptrAddr.toString());
+    if (existing && existing.kind !== "wp") {
         return `Breakpoint at ${ptrAddr.toString()} already exists`;
     }
-    const thread = _currentThread();
+    const threads = _targetThreads();
     if (config.getBoolean("dbg.hwbp")) {
-        const bp = new HardwareBreakpointData(
-            _allocHwId(),
-            thread,
-            ptrAddr,
-            "",
-            true,
+        const bp = new Breakpoint("hw", _allocHwId(), threads, ptrAddr, {
             temporary,
             continueAfterHit,
-        );
+        });
         bp.setBreakpoint();
         breakpoints.set(bp.address.toString(), bp);
-    } else {
-        const p1 = new CodePatch(ptrAddr) as any;
-        const p2 = new CodePatch(p1.insn.next);
-        const bp = new SoftwareBreakpointData(
-            -1,
-            thread,
-            ptrAddr,
-            "",
-            [
-                p1,
-                p2,
-            ],
-            true,
-            temporary,
-            continueAfterHit,
-        );
-        breakpoints.set(p1.address.toString(), bp);
-        breakpoints.set(p2.address.toString(), bp);
-        p1.toggle();
+        return true;
     }
+    const p1 = new CodePatch(ptrAddr);
+    const p2 = new CodePatch((p1.insn as any).next);
+    // refuse to patch a location already occupied by another sw breakpoint's
+    // patch, which would capture a live 0xcc as its "original" bytes
+    if (breakpoints.has(p2.address.toString())) {
+        return `Breakpoint at ${p2.address.toString()} already exists`;
+    }
+    const bp = new Breakpoint("sw", -1, threads, ptrAddr, {
+        temporary,
+        continueAfterHit,
+        patches: [p1, p2],
+    });
+    breakpoints.set(p1.address.toString(), bp);
+    breakpoints.set(p2.address.toString(), bp);
+    p1.toggle();
     return true;
 }
 
-/**
- * Toggles the enabled state of a given breakpoint.
- *
- * @param bp - The breakpoint data object to be toggled. If the breakpoint is currently enabled, it will be disabled, and vice versa.
- */
-function _breakpointSwitch(bp: BreakpointData): string | void {
-    if (!bp) {
-        return;
+function _watchpointSet(args: string[]): true | string {
+    const spec = _parseWatchpointSpec(args);
+    if (typeof spec === "string") {
+        return spec;
     }
-    if (bp.enabled) {
-        return bp.disable();
-    } else {
-        return bp.enable();
+    const { address, size, condition } = spec;
+    if (address.startsWith("java:")) {
+        return "Watchpoints only work on native code";
     }
+    const ptrAddr = getPtr(address);
+    if (breakpoints.get(ptrAddr.toString())?.kind === "wp") {
+        return `Watchpoint at ${ptrAddr.toString()} already exists`;
+    }
+    const wp = new Breakpoint("wp", _allocHwId(), _targetThreads(), ptrAddr, {
+        size,
+        condition,
+    });
+    wp.setBreakpoint();
+    breakpoints.set(wp.address.toString(), wp);
+    return true;
 }
 
-/**
- * Unsets a breakpoint at the specified address.
- *
- * @param {string[]} args - An array containing the address of the breakpoint to unset.
- * @returns {boolean} - Returns `true` if the breakpoint was successfully unset, `false` otherwise.
- *
- * If the breakpoint is a software breakpoint, it disables all patches associated with it
- * and deletes the breakpoint from the `breakpoints` map.
- *
- * If the breakpoint is a hardware breakpoint, it unsets the breakpoint and deletes it from
- * the `breakpoints` map.
- */
-function _breakpointUnset(args: string[]): true | string {
-    const addr = getPtr(args[0]).toString();
+function _breakpointUnset(addrArg: string, cls: BpClass): true | string {
+    const addr = getPtr(addrArg).toString();
     const bp = breakpoints.get(addr);
-    if (
-        !(bp instanceof HardwareBreakpointData) &&
-        !(bp instanceof SoftwareBreakpointData)
-    ) {
-        return `Breakpoint at ${addr} does not exist`;
+    const isWp = cls === "wp";
+    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
+        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
     }
     _breakpointRemove(bp);
     return true;
 }
 
-function _currentThread(): ThreadDetails {
+// The thread(s) a hardware breakpoint/watchpoint is armed on. Defaults to every
+// thread so a breakpoint fires regardless of which thread runs the code; set
+// dbg.bpthread to a thread id to scope it to a single thread.
+function _targetThreads(): ThreadDetails[] {
     const threads = Process.enumerateThreads();
     if (threads.length === 0) {
         throw new Error(
             "No threads available, you may want to resume the process. See :dc and :dpt",
         );
     }
-    return threads[0];
+    const tid = Number(config.getNumber("dbg.bpthread"));
+    if (tid > 0) {
+        const only = threads.find((t) => t.id === tid);
+        if (only) {
+            return [only];
+        }
+    }
+    return threads;
 }
 
 function isWatchpointEnabled(): boolean {
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
-        if (wp.enabled) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function _setBreakpointEnabled(
-    args: string[],
-    enabled: boolean,
-): string | void {
-    if (args.length === 0) {
-        return `Usage: db${enabled ? "e" : "d"} [addr]`;
-    }
-    const addr = getPtr(args[0]).toString();
-    const bp = breakpoints.get(addr);
-    if (
-        !(bp instanceof HardwareBreakpointData) &&
-        !(bp instanceof SoftwareBreakpointData)
-    ) {
-        return `Breakpoint at ${addr} does not exist`;
-    }
-    return _setBreakpointDataEnabled(bp, enabled);
-}
-
-function _setWatchpointEnabled(
-    args: string[],
-    enabled: boolean,
-): string | void {
-    if (args.length === 0) {
-        return `Usage: dbw${enabled ? "e" : "d"} [addr]`;
-    }
-    const addr = getPtr(args[0]).toString();
-    const wp = breakpoints.get(addr);
-    if (!(wp instanceof WatchpointData)) {
-        return `Watchpoint at ${addr} does not exist`;
-    }
-    return _setBreakpointDataEnabled(wp, enabled);
-}
-
-function _setBreakpointDataEnabled(
-    bp: BreakpointData,
-    enabled: boolean,
-): string | void {
-    if (bp.enabled === enabled) {
-        return;
-    }
-    if (enabled) {
-        return bp.enable();
-    } else {
-        return bp.disable();
-    }
+    return _unique(_isWatchpoint).some((wp) => wp.enabled);
 }
 
 function _parseWatchpointSpec(args: string[]): WatchpointSpec | string {
@@ -851,31 +538,24 @@ function _parseWatchpointSpec(args: string[]): WatchpointSpec | string {
         args,
         Number(config.getNumber("dbg.wpsize")),
     );
-    if (!parsed.ok) {
-        return parsed.message;
-    }
-    return parsed.spec;
+    return parsed.ok ? parsed.spec : parsed.message;
 }
 
-function _isNativeBreakpoint(
-    bp: BreakpointData,
-): bp is HardwareBreakpointData | SoftwareBreakpointData {
-    return bp instanceof HardwareBreakpointData ||
-        bp instanceof SoftwareBreakpointData;
+function _isNativeBreakpoint(bp: Breakpoint): boolean {
+    return bp.kind === "sw" || bp.kind === "hw";
 }
 
-function _isWatchpoint(bp: BreakpointData): bp is WatchpointData {
-    return bp instanceof WatchpointData;
+function _isWatchpoint(bp: Breakpoint): boolean {
+    return bp.kind === "wp";
 }
 
-function _watchpointForAddress(address: NativePointer): WatchpointData | null {
-    for (const wp of _uniqueBreakpoints(_isWatchpoint)) {
+function _watchpointForAddress(address: NativePointer): Breakpoint | null {
+    for (const wp of _unique(_isWatchpoint)) {
         if (!wp.enabled) {
             continue;
         }
-        const start = wp.address;
         const end = wp.address.add(wp.size);
-        if (address.compare(start) >= 0 && address.compare(end) < 0) {
+        if (address.compare(wp.address) >= 0 && address.compare(end) < 0) {
             return wp;
         }
     }
@@ -904,7 +584,7 @@ function _memoryOperandAddress(
 }
 
 function _breakpointHitStanza(
-    bp: BreakpointData,
+    bp: Breakpoint,
     instruction: NativePointer,
     hitAddress: NativePointer | null,
     operand: any,
@@ -914,7 +594,7 @@ function _breakpointHitStanza(
         cmd: bp.cmd,
         globalCommand: config.getString("cmd.bps"),
         continueAfterHit: bp.continueAfterHit,
-        kind: _breakpointKind(bp),
+        kind: bp.kind as BreakpointKind,
         id: bp.id,
         address: bp.address.toString(),
         instruction: instruction.toString(),
@@ -923,29 +603,15 @@ function _breakpointHitStanza(
         includeMessage: config.getBoolean("cmd.hitinfo") ||
             config.getBoolean("hook.verbose"),
         hit: hitAddress !== null ? hitAddress.toString() : undefined,
-        size: bp instanceof WatchpointData ? bp.size : undefined,
-        condition: bp instanceof WatchpointData
-            ? bp.condition as any
-            : undefined,
+        size: bp.kind === "wp" ? bp.size : undefined,
+        condition: bp.kind === "wp" ? bp.condition as any : undefined,
         access: operandAccess(operand),
     });
 }
 
-function _breakpointKind(bp: BreakpointData): BreakpointKind {
-    if (bp instanceof WatchpointData) {
-        return "wp";
-    }
-    if (bp instanceof HardwareBreakpointData) {
-        return "hw";
-    }
-    return "sw";
-}
-
-function _uniqueBreakpoints<T extends BreakpointData>(
-    predicate: (bp: BreakpointData) => bp is T,
-): T[] {
-    const seen = new Set<BreakpointData>();
-    const result: T[] = [];
+function _unique(predicate: (bp: Breakpoint) => boolean): Breakpoint[] {
+    const seen = new Set<Breakpoint>();
+    const result: Breakpoint[] = [];
     for (const bp of breakpoints.values()) {
         if (seen.has(bp) || !predicate(bp)) {
             continue;
@@ -956,48 +622,23 @@ function _uniqueBreakpoints<T extends BreakpointData>(
     return result;
 }
 
-function _breakpointRemove(bp: BreakpointData): void {
-    if (bp instanceof SoftwareBreakpointData) {
+function _breakpointRemove(bp: Breakpoint): void {
+    if (bp.kind === "sw") {
         for (const p of bp.patches) {
             p.disable();
             breakpoints.delete(p.address.toString());
         }
         return;
     }
-    if (bp instanceof HardwareBreakpointData && bp._applied) {
+    if (bp.applied) {
         bp.unsetBreakpoint();
-    } else if (bp instanceof WatchpointData && bp._applied) {
-        bp.unsetWatchpoint();
     }
     breakpoints.delete(bp.address.toString());
     _freeHwId(bp.id);
 }
 
 /**
- * Checks if the current execution is suspended.
- *
- * @returns {boolean} `true` if the execution is suspended, otherwise `false`.
- */
-export function isSuspended(): boolean {
-    return suspended;
-}
-
-/**
- * Sets the suspended state of the debugger.
- *
- * @param v - A boolean value indicating whether the debugger should be suspended (true) or not (false).
- */
-export function setSuspended(v: boolean): void {
-    suspended = v;
-}
-
-/**
- * Generates a platform-specific Software breakpoint instruction.
- *
- * @returns {ArrayBufferLike} An ArrayBuffer containing the breakpoint instruction.
- *
- * - For ARM64 architecture, it returns a 4-byte buffer with the instruction `0x60, 0x00, 0x20, 0xd4`.
- * - For other architectures, it returns a 1-byte buffer with the instruction `0xcc`.
+ * Platform-specific software breakpoint instruction (BRK on arm64, INT3 else).
  */
 export function _breakpointInstruction(): ArrayBufferLike {
     if (Process.arch === "arm64") {
@@ -1011,13 +652,13 @@ export class CodePatch {
     _newData: any;
     _originalData: any;
     _applied: boolean;
+    address: NativePointer;
     constructor(address: NativePointer) {
         const insn = Instruction.parse(address);
         this.address = address;
         this.insn = insn;
-        const insnSize = insn.size;
         this._newData = _breakpointInstruction();
-        this._originalData = address.readByteArray(insnSize);
+        this._originalData = address.readByteArray(insn.size);
         this._applied = false;
     }
 
@@ -1025,6 +666,7 @@ export class CodePatch {
         this._apply(this._applied ? this._originalData : this._newData);
         this._applied = !this._applied;
     }
+
     enable() {
         if (!this._applied) {
             this.toggle();
@@ -1036,7 +678,7 @@ export class CodePatch {
             this.toggle();
         }
     }
-    address: NativePointer;
+
     _apply(data: any) {
         Memory.patchCode(this.address, data.byteLength, (code) => {
             code.writeByteArray(data);
@@ -1044,209 +686,142 @@ export class CodePatch {
     }
 }
 
-class BreakpointData {
+type BpKind = "sw" | "hw" | "wp";
+
+// Unified breakpoint/watchpoint. Software ones are backed by two CodePatches
+// (the breakpoint + its step-over trampoline); hardware ones and watchpoints
+// are backed by per-thread debug registers (id is the register slot).
+class Breakpoint {
+    kind: BpKind;
     id: number;
     address: NativePointer;
+    threads: ThreadDetails[];
     cmd: string;
     enabled: boolean;
-    thread: ThreadDetails;
     temporary: boolean;
     removeAfterStep: boolean;
     continueAfterHit: boolean;
-
-    constructor(
-        id: number,
-        thread: ThreadDetails,
-        address: NativePointer,
-        cmd = "",
-        enabled = true,
-        temporary = false,
-        continueAfterHit = false,
-    ) {
-        this.id = id;
-        this.address = address;
-        this.cmd = cmd;
-        this.enabled = enabled;
-        this.thread = thread;
-        this.temporary = temporary;
-        this.removeAfterStep = false;
-        this.continueAfterHit = continueAfterHit;
-    }
-
-    enable(): string {
-        return "Not implemented";
-    }
-
-    disable(): string {
-        return "Not implemented";
-    }
-
-    toggle(): void {
-        console.log("Not implemented");
-    }
-
-    // setBreakpoint(): void {
-    //     console.log("Not implemented");
-    // }
-
-    // unsetBreakpoint(): void {
-    //     console.log("Not implemented");
-    // }
-}
-
-class WatchpointData extends BreakpointData {
+    applied: boolean;
+    patches: CodePatch[];
     size: number;
     condition: WatchpointCondition;
-    _applied: boolean;
 
     constructor(
+        kind: BpKind,
         id: number,
-        thread: ThreadDetails,
+        threads: ThreadDetails[],
         address: NativePointer,
-        size: number,
-        condition: WatchpointCondition,
-        cmd = "",
-        enabled = true,
-        temporary = false,
-        continueAfterHit = false,
+        opts: {
+            cmd?: string;
+            enabled?: boolean;
+            temporary?: boolean;
+            continueAfterHit?: boolean;
+            patches?: CodePatch[];
+            size?: number;
+            condition?: WatchpointCondition;
+        } = {},
     ) {
-        super(id, thread, address, cmd, enabled, temporary, continueAfterHit);
-        this.size = size;
-        this.condition = condition;
-        this._applied = false;
+        this.kind = kind;
+        this.id = id;
+        this.threads = threads;
+        this.address = address;
+        this.cmd = opts.cmd ?? "";
+        this.enabled = opts.enabled ?? true;
+        this.temporary = opts.temporary ?? false;
+        this.removeAfterStep = false;
+        this.continueAfterHit = opts.continueAfterHit ?? false;
+        this.applied = false;
+        this.patches = opts.patches ?? [];
+        this.size = opts.size ?? 0;
+        this.condition = opts.condition ?? "rw";
     }
 
-    enable(): string {
-        this.enabled = true;
-        this.setWatchpoint();
-        return `Enable Watchpoint at ${this.address.toString()}`;
+    get _label(): string {
+        switch (this.kind) {
+            case "wp":
+                return "Watchpoint";
+            case "hw":
+                return "Hardware Breakpoint";
+            default:
+                return "Software Breakpoint";
+        }
     }
 
-    disable(): string {
-        this.enabled = false;
-        this.unsetWatchpoint();
-        return `Disable Watchpoint at ${this.address.toString()}`;
+    appliesToThread(tid: number): boolean {
+        return this.threads.some((t) => t.id === tid);
     }
 
-    setWatchpoint(): void {
-        this.thread.setHardwareWatchpoint(
-            this.id,
-            this.address,
-            this.size,
-            this.condition,
-        );
-        this._applied = true;
-    }
-
-    unsetWatchpoint(): void {
-        this.thread.unsetHardwareWatchpoint(this.id);
-        this._applied = false;
-    }
-
-    toggle(): void {
-        setTimeout(() => {
-            if (this._applied) {
-                this.unsetWatchpoint();
-            } else {
-                this.setWatchpoint();
+    setBreakpoint(): void {
+        if (this.kind === "sw") {
+            for (const p of this.patches) {
+                p.enable();
             }
-        }, 100);
+            return;
+        }
+        for (const t of this.threads) {
+            if (this.kind === "wp") {
+                t.setHardwareWatchpoint(
+                    this.id,
+                    this.address,
+                    this.size,
+                    this.condition,
+                );
+            } else {
+                t.setHardwareBreakpoint(this.id, this.address);
+            }
+        }
+        this.applied = true;
     }
-}
 
-class HardwareBreakpointData extends BreakpointData {
-    _applied: boolean;
-
-    constructor(
-        id: number,
-        thread: ThreadDetails,
-        address: NativePointer,
-        cmd = "",
-        enabled = true,
-        temporary = false,
-        continueAfterHit = false,
-    ) {
-        super(id, thread, address, cmd, enabled, temporary, continueAfterHit);
-        this._applied = false;
+    unsetBreakpoint(): void {
+        if (this.kind === "sw") {
+            for (const p of this.patches) {
+                p.disable();
+            }
+            return;
+        }
+        for (const t of this.threads) {
+            if (this.kind === "wp") {
+                t.unsetHardwareWatchpoint(this.id);
+            } else {
+                t.unsetHardwareBreakpoint(this.id);
+            }
+        }
+        this.applied = false;
     }
 
     enable(): string {
         this.enabled = true;
         this.setBreakpoint();
-        return `Enable Hardware Breakpoint at ${this.address.toString()}`;
+        return `Enable ${this._label} at ${this.address.toString()}`;
     }
 
     disable(): string {
         this.enabled = false;
         this.unsetBreakpoint();
-        return `Disable Hardware Breakpoint at ${this.address.toString()}`;
-    }
-
-    setBreakpoint(): void {
-        this.thread.setHardwareBreakpoint(this.id, this.address);
-        this._applied = true;
-    }
-
-    unsetBreakpoint(): void {
-        this.thread.unsetHardwareBreakpoint(this.id);
-        this._applied = false;
+        return `Disable ${this._label} at ${this.address.toString()}`;
     }
 
     toggle(): void {
+        if (this.kind === "sw") {
+            for (const p of this.patches) {
+                p.toggle();
+            }
+            return;
+        }
+        // Defer re-arming the debug register so execution can step past the
+        // faulting instruction first; bail if the bp was removed meanwhile so a
+        // freed register id is never reprogrammed.
+        const self = this;
         setTimeout(() => {
-            if (this._applied) {
-                this.unsetBreakpoint();
+            if (breakpoints.get(self.address.toString()) !== self) {
+                return;
+            }
+            if (self.applied) {
+                self.unsetBreakpoint();
             } else {
-                this.setBreakpoint();
+                self.setBreakpoint();
             }
         }, 100);
-    }
-}
-
-class SoftwareBreakpointData extends BreakpointData {
-    patches: CodePatch[];
-
-    constructor(
-        id: number,
-        thread: ThreadDetails,
-        address: NativePointer,
-        cmd = "",
-        patches: CodePatch[],
-        enabled = true,
-        temporary = false,
-        continueAfterHit = false,
-    ) {
-        super(id, thread, address, cmd, enabled, temporary, continueAfterHit);
-        this.patches = patches;
-    }
-
-    enable(): string {
-        this.enabled = true;
-        this.setBreakpoint();
-        return `Enable Software Breakpoint at ${this.address.toString()}`;
-    }
-
-    disable(): string {
-        this.enabled = false;
-        this.unsetBreakpoint();
-        return `Disable Software Breakpoint at ${this.address.toString()}`;
-    }
-
-    setBreakpoint(): void {
-        for (const p of this.patches) {
-            p.enable();
-        }
-    }
-
-    unsetBreakpoint(): void {
-        for (const p of this.patches) {
-            p.disable();
-        }
-    }
-
-    toggle(): void {
-        for (const p of this.patches) {
-            p.toggle();
-        }
     }
 }

@@ -47,6 +47,7 @@ const config: any[string] = {
     "symbols.unredact": Process.platform === "darwin",
     "dbg.hwbp": "true",
     "dbg.wpsize": "1",
+    "dbg.bpthread": "0",
 };
 
 const configHelp: any[string] = {
@@ -74,6 +75,7 @@ const configHelp: any[string] = {
     "symbols.module": _configHelpSymbolsModule,
     "symbols.unredact": _configHelpSymbolsUnredact,
     "dbg.wpsize": _configHelpDbgWpSize,
+    "dbg.bpthread": _configHelpDbgBpThread,
 };
 
 const configValidator: any[string] = {
@@ -202,6 +204,10 @@ function _configHelpCmdHitInfo() {
 
 function _configHelpDbgWpSize() {
     return "Default hardware watchpoint size for dbw addr r|w|rw";
+}
+
+function _configHelpDbgBpThread() {
+    return "Thread id a new hw breakpoint/watchpoint targets (0 = all threads)";
 }
 
 function _configHelpHookBacktrace() {
