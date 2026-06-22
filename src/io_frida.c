@@ -287,7 +287,7 @@ static void resume(RIOFrida *rf) {
 		RListIter *it;
 		void *p;
 		r_list_foreach (tids, it, p) {
-			post_resume_tid (rf, (int)(size_t)p);
+			post_resume_tid (rf, (int) (size_t)p);
 		}
 		r_list_free (tids);
 		return;
@@ -879,26 +879,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		return NULL;
 	}
 	const char *value = json_object_get_string_member (result, "value");
-	char *sys_result = NULL;
-	if (rf->sysret) {
-		sys_result = strdup (value);
-	} else if (value && strcmp (value, "undefined")) {
-		const bool return_value = command[0] == 'm'
-			|| r_str_startswith (command, "dm")
-			|| r_str_startswith (command, "dp")
-			|| r_str_startswith (command, "dr");
-		if (return_value) {
-			sys_result = strdup (value);
-		} else {
-			RCons *cons = rf->r2core->cons;
-			bool cons_null = cons->null;
-			if (cons->context && cons->context->cmd_str_depth > 0) {
-				cons->null = false;
-			}
-			r_cons_printf (cons, "%s\n", value);
-			cons->null = cons_null;
-		}
-	}
+	sys_result = strdup (value);
 	json_object_unref (result);
 
 	return sys_result;
@@ -1831,7 +1812,7 @@ static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 		post_resume_tid (rf, tid);
 	} else {
 		rf->suspended2 = true;
-		r_list_append (rf->stopped_tids, (void *)(size_t)tid);
+		r_list_append (rf->stopped_tids, (void *) (size_t)tid);
 	}
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);

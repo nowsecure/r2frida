@@ -103,10 +103,12 @@ export function initExceptionHandler(): void {
         }
         let hasBreakpointHit = false;
         if (bp.kind === "sw") {
-            hasBreakpointHit =
-                bp.patches.findIndex((p) => p.address.equals(hitAddress)) === 0;
+            hasBreakpointHit = bp.patches.findIndex((p) =>
+                p.address.equals(hitAddress)
+            ) === 0;
         } else {
-            hasBreakpointHit = bp.appliesToThread(Process.getCurrentThreadId()) &&
+            hasBreakpointHit =
+                bp.appliesToThread(Process.getCurrentThreadId()) &&
                 ["breakpoint", "single-step"].includes(type);
         }
         if (hasBreakpointHit) {
@@ -125,27 +127,32 @@ export function initExceptionHandler(): void {
             stoppedContexts.set(stoppedTid, context);
             currentThreadContext = context;
             do {
-                const op = recv("breakpoint-action-" + stoppedTid, ({ action }) => {
-                    switch (action) {
-                        case "register-change":
-                            console.log("TODO1");
-                            break;
-                        case "resume":
-                            state = "running";
-                            stoppedContexts.delete(stoppedTid);
-                            _refreshCurrentThreadContext();
-                            if (bp.kind !== "sw") {
-                                bp.unsetBreakpoint();
-                            }
-                            if (config.getBoolean("hook.verbose")) {
-                                console.log("Continue thread(s).");
-                            }
-                            break;
-                        default:
-                            console.log("TODO: exceptionHandler: " + action);
-                            break;
-                    }
-                });
+                const op = recv(
+                    "breakpoint-action-" + stoppedTid,
+                    ({ action }) => {
+                        switch (action) {
+                            case "register-change":
+                                console.log("TODO1");
+                                break;
+                            case "resume":
+                                state = "running";
+                                stoppedContexts.delete(stoppedTid);
+                                _refreshCurrentThreadContext();
+                                if (bp.kind !== "sw") {
+                                    bp.unsetBreakpoint();
+                                }
+                                if (config.getBoolean("hook.verbose")) {
+                                    console.log("Continue thread(s).");
+                                }
+                                break;
+                            default:
+                                console.log(
+                                    "TODO: exceptionHandler: " + action,
+                                );
+                                break;
+                        }
+                    },
+                );
                 op.wait();
             } while (state === "stopped");
             if (bp.temporary) {
@@ -302,7 +309,9 @@ function _lookup(args: string[], cls: BpClass): Breakpoint | string {
     const bp = breakpoints.get(addr);
     return bp && (cls === "wp" ? bp.kind === "wp" : bp.kind !== "wp")
         ? bp
-        : `${cls === "wp" ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
+        : `${
+            cls === "wp" ? "Watchpoint" : "Breakpoint"
+        } at ${addr} does not exist`;
 }
 
 function _listSetOrUnset(args: string[], cls: BpClass): string | void {
@@ -313,10 +322,14 @@ function _listSetOrUnset(args: string[], cls: BpClass): string | void {
     }
     if (args[0].startsWith("-")) {
         const result = _breakpointUnset(args[0].substring(1), cls);
-        return result === true ? `${noun} at ${args[0].substring(1)} unset` : result;
+        return result === true
+            ? `${noun} at ${args[0].substring(1)} unset`
+            : result;
     }
     const result = isWp ? _watchpointSet(args) : _breakpointSet(args);
-    return result === true ? `${noun} at ${args[0]} set` : (result || undefined);
+    return result === true
+        ? `${noun} at ${args[0]} set`
+        : (result || undefined);
 }
 
 function _setCommand(
@@ -372,7 +385,11 @@ function _setEnabled(
 
 function _toggleEnabled(args: string[], cls: BpClass): string | void {
     const bp = _lookup(args, cls);
-    return typeof bp === "string" ? bp : bp.enabled ? bp.disable() : bp.enable();
+    return typeof bp === "string"
+        ? bp
+        : bp.enabled
+        ? bp.disable()
+        : bp.enable();
 }
 
 // === internal breakpoint/watchpoint logic ===================================
@@ -581,10 +598,12 @@ function _breakpointHitStanza(
     if (config.getBoolean("cmd.hitinfo") || config.getBoolean("hook.verbose")) {
         if (bp.kind === "wp") {
             const access = stanza.access ? ` ${stanza.access}` : "";
-            stanza.message = `Watchpoint ${address}${access} hit at ${stanza.hit} ` +
+            stanza.message =
+                `Watchpoint ${address}${access} hit at ${stanza.hit} ` +
                 `by ${instructionAddress} thread ${threadId}`;
         } else {
-            stanza.message = `Breakpoint ${address} hit at ${instructionAddress} ` +
+            stanza.message =
+                `Breakpoint ${address} hit at ${instructionAddress} ` +
                 `thread ${threadId}`;
         }
     }
