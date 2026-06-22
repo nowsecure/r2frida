@@ -878,7 +878,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	{
 		char *s = r_strbuf_drain (rf->sb);
 		if (*s) {
-			io->cb_printf ("%s\n", s);
+			RCons *cons = rf->r2core->cons;
+			r_cons_printf (cons, "%s\n", s);
 		}
 		free (s);
 		rf->sb = r_strbuf_new ("");
@@ -886,6 +887,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	rf->inputmode = false;
 
 	if (!json_object_has_member (result, "value")) {
+		json_object_unref (result);
 		return NULL;
 	}
 	const char *value = json_object_get_string_member (result, "value");
@@ -893,11 +895,24 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	if (rf->sysret) {
 		sys_result = strdup (value);
 	} else if (value && strcmp (value, "undefined")) {
-		const bool is_fs_io = command[0] == 'm' || command[0] == 'd';
-		if (is_fs_io) {
+		const bool return_value = command[0] == 'm'
+			|| r_str_startswith (command, "dm")
+			|| r_str_startswith (command, "dp")
+			|| r_str_startswith (command, "dr");
+		if (return_value) {
 			sys_result = strdup (value);
 		} else {
-			io->cb_printf ("%s\n", value);
+#if R2_VERSION_NUMBER >= 50909
+			RCons *cons = rf->r2core->cons;
+			bool cons_null = cons->null;
+			if (cons->context && cons->context->cmd_str_depth > 0) {
+				cons->null = false;
+			}
+			r_cons_printf (cons, "%s\n", value);
+			cons->null = cons_null;
+#else
+			r_cons_printf ("%s\n", value);
+#endif
 		}
 	}
 	json_object_unref (result);

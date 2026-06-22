@@ -1,5 +1,6 @@
 NAME=r2frida version
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :?Vj~{major}
 EOF
@@ -10,6 +11,7 @@ RUN
 
 NAME=r2frida version
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 : Frida.version.split('.')[0]
 EOF
@@ -20,6 +22,7 @@ RUN
 
 NAME=hello world
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :?e hello world
 EOF

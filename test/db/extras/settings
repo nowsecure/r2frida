@@ -1,5 +1,6 @@
 NAME=libraries
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e~!0x~!unred
 e r2frida.systrace.enable

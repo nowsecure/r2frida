@@ -1,5 +1,6 @@
 NAME=breakpoints empty list
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :db
 :dbj
@@ -12,6 +13,7 @@ RUN
 
 NAME=software breakpoint set unset
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e dbg.hwbp=false
 :db puts
@@ -29,6 +31,7 @@ RUN
 
 NAME=dcu keeps temporary breakpoint until hit
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e dbg.hwbp=false
 :dcu puts
@@ -48,6 +51,7 @@ RUN
 NAME=watchpoint rw condition
 BROKEN=1
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :dbw puts 1 rw
 :dbw~rw?
@@ -62,6 +66,7 @@ RUN
 
 NAME=breakpoint enable disable commands
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e dbg.hwbp=false
 :db puts
@@ -83,6 +88,7 @@ RUN
 
 NAME=breakpoint command and continue flag
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e dbg.hwbp=false
 :dbc puts ?e hello
@@ -103,6 +109,7 @@ RUN
 
 NAME=watchpoint r2 syntax validation
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :dbw java:foo rw
 EOF
@@ -113,6 +120,7 @@ RUN
 
 NAME=breakpoint global hit command config
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e cmd.bps=?e global
 :e cmd.bps
