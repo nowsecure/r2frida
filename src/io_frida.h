@@ -40,7 +40,8 @@ typedef struct r_io_frida_t {
 	GMutex lock;
 	GCond cond;
 	bool suspended;
-	bool suspended2;
+	volatile bool suspended2;
+	RList *stopped_tids;
 	volatile bool detached;
 	volatile FridaSessionDetachReason detach_reason;
 	FridaCrash *crash;
