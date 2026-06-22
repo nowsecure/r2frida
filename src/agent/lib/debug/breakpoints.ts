@@ -18,7 +18,16 @@ import {
 
 const breakpoints = new Map<string, BreakpointData>();
 let suspended = false;
+const stoppedContexts = new Map<number, CpuContext>();
 export let currentThreadContext: CpuContext | null = null;
+
+function _refreshCurrentThreadContext(): void {
+    let last: CpuContext | null = null;
+    for (const ctx of stoppedContexts.values()) {
+        last = ctx;
+    }
+    currentThreadContext = last;
+}
 
 // Hardware breakpoints and watchpoints share the same physical debug
 // registers, so their ids come from a single pool reclaimed on removal.
@@ -31,15 +40,55 @@ const _freeHwId = (id: number): void => {
     }
 };
 
+function _isX86(): boolean {
+    return Process.arch === "ia32" || Process.arch === "x64";
+}
+
+type BreakpointHit = {
+    address: NativePointer;
+    bp: BreakpointData;
+};
+
+// x86 reports INT3 traps one byte past the applied 0xcc patch.
+function _x86SoftwareBreakpointHit(
+    address: NativePointer,
+    context: CpuContext,
+    type: string,
+    bp: BreakpointData | undefined,
+): BreakpointHit | null {
+    if (
+        !_isX86() || type !== "breakpoint" ||
+        bp instanceof HardwareBreakpointData ||
+        bp instanceof WatchpointData
+    ) {
+        return null;
+    }
+    const hitAddress = address.sub(1);
+    const candidate = breakpoints.get(hitAddress.toString());
+    if (!(candidate instanceof SoftwareBreakpointData)) {
+        return null;
+    }
+    const patch = candidate.patches.find((p: CodePatch) =>
+        p.address.equals(hitAddress)
+    );
+    if (!patch?._applied) {
+        return null;
+    }
+    context.pc = hitAddress;
+    return { address: hitAddress, bp: candidate };
+}
+
 initExceptionHandler();
 
-/**
- * Initializes the breakpoints and watchpoints by setting up an exception handler.
- * The handler checks if the exception is caused by a breakpoint/watchpoint and handles it accordingly.
- */
 export function initExceptionHandler(): void {
     Process.setExceptionHandler(({ address, context, type }) => {
-        let bp = breakpoints.get(address.toString());
+        let hitAddress = address;
+        let bp = breakpoints.get(hitAddress.toString());
+        const x86Hit = _x86SoftwareBreakpointHit(address, context, type, bp);
+        if (x86Hit !== null) {
+            hitAddress = x86Hit.address;
+            bp = x86Hit.bp;
+        }
         let addressHit: NativePointer | null = null;
         let operandHit: any = null;
         if (!bp && isWatchpointEnabled()) {
@@ -66,7 +115,7 @@ export function initExceptionHandler(): void {
         let hasBreakpointHit = false;
         if (bp instanceof SoftwareBreakpointData) {
             hasBreakpointHit = bp.patches.findIndex((p: any) =>
-                p.address.equals(address)
+                p.address.equals(hitAddress)
             ) === 0;
         } else if (
             bp instanceof HardwareBreakpointData || bp instanceof WatchpointData
@@ -81,13 +130,15 @@ export function initExceptionHandler(): void {
                 name: "breakpoint-event",
                 stanza: _breakpointHitStanza(
                     bp,
-                    address,
+                    hitAddress,
                     addressHit,
                     operandHit,
                     type,
                 ),
             });
             let state = "stopped";
+            const stoppedTid = Process.getCurrentThreadId();
+            stoppedContexts.set(stoppedTid, context);
             currentThreadContext = context;
             do {
                 const op = recv("breakpoint-action", ({ action }) => {
@@ -97,7 +148,8 @@ export function initExceptionHandler(): void {
                             break;
                         case "resume":
                             state = "running";
-                            currentThreadContext = null;
+                            stoppedContexts.delete(stoppedTid);
+                            _refreshCurrentThreadContext();
                             if (bp instanceof HardwareBreakpointData) {
                                 bp.unsetBreakpoint();
                             }
@@ -129,7 +181,7 @@ export function initExceptionHandler(): void {
         }
         const afterBp = bp instanceof WatchpointData
             ? bp
-            : breakpoints.get(address.toString());
+            : breakpoints.get(hitAddress.toString());
         if (afterBp) {
             afterBp.toggle();
         }

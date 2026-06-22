@@ -959,7 +959,7 @@ _setUnhandledExceptionCallback((error: Error) => {
         }
     }
 
-    send(utils.wrapStanza("reply", message), []);
+    send(utils.wrapStanza("log", message), []);
 });
 
 recv(onStanza);
