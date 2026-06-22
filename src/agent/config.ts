@@ -386,7 +386,7 @@ export function get(k: string) {
 
 export const getBoolean = (k: string) => _isTrue(config[k]);
 export const getNumber = (k: string) =>
-    isNaN(Number(config[k])) ? 0 : config[k];
+    isNaN(Number(config[k])) ? 0 : Number(config[k]);
 export { config as values };
 export default {
     values: config,

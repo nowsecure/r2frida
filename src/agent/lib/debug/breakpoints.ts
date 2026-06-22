@@ -445,14 +445,14 @@ function _breakpointSet(
 }
 
 function _watchpointSet(args: string[]): true | string {
+    if (args[0]?.startsWith("java:")) {
+        return "Watchpoints only work on native code";
+    }
     const spec = _parseWatchpointSpec(args);
     if (typeof spec === "string") {
         return spec;
     }
     const { address, size, condition } = spec;
-    if (address.startsWith("java:")) {
-        return "Watchpoints only work on native code";
-    }
     const ptrAddr = getPtr(address);
     if (breakpoints.get(ptrAddr.toString())?.kind === "wp") {
         return `Watchpoint at ${ptrAddr.toString()} already exists`;
