@@ -7,6 +7,10 @@
 #include <r_io.h>
 #include "frida-core.h"
 
+#if R2_VERSION_NUMBER < 60000
+#error r2frida requires radare2 6.x or newer
+#endif
+
 typedef struct {
 	const char *cmd_string;
 	ut64 serial;

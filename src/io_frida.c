@@ -9,12 +9,6 @@
 #define ESMTOOL_ENABLE_PACK 0
 #include "esmtool.inc.c"
 
-#if R2_VERSION_NUMBER >= 50609
-#define COREBIND(x) (x)->coreb
-#else
-#define COREBIND(x) (x)->corebind
-#endif
-
 typedef struct {
 	char *device_id;
 	char *process_specifier;
@@ -136,12 +130,6 @@ static bool r2f_strict_version_check(RIOFrida *rf) {
 
 /// config begin
 ///
-#if R2_VERSION_NUMBER < 50909
-static inline void r_sys_setenv_asbool(const char *k, bool v) {
-	r_sys_setenv (k, v? "1": "0");
-}
-#endif
-
 static bool config_r2frida_safeio(void *_core, void *_cn) {
 	RConfigNode *cn = _cn;
 	r_sys_setenv_asbool ("R2FRIDA_SAFEIO", cn->i_value);
@@ -322,7 +310,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	if (!io) {
 		return NULL;
 	}
-	RCore *core = COREBIND (io).core;
+	RCore *core = io->coreb.core;
 	if (!core) {
 		return NULL;
 	}
@@ -902,7 +890,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		if (return_value) {
 			sys_result = strdup (value);
 		} else {
-#if R2_VERSION_NUMBER >= 50909
 			RCons *cons = rf->r2core->cons;
 			bool cons_null = cons->null;
 			if (cons->context && cons->context->cmd_str_depth > 0) {
@@ -910,9 +897,6 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			}
 			r_cons_printf (cons, "%s\n", value);
 			cons->null = cons_null;
-#else
-			r_cons_printf ("%s\n", value);
-#endif
 		}
 	}
 	json_object_unref (result);
@@ -937,11 +921,7 @@ static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
 			char *s = __system_continuation (core->io, fd, cmd);
 			free (cmd);
 			if (s) {
-#if R2_VERSION_NUMBER >= 50909
 				r_cons_printf (core->cons, "%s\n", s);
-#else
-				r_cons_printf ("%s\n", s);
-#endif
 				// eprintf ("%s\n", s);
 				free (s);
 			}
@@ -1171,11 +1151,7 @@ static RIODesc *__open(RIO *io, const char *pathname, int rw, int mode) {
 
 	load_scripts_from (rf, fd, R2_DATDIR "/r2frida/scripts");
 
-#if R2_VERSION_NUMBER < 50709
-	char *homepath = r_str_home (R_JOIN_4_PATHS (".local", "share", "r2frida", "scripts"));
-#else
 	char *homepath = r_xdg_datadir ("r2frida/scripts");
-#endif
 	load_scripts_from (rf, fd, homepath);
 	free (homepath);
 	if (!user_wants_safe_io (rf->device)) {
@@ -1748,11 +1724,7 @@ static void exec_pending_cmd_if_needed(RIOFrida *rf) {
 	g_mutex_unlock (&rf->lock);
 	char *output = NULL;
 	if (pcmd->cmd_string) {
-#if R2_VERSION_NUMBER >= 50909
-		output = COREBIND (rf->io).cmdStr (rf->r2core, pcmd->cmd_string);
-#else
-		output = COREBIND (rf->io).cmdstr (rf->r2core, pcmd->cmd_string);
-#endif
+		output = rf->io->coreb.cmdStr (rf->r2core, pcmd->cmd_string);
 	}
 	if (output) {
 		JsonBuilder *builder = build_request ("cmd");
@@ -2312,11 +2284,7 @@ static void print_list(R2FridaListType type, GArray *items, gint num_items) {
 	r_table_sort (table, 0, 0);
 	char *s = r_table_tostring (table);
 	if (s) {
-#if R2_VERSION_NUMBER >= 50909
 		r_cons_gprintf ("%s\n", s);
-#else
-		r_cons_printf ("%s\n", s);
-#endif
 		free (s);
 	}
 error:
@@ -2324,27 +2292,18 @@ error:
 }
 
 RIOPlugin r_io_plugin_frida = {
-#if R2_VERSION_NUMBER >= 50809
 	.meta = {
 		.name = "frida",
 		.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
 		.license = "MIT",
-		.version = R2FRIDA_VERSION_STRING },
-#else
-	.name = "frida",
-	.desc = "io plugin for Frida " FRIDA_VERSION_STRING,
-	.license = "MIT",
-#endif
+		.version = R2FRIDA_VERSION_STRING,
+	},
 	.uris = "frida://",
 	.open = __open,
 	.close = __close,
 	.read = __read,
 	.check = __check,
-#if R2_VERSION_NUMBER >= 50405
 	.seek = __lseek,
-#else
-	.lseek = __lseek,
-#endif
 	.write = __write,
 	.resize = __resize,
 	.system = __system,
@@ -2355,11 +2314,7 @@ R_API RLibStruct radare_plugin = {
 	.type = R_LIB_TYPE_IO,
 	.data = &r_io_plugin_frida,
 	.version = R2_VERSION,
-#if R2_VERSION_NUMBER >= 50909
 	.abiversion = R2_ABIVERSION,
-#endif
-#if R2_VERSION_NUMBER >= 40200
 	.pkgname = "r2frida"
-#endif
 };
 #endif

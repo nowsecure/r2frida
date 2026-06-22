@@ -1,17 +1,9 @@
 static void any_key(RIOFrida *rf, const char *msg) {
-#if R2_VERSION_NUMBER >= 50909
 	r_cons_any_key (rf->r2core->cons, msg);
-#else
-	r_cons_any_key (msg);
-#endif
 }
 
 static char *hud(RIOFrida *rf, RList *items, const char *text) {
-#if R2_VERSION_NUMBER >= 50909
 	return r_cons_hud (rf->r2core->cons, items, text);
-#else
-	return r_cons_hud (items, text);
-#endif
 }
 
 static char *choose_action(RIOFrida *rf) {
@@ -124,23 +116,14 @@ repeat:;
 		return NULL;
 	}
 	if (!strcmp (action, "help")) {
-#if R2_VERSION_NUMBER >= 50909
 		r_cons_clear00 (rf->r2core->cons);
 		r_cons_printf (rf->r2core->cons, "%s\n", helpmsg);
-#else
-		r_cons_clear00 ();
-		r_cons_printf ("%s\n", helpmsg);
-#endif
 		any_key (rf, "");
 		goto repeat;
 	}
 	if (!strcmp (action, "devices")) {
 		// select device
-#if R2_VERSION_NUMBER >= 50909
 		r_cons_clear00 (rf->r2core->cons);
-#else
-		r_cons_clear00 ();
-#endif
 		dumpDevices (rf, NULL);
 		any_key (rf, "");
 		goto repeat;
@@ -170,11 +153,7 @@ repeat_device:;
 	char *fil = NULL;
 	char *target = choose_target (rf);
 	if (!target) {
-#if R2_VERSION_NUMBER >= 50909
 		r_cons_clear00 (rf->r2core->cons);
-#else
-		r_cons_clear00 ();
-#endif
 		any_key (rf, "Nope");
 		goto repeat;
 	}
@@ -203,11 +182,7 @@ repeat_device:;
 			*sp = 0;
 		}
 	} else if (!strcmp (target, "file")) {
-#if R2_VERSION_NUMBER >= 50909
 		fil = r_cons_hud_path (rf->r2core->cons, "/", false);
-#else
-		fil = r_cons_hud_path ("/", false);
-#endif
 	} else {
 		goto repeat;
 	}
