@@ -101,7 +101,7 @@ const configValidator: any[string] = {
     "file.log": _configValidateString,
     "symbols.module": _configValidateString,
     "symbols.unredact": _configValidateBoolean,
-    "dbg.wpsize": _configValidateWatchpointSize,
+    "dbg.wpsize": (val: any) => [1, 2, 4, 8].indexOf(Number(val)) !== -1,
 };
 
 function _configHelpWantSwift() {
@@ -254,10 +254,6 @@ function _configValidateNumber(val: any): boolean {
 
 function _configValidateBoolean(val: any): boolean {
     return _isTrue(val) || _isFalse(val);
-}
-
-function _configValidateWatchpointSize(val: any): boolean {
-    return [1, 2, 4, 8].indexOf(Number(val)) !== -1;
 }
 
 function _isTrue(x: any): boolean {
