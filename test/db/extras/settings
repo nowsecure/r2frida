@@ -36,6 +36,7 @@ EXPECT=<<EOF
 :e symbols.module=
 :e dbg.hwbp=true
 :e dbg.wpsize=1
+:e dbg.bpthread=0
 false
 open
 passwd
