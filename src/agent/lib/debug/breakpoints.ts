@@ -4,7 +4,6 @@ import r2 from "../r2.js";
 import {
     breakpointJsonObject,
     type BreakpointKind,
-    type BreakpointRecord,
     buildBreakpointHitStanza,
     operandAccess,
     parseWatchpointSpec,
@@ -12,7 +11,6 @@ import {
     renderWatchpointR2,
     type WatchpointCondition,
     watchpointJsonObject,
-    type WatchpointRecord,
     type WatchpointSpec,
 } from "./breakpoint-model.js";
 
@@ -244,19 +242,19 @@ export function watchpointUnsetAll(_: string[]): void {
 }
 
 export function breakpointJson(): string {
-    return JSON.stringify(breakpointJsonObject(_breakpointRecords()));
+    return JSON.stringify(breakpointJsonObject(_unique(_isNativeBreakpoint)));
 }
 
 export function watchpointJson(): string {
-    return JSON.stringify(watchpointJsonObject(_watchpointRecords()));
+    return JSON.stringify(watchpointJsonObject(_unique(_isWatchpoint)));
 }
 
 export function breakpointR2(_: string[]): string {
-    return renderBreakpointR2(_breakpointRecords());
+    return renderBreakpointR2(_unique(_isNativeBreakpoint));
 }
 
 export function watchpointR2(_: string[]): string {
-    return renderWatchpointR2(_watchpointRecords());
+    return renderWatchpointR2(_unique(_isWatchpoint));
 }
 
 /**
@@ -381,32 +379,6 @@ function _toggleEnabled(args: string[], cls: BpClass): string | void {
 }
 
 // === internal breakpoint/watchpoint logic ===================================
-
-function _breakpointRecords(): BreakpointRecord[] {
-    return _unique(_isNativeBreakpoint).map((bp) => ({
-        type: bp.kind === "hw" ? "hw" : "sw",
-        id: bp.id,
-        address: bp.address.toString(),
-        enabled: bp.enabled,
-        cmd: bp.cmd,
-        continueAfterHit: bp.continueAfterHit,
-        temporary: bp.temporary,
-    }));
-}
-
-function _watchpointRecords(): WatchpointRecord[] {
-    return _unique(_isWatchpoint).map((wp) => ({
-        type: "wp",
-        id: wp.id,
-        address: wp.address.toString(),
-        size: wp.size,
-        condition: wp.condition as any,
-        enabled: wp.enabled,
-        cmd: wp.cmd,
-        continueAfterHit: wp.continueAfterHit,
-        temporary: wp.temporary,
-    }));
-}
 
 function _breakpointList(): string {
     const bps = _unique(_isNativeBreakpoint).map((bp) =>

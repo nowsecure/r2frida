@@ -12,26 +12,16 @@ export type ParseWatchpointSpecResult =
     | { ok: true; spec: WatchpointSpec }
     | { ok: false; message: string };
 
-export type BreakpointRecord = {
-    type: "sw" | "hw";
+export type BreakpointView = {
+    kind: BreakpointKind;
     id: number;
-    address: string;
+    address: { toString(): string };
     enabled: boolean;
     cmd: string;
     continueAfterHit: boolean;
     temporary: boolean;
-};
-
-export type WatchpointRecord = {
-    type: "wp";
-    id: number;
-    address: string;
     size: number;
     condition: WatchpointCondition;
-    enabled: boolean;
-    cmd: string;
-    continueAfterHit: boolean;
-    temporary: boolean;
 };
 
 export type BreakpointHitInput = {
@@ -109,11 +99,11 @@ export function normalizeWatchpointCondition(
     }
 }
 
-export function renderBreakpointR2(records: BreakpointRecord[]): string {
+export function renderBreakpointR2(bps: BreakpointView[]): string {
     const lines = [];
-    for (const bp of records) {
+    for (const bp of bps) {
         // set dbg.hwbp so replay recreates the same sw/hw breakpoint type
-        lines.push(`:e dbg.hwbp=${bp.type === "hw"}`, `:db ${bp.address}`);
+        lines.push(`:e dbg.hwbp=${bp.kind === "hw"}`, `:db ${bp.address}`);
         if (!bp.enabled) {
             lines.push(`:dbd ${bp.address}`);
         }
@@ -127,9 +117,9 @@ export function renderBreakpointR2(records: BreakpointRecord[]): string {
     return lines.join("\n");
 }
 
-export function renderWatchpointR2(records: WatchpointRecord[]): string {
+export function renderWatchpointR2(wps: BreakpointView[]): string {
     const lines = [];
-    for (const wp of records) {
+    for (const wp of wps) {
         lines.push(`:dbw ${wp.address} ${wp.size} ${wp.condition}`);
         if (!wp.enabled) {
             lines.push(`:dbwd ${wp.address}`);
@@ -145,30 +135,28 @@ export function renderWatchpointR2(records: WatchpointRecord[]): string {
 }
 
 export function breakpointJsonObject(
-    records: BreakpointRecord[],
+    bps: BreakpointView[],
 ): Record<string, any> {
     const result: Record<string, any> = {};
-    for (const bp of records) {
-        result[bp.address] = {
-            type: bp.type,
+    for (const bp of bps) {
+        result[bp.address.toString()] = {
+            type: bp.kind === "hw" ? "hw" : "sw",
             id: bp.id,
             enabled: bp.enabled,
             continue: bp.continueAfterHit,
             temporary: bp.temporary,
+            ...(bp.cmd ? { cmd: bp.cmd } : {}),
         };
-        if (bp.cmd) {
-            result[bp.address].cmd = bp.cmd;
-        }
     }
     return result;
 }
 
 export function watchpointJsonObject(
-    records: WatchpointRecord[],
+    wps: BreakpointView[],
 ): Record<string, any> {
     const result: Record<string, any> = {};
-    for (const wp of records) {
-        result[wp.address] = {
+    for (const wp of wps) {
+        result[wp.address.toString()] = {
             type: "wp",
             id: wp.id,
             size: wp.size,
@@ -176,10 +164,8 @@ export function watchpointJsonObject(
             enabled: wp.enabled,
             continue: wp.continueAfterHit,
             temporary: wp.temporary,
+            ...(wp.cmd ? { cmd: wp.cmd } : {}),
         };
-        if (wp.cmd) {
-            result[wp.address].cmd = wp.cmd;
-        }
     }
     return result;
 }
