@@ -302,6 +302,14 @@ export function setSuspended(v: boolean): void {
 
 type BpClass = "bp" | "wp";
 
+function _lookup(args: string[], cls: BpClass): Breakpoint | string {
+    const addr = getPtr(args[0]).toString();
+    const bp = breakpoints.get(addr);
+    return bp && (cls === "wp" ? bp.kind === "wp" : bp.kind !== "wp")
+        ? bp
+        : `${cls === "wp" ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
+}
+
 function _listSetOrUnset(args: string[], cls: BpClass): string | void {
     const isWp = cls === "wp";
     const noun = isWp ? "Watchpoint" : "Breakpoint";
@@ -360,25 +368,16 @@ function _setEnabled(
         const verb = enabled ? "e" : "d";
         return isWp ? `Usage: dbw${verb} [addr]` : `Usage: db${verb} [addr]`;
     }
-    const addr = getPtr(args[0]).toString();
-    const bp = breakpoints.get(addr);
-    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
-        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
+    const bp = _lookup(args, cls);
+    if (typeof bp !== "string" && bp.enabled !== enabled) {
+        return enabled ? bp.enable() : bp.disable();
     }
-    if (bp.enabled === enabled) {
-        return;
-    }
-    return enabled ? bp.enable() : bp.disable();
+    return typeof bp === "string" ? bp : undefined;
 }
 
 function _toggleEnabled(args: string[], cls: BpClass): string | void {
-    const isWp = cls === "wp";
-    const ptrAddr = getPtr(args[0]);
-    const bp = breakpoints.get(ptrAddr.toString());
-    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
-        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${ptrAddr} does not exists`;
-    }
-    return bp.enabled ? bp.disable() : bp.enable();
+    const bp = _lookup(args, cls);
+    return typeof bp === "string" ? bp : bp.enabled ? bp.disable() : bp.enable();
 }
 
 // === internal breakpoint/watchpoint logic ===================================
@@ -499,11 +498,9 @@ function _watchpointSet(args: string[]): true | string {
 }
 
 function _breakpointUnset(addrArg: string, cls: BpClass): true | string {
-    const addr = getPtr(addrArg).toString();
-    const bp = breakpoints.get(addr);
-    const isWp = cls === "wp";
-    if (!bp || (isWp ? bp.kind !== "wp" : bp.kind === "wp")) {
-        return `${isWp ? "Watchpoint" : "Breakpoint"} at ${addr} does not exist`;
+    const bp = _lookup([addrArg], cls);
+    if (typeof bp === "string") {
+        return bp;
     }
     _breakpointRemove(bp);
     return true;
