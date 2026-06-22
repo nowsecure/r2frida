@@ -42,26 +42,13 @@ export function parseWatchpointSpec(
     if (!Number.isInteger(size) || [1, 2, 4, 8].indexOf(size) === -1) {
         return { ok: false, message: "Invalid size" };
     }
-    const condition = normalizeWatchpointCondition(conditionArg);
-    if (condition === null) {
+    if (["r", "w", "rw"].indexOf(conditionArg) === -1) {
         return { ok: false, message: "Invalid condition" };
     }
-    return { ok: true, spec: { address, size, condition } };
-}
-
-export function normalizeWatchpointCondition(
-    condition: string | undefined,
-): WatchpointCondition | null {
-    switch (condition) {
-        case "r":
-        case "w":
-        case "rw":
-            return condition;
-        case "wr":
-            return "rw";
-        default:
-            return null;
-    }
+    return {
+        ok: true,
+        spec: { address, size, condition: conditionArg as WatchpointCondition },
+    };
 }
 
 export function renderBreakpointR2(bps: BreakpointView[]): string {
