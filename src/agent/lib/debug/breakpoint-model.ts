@@ -1,6 +1,4 @@
-export type BreakpointKind = "sw" | "hw" | "wp";
 export type WatchpointCondition = "r" | "w" | "rw";
-export type WatchpointAccess = WatchpointCondition;
 
 export type WatchpointSpec = {
     address: string;
@@ -13,7 +11,7 @@ export type ParseWatchpointSpecResult =
     | { ok: false; message: string };
 
 export type BreakpointView = {
-    kind: BreakpointKind;
+    kind: "sw" | "hw" | "wp";
     id: number;
     address: { toString(): string };
     enabled: boolean;
@@ -22,39 +20,6 @@ export type BreakpointView = {
     temporary: boolean;
     size: number;
     condition: WatchpointCondition;
-};
-
-export type BreakpointHitInput = {
-    kind: BreakpointKind;
-    id: number;
-    address: string;
-    instruction: string;
-    threadId: number;
-    exception: string;
-    cmd: string;
-    globalCommand: string;
-    continueAfterHit: boolean;
-    includeMessage: boolean;
-    hit?: string;
-    size?: number;
-    condition?: WatchpointCondition;
-    access?: WatchpointAccess | null;
-};
-
-export type BreakpointHitStanza = {
-    cmd: string;
-    continue: boolean;
-    kind: BreakpointKind;
-    id: number;
-    address: string;
-    instruction: string;
-    threadId: number;
-    exception: string;
-    hit?: string;
-    size?: number;
-    condition?: WatchpointCondition;
-    access?: WatchpointAccess;
-    message?: string;
 };
 
 export function parseWatchpointSpec(
@@ -170,58 +135,7 @@ export function watchpointJsonObject(
     return result;
 }
 
-export function buildBreakpointHitStanza(
-    input: BreakpointHitInput,
-): BreakpointHitStanza {
-    const stanza: BreakpointHitStanza = {
-        cmd: composeBreakpointHitCommand(input.cmd, input.globalCommand),
-        continue: input.continueAfterHit,
-        kind: input.kind,
-        id: input.id,
-        address: input.address,
-        instruction: input.instruction,
-        threadId: input.threadId,
-        exception: input.exception,
-    };
-    if (input.kind === "wp") {
-        stanza.hit = input.hit ?? input.address;
-        stanza.size = input.size;
-        stanza.condition = input.condition;
-        if (input.access !== null && input.access !== undefined) {
-            stanza.access = input.access;
-        }
-    }
-    if (input.includeMessage) {
-        stanza.message = breakpointHitMessage(stanza);
-    }
-    return stanza;
-}
-
-export function composeBreakpointHitCommand(
-    breakpointCommand: string,
-    globalCommand: string,
-): string {
-    const commands = [];
-    if (breakpointCommand) {
-        commands.push(breakpointCommand);
-    }
-    if (globalCommand) {
-        commands.push(globalCommand);
-    }
-    return commands.join(";");
-}
-
-export function breakpointHitMessage(stanza: BreakpointHitStanza): string {
-    if (stanza.kind === "wp") {
-        const access = stanza.access ? ` ${stanza.access}` : "";
-        return `Watchpoint ${stanza.address}${access} hit at ${stanza.hit} ` +
-            `by ${stanza.instruction} thread ${stanza.threadId}`;
-    }
-    return `Breakpoint ${stanza.address} hit at ${stanza.instruction} ` +
-        `thread ${stanza.threadId}`;
-}
-
-export function operandAccess(operand: any): WatchpointAccess | null {
+export function operandAccess(operand: any): WatchpointCondition | null {
     const access = operand && (operand.access || operand.value?.access);
     switch (access) {
         case "read":

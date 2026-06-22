@@ -3,8 +3,6 @@ import { getPtr } from "../utils.js";
 import r2 from "../r2.js";
 import {
     breakpointJsonObject,
-    type BreakpointKind,
-    buildBreakpointHitStanza,
     operandAccess,
     parseWatchpointSpec,
     renderBreakpointR2,
@@ -559,23 +557,39 @@ function _breakpointHitStanza(
     operand: any,
     exceptionType: string,
 ): any {
-    return buildBreakpointHitStanza({
-        cmd: bp.cmd,
-        globalCommand: config.getString("cmd.bps"),
-        continueAfterHit: bp.continueAfterHit,
-        kind: bp.kind as BreakpointKind,
+    const address = bp.address.toString();
+    const instructionAddress = instruction.toString();
+    const threadId = Process.getCurrentThreadId();
+    const stanza: any = {
+        cmd: [bp.cmd, config.getString("cmd.bps")].filter(Boolean).join(";"),
+        continue: bp.continueAfterHit,
+        kind: bp.kind,
         id: bp.id,
-        address: bp.address.toString(),
-        instruction: instruction.toString(),
-        threadId: Process.getCurrentThreadId(),
+        address,
+        instruction: instructionAddress,
+        threadId,
         exception: exceptionType,
-        includeMessage: config.getBoolean("cmd.hitinfo") ||
-            config.getBoolean("hook.verbose"),
-        hit: hitAddress !== null ? hitAddress.toString() : undefined,
-        size: bp.kind === "wp" ? bp.size : undefined,
-        condition: bp.kind === "wp" ? bp.condition as any : undefined,
-        access: operandAccess(operand),
-    });
+    };
+    if (bp.kind === "wp") {
+        stanza.hit = hitAddress !== null ? hitAddress.toString() : address;
+        stanza.size = bp.size;
+        stanza.condition = bp.condition;
+        const access = operandAccess(operand);
+        if (access !== null) {
+            stanza.access = access;
+        }
+    }
+    if (config.getBoolean("cmd.hitinfo") || config.getBoolean("hook.verbose")) {
+        if (bp.kind === "wp") {
+            const access = stanza.access ? ` ${stanza.access}` : "";
+            stanza.message = `Watchpoint ${address}${access} hit at ${stanza.hit} ` +
+                `by ${instructionAddress} thread ${threadId}`;
+        } else {
+            stanza.message = `Breakpoint ${address} hit at ${instructionAddress} ` +
+                `thread ${threadId}`;
+        }
+    }
+    return stanza;
 }
 
 function _unique(predicate: (bp: Breakpoint) => boolean): Breakpoint[] {
