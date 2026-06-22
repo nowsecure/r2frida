@@ -275,17 +275,35 @@ static FridaScriptRuntime r2f_jsruntime(void) {
 	return default_runtime;
 }
 
+static void post_resume_tid(RIOFrida *rf, int tid) {
+	char *msg = r_str_newf ("{\"type\":\"breakpoint-action-%d\",\"action\":\"resume\"}", tid);
+	if (msg) {
+		frida_script_post (rf->script, msg, NULL);
+		free (msg);
+	}
+}
+
 static void resume(RIOFrida *rf) {
 	if (!rf) {
 		return;
 	}
-	if (rf->suspended2) {
-		// send breakpoint-action
-		rf->suspended2 = false;
-		const char *message = "{\"type\": \"breakpoint-action\",\"action\":\"resume\"}";
-		frida_script_post (rf->script, message, NULL);
+	g_mutex_lock (&rf->lock);
+	const bool stopped = rf->suspended2;
+	RList *tids = rf->stopped_tids;
+	rf->stopped_tids = r_list_new ();
+	rf->suspended2 = false;
+	g_mutex_unlock (&rf->lock);
+	if (stopped) {
+		// resume each parked thread by tid (resume-all == post to every tid)
+		RListIter *it;
+		void *p;
+		r_list_foreach (tids, it, p) {
+			post_resume_tid (rf, (int)(size_t)p);
+		}
+		r_list_free (tids);
 		return;
 	}
+	r_list_free (tids);
 	GError *error = NULL;
 	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
@@ -311,6 +329,7 @@ static RIOFrida *r_io_frida_new(RIO *io) {
 	rf->cancellable = g_cancellable_new (); // TODO: call cancel () when shutting down
 	rf->s = r_socket_new (false);
 	rf->sb = r_strbuf_new ("");
+	rf->stopped_tids = r_list_new ();
 	r2f_systrace_init (rf);
 	rf->io = io;
 	rf->r2core = core;
@@ -353,6 +372,8 @@ static void r_io_frida_free(RIOFrida *rf) {
 	r_socket_free (rf->s);
 	free (rf->crash_report);
 	r_strbuf_free (rf->sb);
+	r_list_free (rf->stopped_tids);
+	rf->stopped_tids = NULL;
 	g_clear_object (&rf->crash);
 	g_clear_object (&rf->script);
 	g_clear_object (&rf->session);
@@ -459,9 +480,10 @@ static bool __close(RIODesc *fd) {
 	r2frida_config_fini (rf);
 	g_mutex_lock (&rf->lock);
 	rf->detached = true;
-	resume (rf);
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
+	// resume outside the lock to avoid blocking under it
+	resume (rf);
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
 	return true;
@@ -587,7 +609,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		JsonBuilder *builder = build_request ("state");
 		add_offset_parameter (builder, io->off);
 		json_builder_set_member_name (builder, "suspended");
-		json_builder_add_boolean_value (builder, rf->suspended);
+		json_builder_add_boolean_value (builder, rf->suspended || rf->suspended2);
 		JsonObject *result = perform_request (rf, builder, NULL, NULL);
 		if (result) {
 			json_object_unref (result);
@@ -1778,7 +1800,19 @@ static void on_breakpoint_event(RIOFrida *rf, JsonObject *cmd_stanza) {
 #endif
 		}
 	}
-	rf->suspended2 = true;
+	int tid = json_object_has_member (cmd_stanza, "threadId")
+		? (int)json_object_get_int_member (cmd_stanza, "threadId")
+		: 0;
+	bool continue_after_hit = false;
+	if (json_object_has_member (cmd_stanza, "continue")) {
+		continue_after_hit = json_object_get_boolean_member (cmd_stanza, "continue");
+	}
+	if (continue_after_hit) {
+		post_resume_tid (rf, tid);
+	} else {
+		rf->suspended2 = true;
+		r_list_append (rf->stopped_tids, (void *)(size_t)tid);
+	}
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
 }
