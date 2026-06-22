@@ -10,6 +10,9 @@ e r2frida.systrace.filter=passwd
 e r2frida.systrace.filter
 e r2frida.systrace.tid=0
 e r2frida.systrace.tid
+:e cmd.bps=?e global
+:e cmd.bps
+:e cmd.bps=
 EOF
 EXPECT=<<EOF
 :e java.wait=false
@@ -42,5 +45,6 @@ false
 open
 passwd
 0
+?e global
 EOF
 RUN

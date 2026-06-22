@@ -45,9 +45,7 @@ Breakpoint at puts unset
 EOF
 RUN
 
-# BROKEN: frida://0 has no debug registers, so dbw cannot install a real
-# hardware watchpoint on this target (the assertions below are correct on a
-# device that supports them)
+# BROKEN: i think that's x86 specific and fails on arm64 needs further testing
 NAME=watchpoint rw condition
 BROKEN=1
 FILE=frida://0
@@ -115,17 +113,5 @@ CMDS=<<EOF
 EOF
 EXPECT=<<EOF
 Watchpoints only work on native code
-EOF
-RUN
-
-NAME=breakpoint global hit command config
-FILE=frida://0
-TIMEOUT=30
-CMDS=<<EOF
-:e cmd.bps=?e global
-:e cmd.bps
-EOF
-EXPECT=<<EOF
-?e global
 EOF
 RUN
