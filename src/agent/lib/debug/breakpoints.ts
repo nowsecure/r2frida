@@ -3,7 +3,6 @@ import { getPtr } from "../utils.js";
 import r2 from "../r2.js";
 import {
     breakpointJsonObject,
-    operandAccess,
     parseWatchpointSpec,
     renderBreakpointR2,
     renderWatchpointR2,
@@ -574,8 +573,8 @@ function _breakpointHitStanza(
         stanza.hit = hitAddress !== null ? hitAddress.toString() : address;
         stanza.size = bp.size;
         stanza.condition = bp.condition;
-        const access = operandAccess(operand);
-        if (access !== null) {
+        const access = operand && (operand.access || operand.value?.access);
+        if (["r", "w", "rw"].indexOf(access) !== -1) {
             stanza.access = access;
         }
     }

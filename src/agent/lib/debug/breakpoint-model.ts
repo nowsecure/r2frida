@@ -121,20 +121,3 @@ export function watchpointJsonObject(
     }
     return result;
 }
-
-export function operandAccess(operand: any): WatchpointCondition | null {
-    const access = operand && (operand.access || operand.value?.access);
-    switch (access) {
-        case "read":
-        case "r":
-            return "r";
-        case "write":
-        case "w":
-            return "w";
-        case "read-write":
-        case "rw":
-            return "rw";
-        default:
-            return null;
-    }
-}
