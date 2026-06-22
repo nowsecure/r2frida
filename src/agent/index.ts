@@ -117,11 +117,13 @@ const commandHandlers = {
         "[addr]",
     ],
     dbj: breakpoints.breakpointJson,
+    "db*": breakpoints.breakpointR2,
     dbwj: breakpoints.watchpointJson,
+    "dbw*": breakpoints.watchpointR2,
     dbw: [
         breakpoints.setWatchpoint,
         "list or add a native watchpoint",
-        "[addr] [size] [r|w|rw]",
+        "[addr] ([size]) [r|w|rw]",
     ],
     "dbw-": [
         breakpoints.unsetWatchpoint,
@@ -139,14 +141,44 @@ const commandHandlers = {
         "associate an r2 command when the native watchpoint is hit",
         "[addr] [cmd]",
     ],
+    dbwC: [
+        breakpoints.setWatchpointCommandContinue,
+        "associate an r2 command and continue when the native watchpoint is hit",
+        "[addr] [cmd]",
+    ],
+    dbwd: [
+        breakpoints.watchpointDisable,
+        "disable the native watchpoint in the given address",
+        "[addr]",
+    ],
+    dbwe: [
+        breakpoints.watchpointEnable,
+        "enable the native watchpoint in the given address",
+        "[addr]",
+    ],
     dbc: [
         breakpoints.setBreakpointCommand,
         "associate an r2 command when the native breakpoint is hit. It creates the breakpoint if it does not exist.",
         "[addr] [cmd]",
     ],
+    dbC: [
+        breakpoints.setBreakpointCommandContinue,
+        "associate an r2 command and continue when the native breakpoint is hit. It creates the breakpoint if it does not exist.",
+        "[addr] [cmd]",
+    ],
     dbs: [
         breakpoints.toggleBreakpoint,
         "Enable/Disable a breakpoint",
+        "[addr]",
+    ],
+    dbd: [
+        breakpoints.breakpointDisable,
+        "disable the native breakpoint in the given address",
+        "[addr]",
+    ],
+    dbe: [
+        breakpoints.breakpointEnable,
+        "enable the native breakpoint in the given address",
         "[addr]",
     ],
     "db-": [
@@ -927,7 +959,7 @@ _setUnhandledExceptionCallback((error: Error) => {
         }
     }
 
-    send(utils.wrapStanza("reply", message), []);
+    send(utils.wrapStanza("log", message), []);
 });
 
 recv(onStanza);

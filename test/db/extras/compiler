@@ -1,5 +1,6 @@
 NAME=r2frida-compiler
-FILE=frida://0
+FILE=-
+TIMEOUT=30
 CMDS=<<EOF
 rm /tmp/example.r2f.js
 !r2frida-compile -B iife -o /tmp/example.r2f.js bins/example.js

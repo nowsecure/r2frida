@@ -1,0 +1,117 @@
+NAME=breakpoints empty list
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:db
+:dbj
+EOF
+EXPECT=<<EOF
+No breakpoints set
+{}
+EOF
+RUN
+
+NAME=software breakpoint set unset
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e dbg.hwbp=false
+:db puts
+:db~(sw)?
+:db- puts
+:db
+EOF
+EXPECT=<<EOF
+Breakpoint at puts set
+1
+Breakpoint at puts unset
+No breakpoints set
+EOF
+RUN
+
+NAME=dcu keeps temporary breakpoint until hit
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e dbg.hwbp=false
+:dcu puts
+:db~(sw)?
+:db- puts
+EOF
+EXPECT=<<EOF
+Continue thread(s).
+1
+Breakpoint at puts unset
+EOF
+RUN
+
+# Hardware watchpoints need native debug-register support.
+NAME=watchpoint rw condition
+REQUIRE=x86
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:dbw puts 1 rw
+:dbw~rw?
+:dbw- puts
+EOF
+EXPECT=<<EOF
+Watchpoint at puts set
+1
+Watchpoint at puts unset
+EOF
+RUN
+
+NAME=breakpoint enable disable commands
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e dbg.hwbp=false
+:db puts
+:dbd puts~?
+:db~false?
+:dbe puts~?
+:db~true?
+:db- puts
+EOF
+EXPECT=<<EOF
+Breakpoint at puts set
+1
+1
+1
+1
+Breakpoint at puts unset
+EOF
+RUN
+
+NAME=breakpoint command and continue flag
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e dbg.hwbp=false
+:dbc puts ?e hello
+:db~hello?
+:dbj~continue":true?
+:dbC puts ?e cont
+:dbj~continue":true?
+:db- puts
+EOF
+EXPECT=<<EOF
+Breakpoint at puts set
+1
+0
+1
+Breakpoint at puts unset
+EOF
+RUN
+
+NAME=watchpoint r2 syntax validation
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:dbw java:foo rw
+EOF
+EXPECT=<<EOF
+Watchpoints only work on native code
+EOF
+RUN

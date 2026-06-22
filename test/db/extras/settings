@@ -1,5 +1,6 @@
 NAME=libraries
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :e~!0x~!unred
 e r2frida.systrace.enable
@@ -9,6 +10,9 @@ e r2frida.systrace.filter=passwd
 e r2frida.systrace.filter
 e r2frida.systrace.tid=0
 e r2frida.systrace.tid
+:e cmd.bps=?e global
+:e cmd.bps
+:e cmd.bps=
 EOF
 EXPECT=<<EOF
 :e java.wait=false
@@ -30,12 +34,17 @@ EXPECT=<<EOF
 :e hook.logs=true
 :e hook.output=simple
 :e hook.usecmd=
+:e cmd.bps=
+:e cmd.hitinfo=true
 :e file.log=
 :e symbols.module=
 :e dbg.hwbp=true
+:e dbg.wpsize=1
+:e dbg.bpthread=0
 false
 open
 passwd
 0
+?e global
 EOF
 RUN

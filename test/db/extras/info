@@ -1,5 +1,6 @@
 NAME=r2frida info bits
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :i~bits
 EOF
@@ -10,6 +11,7 @@ RUN
 
 NAME=libraries
 FILE=frida://0
+TIMEOUT=30
 CMDS=<<EOF
 :il~radare?
 EOF

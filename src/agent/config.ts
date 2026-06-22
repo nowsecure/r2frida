@@ -40,10 +40,14 @@ const config: any[string] = {
     "hook.logs": true,
     "hook.output": "simple",
     "hook.usecmd": "",
+    "cmd.bps": "",
+    "cmd.hitinfo": true,
     "file.log": "",
     "symbols.module": "",
     "symbols.unredact": Process.platform === "darwin",
     "dbg.hwbp": "true",
+    "dbg.wpsize": "1",
+    "dbg.bpthread": "0",
 };
 
 const configHelp: any[string] = {
@@ -65,9 +69,13 @@ const configHelp: any[string] = {
     "hook.usecmd": _configHelpHookUseCmd,
     "hook.logs": _configHelpHookLogs,
     "hook.output": _configHelpHookOutput,
+    "cmd.bps": _configHelpCmdBps,
+    "cmd.hitinfo": _configHelpCmdHitInfo,
     "file.log": _configHelpFileLog,
     "symbols.module": _configHelpSymbolsModule,
     "symbols.unredact": _configHelpSymbolsUnredact,
+    "dbg.wpsize": _configHelpDbgWpSize,
+    "dbg.bpthread": _configHelpDbgBpThread,
 };
 
 const configValidator: any[string] = {
@@ -88,9 +96,12 @@ const configValidator: any[string] = {
     "hook.time": _configValidateBoolean,
     "hook.logs": _configValidateBoolean,
     "hook.output": _configValidateString,
+    "cmd.bps": _configValidateString,
+    "cmd.hitinfo": _configValidateBoolean,
     "file.log": _configValidateString,
     "symbols.module": _configValidateString,
     "symbols.unredact": _configValidateBoolean,
+    "dbg.wpsize": (val: any) => [1, 2, 4, 8].indexOf(Number(val)) !== -1,
 };
 
 function _configHelpWantSwift() {
@@ -181,6 +192,22 @@ function _configHelpHookOutput() {
   
   simple | json   (simple by default)
   `;
+}
+
+function _configHelpCmdBps() {
+    return "Run this r2 command whenever a breakpoint or watchpoint is hit";
+}
+
+function _configHelpCmdHitInfo() {
+    return "Print a hit-details line on every breakpoint/watchpoint hit (enabled by default, set to false to keep hits silent)";
+}
+
+function _configHelpDbgWpSize() {
+    return "Default hardware watchpoint size for dbw addr r|w|rw";
+}
+
+function _configHelpDbgBpThread() {
+    return "Thread id a new hw breakpoint/watchpoint targets (0 = all threads)";
 }
 
 function _configHelpHookBacktrace() {
@@ -359,7 +386,7 @@ export function get(k: string) {
 
 export const getBoolean = (k: string) => _isTrue(config[k]);
 export const getNumber = (k: string) =>
-    isNaN(Number(config[k])) ? 0 : config[k];
+    isNaN(Number(config[k])) ? 0 : Number(config[k]);
 export { config as values };
 export default {
     values: config,
