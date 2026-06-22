@@ -141,7 +141,7 @@ export function initExceptionHandler(): void {
             stoppedContexts.set(stoppedTid, context);
             currentThreadContext = context;
             do {
-                const op = recv("breakpoint-action", ({ action }) => {
+                const op = recv("breakpoint-action-" + stoppedTid, ({ action }) => {
                     switch (action) {
                         case "register-change":
                             console.log("TODO1");
