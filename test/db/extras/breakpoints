@@ -45,9 +45,9 @@ Breakpoint at puts unset
 EOF
 RUN
 
-# BROKEN: i think that's x86 specific and fails on arm64 needs further testing
+# Hardware watchpoints need native debug-register support.
 NAME=watchpoint rw condition
-BROKEN=1
+REQUIRE=x86
 FILE=frida://0
 TIMEOUT=30
 CMDS=<<EOF
