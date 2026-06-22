@@ -516,7 +516,7 @@ function _targetThreads(): ThreadDetails[] {
             "No threads available, you may want to resume the process. See :dc and :dpt",
         );
     }
-    const tid = Number(config.getNumber("dbg.bpthread"));
+    const tid = config.getNumber("dbg.bpthread");
     if (tid > 0) {
         const only = threads.find((t) => t.id === tid);
         if (only) {
@@ -533,7 +533,7 @@ function isWatchpointEnabled(): boolean {
 function _parseWatchpointSpec(args: string[]): WatchpointSpec | string {
     const parsed = parseWatchpointSpec(
         args,
-        Number(config.getNumber("dbg.wpsize")),
+        config.getNumber("dbg.wpsize"),
     );
     return parsed.ok ? parsed.spec : parsed.message;
 }
