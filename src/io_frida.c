@@ -879,7 +879,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		return NULL;
 	}
 	const char *value = json_object_get_string_member (result, "value");
-	sys_result = strdup (value);
+	char *sys_result = strdup (value);
 	json_object_unref (result);
 
 	return sys_result;
