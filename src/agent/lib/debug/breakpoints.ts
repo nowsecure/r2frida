@@ -345,7 +345,7 @@ function _setCommand(
     }
     const address = getPtr(args[0]);
     let bp = breakpoints.get(address.toString());
-    let message: string | undefined;
+    let message = "";
     if (isWp) {
         if (!bp || bp.kind !== "wp") {
             return `Watchpoint at ${args[0]} does not exist`;
