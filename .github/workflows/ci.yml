@@ -51,7 +51,7 @@ jobs:
     - name: Testing stat for frida-fs
       run: make -C dist/docker test
     - name: Installing radare2
-      uses: radareorg/github-actions@v2
+      uses: radareorg/github-actions@v3
       with:
         version: ${{ env.R2V }}
     - name: Building r2frida
