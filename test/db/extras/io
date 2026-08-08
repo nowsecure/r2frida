@@ -1,0 +1,31 @@
+NAME=one-byte executable memory write
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+s `:dma 65536`
+:dmp $$ 65536 r-x
+wx a5
+p8 1
+:dmp $$ 65536 rw-
+:dma- $$
+EOF
+EXPECT=<<EOF
+a5
+EOF
+RUN
+
+NAME=32-byte executable memory write
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+s `:dma 65536`
+:dmp $$ 65536 r-x
+wx 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+p8 32
+:dmp $$ 65536 rw-
+:dma- $$
+EOF
+EXPECT=<<EOF
+000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+EOF
+RUN

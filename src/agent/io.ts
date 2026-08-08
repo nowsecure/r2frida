@@ -100,14 +100,14 @@ interface R2FIOReadParameters {
     fast: boolean;
 }
 
-export function write(params: R2FIOWriteParameters, data: any) {
+export function write(params: R2FIOWriteParameters, data: ArrayBuffer) {
     const ptroff = ptr(params.offset);
     if (typeof r2frida.hookedWrite === "function") {
         return r2frida.hookedWrite(ptroff, data);
     }
     if (config.getBoolean("patch.code") && isExecutable(ptroff)) {
         if (typeof Memory.patchCode === "function") {
-            Memory.patchCode(ptroff, 1, function (p: NativePointer) {
+            Memory.patchCode(ptroff, data.byteLength, (p: NativePointer) => {
                 p.writeByteArray(data);
             });
         } else {
