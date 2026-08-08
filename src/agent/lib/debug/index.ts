@@ -288,16 +288,17 @@ export function dumpRegistersRecursively(args: string[]): string {
 }
 
 export function dumpRegisterProfile(args: string[]): string {
-    const threads = Process.enumerateThreads();
-    if (threads.length === 0) {
-        // TODO: when process is spawned but not being executed, there are no threads
-        // ODOT: available therefor the list is empty and we cant generate a regprofile
+    // The register profile only needs register names, which are fixed per
+    // architecture. Deriving them from a live thread context would call
+    // Process.enumerateThreads(), which on recent frida snapshots every
+    // thread's cpu context through a ptrace-based helper; that races against
+    // the SIGSTOP-based thread suspension done by Memory.patchCode when a
+    // software breakpoint is (un)set, deadlocking the agent. r2 issues drp on
+    // every session via `e dbg.backend=io`, so keep it thread-free.
+    const names = _gpRegisterNames(Process.arch);
+    if (names.length === 0) {
         return "";
     }
-    const context = threads[0].context;
-    const names = Object.keys(JSON.parse(JSON.stringify(context)))
-        .filter((_) => _ !== "pc" && _ !== "sp");
-    names.sort(_compareRegisterNames);
     let off = 0;
     const inc = Process.pointerSize;
     let profile = _regProfileAliasFor(Process.arch);
@@ -306,6 +307,41 @@ export function dumpRegisterProfile(args: string[]): string {
         off += inc;
     }
     return profile;
+}
+
+// General-purpose register names as exposed by frida's CpuContext, keyed by
+// Process.arch. Kept in profile order (the caller does not re-sort).
+function _gpRegisterNames(arch: string): string[] {
+    switch (arch) {
+        case "ia64":
+        case "x64":
+            return [
+                "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp",
+                "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rip",
+            ];
+        case "x86":
+        case "ia32":
+            return [
+                "eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp", "eip",
+            ];
+        case "arm64": {
+            const names = [];
+            for (let i = 0; i < 29; i++) {
+                names.push("x" + i);
+            }
+            names.push("fp", "lr");
+            return names;
+        }
+        case "arm": {
+            const names = [];
+            for (let i = 0; i < 13; i++) {
+                names.push("r" + i);
+            }
+            names.push("lr");
+            return names;
+        }
+    }
+    return [];
 }
 
 export function dumpRegisterArena(args: string[]): string {

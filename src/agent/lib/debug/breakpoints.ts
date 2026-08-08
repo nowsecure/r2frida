@@ -433,9 +433,8 @@ function _breakpointSet(
     if (existing && existing.kind !== "wp") {
         return `Breakpoint at ${ptrAddr.toString()} already exists`;
     }
-    const threads = _targetThreads();
     if (config.getBoolean("dbg.hwbp")) {
-        const bp = new Breakpoint("hw", _allocHwId(), threads, ptrAddr, {
+        const bp = new Breakpoint("hw", _allocHwId(), _targetThreads(), ptrAddr, {
             temporary,
             continueAfterHit,
         });
@@ -450,7 +449,10 @@ function _breakpointSet(
     if (breakpoints.has(p2.address.toString())) {
         return `Breakpoint at ${p2.address.toString()} already exists`;
     }
-    const bp = new Breakpoint("sw", -1, threads, ptrAddr, {
+    // no _targetThreads() here: sw breakpoints are code patches that apply to
+    // every thread, and enumerating threads snapshots their cpu contexts via
+    // a fork+ptrace helper that can wedge the process on linux
+    const bp = new Breakpoint("sw", -1, [], ptrAddr, {
         temporary,
         continueAfterHit,
         patches: [p1, p2],
@@ -754,9 +756,9 @@ class Breakpoint {
 
     setBreakpoint(): void {
         if (this.kind === "sw") {
-            for (const p of this.patches) {
-                p.enable();
-            }
+            // arm only the trap patch; the step-over patch is toggled in on a
+            // hit, and arming both here would desync the toggle() state machine
+            this.patches[0].enable();
             return;
         }
         for (const t of this.threads) {
