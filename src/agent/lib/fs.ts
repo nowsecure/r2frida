@@ -743,7 +743,21 @@ export function listFileDescriptors(args: string[]): string {
 
 export function listFileDescriptorsJson(args: string[]): string[][] {
     const PATH_MAX = 4096;
-    function getFdName(fd: any) {
+    const DARWIN_MAXPATHLEN = 1024;
+    const F_GETPATH = 50;
+    const fcntlAddress = Process.platform === "darwin"
+        ? findGlobalExportByName("fcntl")
+        : null;
+    const fcntl = fcntlAddress === null
+        ? null
+        : new NativeFunction(fcntlAddress, "int", [
+            "int",
+            "int",
+            "...",
+            "pointer",
+        ]);
+
+    function getFdName(fd: number): string {
         if (_readlink && Process.platform === "linux") {
             const fdPath = path.join("proc", "" + Process.id, "fd", "" + fd);
             const buffer = Memory.alloc(PATH_MAX);
@@ -755,35 +769,24 @@ export function listFileDescriptorsJson(args: string[]): string[][] {
             }
             return "";
         }
-        try {
-            // TODO: port this to iOS
-            const F_GETPATH = 50; // on macOS
-            const buffer = Memory.alloc(PATH_MAX);
-            const addr = getGlobalExportByName("fcntl");
-            if (addr === null) {
-                return "";
+        if (fcntl !== null) {
+            const buffer = Memory.alloc(DARWIN_MAXPATHLEN);
+            if (fcntl(fd, F_GETPATH, buffer) === 0) {
+                return buffer.readUtf8String() || "";
             }
-            const fcntl = new NativeFunction(addr, "int", [
-                "int",
-                "int",
-                "pointer",
-            ]);
-            fcntl(fd, F_GETPATH, buffer);
-            return buffer.readCString() || "";
-        } catch (e) {
-            return "";
         }
+        return "";
     }
     if (args.length === 0) {
-        const statBuf = Memory.alloc(128);
-        const fds = [];
+        const statBuf = Memory.alloc(Process.pageSize);
+        const fds: number[] = [];
         for (let i = 0; i < 1024; i++) {
             if (_fstat!(i, statBuf) === 0) {
-                fds.push(i.toString());
+                fds.push(i);
             }
         }
         return fds.map((fd) => {
-            return [fd, getFdName(fd)];
+            return [fd.toString(), getFdName(fd)];
         });
     } else {
         const rc = _dup2!(+args[0], +args[1]);

@@ -1,0 +1,19 @@
+NAME=file descriptor names include Darwin paths
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+!rm -f /tmp/r2frida-ts-f05
+!touch /tmp/r2frida-ts-f05
+:eval globalThis.tsF05Open=new NativeFunction(Module.getGlobalExportByName("open"),"int",["pointer","int"]),globalThis.tsF05Close=new NativeFunction(Module.getGlobalExportByName("close"),"int",["int"]),globalThis.tsF05Fd=globalThis.tsF05Open(Memory.allocUtf8String("/tmp/r2frida-ts-f05"),0),""
+:dd~r2frida-ts-f05?
+:eval globalThis.tsF05Close(globalThis.tsF05Fd),""
+:eval globalThis.tsF05PipeBuffer=Memory.alloc(8),globalThis.tsF05Pipe=new NativeFunction(Module.getGlobalExportByName("pipe"),"int",["pointer"]),globalThis.tsF05Pipe(globalThis.tsF05PipeBuffer),globalThis.tsF05PipeReadFd=globalThis.tsF05PipeBuffer.readS32(),globalThis.tsF05PipeWriteFd=globalThis.tsF05PipeBuffer.add(4).readS32(),""
+:dd~^`:eval globalThis.tsF05PipeReadFd`?
+:eval globalThis.tsF05Close(globalThis.tsF05PipeReadFd),globalThis.tsF05Close(globalThis.tsF05PipeWriteFd),""
+!rm -f /tmp/r2frida-ts-f05
+EOF
+EXPECT=<<EOF
+1
+1
+EOF
+RUN

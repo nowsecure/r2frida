@@ -1,0 +1,42 @@
+NAME=cat handles an omitted size
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:cat bins/empty.txt
+EOF
+EXPECT=<<EOF
+nothing
+EOF
+RUN
+
+NAME=cat handles an empty file
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:cat /dev/null
+EOF
+EXPECT=<<EOF
+EOF
+RUN
+
+NAME=cat returns only bytes read on a short read
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:mg bins/empty.txt
+EOF
+EXPECT=<<EOF
+6e6f7468696e670a
+EOF
+RUN
+
+NAME=cat handles a missing file
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:cat bins/r2frida-file-that-does-not-exist
+EOF
+EXPECT=<<EOF
+ERROR: cannot stat bins/r2frida-file-that-does-not-exist
+EOF
+RUN
