@@ -759,7 +759,7 @@ export function listFileDescriptorsJson(args: string[]): string[][] {
 
     function getFdName(fd: number): string {
         if (_readlink && Process.platform === "linux") {
-            const fdPath = path.join("proc", "" + Process.id, "fd", "" + fd);
+            const fdPath = path.join("/proc", "" + Process.id, "fd", "" + fd);
             const buffer = Memory.alloc(PATH_MAX);
             const source = Memory.alloc(PATH_MAX);
             source.writeUtf8String(fdPath);
