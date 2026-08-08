@@ -750,10 +750,12 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		case ':':
 			{
 				const char *arg = r_str_trim_head_ro (command + 2);
-				// eprintf ("%s\n", arg);
+#if R2_ABIVERSION >= 125
+				slurpedData = r_core_editor (rf->r2core, *arg? arg: NULL, NULL, NULL);
+#else
 				slurpedData = r_core_editor (rf->r2core, *arg? arg: NULL, NULL);
+#endif
 				if (slurpedData) {
-					// eprintf ("%s\n", slurpedData);
 					builder = build_request ("evaluate");
 					json_builder_set_member_name (builder, "code");
 					json_builder_add_string_value (builder, slurpedData);
