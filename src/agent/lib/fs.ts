@@ -232,7 +232,12 @@ export class FridaFS {
         return result.join("\n");
     }
 
-    cat(srcPath: string, mode: string, offset: number, size: number): string {
+    cat(
+        srcPath: string,
+        mode?: string | null,
+        offset?: number | null,
+        size?: number | null,
+    ): string {
         const actualPath = this.transform.toActual(srcPath);
         if (actualPath !== null) {
             const fileSize = this.posixApi.getFileSize(actualPath);
@@ -240,15 +245,15 @@ export class FridaFS {
                 console.log(`ERROR: cannot stat ${actualPath}`);
                 return "";
             }
-            size = (size === null) ? fileSize : size;
+            mode ??= "";
+            offset ??= 0;
+            size ??= fileSize;
             if (size < 0) {
                 console.log(`ERROR: invalid size ${size}`);
                 return "";
             }
-            let weak = false;
-            if (size === 0) {
-                console.log("weak");
-                weak = true;
+            const allowShortRead = size === 0;
+            if (allowShortRead) {
                 size = 1024 * 32;
             }
             if (size > 1024 * 4096) {
@@ -259,22 +264,26 @@ export class FridaFS {
             }
             const buf = Memory.alloc(size);
             const f = this.posixApi.fopen(actualPath, "rb");
-            if (f === null) {
+            if (f === null || f.isNull()) {
                 console.log(`ERROR: cannot open ${actualPath}`);
                 return "";
             }
             if (offset > 0) {
                 this.posixApi.fseek(f, offset, 0);
             }
-            const res = this.posixApi.fread(buf, 1, size, f);
-            if (!weak && res !== size) {
-                console.log(`ERROR: reading ${actualPath} ${res} vs ${size}`);
-                this.posixApi.fclose(f);
+            const bytesRead = this.posixApi.fread(buf, 1, size, f);
+            this.posixApi.fclose(f);
+            if (
+                bytesRead === null ||
+                (!allowShortRead && bytesRead !== size)
+            ) {
+                console.log(
+                    `ERROR: reading ${actualPath} ${bytesRead} vs ${size}`,
+                );
                 return "";
             }
-            this.posixApi.fclose(f);
             const format = (mode === "*") ? "hex" : "utf8";
-            return encodeBuf(buf, size, format);
+            return encodeBuf(buf, bytesRead, format);
         }
         console.log("ERROR: no path " + srcPath);
         return "";
@@ -711,7 +720,7 @@ export function encodeBuf(
     encoding: string,
 ): string {
     if (encoding !== "hex") {
-        return buf.readCString() || "";
+        return buf.readCString(size) || "";
     }
     const result = [];
     for (let i = 0; i < size; i++) {
