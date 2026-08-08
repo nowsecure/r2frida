@@ -116,7 +116,7 @@ class StringFinder {
 
     feed(cur: NativePointer, data: Uint8Array) {
         for (let i = 0; i < data.byteLength; i++) {
-            this.feedByte(cur, data[i]);
+            this.feedByte(cur.add(i), data[i]);
         }
     }
 
@@ -167,17 +167,18 @@ export function searchStringsJson(args: string): SearchHit[] {
         const rangeStr = `[${padPointer(range.address)}-${
             padPointer(range.address.add(range.size))
         }]`;
-        let cur = range.address;
-        const end = range.address.add(range.size);
         const sf = new StringFinder(9, 128);
-        while (cur.compare(end)) {
-            const data = cur.readByteArray(blockSize);
+        let offset = 0;
+        while (offset < range.size) {
+            const size = Math.min(blockSize, range.size - offset);
+            const cur = range.address.add(offset);
+            const data = cur.readByteArray(size);
             if (data === null) {
                 break;
             }
             const bytes = new Uint8Array(data);
             sf.feed(cur, bytes);
-            cur = cur.add(blockSize);
+            offset += size;
         }
         sf.hits().forEach((hit) => {
             if (align > 1) {
