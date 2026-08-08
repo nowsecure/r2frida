@@ -67,11 +67,12 @@ export function read(params: R2FIOReadParameters) {
                 const readStarts = ptr(offset);
                 const readEnds = readStarts.add(count);
                 const currentRange = Process.getRangeByAddress(readStarts); // this is very slow
-                const moduleEnds = currentRange.base.add(currentRange.size);
-                const left =
-                    (readEnds.compare(moduleEnds) > 0 ? readEnds : moduleEnds)
-                        .sub(offset);
-                const bytes = ptr(offset).readByteArray(+left);
+                const mappingEnds = currentRange.base.add(currentRange.size);
+                const readableEnds = readEnds.compare(mappingEnds) < 0
+                    ? readEnds
+                    : mappingEnds;
+                const readableSize = readableEnds.sub(readStarts).toUInt32();
+                const bytes = readStarts.readByteArray(readableSize);
                 return [{}, (bytes !== null) ? bytes : []];
             } catch (e) {
                 // do nothing

@@ -14,6 +14,27 @@ a5
 EOF
 RUN
 
+NAME=reads clamp at memory mapping boundaries
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e io.volatile=false
+s `:dma 32768`
+wx 000102030405060708090a0b0c0d0e0f @ $$+16368
+:dmp `?v $$+16384` 16384 ---
+p8 8 @ $$+16368
+p8 16 @ $$+16368
+p8 32 @ $$+16368
+:dmp `?v $$+16384` 16384 rw-
+:dma- $$
+EOF
+EXPECT=<<EOF
+0001020304050607
+000102030405060708090a0b0c0d0e0f
+000102030405060708090a0b0c0d0e0fffffffffffffffffffffffffffffffff
+EOF
+RUN
+
 NAME=32-byte executable memory write
 FILE=frida://0
 TIMEOUT=30
