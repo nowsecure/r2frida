@@ -60,6 +60,8 @@ interface MachVMSymbols {
     ) => number;
 }
 
+type IOOffset = NativePointer | Int64 | UInt64 | string | number;
+
 class IOFileManager {
     private currentFd: number = -1;
     private currentPath: string = "";
@@ -394,7 +396,7 @@ class IOFileManager {
     }
 
     private writeRemoteProcessMachVM(
-        offset: number,
+        offset: NativePointer,
         data: Uint8Array | ArrayBuffer,
     ): boolean {
         if (!this.currentTaskPort || !this.machVMSymbols.vm_write) return false;
@@ -407,14 +409,14 @@ class IOFileManager {
 
         return this.machVMSymbols.vm_write!(
             this.currentTaskPort,
-            ptr(offset),
+            offset,
             dataBuf,
             data.byteLength,
         ) === 0;
     }
 
     private writeRemoteProcessLinux(
-        offset: number,
+        offset: NativePointer,
         data: Uint8Array | ArrayBuffer,
     ): boolean {
         if (!this.processVMSymbols.process_vm_writev || this.currentPid < 0) {
@@ -434,7 +436,7 @@ class IOFileManager {
         localVec.writePointer(buf).add(Process.pointerSize).writeULong(
             dataArray.length,
         );
-        remoteVec.writePointer(ptr(offset)).add(Process.pointerSize).writeULong(
+        remoteVec.writePointer(offset).add(Process.pointerSize).writeULong(
             dataArray.length,
         );
 
@@ -447,7 +449,7 @@ class IOFileManager {
             0,
         );
 
-        return (bytesWritten as unknown as number) === dataArray.length;
+        return bytesWritten.compare(dataArray.length) === 0;
     }
 
     public hookedRead(offset: any, count: number): [any, any] {
@@ -486,21 +488,22 @@ class IOFileManager {
             : [{}, []];
     }
 
-    public hookedWrite(offset: any, data: any): [any, null] {
-        const offsetNum = typeof offset === "object"
-            ? offset.toInt32()
-            : typeof offset === "string"
-            ? parseInt(offset, 16)
+    public hookedWrite(offset: IOOffset, data: any): [any, null] {
+        const offsetValue = typeof offset === "object"
+            ? offset.toString()
             : offset;
+        const writeData = this.normalizeData(data);
+        if (writeData === null) {
+            throw new Error("invalid redirected write data");
+        }
 
         if (this.currentPid >= 0) {
-            const writeData = this.normalizeData(data);
-            if (!writeData) return [{}, null];
-
-            if (Process.platform === "darwin") {
-                this.writeRemoteProcessMachVM(offsetNum, writeData);
-            } else {
-                this.writeRemoteProcessLinux(offsetNum, writeData);
+            const offsetPtr = ptr(offsetValue);
+            const written = Process.platform === "darwin"
+                ? this.writeRemoteProcessMachVM(offsetPtr, writeData)
+                : this.writeRemoteProcessLinux(offsetPtr, writeData);
+            if (!written) {
+                throw new Error(`redirected write failed at ${offsetValue}`);
             }
             return [{}, null];
         }
@@ -509,14 +512,25 @@ class IOFileManager {
 
         const seeked = this.symbols.lseek(
             this.currentFd,
-            new Int64(offsetNum),
+            new Int64(offsetValue),
             0,
         );
-        if ((seeked as unknown as number) < 0) return [{}, null];
+        if (seeked.compare(0) < 0) {
+            throw new Error(`redirected seek failed at ${offsetValue}`);
+        }
 
-        const count = data.byteLength;
-        Memory.alloc(count).writeByteArray(data);
-        this.symbols.write(this.currentFd, Memory.alloc(count), count);
+        const dataArray = writeData instanceof Uint8Array
+            ? writeData
+            : new Uint8Array(writeData);
+        const count = dataArray.byteLength;
+        const buf = Memory.alloc(count);
+        buf.writeByteArray(Array.from(dataArray));
+        const bytesWritten = this.symbols.write(this.currentFd, buf, count);
+        if (bytesWritten !== count) {
+            throw new Error(
+                `redirected write failed at ${offsetValue}: ${bytesWritten} of ${count} bytes written`,
+            );
+        }
 
         return [{}, null];
     }
