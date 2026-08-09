@@ -30,7 +30,7 @@
     "frida-java-bridge": "7.0.13",
     "frida-objc-bridge": "8.0.6",
     "globals": "17.7.0",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   },
   "exports": {
     "require": "./src/agent/index.js",
