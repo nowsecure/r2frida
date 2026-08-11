@@ -18,7 +18,7 @@
     "node": ">=20.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "3.3.5",
+    "@eslint/eslintrc": "3.3.6",
     "@eslint/js": "10.0.1",
     "@frida/events": "4.0.4",
     "@types/frida-gum": "19.4.0",
