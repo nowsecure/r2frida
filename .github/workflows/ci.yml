@@ -80,6 +80,8 @@ jobs:
         sudo dpkg -i radare2-dev_${{env.R2V}}_amd64.deb
     - name: Building r2frida
       run: ./configure --with-precompiled-agent && make -j && sudo make install
+    - name: Verifying non-executable stack
+      run: make check-noexecstack
     - name: Packaging
       run: make -C dist/debian R2CFG_FLAGS=--with-precompiled-agent
   build-linux24:
@@ -92,6 +94,8 @@ jobs:
       run: make -C dist/docker test
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
+    - name: Verifying non-executable stack
+      run: make check-noexecstack
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
