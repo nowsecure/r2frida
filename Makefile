@@ -35,9 +35,9 @@ endif
 
 ifeq ($(frida_os),linux)
 HAVE_MUSL=$(shell (grep -q musl /bin/ls && test -x /lib/ld-musl*) && echo 1 || echo 0)
-R2FRIDA_COMPILE_FLAGS=-Wl,-z,noexecstack
+NOEXECSTACK_LDFLAGS=-Wl,-z,noexecstack
 else
-R2FRIDA_COMPILE_FLAGS=
+NOEXECSTACK_LDFLAGS=
 HAVE_MUSL=0
 endif
 
@@ -180,6 +180,14 @@ ifneq ($(R2FRIDA_HOST_COMPILER),1)
 	$(MAKE) src/r2frida-compile
 endif
 	$(MAKE) io_frida.$(SO_EXT)
+ifeq ($(frida_os),linux)
+	$(MAKE) check-noexecstack
+endif
+
+check-noexecstack:
+	@stack="$$(readelf -W -l io_frida.$(SO_EXT) | grep GNU_STACK)"; \
+		test -n "$$stack"; \
+		! printf '%s\n' "$$stack" | grep -q 'GNU_STACK.*RWE'
 
 deb:
 	$(MAKE) -C dist/debian
@@ -234,7 +242,7 @@ config.mk config.h:
 
 io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o src/systrace.o
 	pkg-config --cflags r_core
-	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(NOEXECSTACK_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c src/io_frida.h $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
@@ -403,7 +411,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
 src/r2frida-compile: src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c node_modules
-	$(CC) -g src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c $(FRIDA_CFLAGS) $(R2FRIDA_COMPILE_FLAGS) \
+	$(CC) -g src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c $(FRIDA_CFLAGS) $(NOEXECSTACK_LDFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
 
@@ -432,4 +440,4 @@ vs:
 update:
 	$(RM) ext/frida/libfrida-core.a
 
-.PHONY: all clean install user-install uninstall user-uninstall release symstall
+.PHONY: all check-noexecstack clean install user-install uninstall user-uninstall release symstall
