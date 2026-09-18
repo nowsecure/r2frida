@@ -7,7 +7,7 @@ on: push
 
 jobs:
   build-alpine:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     container:
       image: alpine:3.24
     steps:
@@ -22,7 +22,7 @@ jobs:
       run: r2r test/db/extras
   build-fridatools:
     # fails because of a bug in frida on ubuntu20 .. probably invalid stat struct
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v7
@@ -44,7 +44,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian USE_FRIDA_TOOLS=1
   build-linux24-deb:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v7
@@ -68,7 +68,7 @@ jobs:
         name: build-linux24-deb
         path: dist/debian/*.deb
   build-linux24-precompiled:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     continue-on-error: true
     steps:
     - uses: actions/checkout@v7
@@ -85,7 +85,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian R2CFG_FLAGS=--with-precompiled-agent
   build-linux24:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
     - name: Building Radare2
@@ -104,7 +104,7 @@ jobs:
         name: build-linux24
         path: dist/debian/*.deb
   build-agent:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
     - name: Building Radare2
