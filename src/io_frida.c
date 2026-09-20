@@ -594,6 +594,20 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
+// Strip a single pair of surrounding quotes from an argument. r2 tokenizes
+// `:. <file>` at the first space, so callers pass a quoted path; r2 forwards
+// the quotes verbatim to the plugin, which would otherwise fail the extension
+// check ("""...js""" does not end with ".js"). Windows paths commonly contain
+// spaces, so accept both quoted and bare forms.
+static char *r2f_unquote_dup(const char *s) {
+	s = r_str_trim_head_ro (s);
+	size_t len = strlen (s);
+	if (len >= 2 && (s[0] == '"' || s[0] == '\'') && s[len - 1] == s[0]) {
+		return r_str_ndup (s + 1, len - 2);
+	}
+	return strdup (s);
+}
+
 static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
@@ -766,17 +780,19 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			break;
 		case '.':
 			{
-				const char *filename = r_str_trim_head_ro (command + 2);
+				char *filename = r2f_unquote_dup (command + 2);
 				(void)__eternalizeScript (rf, filename);
+				free (filename);
 			}
 			return strdup ("");
 		case ' ':
 			{
-				const char *filename = r_str_trim_head_ro (command + 2);
+				char *filename = r2f_unquote_dup (command + 2);
 				const bool is_c = r_str_endswith (filename, ".c");
 				const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");
 				if (!is_c && !is_jsts) {
 					R_LOG_ERROR ("We can only load .ts, .js and .c files into the r2frida agent");
+					free (filename);
 					return NULL;
 				}
 				builder = build_request ("evaluate");
@@ -804,9 +820,11 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 						}
 						if (!slurpedData) {
 							R_LOG_ERROR ("Cannot extract ESM archive %s", filename);
+							free (filename);
 							return NULL;
 						}
 						json_builder_add_string_value (builder, slurpedData);
+						free (filename);
 						break;
 					}
 				}
@@ -817,9 +835,11 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				}
 				if (!slurpedData) {
 					R_LOG_ERROR ("Cannot read %s", filename);
+					free (filename);
 					return NULL;
 				}
 				json_builder_add_string_value (builder, slurpedData);
+				free (filename);
 			}
 			break;
 		case '-':
@@ -1253,6 +1273,25 @@ static R2FridaLink parse_link(const char *a) {
 	// return R2F_LINK_UNKNOWN;
 }
 
+// Cross-platform absolute-path test: POSIX "/...", Windows "C:\..." / "C:/...",
+// and UNC "\\...". The old `*abspath == '/'` check made `frida://spawn/<path>`
+// silently fall back to attach on Windows (spawn=false -> "Process not found").
+static bool is_abspath(const char *p) {
+	if (R_STR_ISEMPTY (p)) {
+		return false;
+	}
+	if (*p == '/') {
+		return true;
+	}
+	if (((*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z')) && p[1] == ':') {
+		return true;
+	}
+	if (p[0] == '\\' && p[1] == '\\') {
+		return true;
+	}
+	return false;
+}
+
 static bool resolve1(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCancellable *cancellable) {
 	const char *arg0 = r_list_get_n (args, 0);
 	if (isdigit (*arg0)) {
@@ -1264,7 +1303,7 @@ static bool resolve1(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 		// frida://vim -- attach by process-name
 		lo->pid = -1;
 		char *abspath = r_file_path (arg0);
-		lo->spawn = (abspath && *abspath == '/');
+		lo->spawn = is_abspath (abspath);
 		lo->process_specifier = abspath? abspath: g_strdup (arg0);
 	}
 	return true;
@@ -1316,7 +1355,7 @@ static bool resolve2(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 			return false;
 		} else {
 			char *abspath = r_file_path (arg1);
-			lo->spawn = (abspath && *abspath == '/');
+			lo->spawn = is_abspath (abspath);
 			lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
 		return true;
@@ -1328,7 +1367,7 @@ static bool resolve2(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 			return false;
 		} else {
 			char *abspath = r_file_path (arg1);
-			lo->spawn = (abspath && *abspath == '/');
+			lo->spawn = is_abspath (abspath);
 			lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
 		return true;
@@ -1499,11 +1538,36 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 		}
 	}
 #endif
-	if (*a == '/' || r_str_startswith (a, "./")) {
+	if (is_abspath (a) || r_str_startswith (a, "./")) {
 		// frida:///path/to/file
 		lo->spawn = true;
 		lo->process_specifier = a;
 		return true;
+	}
+
+	// `frida://spawn/<abspath>` (or launch): an absolute path contains '/', so
+	// the N-field split below would parse "C:" / "Windows" / ... as
+	// device/action/target fields and fail with "Device not found". When the
+	// first field is a spawn/launch action and the remainder is an absolute
+	// path, take the whole remainder as the program.
+	{
+		char *slash = strchr (a, '/');
+		if (slash) {
+			*slash = 0;
+			R2FridaAction act = parse_action (a);
+			const char *rest = slash + 1;
+			if ((act == R2F_ACTION_SPAWN || act == R2F_ACTION_LAUNCH) && is_abspath (rest)) {
+				lo->spawn = true;
+				lo->run = (act == R2F_ACTION_LAUNCH);
+				lo->pid = -1;
+				lo->device_id = strdup ("local");
+				lo->process_specifier = strdup (rest);
+				*slash = '/';
+				free (a);
+				return true;
+			}
+			*slash = '/';
+		}
 	}
 
 	RList *args = r_str_split_list (a, "/", 4);
