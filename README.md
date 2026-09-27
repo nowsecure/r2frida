@@ -1,7 +1,7 @@
 # r2frida
 
 Radare2 and Frida better together [![ci](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml/badge.svg)](https://github.com/nowsecure/r2frida/actions/workflows/ci.yml)
-[![radare2](https://img.shields.io/badge/radare2-6.2.0-green)](https://github.com/radareorg/radare2)
+[![radare2](https://img.shields.io/badge/radare2-6.2.3-green)](https://github.com/radareorg/radare2)
 
 <p align="center">
   <img src="r2frida.png" width="414px" height="248px">
@@ -218,6 +218,8 @@ If you are willing to install and use r2frida natively on Android via Termux, th
 ## Troubleshooting
 
 Ensure you are using a modern version of r2 (preferibly last release or git).
+
+Building requires **radare2 >= 6.2.3** (or git master after [radare2#26776](https://github.com/radareorg/radare2/pull/26776)). The Windows `frida://spawn` fix relies on `r_file_is_abspath()` and `r_str_unquote()`, which are not available in 6.2.2; older r2 releases fail to compile with a `#error` pointing at this note.
 
 Run `r2 -L | grep frida` to verify if the plugin is loaded, if nothing is printed use the `R2_DEBUG=1` environment variable to get some debugging messages to find out the reason.
 

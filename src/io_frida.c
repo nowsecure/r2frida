@@ -6,6 +6,13 @@
 #include "diagnostics.h"
 #include "../config.h"
 
+// Windows absolute-path spawn detection uses r_file_is_abspath() and
+// r_str_unquote(), both merged in radare2#26776 (r2 6.2.3 / git master);
+// the 6.2.2 release does not provide them.
+#if !defined(R2_VERSION_NUMBER) || R2_VERSION_NUMBER < 60203
+#error "r2frida requires radare2 >= 6.2.3 (r_file_is_abspath(), r_str_unquote())"
+#endif
+
 #define ESMTOOL_ENABLE_PACK 0
 #include "esmtool.inc.c"
 
@@ -766,13 +773,13 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 			break;
 		case '.':
 			{
-				const char *filename = r_str_trim_head_ro (command + 2);
+				const char *filename = command + 2;
 				(void)__eternalizeScript (rf, filename);
 			}
 			return strdup ("");
 		case ' ':
 			{
-				const char *filename = r_str_trim_head_ro (command + 2);
+				const char *filename = command + 2;
 				const bool is_c = r_str_endswith (filename, ".c");
 				const bool is_jsts = r_str_endswith (filename, ".ts") || r_str_endswith (filename, ".js");
 				if (!is_c && !is_jsts) {
@@ -1198,7 +1205,23 @@ static FridaDevice *get_device_manager(FridaDeviceManager *manager, const char *
 
 static char *__system(RIO *io, RIODesc *fd, const char *command) {
 	R_RETURN_VAL_IF_FAIL (io && fd && command, NULL);
-	return __system_continuation (io, fd, command);
+	// `:. <file>` / `.. <file>`: r2 tokenizes at the first space and forwards
+	// the quotes verbatim. Copy, trim the surrounding whitespace and remove a
+	// single matching quote pair so the filename reaches the extension checks
+	// literally (paths with spaces survive).
+	char *unquoted = NULL;
+	if (command[0] == '.' && (command[1] == ' ' || command[1] == '.')) {
+		unquoted = strdup (command);
+		if (!unquoted) {
+			return NULL;
+		}
+		r_str_trim (unquoted + 2);
+		r_str_unquote (unquoted + 2);
+		command = unquoted;
+	}
+	char *res = __system_continuation (io, fd, command);
+	free (unquoted);
+	return res;
 }
 
 /// uri parser ///
@@ -1264,7 +1287,7 @@ static bool resolve1(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 		// frida://vim -- attach by process-name
 		lo->pid = -1;
 		char *abspath = r_file_path (arg0);
-		lo->spawn = (abspath && *abspath == '/');
+		lo->spawn = abspath != NULL;
 		lo->process_specifier = abspath? abspath: g_strdup (arg0);
 	}
 	return true;
@@ -1309,26 +1332,17 @@ static bool resolve2(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 		lo->process_specifier = g_strdup (arg1);
 		return true;
 	case R2F_ACTION_LAUNCH:
-		lo->spawn = true;
-		lo->run = true;
-		lo->pid = -1;
-		if (R_STR_ISEMPTY (arg1)) {
-			return false;
-		} else {
-			char *abspath = r_file_path (arg1);
-			lo->spawn = (abspath && *abspath == '/');
-			lo->process_specifier = abspath? abspath: g_strdup (arg1);
-		}
-		return true;
 	case R2F_ACTION_SPAWN:
+		// An explicit spawn/launch action always spawns; only `run` differs.
+		// r_file_path() already reports whether it resolved a file, including
+		// relative PATH entries such as PATH=.
 		lo->spawn = true;
-		lo->run = false;
+		lo->run = action == R2F_ACTION_LAUNCH;
 		lo->pid = -1;
 		if (R_STR_ISEMPTY (arg1)) {
 			return false;
 		} else {
 			char *abspath = r_file_path (arg1);
-			lo->spawn = (abspath && *abspath == '/');
 			lo->process_specifier = abspath? abspath: g_strdup (arg1);
 		}
 		return true;
@@ -1499,14 +1513,23 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 		}
 	}
 #endif
-	if (*a == '/' || r_str_startswith (a, "./")) {
+	if (r_file_is_abspath (a) || r_str_startswith (a, "./")) {
 		// frida:///path/to/file
 		lo->spawn = true;
 		lo->process_specifier = a;
 		return true;
 	}
 
-	RList *args = r_str_split_list (a, "/", 4);
+	// `frida://spawn/<path>` (or launch): the target's '/' separators must not
+	// be parsed as device/action/target fields. When the remainder is a quoted
+	// or absolute path, split into two fields only; the target keeps its quotes
+	// until the spawn argv parser handles them. Device forms keep the
+	// four-field split.
+	const char *path = strchr (a, '/');
+	const bool direct = path
+		&& (r_str_startswith (a, "spawn/") || r_str_startswith (a, "launch/"))
+		&& (path[1] == '\'' || path[1] == '"' || r_file_is_abspath (path + 1));
+	RList *args = r_str_split_list (a, "/", direct? 2: 4);
 	size_t args_len = r_list_length (args);
 
 	bool res = false;
