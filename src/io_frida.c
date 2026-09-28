@@ -6,11 +6,25 @@
 #include "diagnostics.h"
 #include "../config.h"
 
-// Windows absolute-path spawn detection uses r_file_is_abspath() and
-// r_str_unquote(), both merged in radare2#26776 (r2 6.2.3 / git master);
-// the 6.2.2 release does not provide them.
-#if !defined(R2_VERSION_NUMBER) || R2_VERSION_NUMBER < 60203
-#error "r2frida requires radare2 >= 6.2.3 (r_file_is_abspath(), r_str_unquote())"
+// These helpers were added/fixed during ABI 143; use them from ABI 144 on.
+#if R2_ABIVERSION < 144
+static bool r2f_file_is_abspath(const char *file) {
+	R_RETURN_VAL_IF_FAIL (file, false);
+	return *file == '/' || (*file == '\\' && file[1] == '\\')
+		|| (isalpha ((ut8)*file) && file[1] == ':' && (file[2] == '/' || file[2] == '\\'));
+}
+
+static void r2f_str_unquote(char *str) {
+	R_RETURN_IF_FAIL (str);
+	size_t len = strlen (str);
+	if (len >= 2 && (*str == '"' || *str == '\'') && str[len - 1] == *str) {
+		str[len - 1] = 0;
+		memmove (str, str + 1, len - 1);
+	}
+}
+
+#define r_file_is_abspath r2f_file_is_abspath
+#define r_str_unquote r2f_str_unquote
 #endif
 
 #define ESMTOOL_ENABLE_PACK 0

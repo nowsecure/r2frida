@@ -191,7 +191,9 @@ jobs:
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Check if is a release
-      run: git describe --exact-match --tags ${{ github.sha }} | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "::set-output name=is::"r;print "::set-output name=tag::"tag}'
+      run: |
+        tag=$(git describe --exact-match --tags "$GITHUB_SHA" 2>/dev/null || true)
+        printf '%s\n' "$tag" | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "is="r;print "tag="tag}' >> "$GITHUB_OUTPUT"
       id: release
   release:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check_release.outputs.is_release == 'yes' }}
@@ -204,7 +206,7 @@ jobs:
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Extract r2f version
-      run: echo "##[set-output name=branch;]$( ./configure -qV )"
+      run: echo "branch=$(./configure -qV)" >> "$GITHUB_OUTPUT"
       id: r2fv
     - name: Prepare release notes
       run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
