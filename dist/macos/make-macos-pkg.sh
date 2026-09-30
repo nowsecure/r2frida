@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# based on
-# http://blog.coolaj86.com/articles/how-to-unpackage-and-repackage-pkg-macos.html
-
 # to uninstall:
+# pkgutil --only-files --files org.radare.r2frida | (cd / && sudo xargs rm -f)
 # sudo pkgutil --forget org.radare.r2frida
 
 SRC=/tmp/r2frida-macos
@@ -18,7 +16,6 @@ elif [ "`uname -m`" = arm64 ]; then
 else
         ARCH=x64
 fi
-DST="$(pwd)/macos-pkg/r2frida.unpkg"
 if [ -n "$1" ]; then
 	VERSION="$1"
 else
@@ -45,16 +42,9 @@ export CFLAGS=-O2
 ./configure --prefix="${PREFIX}" || exit 1
 ${MAKE}
 ${MAKE} install PREFIX="${PREFIX}" DESTDIR=${SRC} || exit 1
-mkdir -p "${DST}"
 if [ -d "${SRC}" ]; then
-	(
-		cd ${SRC} && \
-		find . | cpio -o --format odc | gzip -c > "${DST}/Payload"
-	)
-	mkbom ${SRC} "${DST}/Bom"
-	# Repackage
-	pkgutil --flatten "${DST}" "${DST}/../r2frida-${VERSION}-${ARCH}.pkg"
-	mv dist/macos/macos-pkg/*.pkg dist/macos
+	pkgbuild --root "${SRC}" --identifier org.radare.r2frida --version "${VERSION}" \
+		--install-location / "dist/macos/r2frida-${VERSION}-${ARCH}.pkg" || exit 1
 	cp -f dist/macos/*.pkg .
 else
 	echo "Failed install. DESTDIR is empty" > /dev/stderr
