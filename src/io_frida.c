@@ -318,7 +318,7 @@ static void resume(RIOFrida *rf) {
 	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
 		if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-			rf->io->cb_printf ("frida_device_resume_sync: %s\n", error->message);
+			R_LOG_ERROR ("frida_device_resume_sync: %s", error->message);
 		}
 		g_clear_error (&error);
 	} else {
@@ -618,6 +618,7 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
+	const char *usage = NULL;
 	R_LOG_DEBUG ("system_continuation (%s)", command);
 
 	RIOFrida *rf = fd->data;
@@ -678,30 +679,32 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 #endif
 		return NULL;
 	} else if (!strncmp (command, "dtf?", 4)) {
-		io->cb_printf ("Usage: dtf [format] || dtf [addr] [fmt]\n");
-		io->cb_printf ("  ^  = trace onEnter instead of onExit\n");
-		io->cb_printf ("  %%  = format return value (only on onLeave)\n");
-		io->cb_printf ("  +  = show backtrace on trace\n");
-		io->cb_printf (" p/x = show pointer in hexadecimal\n");
-		io->cb_printf ("  c  = show value as a string (char)\n");
-		io->cb_printf ("  i  = show decimal argument\n");
-		io->cb_printf ("  z  = show pointer to string\n");
-		io->cb_printf ("  w  = show pointer to UTF-16 string\n");
-		io->cb_printf ("  a  = show pointer to ANSI string\n");
-		io->cb_printf ("  h  = hexdump from pointer (optional length, h16 to dump 16 bytes)\n");
-		io->cb_printf ("  H  = hexdump from pointer (optional position of length argument, H1 to dump args[1] bytes)\n");
-		io->cb_printf ("  s  = show string in place\n");
-		io->cb_printf ("  Z  = untrusted null terminated string (like z)\n");
-		io->cb_printf ("  S  = pointer to string\n");
-		io->cb_printf ("  O  = show pointer to ObjC object\n");
+		usage =
+			"Usage: dtf [format] || dtf [addr] [fmt]\n"
+			"  ^  = trace onEnter instead of onExit\n"
+			"  %  = format return value (only on onLeave)\n"
+			"  +  = show backtrace on trace\n"
+			" p/x = show pointer in hexadecimal\n"
+			"  c  = show value as a string (char)\n"
+			"  i  = show decimal argument\n"
+			"  z  = show pointer to string\n"
+			"  w  = show pointer to UTF-16 string\n"
+			"  a  = show pointer to ANSI string\n"
+			"  h  = hexdump from pointer (optional length, h16 to dump 16 bytes)\n"
+			"  H  = hexdump from pointer (optional position of length argument, H1 to dump args[1] bytes)\n"
+			"  s  = show string in place\n"
+			"  Z  = untrusted null terminated string (like z)\n"
+			"  S  = pointer to string\n"
+			"  O  = show pointer to ObjC object\n";
 	} else if (!strncmp (command, "e?", 2)) {
-		io->cb_printf ("Usage: e [var[=value]]Evaluable vars\n");
-		io->cb_printf ("  patch.code      = true\n");
-		io->cb_printf ("  search.in       = perm:r--\n");
-		io->cb_printf ("  search.quiet    = false\n");
-		io->cb_printf ("  stalker.event   = compile\n");
-		io->cb_printf ("  stalker.timeout = 300\n");
-		io->cb_printf ("  stalker.in      = raw\n");
+		usage =
+			"Usage: e [var[=value]]Evaluable vars\n"
+			"  patch.code      = true\n"
+			"  search.in       = perm:r--\n"
+			"  search.quiet    = false\n"
+			"  stalker.event   = compile\n"
+			"  stalker.timeout = 300\n"
+			"  stalker.in      = raw\n";
 		// fails to aim at seek workarounding hostCmd
 	} else if (r_str_startswith (command, "s  ")) {
 		if (rf && rf->r2core) {
@@ -711,11 +714,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		}
 		return NULL;
 	} else if (r_str_startswith (command, "dkr")) {
-		io->cb_printf ("DetachReason: %s\n", detachReasonAsString (rf));
-		if (rf->crash_report) {
-			io->cb_printf ("%s\n", rf->crash_report);
-		}
-		return NULL;
+		return r_str_newf ("DetachReason: %s\n%s%s", detachReasonAsString (rf), r_str_get (rf->crash_report), rf->crash_report? "\n": "");
 	} else if (r_str_startswith (command, "dl2")) {
 		if (command[3] == ' ') {
 			GError *error = NULL;
@@ -727,32 +726,18 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				} else {
 					entry = "main";
 				}
-				frida_device_inject_library_file_sync (rf->device,
-					rf->pid,
-					path,
-					entry,
-						"",
-					rf->cancellable,
-					&error);
+				frida_device_inject_library_file_sync (rf->device, rf->pid, path, entry, "", rf->cancellable, &error);
 				free (path);
 			}
-			if (error) {
-				io->cb_printf ("frida_device_inject_library_file_sync: %s\n", error->message);
-				g_clear_error (&error);
-			} else {
-				io->cb_printf ("done\n");
-			}
-		} else {
-			io->cb_printf ("Usage: dl2 [shlib] [entrypoint-name]\n");
+			char *res = error
+				? r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message)
+				: strdup ("done\n");
+			g_clear_error (&error);
+			return res;
 		}
-		return NULL;
+		return strdup ("Usage: dl2 [shlib] [entrypoint-name]\n");
 	} else if (!strcmp (command, "asl")) {
-		char *list = r2f_systrace_list (rf);
-		if (list) {
-			io->cb_printf ("%s", list);
-			free (list);
-		}
-		return NULL;
+		return r2f_systrace_list (rf);
 	} else if (!strcmp (command, "dc") && (rf->suspended || rf->suspended2)) {
 		resume (rf);
 		return NULL;
@@ -883,29 +868,23 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 
 	rf->inputmode = true;
 	result = perform_request (rf, builder, NULL, NULL);
-	if (!result) {
-		return NULL;
-	}
-	{
-		char *s = r_strbuf_drain (rf->sb);
-		if (*s) {
-			RCons *cons = rf->r2core->cons;
-			r_cons_printf (cons, "%s\n", s);
-		}
-		free (s);
-		rf->sb = r_strbuf_new ("");
-	}
 	rf->inputmode = false;
-
-	if (!json_object_has_member (result, "value")) {
-		json_object_unref (result);
-		return NULL;
+	// take the console.log output collected while the request was in flight
+	RStrBuf *sb = rf->sb;
+	rf->sb = r_strbuf_new ("");
+	if (!r_strbuf_is_empty (sb)) {
+		r_strbuf_append (sb, "\n");
 	}
-	const char *value = json_object_get_string_member (result, "value");
-	char *sys_result = value? strdup (value): NULL;
-	json_object_unref (result);
-
-	return sys_result;
+	if (usage) {
+		r_strbuf_prepend (sb, usage);
+	}
+	if (result) {
+		if (json_object_has_member (result, "value")) {
+			r_strbuf_append (sb, r_str_get (json_object_get_string_member (result, "value")));
+		}
+		json_object_unref (result);
+	}
+	return r_strbuf_drain (sb);
 }
 
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {

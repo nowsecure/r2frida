@@ -111,7 +111,7 @@ export function listMemoryMapsR2(): string {
                 .join(" ")
         )
         .join("\n");
-    return "fs+maps\n" + maps + "fs-";
+    return "fs+maps\n" + maps + "\nfs-";
 }
 
 export function listMemoryMapsJson(): RangeDetails[] {
