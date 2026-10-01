@@ -726,21 +726,14 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				} else {
 					entry = "main";
 				}
-				frida_device_inject_library_file_sync (rf->device,
-					rf->pid,
-					path,
-					entry,
-						"",
-					rf->cancellable,
-					&error);
+				frida_device_inject_library_file_sync (rf->device, rf->pid, path, entry, "", rf->cancellable, &error);
 				free (path);
 			}
-			if (error) {
-				char *res = r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message);
-				g_clear_error (&error);
-				return res;
-			}
-			return strdup ("done\n");
+			char *res = error
+				? r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message)
+				: strdup ("done\n");
+			g_clear_error (&error);
+			return res;
 		}
 		return strdup ("Usage: dl2 [shlib] [entrypoint-name]\n");
 	} else if (!strcmp (command, "asl")) {
@@ -876,21 +869,22 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	rf->inputmode = true;
 	result = perform_request (rf, builder, NULL, NULL);
 	rf->inputmode = false;
-	// console.log output collected while the request was in flight
-	char *logs = r_strbuf_drain (rf->sb);
+	// take the console.log output collected while the request was in flight
+	RStrBuf *sb = rf->sb;
 	rf->sb = r_strbuf_new ("");
-	const char *value = (result && json_object_has_member (result, "value"))
-		? json_object_get_string_member (result, "value")
-		: NULL;
-	char *sys_result = NULL;
-	if (usage || *logs || value) {
-		sys_result = r_str_newf ("%s%s%s%s", r_str_get (usage), logs, *logs? "\n": "", r_str_get (value));
+	if (!r_strbuf_is_empty (sb)) {
+		r_strbuf_append (sb, "\n");
 	}
-	free (logs);
+	if (usage) {
+		r_strbuf_prepend (sb, usage);
+	}
 	if (result) {
+		if (json_object_has_member (result, "value")) {
+			r_strbuf_append (sb, r_str_get (json_object_get_string_member (result, "value")));
+		}
 		json_object_unref (result);
 	}
-	return sys_result;
+	return r_strbuf_drain (sb);
 }
 
 static void load_scripts(RCore *core, RIODesc *fd, const char *path) {
