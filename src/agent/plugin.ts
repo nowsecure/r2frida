@@ -73,7 +73,7 @@ export interface R2FridaPlugin {
 }
 
 export const r2frida: R2FridaPlugin = {
-    version: "6.2.2",
+    version: "6.2.4",
     commandHandler: commandHandler,
     pluginRegister: pluginRegister,
     pluginUnregister: pluginUnregister,

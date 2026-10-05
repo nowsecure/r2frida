@@ -1,5 +1,5 @@
 PKGNAME r2frida
-VERSION 6.2.2
+VERSION 6.2.4
 CONTACT pancake ; pancake@nowsecure.com
 
 USE_PKGCONFIG!
