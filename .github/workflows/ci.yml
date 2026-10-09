@@ -68,10 +68,18 @@ jobs:
         name: build-linux24-deb
         path: dist/debian/*.deb
   build-linux24-precompiled:
+    needs: build-agent
     runs-on: ubuntu-24.04
     continue-on-error: true
+    env:
+      R2FRIDA_PRECOMPILED_AGENT_PATH: ${{ github.workspace }}/precompiled-agent/_agent.js
     steps:
     - uses: actions/checkout@v7
+    - name: Download precompiled agent from this build
+      uses: actions/download-artifact@v8
+      with:
+        name: build-agent
+        path: precompiled-agent
     - name: Installing radare2
       run: |
         wget https://github.com/radareorg/radare2/releases/download/${{env.R2V}}/radare2_${{env.R2V}}_amd64.deb
@@ -107,6 +115,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
+    - name: Test release detection
+      run: make -C test release
     - name: Building Radare2
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && export CFLAGS=-O0 && sys/install.sh --with-rpath /usr )
     - name: Building r2frida
@@ -173,7 +183,7 @@ jobs:
         path: r2frida-${{env.R2V}}-w64.zip
 
   check_release:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')) }}
     outputs:
       is_release: ${{ steps.release.outputs.is }}
       tag_name: ${{ steps.release.outputs.tag }}
@@ -191,12 +201,12 @@ jobs:
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Check if is a release
-      run: |
-        tag=$(git describe --exact-match --tags "$GITHUB_SHA" 2>/dev/null || true)
-        printf '%s\n' "$tag" | awk 'BEGIN{tag="-";r="no"}/^[0-9]+\.[0-9]+/{tag=$0;r="yes"};END{print "is="r;print "tag="tag}' >> "$GITHUB_OUTPUT"
+      run: sh sys/check-release.sh "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       id: release
   release:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.check_release.outputs.is_release == 'yes' }}
+    if: ${{ needs.check_release.outputs.is_release == 'yes' }}
+    permissions:
+      contents: write
     needs:
     - check_release
     runs-on: ubuntu-latest
@@ -205,11 +215,12 @@ jobs:
       uses: actions/checkout@v7
       with:
         fetch-depth: 0 # Download all git history and tags
-    - name: Extract r2f version
-      run: echo "branch=$(./configure -qV)" >> "$GITHUB_OUTPUT"
-      id: r2fv
     - name: Prepare release notes
-      run: ./sys/release-notes.sh | tee ./RELEASE_NOTES.md
+      env:
+        RELEASE_VERSION: ${{ needs.check_release.outputs.tag_name }}
+      run: |
+        previous=$(git describe --tags --abbrev=0 "$GITHUB_SHA^")
+        ./sys/release-notes.sh "$previous" "$GITHUB_SHA" | tee ./RELEASE_NOTES.md
     - name: Download artifacts
       uses: actions/download-artifact@v8
       with:
@@ -218,12 +229,14 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v3.0.3
       with:
-        name: ${{ steps.r2fv.outputs.branch }}
+        name: ${{ needs.check_release.outputs.tag_name }}
         tag_name: ${{ needs.check_release.outputs.tag_name }}
+        target_commitish: ${{ github.sha }}
         body_path: ./RELEASE_NOTES.md
         draft: false
         prerelease: false
         generate_release_notes: false
+        fail_on_unmatched_files: true
         files: |
           dist/artifacts/build-linux24/r2frida_*_amd64.deb
           dist/artifacts/build-agent/_agent.js

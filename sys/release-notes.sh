@@ -44,7 +44,7 @@ grep ^Author .l | cut -d : -f 2- | sed -e 's,radare,pancake,' | sort -u > .A
 
 echo "## Release Notes"
 echo
-echo "Version: ${VERS}"
+echo "Version: ${RELEASE_VERSION:-$VERS}"
 echo "Previous: ${PREV}"
 printf "Commits: "
 grep ^commit .l | wc -l | xargs echo

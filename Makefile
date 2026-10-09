@@ -17,6 +17,7 @@ endif
 
 R2_MAGICPATH=$(shell r2 -H R2_MAGICPATH)
 FORTUNEDIR?=$(R2_MAGICPATH)/../fortunes
+R2FRIDA_PRECOMPILED_AGENT_PATH?=
 R2FRIDA_PRECOMPILED_AGENT_URL=https://github.com/nowsecure/r2frida/releases/download/$(VERSION)/_agent.js
 
 frida_version_major=$(shell echo $(frida_version) | cut -d . -f 1)
@@ -247,7 +248,7 @@ io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o src/systrace.o
 src/io_frida.o: src/io_frida.c src/io_frida.h $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
-src/systrace.o: src/systrace.c src/io_frida.h
+src/systrace.o: src/systrace.c src/io_frida.h $(FRIDA_SDK)
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@
 
 src/diagnostics.o: src/diagnostics.c src/diagnostics.h
@@ -256,7 +257,7 @@ src/diagnostics.o: src/diagnostics.c src/diagnostics.h
 src/_agent.h: src/_agent.js
 	test -s src/_agent.js || ( rm -f src/_agent.js && ${MAKE} src/_agent.js )
 	test -s src/_agent.js || exit 1
-	[ -f src/_agent.h ] || (echo Running r2; r2 -NNnfqcpc $< | grep 0x > $@)
+	r2 -NNnfqcpc $< | grep 0x > $@
 
 ifeq ($(R2FRIDA_HOST_COMPILER),1)
 src/_agent.js:
@@ -265,8 +266,13 @@ src/_agent.js:
 	test -s src/_agent.js || rm -f src/_agent.js
 else
 ifeq ($(R2FRIDA_PRECOMPILED_AGENT),1)
+ifneq ($(R2FRIDA_PRECOMPILED_AGENT_PATH),)
+src/_agent.js: $(R2FRIDA_PRECOMPILED_AGENT_PATH)
+	cp "$(R2FRIDA_PRECOMPILED_AGENT_PATH)" $@
+else
 src/_agent.js:
 	$(DLCMD) src/_agent.js $(R2FRIDA_PRECOMPILED_AGENT_URL)
+endif
 else
 ifeq ($(USE_FRIDA_TOOLS),1)
 src/_agent.js:
@@ -410,7 +416,7 @@ frida-sdk: ext/frida-$(frida_os)-$(frida_version)
 	rm -f ext/frida
 	cd ext && ln -fs frida-$(frida_os)-$(frida_version) frida
 
-src/r2frida-compile: src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c node_modules
+src/r2frida-compile: src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c node_modules $(FRIDA_SDK)
 	$(CC) -g src/r2frida-compile.c src/pkgmgr.c src/diagnostics.c $(FRIDA_CFLAGS) $(NOEXECSTACK_LDFLAGS) \
 		$(shell pkg-config --cflags --libs r_util) $(FRIDA_LIBS) \
 		$(CFLAGS) $(LDFLAGS) -pthread -Iext/frida -o $@
