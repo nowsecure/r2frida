@@ -313,6 +313,9 @@ static void resume(RIOFrida *rf) {
 		return;
 	}
 	r_list_free (tids);
+	if ((gint)rf->pid < 1) {
+		return;
+	}
 	GError *error = NULL;
 	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
@@ -501,7 +504,9 @@ static bool __close(RIODesc *fd) {
 	g_cond_signal (&rf->cond);
 	g_mutex_unlock (&rf->lock);
 	// resume outside the lock to avoid blocking under it
-	resume (rf);
+	if (rf->suspended || rf->suspended2) {
+		resume (rf);
+	}
 	r_io_frida_free (fd->data);
 	fd->data = NULL;
 	return true;
@@ -741,6 +746,9 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	} else if (r_str_startswith (command, "dkr")) {
 		return r_str_newf ("DetachReason: %s\n%s%s", detachReasonAsString (rf), r_str_get (rf->crash_report), rf->crash_report? "\n": "");
 	} else if (r_str_startswith (command, "dl2")) {
+		if ((gint)rf->pid < 1) {
+			return strdup ("No process to inject into\n");
+		}
 		if (command[3] == ' ') {
 			GError *error = NULL;
 			gchar *path = r_str_trim_dup (command + 3);
@@ -755,8 +763,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				free (path);
 			}
 			char *res = error
-				? r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message)
 				: strdup ("done\n");
+				? r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message)
 			g_clear_error (&error);
 			return res;
 		}
