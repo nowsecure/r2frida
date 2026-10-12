@@ -314,6 +314,11 @@ static void resume(RIOFrida *rf) {
 		return;
 	}
 	r_list_free (tids);
+	if (!rf->pid) {
+		// Device-only session (`frida://0`): nothing was spawned or attached,
+		// and resuming PID 0 just logs a spurious "Invalid PID" error.
+		return;
+	}
 	GError *error = NULL;
 	frida_device_resume_sync (rf->device, rf->pid, rf->cancellable, &error);
 	if (error) {
