@@ -11,7 +11,7 @@ jobs:
     container:
       image: alpine:3.24
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Install Alpine dependencies
       run: apk add --no-cache bash build-base ca-certificates curl file-dev git linux-headers openssl-dev pkgconf python3 xz zlib-dev
     - name: Build Radare2 on Alpine/musl
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Testing stat for frida-fs
       run: make -C dist/docker test
     - name: Installing radare2
@@ -47,11 +47,11 @@ jobs:
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Testing stat for frida-fs
       run: make -C dist/docker test
     - name: Installing radare2
-      uses: radareorg/github-actions@v3
+      uses: radareorg/github-actions@4ae27a8b29a049ac0fd5119f6eda37ecfc64ead8 # v3
       with:
         version: ${{ env.R2V }}
     - name: Building r2frida
@@ -63,7 +63,7 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: build-linux24-deb
         path: dist/debian/*.deb
@@ -74,9 +74,9 @@ jobs:
     env:
       R2FRIDA_PRECOMPILED_AGENT_PATH: ${{ github.workspace }}/precompiled-agent/_agent.js
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Download precompiled agent from this build
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: build-agent
         path: precompiled-agent
@@ -95,7 +95,7 @@ jobs:
   build-linux24:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Building Radare2
       run: ( git clone --depth=1 https://github.com/radareorg/radare2 && cd radare2 && sys/install.sh --with-rpath /usr )
     - name: Testing stat for frida-fs
@@ -107,14 +107,14 @@ jobs:
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: build-linux24
         path: dist/debian/*.deb
   build-agent:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Test release detection
       run: make -C test release
     - name: Building Radare2
@@ -122,14 +122,14 @@ jobs:
     - name: Building r2frida
       run: ./configure && make -j && sudo make install
     - name: Pub
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: build-agent
         path: src/_agent.js
   build-macos:
     runs-on: macos-26
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Install dependencies
       run: brew install pkg-config
     - name: Building Radare2
@@ -139,7 +139,7 @@ jobs:
     - name: Packaging
       run: make -C dist/macos
     - name: Pub
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         if-no-files-found: error
         name: build-macos
@@ -147,12 +147,12 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v7
-    - uses: actions/setup-python@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version: 3.14.x
     - name: Preparing msvc toolchain
-      uses: ilammy/msvc-dev-cmd@v1
+      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
       with:
         arch: x64
     - name: dependencies
@@ -176,7 +176,7 @@ jobs:
     - name: zip
       shell: cmd
       run: zip -r r2frida-${{env.R2V}}-w64.zip src\r2frida-compile.exe src\io_frida.dll
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         if-no-files-found: error
         name: build-windows
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Check if is a release
@@ -212,7 +212,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0 # Download all git history and tags
     - name: Prepare release notes
@@ -222,12 +222,12 @@ jobs:
         previous=$(git describe --tags --abbrev=0 "$GITHUB_SHA^")
         ./sys/release-notes.sh "$previous" "$GITHUB_SHA" | tee ./RELEASE_NOTES.md
     - name: Download artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         path: dist/artifacts
     - name: Create GitHub release
       id: create_release
-      uses: softprops/action-gh-release@v3.0.3
+      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:
         name: ${{ needs.check_release.outputs.tag_name }}
         tag_name: ${{ needs.check_release.outputs.tag_name }}
