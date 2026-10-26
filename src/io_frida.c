@@ -596,7 +596,7 @@ static int __write(RIO *io, RIODesc *fd, const ut8 *buf, int count) {
 		return -1;
 	}
 
-	R_LOG_DEBUG ("write %d @ 0x%08" PFMT64x, io->off, count);
+	R_LOG_DEBUG ("write %d @ 0x%08" PFMT64x, count, io->off);
 	RIOFrida *rf = fd->data;
 
 	JsonBuilder *builder = build_request ("write");
@@ -1528,14 +1528,14 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 	bool res = false;
 	switch (args_len) {
 	case 0:
-		R_LOG_ERROR ("Invalid URI %d", args_len);
+		R_LOG_ERROR ("Invalid URI %zu", args_len);
 		break;
 	case 1: res = resolve1 (rf, args, lo, cancellable); break;
 	case 2: res = resolve2 (rf, args, lo, cancellable); break;
 	case 3: res = resolve3 (rf, args, lo, cancellable); break;
 	case 4: res = resolve4 (rf, args, lo, cancellable); break;
 	default:
-		R_LOG_ERROR ("Invalid URI %d", args_len);
+		R_LOG_ERROR ("Invalid URI %zu", args_len);
 		break;
 	}
 
