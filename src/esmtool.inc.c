@@ -12,6 +12,31 @@
 #define ESMTOOL_ENABLE_PACK 1
 #endif
 
+// reject entry names that could escape the extraction directory
+static bool esmarchive_name_ok(const char *name) {
+	if (!name || !*name || *name == '/' || *name == '\\') {
+		return false;
+	}
+#if R2__WINDOWS__
+	if (strchr (name, ':')) {
+		return false;
+	}
+#endif
+	const char *p = name;
+	while (true) {
+		const char *end = p + strcspn (p, "/\\");
+		size_t len = end - p;
+		if (len == 0 || (len == 1 && p[0] == '.') || (len == 2 && p[0] == '.' && p[1] == '.')) {
+			return false;
+		}
+		if (!*end) {
+			break;
+		}
+		p = end + 1;
+	}
+	return true;
+}
+
 static R_UNUSED char *esmarchive_first_entry(const char *filename) {
 	FILE *in = fopen (filename, "rb");
 	if (!in) {
@@ -99,8 +124,22 @@ static bool esmarchive_unpack(const char *infile, const char *outdir) {
 		sizes[count] = (size_t)strtoul (line, NULL, 10);
 		char *name = sep + 2;
 		r_str_trim_tail (name);
+		if (!esmarchive_name_ok (name)) {
+			R_LOG_ERROR ("Invalid entry name in ESM archive");
+			int j;
+			for (j = 0; j < count; j++) {
+				free (names[j]);
+			}
+			fclose (in);
+			return false;
+		}
 		names[count] = strdup (name);
 		count++;
+	}
+	if (count == 0) {
+		R_LOG_ERROR ("No entries in ESM archive");
+		fclose (in);
+		return false;
 	}
 	bool ok = true;
 	int i;
