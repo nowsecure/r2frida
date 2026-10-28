@@ -1912,7 +1912,7 @@ static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root,
 							message = r_str_append (message, "\n");
 							if (*filename == '|') {
 								// redirect the message to a program shell
-								char *emsg = r_str_escape (message);
+								char *emsg = r_str_escape_sh (message);
 								r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
 								free (emsg);
 							} else if (r_str_startswith (filename, "tcp:")) {
