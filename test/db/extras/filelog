@@ -1,0 +1,12 @@
+NAME=file.log pipe feeds stdin and ignores agent filename
+FILE=frida://0
+CMDS=<<EOF
+': send({name:"log-file",stanza:{filename:"|echo PWNED-unset",message:"unset"}})
+':e file.log=|cat
+': send({name:"log-file",stanza:{filename:"|echo PWNED",message:"$(echo X) `echo Y` \"; echo Z; \" ! 'q' \\ end"}})
+':e file.log=
+EOF
+EXPECT=<<EOF
+$(echo X) `echo Y` "; echo Z; " ! 'q' \ end
+EOF
+RUN

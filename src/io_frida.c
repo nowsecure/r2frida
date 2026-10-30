@@ -388,6 +388,7 @@ static void r_io_frida_free(RIOFrida *rf) {
 	g_mutex_unlock (&rf->lock);
 	r2f_systrace_fini (rf);
 	r_socket_free (rf->s);
+	free (rf->file_log);
 	free (rf->crash_report);
 	r_strbuf_free (rf->sb);
 	r_list_free (rf->stopped_tids);
@@ -615,6 +616,30 @@ static bool __resize(RIO *io, RIODesc *fd, ut64 count) {
 	return false;
 }
 
+// keep our own copy of file.log, the agent runs in the target and can lie
+static void track_file_log(RIOFrida *rf, const char *command) {
+	if (!r_str_startswith (command, "e ")) {
+		return;
+	}
+	char *kv = strdup (command + 2);
+	char *eq = strchr (kv, '=');
+	if (eq && !strchr (eq + 1, '=')) {
+		*eq = 0;
+		r_str_trim (kv);
+		if (!strcmp (kv, "file.log")) {
+			char *v = r_str_trim_dup (eq + 1);
+			if (R_STR_ISEMPTY (v)) {
+				R_FREE (v);
+			}
+			g_mutex_lock (&rf->lock);
+			free (rf->file_log);
+			rf->file_log = v;
+			g_mutex_unlock (&rf->lock);
+		}
+	}
+	free (kv);
+}
+
 static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 	JsonBuilder *builder;
 	JsonObject *result;
@@ -644,6 +669,7 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 		r_core_cmd0 (rf->r2core, ".:i*");
 		return NULL;
 	}
+	track_file_log (rf, command);
 	if (r_str_startswith (command, "%")) {
 		// this shortcut should be implemented inside the js code
 		r_core_cmdf (rf->r2core, ":env %s", command + 1);
@@ -1900,21 +1926,26 @@ static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root,
 			} else if (name && !strcmp (name, "log-file")) {
 				JsonNode *stanza_node = json_object_get_member (payload, "stanza");
 				if (stanza && stanza_node) {
-					const char *filename = json_object_get_string_member (stanza, "filename");
+					// ignore the stanza filename, only trust what the user set via :e file.log
+					g_mutex_lock (&rf->lock);
+					char *filename = rf->file_log? strdup (rf->file_log): NULL;
+					g_mutex_unlock (&rf->lock);
 					JsonNode *message_node = json_object_get_member (stanza, "message");
 					if (message_node) {
 						JsonNodeType type = json_node_get_node_type (message_node);
+						const char *smessage = json_object_get_string_member (stanza, "message");
 						char *message = (type == JSON_NODE_OBJECT)
 							? json_to_string (message_node, FALSE)
-							: strdup (json_object_get_string_member (stanza, "message"));
-						if (filename && message) {
+							: (smessage? strdup (smessage): NULL);
+						if (message && !filename) {
+							eprintf ("%s\n", message);
+						} else if (message) {
 							bool sent = false;
 							message = r_str_append (message, "\n");
 							if (*filename == '|') {
-								// redirect the message to a program shell
-								char *emsg = r_str_escape (message);
-								r_sys_cmdf ("%s \"%s\"", r_str_trim_head_ro (filename + 1), emsg);
-								free (emsg);
+								// pipe the message to the program stdin, never through the shell
+								r_sys_cmd_str_full (r_str_trim_head_ro (filename + 1), message, -1, NULL, NULL, NULL);
+								sent = true;
 							} else if (r_str_startswith (filename, "tcp:")) {
 								char *host = strdup (filename + 4);
 								char *port = strchr (host, ':');
@@ -1940,6 +1971,7 @@ static void on_message_send(RIOFrida *rf, FridaScript *script, JsonObject *root,
 					} else {
 						R_LOG_WARN ("Missing message node");
 					}
+					free (filename);
 					// json_node_unref (stanza_node);
 				} else {
 					R_LOG_WARN ("Missing stanza for log-file message");

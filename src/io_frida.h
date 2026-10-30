@@ -59,6 +59,7 @@ typedef struct r_io_frida_t {
 	char *crash_report;
 	RIO *io;
 	RSocket *s;
+	char *file_log; // host-side copy of file.log, never trust the agent's
 	gulong onmsg_handler;
 	gulong ondtc_handler;
 	FridaDeviceManager *device_manager;

@@ -8,7 +8,6 @@ export function traceEmit(msg: string) {
     const fileLog = config.getString("file.log");
     if (fileLog.length > 0) {
         send(wrapStanza("log-file", {
-            filename: fileLog,
             message: msg,
         }));
     } else {
