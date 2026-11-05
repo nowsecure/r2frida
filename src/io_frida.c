@@ -10,8 +10,7 @@
 #if R2_ABIVERSION < 144
 static bool r2f_file_is_abspath(const char *file) {
 	R_RETURN_VAL_IF_FAIL (file, false);
-	return *file == '/' || (*file == '\\' && file[1] == '\\')
-		|| (isalpha ((ut8)*file) && file[1] == ':' && (file[2] == '/' || file[2] == '\\'));
+	return *file == '/' || (*file == '\\' && file[1] == '\\') || (isalpha ((ut8)*file) && file[1] == ':' && (file[2] == '/' || file[2] == '\\'));
 }
 
 static void r2f_str_unquote(char *str) {
@@ -1353,7 +1352,7 @@ static bool resolve2(RIOFrida *rf, RList *args, R2FridaLaunchOptions *lo, GCance
 	case R2F_ACTION_LAUNCH:
 	case R2F_ACTION_SPAWN:
 		// An explicit spawn/launch action always spawns; only `run` differs.
-		// r_file_path() already reports whether it resolved a file, including
+		// r_file_path () already reports whether it resolved a file, including
 		// relative PATH entries such as PATH=.
 		lo->spawn = true;
 		lo->run = action == R2F_ACTION_LAUNCH;
@@ -1545,9 +1544,7 @@ static bool resolve_target(RIOFrida *rf, const char *pathname, R2FridaLaunchOpti
 	// until the spawn argv parser handles them. Device forms keep the
 	// four-field split.
 	const char *path = strchr (a, '/');
-	const bool direct = path
-		&& (r_str_startswith (a, "spawn/") || r_str_startswith (a, "launch/"))
-		&& (path[1] == '\'' || path[1] == '"' || r_file_is_abspath (path + 1));
+	const bool direct = path && (r_str_startswith (a, "spawn/") || r_str_startswith (a, "launch/")) && (path[1] == '\'' || path[1] == '"' || r_file_is_abspath (path + 1));
 	RList *args = r_str_split_list (a, "/", direct? 2: 4);
 	size_t args_len = r_list_length (args);
 
