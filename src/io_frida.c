@@ -763,8 +763,8 @@ static char *__system_continuation(RIO *io, RIODesc *fd, const char *command) {
 				free (path);
 			}
 			char *res = error
-				: strdup ("done\n");
 				? r_str_newf ("frida_device_inject_library_file_sync: %s\n", error->message)
+				: strdup ("done\n");
 			g_clear_error (&error);
 			return res;
 		}
