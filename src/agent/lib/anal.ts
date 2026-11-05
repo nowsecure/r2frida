@@ -40,7 +40,7 @@ export function analFunctionSignature(args: string[]): string {
         return "Cannot find class named " + klassName;
     }
 
-    let method = undefined;
+    let method;
     if (methodType === METHOD_TYPE.CLASS) {
         methodName = `+ ${methodName}`;
         method = klass[methodName];

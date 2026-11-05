@@ -52,9 +52,7 @@ import ObjC from "frida-objc-bridge";
 
 import { PutsFunction, r2frida } from "./plugin.js";
 
-declare let globalThis: any;
-
-globalThis.r2pipe = {
+(globalThis as any).r2pipe = {
     open: () => {
         return {
             cmd: (s: string) => r2frida.cmd(s),
@@ -62,7 +60,7 @@ globalThis.r2pipe = {
         };
     },
 };
-globalThis.r2frida = r2frida;
+(globalThis as any).r2frida = r2frida;
 
 function r2pipe2(arg: string) {
     const query = JSON.parse(arg);
@@ -921,7 +919,7 @@ r2frida.cmd = (cmd: string) => {
     const res: any = perform({ command: cmd });
     return res[0].value;
 };
-globalThis.dump = function (x: any) {
+(globalThis as any).dump = function (x: any) {
     console.log(JSON.stringify(x, null, 2));
 };
 

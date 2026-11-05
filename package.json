@@ -29,10 +29,13 @@
     "frida-java-bridge": "7.0.13",
     "frida-objc-bridge": "8.0.6",
     "globals": "17.12.0",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   },
   "exports": {
     "require": "./src/agent/index.js",
     "import": "./index.mjs"
+  },
+  "overrides": {
+    "minimatch@^10": "^11.0.1"
   }
 }
