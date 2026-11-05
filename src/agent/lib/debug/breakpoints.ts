@@ -434,10 +434,16 @@ function _breakpointSet(
         return `Breakpoint at ${ptrAddr.toString()} already exists`;
     }
     if (config.getBoolean("dbg.hwbp")) {
-        const bp = new Breakpoint("hw", _allocHwId(), _targetThreads(), ptrAddr, {
-            temporary,
-            continueAfterHit,
-        });
+        const bp = new Breakpoint(
+            "hw",
+            _allocHwId(),
+            _targetThreads(),
+            ptrAddr,
+            {
+                temporary,
+                continueAfterHit,
+            },
+        );
         bp.setBreakpoint();
         breakpoints.set(bp.address.toString(), bp);
         return true;
