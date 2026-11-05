@@ -87,6 +87,16 @@ $ make
 $ make user-install
 ```
 
+### Meson
+
+```
+$ meson setup build -Duser_install=true
+$ ninja -C build
+$ meson install -C build
+```
+
+Options: `-Dfrida_sdk=<dir>`, `-Dprecompiled_agent=<_agent.js>`, `-Dr2_plugdir=<dir>`, `-Dsession_debugger=false`.
+
 ### Windows
 
 * Install meson and Visual Studio

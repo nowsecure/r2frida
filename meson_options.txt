@@ -1,0 +1,10 @@
+option('frida_sdk', type: 'string', value: '',
+  description: 'Path to an extracted frida-core devkit (default: download into ext/frida)')
+option('precompiled_agent', type: 'string', value: '',
+  description: 'Use this prebuilt _agent.js instead of compiling src/agent')
+option('r2_plugdir', type: 'string', value: '',
+  description: 'Where to install io_frida (default: r2 -H R2_LIBR_PLUGINS)')
+option('user_install', type: 'boolean', value: false,
+  description: 'Install into the r2 user plugin dir and r2pm bindir')
+option('session_debugger', type: 'boolean', value: true,
+  description: 'Build with WANT_SESSION_DEBUGGER')
