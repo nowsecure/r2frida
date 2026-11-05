@@ -291,6 +291,14 @@ int main(int argc, const char **argv) {
 		}
 		if (R_STR_ISNOTEMPTY (proot)) {
 			frida_compiler_options_set_project_root (fco, proot);
+			// frida resolves the entrypoint against the project root, keep it relative to cwd
+			if (!r_file_is_abspath (filename)) {
+				char *absfile = r_file_abspath (filename);
+				if (absfile) {
+					free (filename);
+					filename = absfile;
+				}
+			}
 #if 0
 		} else {
 			char *absroot = r_sys_getdir ();

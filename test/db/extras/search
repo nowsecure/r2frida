@@ -3,7 +3,7 @@ FILE=frida://0
 TIMEOUT=30
 CMDS=<<EOF
 :e search.quiet=true
-:eval globalThis.ts05Buffer=Memory.alloc(Process.pageSize),globalThis.ts05Buffer.writeByteArray(new Uint8Array(Process.pageSize)),globalThis.ts05Buffer.add(37).writeUtf8String("TS05_FIRST_RESULT"),globalThis.ts05Buffer.add(4091).writeUtf8String("TS05_BOUNDARY_RESULT"),globalThis.ts05Range=Process.getRangeByAddress(globalThis.ts05Buffer),""
+:eval globalThis.ts05Buffer=Memory.alloc(2*Process.pageSize),globalThis.ts05Buffer.writeByteArray(new Uint8Array(2*Process.pageSize)),globalThis.ts05Buffer.add(37).writeUtf8String("TS05_FIRST_RESULT"),globalThis.ts05Buffer.add(4091).writeUtf8String("TS05_BOUNDARY_RESULT"),globalThis.ts05Range=Process.getRangeByAddress(globalThis.ts05Buffer),""
 s `:eval parseInt(globalThis.ts05Buffer.toString(),16)`
 :e search.in=current
 :e search.from=`:eval parseInt(globalThis.ts05Range.base.toString(),16)`
