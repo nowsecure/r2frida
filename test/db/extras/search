@@ -1,0 +1,35 @@
+NAME=string search reports byte offsets across chunks
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e search.quiet=true
+:eval globalThis.ts05Buffer=Memory.alloc(Process.pageSize),globalThis.ts05Buffer.writeByteArray(new Uint8Array(Process.pageSize)),globalThis.ts05Buffer.add(37).writeUtf8String("TS05_FIRST_RESULT"),globalThis.ts05Buffer.add(4091).writeUtf8String("TS05_BOUNDARY_RESULT"),globalThis.ts05Range=Process.getRangeByAddress(globalThis.ts05Buffer),""
+s `:eval parseInt(globalThis.ts05Buffer.toString(),16)`
+:e search.in=current
+:e search.from=`:eval parseInt(globalThis.ts05Range.base.toString(),16)`
+:e search.to=`:eval parseInt(globalThis.ts05Range.base.add(globalThis.ts05Range.size).toString(),16)`
+?vi `:/z~TS05_FIRST_RESULT[0]`-`:eval parseInt(globalThis.ts05Buffer.toString(),16)`
+?vi `:/z~TS05_BOUNDARY_RESULT[0]`-`:eval parseInt(globalThis.ts05Buffer.toString(),16)`
+EOF
+EXPECT=<<EOF
+37
+4091
+EOF
+RUN
+
+NAME=string search clamps its final partial chunk
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:e search.quiet=true
+:eval globalThis.ts05PartialBuffer=Memory.alloc(4096),globalThis.ts05PartialBuffer.writeByteArray(new Uint8Array(4096)),globalThis.ts05PartialBuffer.add(233).writeUtf8String("TS05_PARTIAL_RESULT"),globalThis.ts05OriginalMallocRanges=Process.enumerateMallocRanges,Process.enumerateMallocRanges=function(){return [{base:globalThis.ts05PartialBuffer,size:257,protection:"rw-"}]},""
+:e search.in=heap
+:e search.from=`:eval parseInt(globalThis.ts05PartialBuffer.toString(),16)`
+:e search.to=`:eval parseInt(globalThis.ts05PartialBuffer.add(257).toString(),16)`
+?vi `:/z~TS05_PARTIAL_RESULT[0]`-`:eval parseInt(globalThis.ts05PartialBuffer.toString(),16)`
+:eval Process.enumerateMallocRanges=globalThis.ts05OriginalMallocRanges,""
+EOF
+EXPECT=<<EOF
+233
+EOF
+RUN

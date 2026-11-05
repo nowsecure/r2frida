@@ -1,0 +1,16 @@
+NAME=r2frida plugin archive
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+!rm -rf /tmp/example.d /tmp/example.esm.js
+!mkdir -p /tmp/example.d
+!cp bins/example.js /tmp/example.d/index.js
+!printf '\nvoid 0;\n' >> /tmp/example.d/index.js
+!r2frida-compile -p /tmp/example.esm.js /tmp/example.d
+:. /tmp/example.esm.js
+:.
+EOF
+EXPECT=<<EOF
+test
+EOF
+RUN

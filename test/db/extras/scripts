@@ -1,0 +1,21 @@
+NAME=load a script with a double-quoted filename containing spaces
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:. "bins/quoted script.js"
+EOF
+EXPECT=<<EOF
+quoted script loaded
+EOF
+RUN
+
+NAME=load a script with a single-quoted filename containing spaces
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:. 'bins/quoted script.js'
+EOF
+EXPECT=<<EOF
+quoted script loaded
+EOF
+RUN
