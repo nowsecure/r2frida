@@ -46,8 +46,11 @@ EOF
 RUN
 
 # Hardware watchpoints need native debug-register support.
+# Times out on Alpine/musl with Frida 17.25.2; see doc/frida-alpine-watchpoint.md.
+# https://github.com/nowsecure/r2frida/actions/runs/42129318439/job/127601593295
 NAME=watchpoint rw condition
 REQUIRE=x86
+BROKEN=1
 FILE=frida://0
 TIMEOUT=30
 CMDS=<<EOF
