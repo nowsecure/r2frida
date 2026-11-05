@@ -124,7 +124,7 @@ repeat:;
 	if (!strcmp (action, "devices")) {
 		// select device
 		r_cons_clear00 (rf->r2core->cons);
-		dumpDevices (rf, NULL);
+		dumpDevices (rf);
 		any_key (rf, "");
 		goto repeat;
 	}
