@@ -1,5 +1,5 @@
 project('r2frida', 'c',
-  version: '6.2.4',
+  version: '6.2.6',
   license: 'LGPL-3.0-only',
   meson_version: '>=0.60.0',
   default_options: ['warning_level=1', 'werror=true'])
