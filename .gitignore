@@ -1,3 +1,6 @@
+.pmai
+a.out
+*.dSYM
 *.o
 /config.mk
 /ext/frida
@@ -9,7 +12,6 @@
 config.h
 .DS_Store
 frida-sdk.tar.xz
-src/r2frida-compile.dSYM
 src/r2frida-compile
 src/r2frida-pm
 io_frida.so
