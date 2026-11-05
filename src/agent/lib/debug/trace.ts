@@ -330,8 +330,7 @@ export function traceRegs(args: string[]) {
                 if (r[0] === "%") {
                     return;
                 }
-                let regName = "", regValue = "";
-                regName = r;
+                let regName = r, regValue = "";
                 // set a new register value
                 if (r.indexOf("=") !== -1) {
                     [regName, regValue] = r.split("=");
@@ -383,8 +382,7 @@ export function traceRegs(args: string[]) {
                     return;
                 }
                 r = r.slice(1); // Removes the Token %
-                let regName = "", regValue = "";
-                regName = r;
+                let regName = r, regValue = "";
                 // set a new register value
                 if (r.indexOf("=") !== -1) {
                     [regName, regValue] = r.split("=");

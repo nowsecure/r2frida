@@ -82,7 +82,7 @@ export function toByteArray(b64: string) {
             (revLookup[b64.charCodeAt(i + 1)] << 4) |
             (revLookup[b64.charCodeAt(i + 2)] >> 2);
         arr[curByte++] = (tmp >> 8) & 0xFF;
-        arr[curByte++] = tmp & 0xFF;
+        arr[curByte] = tmp & 0xFF;
     }
     return arr;
 }

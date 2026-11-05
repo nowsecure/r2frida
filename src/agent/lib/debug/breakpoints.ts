@@ -101,7 +101,7 @@ export function initExceptionHandler(): void {
         if (!bp) {
             return false;
         }
-        let hasBreakpointHit = false;
+        let hasBreakpointHit: boolean;
         if (bp.kind === "sw") {
             hasBreakpointHit = bp.patches.findIndex((p) =>
                 p.address.equals(hitAddress)
@@ -815,15 +815,14 @@ class Breakpoint {
         // Defer re-arming the debug register so execution can step past the
         // faulting instruction first; bail if the bp was removed meanwhile so a
         // freed register id is never reprogrammed.
-        const self = this;
         setTimeout(() => {
-            if (breakpoints.get(self.address.toString()) !== self) {
+            if (breakpoints.get(this.address.toString()) !== this) {
                 return;
             }
-            if (self.applied) {
-                self.unsetBreakpoint();
+            if (this.applied) {
+                this.unsetBreakpoint();
             } else {
-                self.setBreakpoint();
+                this.setBreakpoint();
             }
         }, 100);
     }

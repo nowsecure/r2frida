@@ -94,12 +94,9 @@ export function listClassesNatives(args: string[]) {
                 if (klassNatives.length > 0) {
                     const kns = klassNatives.map((n: any) => {
                         const p = n.indexOf("(");
-                        let sn = "";
                         if (p !== -1) {
-                            const s = n.substring(0, p);
-                            const w = s.split(" ");
-                            sn = w[w.length - 1];
-                            return sn;
+                            const w = n.substring(0, p).split(" ");
+                            return w[w.length - 1];
                         }
                         return n; // { name: sn, fullname: n };
                     });

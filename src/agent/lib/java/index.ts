@@ -202,10 +202,8 @@ export function traceJava(klassName: string, method: string): void {
                 } else {
                     let msg =
                         `[JAVA TRACE][${traceMessage.timestamp}] ${klassName}:${method} - args: ${
-                            // eslint-disable-next-line prefer-rest-params
-                            JSON.stringify(
-                                arguments,
-                            )}. Return value: ${res.toString()}`;
+                            JSON.stringify(traceMessage.values)
+                        }. Return value: ${res.toString()}`;
                     if (config.getBoolean("hook.backtrace")) {
                         msg += ` backtrace: \n${
                             traceMessage.backtrace.toString().split(",").join(

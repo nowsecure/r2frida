@@ -654,7 +654,7 @@ export function listSegments(args: string[]) {
 }
 
 export function listSegmentsJson(args: string[]) {
-    let baseAddr: NativePointer = ptr(0);
+    let baseAddr: NativePointer;
     if (Process.platform === "darwin") {
         const baseAddr = (args.length === 1)
             ? ptr(args[0])
@@ -730,7 +730,7 @@ export function listSections(args: string[]): string {
 }
 
 export function listSectionsJson(args: string[]): any {
-    let baseAddr: NativePointer = ptr(0);
+    let baseAddr: NativePointer;
     if (Process.platform === "darwin") {
         const baseAddr = (args.length === 1)
             ? ptr(args[0])

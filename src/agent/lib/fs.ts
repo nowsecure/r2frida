@@ -86,12 +86,11 @@ export function chDir(args: string[]): string {
 }
 
 export function getCwd(): string {
-    let _getcwd: any | null = null;
-    if (Process.platform === "windows") {
-        _getcwd = sym("_getcwd", "pointer", ["pointer", "int"]);
-    } else {
-        _getcwd = sym("getcwd", "pointer", ["pointer", "int"]);
-    }
+    const _getcwd: any | null = sym(
+        Process.platform === "windows" ? "_getcwd" : "getcwd",
+        "pointer",
+        ["pointer", "int"],
+    );
     if (_getcwd) {
         const PATH_MAX = 4096;
         const buf = Memory.alloc(PATH_MAX);
@@ -631,7 +630,7 @@ function readMemoryField(
     offset: number,
     type: string,
 ): number | string {
-    let value: any = null;
+    let value: any;
     switch (type) {
         case "Utf8String":
             value = entry.add(offset).readUtf8String();
