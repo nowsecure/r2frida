@@ -23,6 +23,9 @@ make -C libr/xps
 for the current release, and generates `config.h`. It does not need radare2
 to be installed. If `src/_agent.js` already exists (built with `make -C src/agent`)
 it is used instead of the released one, or set `R2FRIDA_AGENT_URL`.
+The agent is only published when a release is cut, so when building an
+unreleased version (master after a version bump) build the agent first.
+The CI does this by reusing the agent built from the same commit.
 
 ## Building with meson
 

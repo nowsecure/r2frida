@@ -44,8 +44,14 @@ $(R2FRIDA_ROOT)/config.h: $(R2FRIDA_ROOT)/config.h.acr $(R2FRIDA_ROOT)/make.bat
 $(R2FRIDA_ROOT)/src/_agent.h: $(R2FRIDA_ROOT)/src/_agent.js
 	od -An -v -tx1 $< | sed -e 's/ *\([0-9a-f][0-9a-f]\)/0x\1, /g' -e 's/ *$$//' > $@
 
+# the agent is only published once a release is cut, so an unreleased
+# version (i.e. master right after a version bump) must build it locally
 $(R2FRIDA_ROOT)/src/_agent.js:
-	$(DLCMD) $@ $(R2FRIDA_AGENT_URL)
+	$(DLCMD) $@ $(R2FRIDA_AGENT_URL) || { rm -f $@; \
+		echo "Cannot download $(R2FRIDA_AGENT_URL)"; \
+		echo "Build the agent with 'make -C $(R2FRIDA_ROOT) src/_agent.js' or set R2FRIDA_AGENT_URL"; \
+		exit 1; }
+	test -s $@ || { rm -f $@; exit 1; }
 
 clean:
 	rm -rf $(R2FRIDA_ROOT)/build/r2plugin

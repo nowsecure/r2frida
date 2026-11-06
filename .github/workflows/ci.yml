@@ -189,6 +189,61 @@ jobs:
         name: build-windows
         path: r2frida-${{env.R2V}}-w64.zip
 
+  r2plugin-make:
+    name: Link r2frida statically in radare2 with make
+    needs: build-agent
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Download the agent built from this commit
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-agent
+        path: precompiled-agent
+    - name: Build radare2 from git with r2frida inside
+      run: |
+        git clone --depth=1 https://github.com/radareorg/radare2.git
+        cd radare2
+        cp -f ../r2plugin/config.mk libr/xps/config.mk
+        git clone .. libr/xps/p/r2frida
+        cp -f ../precompiled-agent/_agent.js libr/xps/p/r2frida/src/_agent.js
+        make -C libr/xps/p/r2frida/r2plugin
+        make -C libr/xps
+        ./configure --prefix=/usr
+        make -j
+        sudo make install
+    - name: Test if r2plugin is available
+      run: |
+        r2 -L | grep frida
+        r2 -q -c 'Lc~r2frida' -- | grep r2frida
+  r2plugin-meson:
+    name: Link r2frida statically in radare2 with meson
+    needs: build-agent
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Download the agent built from this commit
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: build-agent
+        path: precompiled-agent
+    - name: Install build dependencies
+      run: sudo apt-get update -y && sudo apt-get install -y build-essential meson ninja-build pkg-config libzip-dev zlib1g-dev
+    - name: Build radare2 from git with r2frida inside
+      run: |
+        git clone --depth=1 https://github.com/radareorg/radare2.git
+        cd radare2
+        cp -f ../r2plugin/config.mk libr/xps/config.mk
+        git clone .. libr/xps/p/r2frida
+        cp -f ../precompiled-agent/_agent.js libr/xps/p/r2frida/src/_agent.js
+        make -C libr/xps
+        meson setup b --prefix=/usr -Duse_sys_zip=true
+        meson compile -C b
+        sudo meson install -C b
+    - name: Test if r2plugin is available
+      run: |
+        r2 -L | grep frida
+        r2 -q -c 'Lc~r2frida' -- | grep r2frida
   check_release:
     if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')) }}
     outputs:
@@ -201,6 +256,8 @@ jobs:
     - build-macos
     - build-windows
     - build-agent
+    - r2plugin-make
+    - r2plugin-meson
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -212,6 +269,10 @@ jobs:
       id: release
   release:
     if: ${{ needs.check_release.outputs.is_release == 'yes' }}
+    # the release commit on master and its tag both trigger this job
+    concurrency:
+      group: release-${{ needs.check_release.outputs.tag_name }}
+      cancel-in-progress: false
     permissions:
       contents: write
     needs:
