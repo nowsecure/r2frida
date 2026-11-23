@@ -67,6 +67,8 @@ jobs:
       run: ./configure --with-precompiled-agent && make -j && sudo make install
     - name: Verifying non-executable stack
       run: make check-noexecstack
+    - name: Verifying tools that unload the plugin still run
+      run: rabin2 -v
     - name: Packaging
       run: make -C dist/debian R2CFG_FLAGS=--with-precompiled-agent
   build-linux24:
@@ -81,6 +83,8 @@ jobs:
       run: ./configure && make -j && sudo make install
     - name: Verifying non-executable stack
       run: make check-noexecstack
+    - name: Verifying tools that unload the plugin still run
+      run: rabin2 -v
     - name: Packaging
       run: make -C dist/debian
     - name: Pub
@@ -104,6 +108,8 @@ jobs:
       run: meson setup build && ninja -C build && sudo meson install -C build
     - name: Verifying non-executable stack
       run: "! readelf -lW build/io_frida.so | grep GNU_STACK | grep -q RWE"
+    - name: Verifying tools that unload the plugin still run
+      run: rabin2 -v
     - name: Relax ptrace scope so hardware watchpoints can arm
       run: sudo sysctl -w kernel.yama.ptrace_scope=0
     - name: Testing r2frida
