@@ -37,8 +37,12 @@ endif
 ifeq ($(frida_os),linux)
 HAVE_MUSL=$(shell (grep -q musl /bin/ls && test -x /lib/ld-musl*) && echo 1 || echo 0)
 NOEXECSTACK_LDFLAGS=-Wl,-z,noexecstack
+# frida-core starts a Go runtime thread when the plugin is loaded, so the
+# plugin must stay mapped when a tool that has no use for it calls dlclose()
+NODELETE_LDFLAGS=-Wl,-z,nodelete
 else
 NOEXECSTACK_LDFLAGS=
+NODELETE_LDFLAGS=
 HAVE_MUSL=0
 endif
 
@@ -183,12 +187,16 @@ endif
 	$(MAKE) io_frida.$(SO_EXT)
 ifeq ($(frida_os),linux)
 	$(MAKE) check-noexecstack
+	$(MAKE) check-nodelete
 endif
 
 check-noexecstack:
 	@stack="$$(readelf -W -l io_frida.$(SO_EXT) | grep GNU_STACK)"; \
 		test -n "$$stack"; \
 		! printf '%s\n' "$$stack" | grep -q 'GNU_STACK.*RWE'
+
+check-nodelete:
+	@readelf -d io_frida.$(SO_EXT) | grep -q NODELETE
 
 deb:
 	$(MAKE) -C dist/debian
@@ -243,7 +251,7 @@ config.mk config.h:
 
 io_frida.$(SO_EXT): src/io_frida.o src/diagnostics.o src/systrace.o
 	pkg-config --cflags r_core
-	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(NOEXECSTACK_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
+	$(CC) $^ -o $@ $(LDFLAGS) $(PLUGIN_LDFLAGS) $(NOEXECSTACK_LDFLAGS) $(NODELETE_LDFLAGS) $(FRIDA_LDFLAGS) $(FRIDA_LIBS)
 
 src/io_frida.o: src/io_frida.c src/io_frida.h $(FRIDA_SDK) src/_agent.h
 	$(CC) -c $(CFLAGS) $(FRIDA_CFLAGS) $< -o $@

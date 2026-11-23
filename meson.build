@@ -163,7 +163,7 @@ else
   ]
 endif
 if host_os == 'linux'
-  plugin_link_args += '-Wl,-z,noexecstack'
+  plugin_link_args += ['-Wl,-z,noexecstack', '-Wl,-z,nodelete']
 endif
 
 shared_module('io_frida',
