@@ -153,8 +153,7 @@ export function lookupSymbolJson(args: string[]) {
         return [];
     }
     if (args.length === 2) {
-        let [moduleName] = args;
-        const [symbolName] = args;
+        let [moduleName, symbolName] = args;
         try {
             const m = Process.getModuleByName(moduleName);
             // unused, this needs to be rewritten
