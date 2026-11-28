@@ -42,26 +42,24 @@ export function searchInstancesJson(args: string[]): SearchHit[] {
             } as SearchHit;
         });
     } else {
+        const instances: SearchHit[] = [];
         Java.performNow(function () {
-            const instances: SearchHit[] = [];
             Java.choose(className, {
                 onMatch: function (instance) {
                     instances.push(
                         {
                             address: instance.$h,
-                            content: instance.className,
+                            content: instance.$className,
                             size: 0,
                         } as SearchHit,
                     );
                 },
                 onComplete: function () {
-                    console.log("search done");
                 },
             });
-            return instances;
         });
+        return instances;
     }
-    return [];
 }
 
 export function searchJson(args: string[]): SearchHit[] {
