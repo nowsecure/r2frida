@@ -40,13 +40,16 @@ export async function dumpInfo() {
 
 export async function dumpInfoR2() {
     const properties: any = await dumpInfoJson();
-    const jnienv = properties.jniEnv !== undefined ? properties.jniEnv : "";
-    return [
+    const lines = [
         "e asm.arch=" + properties.arch,
         "e asm.bits=" + properties.bits,
         "e asm.os=" + properties.os,
         "f r2f.modulebase=" + properties.modulebase,
-    ].join("\n") + jnienv;
+    ];
+    if (properties.jniEnv !== undefined) {
+        lines.push("f r2f.jnienv=" + properties.jniEnv);
+    }
+    return lines.join("\n");
 }
 
 export async function dumpInfoJson() {
