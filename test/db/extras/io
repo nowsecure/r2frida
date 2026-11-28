@@ -77,3 +77,21 @@ EXPECT=<<EOF
 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
 EOF
 RUN
+
+NAME=o pid:// after o file closes the file
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+f fd0=`:dd~?`
+:o /~?
+:o pid://`:dp`~?
+:o-~?
+?vi `:dd~?`-fd0
+EOF
+EXPECT=<<EOF
+1
+1
+1
+0
+EOF
+RUN
