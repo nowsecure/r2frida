@@ -1,0 +1,16 @@
+NAME=dxc quoted string arguments
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+:dxc strlen "a b c"~0x5?
+:dxc strlen "hello"~0x5?
+:dxc strlen ""~0x0?
+:dxc strncmp "ab cd" "ab ce" 4~0x0?
+EOF
+EXPECT=<<EOF
+1
+1
+1
+1
+EOF
+RUN
