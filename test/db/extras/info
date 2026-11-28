@@ -19,3 +19,14 @@ EXPECT=<<EOF
 1
 EOF
 RUN
+
+NAME=isa module symbol resolves the symbol in that module
+FILE=frida://0
+TIMEOUT=30
+CMDS=<<EOF
+?vi `:isa libc.so.6 getpid`-`:isa getpid`
+EOF
+EXPECT=<<EOF
+0
+EOF
+RUN
