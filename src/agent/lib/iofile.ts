@@ -294,9 +294,10 @@ class IOFileManager {
         const O_RDWR = 2, O_RDONLY = 0;
         const pathPtr = Memory.allocUtf8String(path);
 
-        const fd = this.symbols.open(pathPtr, O_RDWR) >= 0
-            ? this.symbols.open(pathPtr, O_RDWR)
-            : this.symbols.open(pathPtr, O_RDONLY);
+        let fd = this.symbols.open(pathPtr, O_RDWR);
+        if (fd < 0) {
+            fd = this.symbols.open(pathPtr, O_RDONLY);
+        }
 
         if (fd < 0) return `ERROR: cannot open ${path}`;
 
