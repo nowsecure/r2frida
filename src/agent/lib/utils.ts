@@ -270,7 +270,12 @@ export function getPtr(p: any): NativePointer {
     return (res === null) ? ptr(0) : res;
 }
 
-export function autoType(args: string[]) {
+function _joinQuotedArgs(args: string[]): string[] {
+	return args.join(' ').match(/"[^"]*"?|\S+/g) ?? [];
+}
+
+export function autoType(rawArgs: string[]) {
+    const args = _joinQuotedArgs(rawArgs);
     const nfArgs = [];
     const nfArgsData = [];
     // push arguments

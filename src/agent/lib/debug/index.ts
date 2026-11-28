@@ -118,6 +118,7 @@ export function dxCall(args: string[]): any {
     Usage: dxc [funcptr] [arg0 arg1..]
     For example:
     :dxc write 1 "hello\\n" 6
+    :dxc write 1 "hello world\\n" 12
     :dxc read 0 \`?v rsp\` 10
     `;
     }
