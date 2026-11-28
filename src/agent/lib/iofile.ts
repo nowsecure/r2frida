@@ -270,6 +270,7 @@ class IOFileManager {
             return "ERROR: process_vm symbols not available";
         }
 
+        this.resetCurrentIO();
         this.setupRemoteProcess(pid, null);
         return `IO redirected to: remote process ${pid} (process_vm)`;
     }
